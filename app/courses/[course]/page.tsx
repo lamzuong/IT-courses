@@ -31,6 +31,10 @@ export default async function CoursePage({ params }: { params: Promise<{ course:
     ? course.whatYoullBuild.split('—').slice(1).join('—').trim()
     : course.whatYoullBuild;
 
+  // The "What you'll build" panel uses the same trimmed blurb, since the
+  // course title is already rendered as the page h1 just above it.
+  const buildBlurb = projectBlurb;
+
   return (
     <main id="main-content" className="mx-auto max-w-4xl px-6 py-16">
       <header className="mb-12">
@@ -47,7 +51,7 @@ export default async function CoursePage({ params }: { params: Promise<{ course:
           </div>
           <div>
             <h2 className="text-xs uppercase tracking-widest text-[color:var(--color-text-soft)] mb-3">What you&apos;ll build</h2>
-            <p className="text-sm">{course.summary}</p>
+            <p className="text-sm">{buildBlurb}</p>
           </div>
         </div>
       </header>
