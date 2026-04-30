@@ -50,6 +50,18 @@ export default async function LessonPage({ params }: { params: Promise<Params> }
           ]}
         />
         <article className="mx-auto max-w-[var(--container-prose)] mt-6">
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                '@context': 'https://schema.org',
+                '@type': 'LearningResource',
+                name: ctx.lesson.title,
+                isPartOf: { '@type': 'Course', name: ctx.course.title },
+                learningResourceType: 'Lesson',
+              }),
+            }}
+          />
           <p className="text-xs uppercase tracking-widest text-[color:var(--color-text-soft)]">
             Lesson {ctx.index + 1} / {ctx.total}
           </p>

@@ -37,6 +37,18 @@ export default async function CoursePage({ params }: { params: Promise<{ course:
 
   return (
     <main id="main-content" className="mx-auto max-w-4xl px-6 py-16">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Course',
+            name: course.title,
+            description: course.summary,
+            provider: { '@type': 'Person', name: 'Phuoc Luu' },
+          }),
+        }}
+      />
       <header className="mb-12">
         <p className="text-xs uppercase tracking-widest text-[color:var(--color-text-soft)] mb-3">Course</p>
         <h1 className="font-serif text-4xl md:text-5xl font-bold tracking-tight leading-tight">{course.title}</h1>
