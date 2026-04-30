@@ -1,0 +1,78 @@
+import { Callout } from '@/components/mdx/callout';
+
+You've made it through 18 lessons. Now you're going to build a real app that puts everything together: a **Restaurant Table Booking Manager**.
+
+## What you'll build
+
+A small floor-plan tool a restaurant host could realistically use. The screen has two regions:
+
+- **A floor plan canvas** showing tables (rectangles or circles) placed in 2D space.
+- **A reservations sidebar** listing pending bookings (party name, party size, time).
+
+The host can: drag a reservation onto a table to assign it, drag tables to reposition them on the floor (snapping to a grid), and drag two tables together to **connect** them — creating a single linked group with a combined seat count for large parties.
+
+It must work on desktop, on touch (the host might be using a tablet), and via keyboard (for accessibility).
+
+## Requirements
+
+These are the must-haves:
+
+- A floor plan canvas with at least 6 tables of varying capacities (2-, 4-, 6-seat) placed in 2D
+- A reservations sidebar that's a sortable list (drag to reorder reservations)
+- Drag a reservation onto a table → reservation is assigned, table is marked occupied
+- Drag tables on the floor → snap to a 20px grid
+- **Drag-to-connect:** drag table A within ~24px of table B → they auto-link with a visible connector. Combined seat count is shown on either table. Click the connector to disconnect.
+- Works on desktop, touch, and keyboard
+- localStorage persistence: floor plan layout, reservation assignments, and connections survive a page refresh
+
+## Suggested file structure
+
+```
+src/
+├── App.tsx
+├── components/
+│   ├── FloorPlan.tsx          # the canvas + DndContext
+│   ├── Table.tsx              # one draggable table
+│   ├── Reservation.tsx        # one draggable reservation card
+│   ├── Sidebar.tsx            # the sortable reservations list
+│   └── Connector.tsx          # visual link between two connected tables
+├── hooks/
+│   ├── useTables.ts           # state: positions, occupants, connections
+│   └── usePersistence.ts      # read/write to localStorage
+├── lib/
+│   ├── grid.ts                # snap-to-grid math
+│   └── collision.ts           # custom proximity-based collision detection
+└── types.ts
+```
+
+## Step-by-step guideline
+
+Build it in this order — each step is a working app you can test before moving to the next.
+
+1. **Hardcoded floor plan canvas.** Put 6 tables on the screen with absolute positioning. No dragging yet. Just get the visual right.
+2. **Drag tables to reposition.** Wrap the floor in `DndContext`. Each table gets `useDraggable`. On `onDragEnd`, update the table's position in state. Add the snap-to-grid modifier from `@dnd-kit`.
+3. **Reservations sidebar (sortable).** Build the sidebar using `@dnd-kit/sortable`. Each reservation is a `useSortable` item. Reordering should work via mouse, touch, and keyboard.
+4. **Drag reservations onto tables.** Each table also gets `useDroppable`. In `onDragEnd`, if a reservation lands on a table, assign it. The table visually changes to show it's occupied.
+5. **Drag-to-connect tables.** This is the hardest step. You need custom collision detection — when one table's center is within ~24px of another's, they should connect. Look at `pointerWithin` and write your own collision algorithm based on it. Render a `<Connector>` line/box between connected tables.
+6. **Keyboard accessibility pass.** Make sure all three drag interactions (tables, reservations, drag-to-connect) work via keyboard. Add screen-reader announcements via `<DndContext announcements={...}>`.
+7. **localStorage persistence.** Wrap the whole state in `usePersistence`. Read on mount, write on change.
+
+## Common pitfalls
+
+- **Forgetting `preventDefault` in dragover** — only relevant if you're mixing in HTML5 DnD. With `@dnd-kit` you won't hit this, but it's the #1 gotcha if you ever drop down a layer.
+- **Stale closures in `onDragEnd`** — keep your handlers using functional state updates (`setTables(prev => ...)`) so you don't capture stale state.
+- **Custom collision detection running too often** — collision runs on every move event. Keep it cheap. Don't iterate every table on every pixel of movement; cache something.
+- **Connector lines that don't update on table drag** — the connector position needs to derive from the two table positions in render, not be stored separately.
+- **Mobile drag stealing scroll** — when wrapping a table in `useDraggable`, the touch sensor may need a small `activationConstraint: { delay: 150 }` so a quick swipe can still scroll the page.
+
+## Stretch goals
+
+- **Multi-select with shift-click** — move several tables together
+- **Undo/redo** — keep an action history in state
+- **Time-based reservation filtering** — show only reservations for the next 2 hours
+- **Different table shapes** — round, square, rectangle, with capacity tied to shape
+- **Capacity warnings** — flag a connected group whose combined capacity is less than the assigned party size
+
+## Reference
+
+Once a reference implementation is published it'll be linked here.
