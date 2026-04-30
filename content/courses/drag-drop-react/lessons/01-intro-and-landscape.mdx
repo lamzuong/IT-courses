@@ -1,0 +1,41 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Drag and drop is one of those interactions that *seems* trivial until you actually try to build it. The browser ships a "drag and drop API" with the platform, but it has serious limitations — it doesn't work on touch, it's awkward to style, and it has no built-in accessibility story. To build something that actually works for real users, you almost always reach for a library, or build your own from lower-level primitives.
+
+This course teaches both. You'll learn what the browser gives you, why those primitives aren't enough on their own, how to build cross-device drag from scratch using Pointer Events, and finally the modern React way with `@dnd-kit`. We'll wrap it all up by building a real Restaurant Table Booking Manager — drag reservations onto tables, drag tables on a snap-to-grid floor plan, and drag tables together to combine them for large parties.
+
+## What the browser ships
+
+Modern browsers offer two relevant APIs for building drag interactions:
+
+1. **HTML5 Drag and Drop API** — declarative-ish, fires `dragstart` / `dragover` / `drop` events. Doesn't work on touch.
+2. **Pointer Events API** — low-level unified mouse/touch/pen events. You build "drag" yourself on top of `pointerdown` / `pointermove` / `pointerup`.
+
+We'll cover both in Part 1.
+
+## The library landscape
+
+In React, the practical choices in 2026 are:
+
+- **`@dnd-kit`** — modern, modular, accessible, the recommended default
+- **`react-dnd`** — older, still maintained, more verbose API
+- **`react-beautiful-dnd`** — popular for years, now deprecated and unmaintained
+- **`react-grid-layout`** — specialized: grid-based dashboard layouts
+
+Part 2 of this course focuses on `@dnd-kit`.
+
+<Callout type="tip" title="When to skip libraries">
+For very simple interactions — a single draggable element with one drop zone, no need for keyboard or sortable lists — native APIs are fine. As soon as you need sortable lists, accessibility, animations, or anything cross-container, reach for a library.
+</Callout>
+
+## What you'll build
+
+The course finale is a **Restaurant Table Booking Manager**. It exercises every concept: sortable lists (the reservation sidebar), free-form 2D drag (tables on the floor), cross-container drag (reservation → table), custom collision detection (table-to-table proximity for connecting), keyboard accessibility, and persistence. You'll have a portfolio piece by the end.
+
+<Recap>
+- Drag-and-drop is harder than it looks because of mobile, accessibility, and styling constraints.
+- The browser gives us HTML5 DnD (desktop only) and Pointer Events (everywhere, low-level).
+- In React, `@dnd-kit` is the modern default in 2026.
+- Part 1 builds your foundations from the platform up; Part 2 teaches `@dnd-kit`; the final project ties it together.
+</Recap>

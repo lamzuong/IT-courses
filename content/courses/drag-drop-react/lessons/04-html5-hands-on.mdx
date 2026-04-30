@@ -1,0 +1,37 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { Html5BinDemo } from '@/components/demos/drag-drop-react/html5-bin-demo';
+
+We've seen the events (Lesson 2) and the data flow (Lesson 3). Time to put them together. We'll build a tiny "drag a card into a bin" demo using only the HTML5 DnD API — no library, no React magic beyond `useState`.
+
+## The five rules
+
+To make HTML5 DnD work, you need:
+
+1. **Mark the source `draggable={true}`** so the browser will start a drag on it.
+2. **In `dragstart`, set `dataTransfer.setData()`** so something travels with the drag.
+3. **In `dragover` on the target, call `e.preventDefault()`** — this signals "I accept the drop." Without it, the drop event never fires.
+4. **In `drop`, call `preventDefault()` and read `dataTransfer.getData()`** to figure out what was dropped.
+5. **Set `dataTransfer.effectAllowed` and `dropEffect`** so the cursor shows the right feedback.
+
+## The demo
+
+Drag a card into the bin. Inspect the events in DevTools to see the order they fire.
+
+<Demo title="HTML5 drag-into-bin">
+  <Html5BinDemo />
+</Demo>
+
+## Why this won't work on your phone
+
+If you opened this on a touch device, you noticed: nothing happens. HTML5 DnD ignores touch. The browser fires `touchstart` and starts a scroll, never a drag. We'll address this in Lesson 6 with Pointer Events.
+
+<Callout type="warning" title="Don't ship this to production">
+This pattern is fine for desktop-only internal tools but breaks on mobile and has no keyboard or screen-reader story. For real apps, use `@dnd-kit` (Part 2) or build cross-device drag from scratch (Lessons 6–9).
+</Callout>
+
+<Recap>
+- HTML5 DnD requires `draggable={true}`, `setData` in `dragstart`, `preventDefault` in `dragover`, and reading `getData` in `drop`.
+- Without `preventDefault` in `dragover`, the drop event never fires — this is the #1 gotcha.
+- HTML5 DnD does not work on touch. That's the gap Pointer Events will close.
+</Recap>
