@@ -16,7 +16,10 @@ export function CodeBlock({ children }: { children: ReactNode }) {
     <div className="relative group my-6">
       <pre
         ref={ref}
-        className="rounded-md bg-[color:var(--color-code-bg)] text-[color:var(--color-code-text)] p-4 overflow-x-auto text-sm leading-6"
+        tabIndex={0}
+        role="region"
+        aria-label="Code sample"
+        className="rounded-md bg-[color:var(--color-code-bg)] text-[color:var(--color-code-text)] p-4 overflow-x-auto text-sm leading-6 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[color:var(--color-link)]"
       >
         {children}
       </pre>
