@@ -1,0 +1,100 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+
+You've shipped an AI Operator that runs locally on Ollama. It plans, it asks for confirmation, it commits to a real database, it audits, it tests. Now ship it for real. The gap between your laptop and a production URL is smaller than it looks — it's an import, an env var, a deploy command, a couple of guard rails — but every step has a place where a small mistake quietly costs money. This lesson walks the gap.
+
+The promise is small and concrete: by the end of this page, you've swapped the model provider, configured the secrets, deployed to Vercel, capped the budget, and added a rate limiter. That is the floor for a production AI feature. Everything else — multi-tenant policies, audit retention, per-customer fine-tuning — is a layer on top.
+
+## 01 — Provider swap
+
+Ollama was the right choice for development: free, local, fast iteration, no rate-limit surprises while you're writing tests. It is the wrong choice for production: it doesn't ship to Vercel, it would crush a small VPS, and the open-weights models lag the hosted frontier. Swap to a hosted provider with one import:
+
+```ts
+// Before: dev on your laptop
+import { ChatOllama } from '@langchain/ollama';
+const llm = new ChatOllama({ model: 'llama3.1:8b', temperature: 0 });
+
+// After: production
+import { ChatAnthropic } from '@langchain/anthropic';
+const llm = new ChatAnthropic({
+  model: 'claude-sonnet-4',
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  temperature: 0,
+});
+```
+
+The interface is the same. Your graph code does not change. Your tools do not change. Your tests, if you wrote them with `FakeListChatModel`, also do not change. This is the payoff for sticking to the LangChain abstraction the whole way through — the swap is a one-line edit and a re-deploy.
+
+(`@langchain/openai` and `@langchain/google-genai` are the same shape. Pick on price and capability; switching providers later is another one-line edit.)
+
+## 02 — Env vars
+
+```bash
+# .env.local for development
+ANTHROPIC_API_KEY=sk-ant-api03-...
+
+# Vercel: project settings → environment variables
+# Add ANTHROPIC_API_KEY for the Production environment.
+# Optionally add LANGSMITH_API_KEY and LANGSMITH_TRACING=true.
+```
+
+Two rules. Never commit a real key to git — your editor probably has a hook that complains; trust it. Never reuse the same key across dev and prod — rotate dev keys liberally and keep the prod key tightly scoped. Most providers let you set per-key rate limits in their dashboard; a dev key with a $5/day cap stays out of trouble even if you accidentally `console.log` it on a Tuesday.
+
+## 03 — Deploy
+
+```bash
+vercel deploy --prod
+```
+
+That's the command. The interesting parts happen around it. Vercel's Functions are stateless; your in-memory `MemorySaver` checkpointer (lesson 20) does not survive between requests. Switch it to a Postgres-backed checkpointer before the first deploy, or your interrupts will lose state every time the function cold-starts:
+
+```ts
+import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
+
+const checkpointer = PostgresSaver.fromConnString(process.env.POSTGRES_URL!);
+await checkpointer.setup();
+
+const graph = builder.compile({ checkpointer });
+```
+
+Your audit log table from lesson 12 lives in the same Postgres. Reuse the connection. One database is enough for a small app.
+
+## 04 — Rate limits, three flavours
+
+Three layers, each catching a different kind of accident.
+
+**Provider rate limits** are not yours to set; they are the API's own. Anthropic, OpenAI, and Google all return 429 on overrun. Wrap your LLM calls in a retry-with-backoff (lesson 14) and you'll handle most transient cases without the user noticing.
+
+**Per-user rate limits** are yours. A simple sliding-window counter — say, 50 requests per user per hour — keeps a single curious user from accidentally setting the entire month's budget on fire. Vercel KV or Upstash Redis is enough; a few lines of middleware in front of the agent handler.
+
+**Global circuit-breakers** are the kill-switch from lesson 23. A daily cap, checked on every request, that pauses the whole agent if today's spend exceeds the cap. The user gets a friendly *"AI is paused for the day"* card instead of a 500.
+
+All three together is the floor. The first time one of them fires in production, you will be glad it did.
+
+## 05 — Cost monitoring
+
+You wrote the callback handler in lesson 23. Wire it on every model in production. Build the three queries (yesterday's spend, top spenders, daily trend) into a small admin page or a scheduled email; you don't need a fancy dashboard, you need numbers in front of your face often enough that surprises become impossible.
+
+<Callout type="tip">
+  For your first production deploy, set the daily budget cap to **$10/day** and walk away. If you hit it, your prompt or your loop has a bug — find the bug, then raise the cap. The cap is not what limits your business; it is what protects you while you find the limits of the code.
+</Callout>
+
+## 06 — What you've built
+
+Here is what was true twenty-four lessons ago and isn't anymore.
+
+Twenty-four lessons ago, "AI in my project" was an aspiration with no surface. There was no place in your code where it lived; there was a vague intention to "do something with the LLM" wedged between two existing features. You picked Ollama and pulled a model — Part I. You streamed text into the UI, taught a model your domain through prompts and structured output — Part II. You bound your first read tools, then your first dangerous write tool with a confirmation gate and an idempotency key — Part III. You stitched it into a graph, added conditional routing, paused the runtime with `interrupt()` — Part IV. And you closed the production-readiness gap: prompt injection, golden tests, observability, budget caps — Part V.
+
+What sits on disk now is a piece of software with a state machine you understand, tools you wrote and validated yourself, an audit log of every mutation, and a set of CI tests that catches regressions before customers do. It is not a chatbot. It is an *AI Operator* — a graph that proposes mutations, asks for permission, executes the approved ones, and tells the truth in the audit log about what it did. That distinction is the entire arc of this course.
+
+The final project takes everything one step further: a fully interactive AI Operator console that simulates the whole loop end-to-end. Build it, ship it, take screenshots, put it on your portfolio. The next time someone asks *"do you know how to put AI in a real product?"* — you have an answer that is not a tutorial recap. It's something you shipped.
+
+<Recap>
+- One import swaps `ChatOllama` for `ChatAnthropic` (or OpenAI, or Gemini). The graph code, tools, and tests do not change.
+- `ANTHROPIC_API_KEY` lives in Vercel's project env vars, never in git. Rotate dev keys cheaply; scope prod keys tightly.
+- Switch to a Postgres checkpointer before deploy — Vercel Functions are stateless, `MemorySaver` does not survive cold starts.
+- Three rate-limit layers: provider 429 retries, per-user sliding windows, global daily kill-switch.
+- Wire the cost-logging callback on every prod model. Three SQL queries beat any dashboard.
+- First-deploy budget cap: $10/day. Hit it? Find the bug; don't raise the cap.
+- Across 24 lessons you built a state machine that plans, gates, mutates, and audits. That's the whole arc — from "what's AI in my project" to *shipped*.
+</Recap>

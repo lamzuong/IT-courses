@@ -1,0 +1,103 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { TokenCounterDemo } from '@/components/demos/ai-in-your-project/token-counter-demo';
+
+Every LLM call is a paid request. You wouldn't ship a service that hits a third-party API without a request log; don't ship an AI without a call log. Observability for AI is two things at once: it is *operational telemetry* — what happened, when, how long, did it fail — and it is *spend telemetry* — how much did this cost, who incurred it, is the trend up or down. The first kind is familiar; the second is the one teams discover the hard way, usually around the end of the first month, when the bill arrives.
+
+This lesson sketches the minimum viable setup: pick a tracing tool (or roll one in fifty lines), pin token usage to your own database, and turn on a per-user budget cap before your first paying user signs up.
+
+## 01 — LangSmith and the friends
+
+[LangSmith](https://smith.langchain.com) is the LangChain team's hosted tracing tool, and it slots into a LangChain or LangGraph app with one environment variable: `LANGSMITH_TRACING=true`. Once it's on, every chain, every tool call, every node in your graph is captured as a tree you can click through — inputs, outputs, latency, token usage, retries. The free tier is generous enough for a side project; the paid tier adds eval datasets, alerting, and team-shared traces. There are alternatives — Helicone, Langfuse, Phoenix, Honeycomb's LLM views — and the choice between them mostly comes down to which one fits the data shape your team already uses for non-AI services.
+
+For a first ship, pick whichever one is fastest to wire and revisit later. The lock-in is light; trace data is mostly OpenTelemetry under the hood.
+
+## 02 — The free DIY alternative
+
+If you don't want a third-party tool yet, write a callback into the model itself and log to your own database. LangChain's callback system lets you hook into the lifecycle of every LLM call:
+
+```ts
+import { BaseCallbackHandler } from '@langchain/core/callbacks/base';
+import { db } from '@/lib/db';
+
+class CostLogger extends BaseCallbackHandler {
+  name = 'cost-logger';
+
+  async handleLLMEnd(output: LLMResult, runId: string) {
+    const usage = output.llmOutput?.tokenUsage;
+    if (!usage) return;
+    await db.insert(llmCalls).values({
+      runId,
+      model: output.llmOutput?.model_name ?? 'unknown',
+      promptTokens: usage.promptTokens,
+      completionTokens: usage.completionTokens,
+      totalTokens: usage.totalTokens,
+      timestamp: new Date(),
+    });
+  }
+}
+
+const llm = new ChatAnthropic({
+  model: 'claude-sonnet-4',
+  callbacks: [new CostLogger()],
+});
+```
+
+That's the whole observability story for a small app. One table, one callback handler, one row per LLM call. Pin that to a user ID in the next iteration and you have per-user accounting. It's not as pretty as LangSmith's UI, but it answers every question a billing dashboard needs to answer.
+
+## 03 — Token accounting: where the spend actually goes
+
+Tokens are not distributed evenly across your app. The lessons of Part II — system prompts, conversation history, schema in context — all add up on the input side. Tools (lesson 11) add on both sides: every tool definition is input tokens on every turn, every tool result is more input tokens on the next turn. Multi-step plans (lesson 17) compound it: a four-step plan is four LLM calls, each of which carries the full conversation history *up to that point*.
+
+The demo below makes the breakdown visible. Notice how a multi-step plan is roughly 10× the cost of a quick chat — and most of that growth is in conversation history, not output. That ratio is true in the wild and it has implications. If you're trying to cut spend, the lever is almost never *"use a smaller model for the output"*; it's *"trim the history we send back in"*.
+
+<Demo title="Token mix and cost across three scenarios">
+  <TokenCounterDemo />
+</Demo>
+
+<Callout type="note">
+  Tokens are deceptive. A "cheap" model can outspend a "premium" one if your prompt has 50× more context. Always log everything; trust the rate card less than the actual rows in your `llm_calls` table.
+</Callout>
+
+## 04 — Budgets and alerts
+
+Once the rows are landing in a table, the dashboards write themselves. Three queries to start:
+
+```sql
+-- Yesterday's total spend, by model.
+SELECT model, SUM(total_tokens), SUM(estimated_usd)
+FROM llm_calls
+WHERE timestamp >= now() - interval '1 day'
+GROUP BY model;
+
+-- Top spenders, last 7 days.
+SELECT user_id, COUNT(*) calls, SUM(estimated_usd) usd
+FROM llm_calls
+WHERE timestamp >= now() - interval '7 days'
+GROUP BY user_id
+ORDER BY usd DESC
+LIMIT 20;
+
+-- Daily spend trend.
+SELECT date_trunc('day', timestamp) day, SUM(estimated_usd)
+FROM llm_calls
+GROUP BY 1
+ORDER BY 1;
+```
+
+Build the queries first, then bolt on alerts: a per-user daily cap (most users will never hit it; the ones who do are either bots or stuck in a loop), a global daily cap (a kill-switch that pauses the agent if today's spend has 10×'d yesterday's), and a weekly review that emails you the top spenders so you spot patterns before the next bill.
+
+The kill-switch matters more than it sounds. The first time a buggy prompt sends your agent into a fifty-step loop, you want the cap to fire automatically rather than wait for you to notice on Monday morning. *"It capped out at $73 and emailed me"* is a story; *"it ran all weekend and the bill is $4,200"* is a different story.
+
+## 05 — A note on what you're really measuring
+
+Observability gives you four things, in order of how much you'll use them: spend (every day), latency (every week), tool-call success rate (every release), and prompt-change attribution (every time something feels different). The fourth one is the unsung hero. When a customer says *"the assistant feels worse this week"* and you have a trace from before the change you suspect, the question becomes a diff instead of an investigation. Without traces, you guess. With traces, you compare.
+
+<Recap>
+- LangSmith (or Helicone, Langfuse, Phoenix) flips on with one env var and gives you a clickable trace tree per call.
+- For DIY: a `BaseCallbackHandler` with `handleLLMEnd` writes one row per LLM call to your own DB. Fifty lines, full coverage.
+- Token usage skews toward conversation history in multi-step plans — 10× a quick chat is normal.
+- Cost optimization is usually about trimming history, not picking a cheaper model.
+- Build three queries (spend by model, top spenders, daily trend), then add a per-user cap and a global kill-switch.
+- Don't trust the rate card; trust the rows in your `llm_calls` table.
+</Recap>

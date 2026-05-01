@@ -1,0 +1,129 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+
+Testing AI integrations is testing a stochastic system. The patterns are different from unit-testing a sort function. A sort function has one right answer for every input; a model has a distribution. You can lower the temperature, you can pin the seed, you can swear at the API — and on a flaky day a model will still emit a slightly different sentence than yesterday. The trick is to stop testing the parts that vary and start testing the parts that don't. This lesson is about which parts are which.
+
+The promise: by the end you'll have golden tests for tool-call routing, snapshot tests for prose shape, fake LLMs in your unit tests, and an eval dataset on every PR. None of those four things is "test that the AI is smart." All four are testing software, with the model as a deterministic-enough collaborator.
+
+## 01 — Golden tool-call tests
+
+Given a fixed prompt, fixed system prompt, and fixed tool definitions, the model should call the *right tool* with the *right args*. That is the part of your AI integration that is closest to deterministic, and it is the part most worth pinning. Set `temperature: 0`, run a small suite of inputs through the agent, and assert on the tool calls that come out:
+
+```ts
+test('lapsed-customer prompt produces a four-step plan', async () => {
+  const llm = new ChatAnthropic({ model: 'claude-sonnet-4', temperature: 0 });
+  const agent = createAgent({ llm, tools: allTools, systemPrompt: SYSTEM });
+
+  const result = await agent.invoke({
+    messages: [new HumanMessage('Create a 15% promo for customers who haven\'t ordered in 60 days.')],
+  });
+
+  const calls = result.messages.flatMap((m) =>
+    isAIMessage(m) ? m.tool_calls ?? [] : [],
+  );
+
+  expect(calls.map((c) => c.name)).toEqual([
+    'promotions.create',
+    'customers.lapsed',
+    'email_drafts.create',
+  ]);
+  expect(calls[0].args).toMatchObject({ discountValue: 15 });
+});
+```
+
+`temperature: 0` plus `isAIMessage` from `@langchain/core/messages` is the workhorse pattern. Run this in CI on every PR; when a prompt change breaks the routing, the assertion fires and you find out before a customer does.
+
+## 02 — Snapshot regression for prose
+
+Sometimes the model has to generate prose: an email body, an explanation, a summary. You cannot assert on the exact string — punctuation will drift between runs. You *can* assert on the structure:
+
+```ts
+test('email body has the expected shape', async () => {
+  const out = await agent.invoke({ messages: [new HumanMessage(PROMPT)] });
+  const body = out.draft.body;
+
+  expect(body.split(/[.!?]/).filter(Boolean).length).toBeGreaterThanOrEqual(3);
+  expect(body).toMatch(/15%/);
+  expect(body).toMatch(/code\s+LAPSED15/i);
+  expect(body).not.toMatch(/\{\{|<placeholder>/i);
+});
+```
+
+Three sentences or more. Mentions the discount. Mentions the code. Has no leftover template placeholders. Those four shape assertions catch most regressions without chaining your test suite to one specific phrasing.
+
+## 03 — Fake LLMs in tests
+
+Your graph logic — routing, interrupts, retry loops — does not need a real model to be tested. Real models are slow and expensive and flaky in CI. Use a fake:
+
+```ts
+import { FakeListChatModel } from '@langchain/core/utils/testing';
+
+test('graph routes write tool calls to await_confirmation', async () => {
+  const fake = new FakeListChatModel({
+    responses: [
+      // The model "decides" to call promotions.create. Encoded as a
+      // tool-call message your graph parses normally.
+      JSON.stringify({
+        tool_calls: [{ name: 'promotions.create', args: { code: 'TEST' }, id: '1' }],
+      }),
+    ],
+  });
+
+  const graph = buildGraph({ llm: fake });
+  const result = await graph.invoke({ messages: [new HumanMessage('go')] });
+
+  expect(result.__interrupt__).toBeDefined();
+  expect(result.__interrupt__[0].value.kind).toBe('confirm_writes');
+});
+```
+
+`FakeListChatModel` returns its `responses` in order. You can script a five-turn conversation, including parallel tool calls, simulated errors, anything. None of it costs tokens and none of it varies between runs. Your graph code thinks it's talking to a real LLM; it never has to know.
+
+## 04 — Eval datasets
+
+Beyond unit tests, you want a corpus of representative prompts replayed on every PR. A few dozen `(prompt, expected_tool_calls)` pairs in a JSON file:
+
+```json
+[
+  {
+    "id": "lapsed-customer-basic",
+    "prompt": "Create a 15% promo for customers who haven't ordered in 60 days.",
+    "expected": {
+      "tools": ["promotions.create", "customers.lapsed", "email_drafts.create"],
+      "first_args": { "discountValue": 15, "audience": "lapsed-60d" }
+    }
+  },
+  {
+    "id": "vip-thank-you",
+    "prompt": "Send a thank-you email to all VIP customers.",
+    "expected": {
+      "tools": ["customers.byTag", "email_drafts.create"]
+    }
+  }
+]
+```
+
+A small script loads the file, runs each prompt through the live agent, and reports a pass/fail per row plus a summary. When you tune a prompt or swap a model, you watch the score on the dataset go up or down. This is the evaluation layer; it is what lets you make a prompt change with confidence instead of crossed fingers. Several frameworks (LangSmith, Promptfoo) automate this loop, but a fifty-line script in your own repo is enough to start.
+
+<Callout type="tip">
+  Don't try to test "is the AI nice." Test "does the graph reach the END node when the user rejects." One is fuzzy; the other is software. Fuzzy properties are evaluated by humans skimming sample outputs; deterministic properties are tested by your CI. Don't mix them up.
+</Callout>
+
+## 05 — What's worth testing, what isn't
+
+A short triage list:
+
+- **Worth testing** — Graph routing logic. Tool args validation. Error recovery paths. Interrupt and resume. The deterministic surface is large; treat it like any other state machine.
+- **Worth evaluating, not unit-testing** — Prose quality, tone, helpfulness. These belong in your eval dataset with sample-and-review, not in a CI assertion that fails on a comma change.
+- **Not worth testing** — The model's specific word choice. Whether it uses "however" or "but". Whether it puts the discount before or after the deadline in the email. You will lose your mind chasing these flakes.
+
+The mental model: your graph is software, your tools are software, your validators are software — test those rigorously. The model itself is a probabilistic component you wire between them; you bound its inputs and outputs, then you trust it within those bounds. You don't *test* trust; you *measure* it on the eval dataset.
+
+<Recap>
+- Test the deterministic surface: routing, args, recovery, interrupt and resume. Skip the model's prose creativity.
+- Golden tool-call tests: `temperature: 0`, fixed prompt, assert on `tool_calls` from `isAIMessage` results.
+- Snapshot prose by shape (sentence count, key phrases, JSON structure) — not exact text.
+- Use `FakeListChatModel` from `@langchain/core/utils/testing` to test graph logic without real tokens.
+- Build a small eval dataset of `(prompt, expected_tool_calls)` and replay it on every PR; tune prompts against the score.
+- *"Does the graph reach END when the user rejects?"* is testable. *"Is the AI nice?"* is evaluable. Don't confuse them.
+</Recap>
