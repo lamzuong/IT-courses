@@ -1,78 +1,260 @@
 import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { TableBookingDemo } from '@/components/demos/drag-drop-react/table-booking-demo';
 
-You've made it through 18 lessons. Now you're going to build a real app that puts everything together: a **Restaurant Table Booking Manager**.
+You've made it through 18 lessons. Now we put everything together: a real **Restaurant Table Booking Manager** that exercises sortable lists, free-form 2D drag, cross-container drops, custom collision, modifiers, and the drag overlay — all in one screen, all working with mouse, touch, and keyboard.
 
-## What you'll build
+The demo below is the finished project. Play with it first; the rest of this page walks through how each piece works.
 
-A small floor-plan tool a restaurant host could realistically use. The screen has two regions:
+<Demo title="Restaurant Table Booking Manager — full project">
+  <TableBookingDemo />
+</Demo>
 
-- **A floor plan canvas** showing tables (rectangles or circles) placed in 2D space.
-- **A reservations sidebar** listing pending bookings (party name, party size, time).
+What you can do:
 
-The host can: drag a reservation onto a table to assign it, drag tables to reposition them on the floor (snapping to a grid), and drag two tables together to **connect** them — creating a single linked group with a combined seat count for large parties.
+- **Reorder reservations** — drag a card up or down in the sidebar
+- **Seat a party** — drag a reservation card onto a table; the table goes from "free" to filled
+- **Move tables** — drag any table on the floor; positions snap to the 20px grid
+- **Combine for large parties** — drop a table within ~80px of another and they auto-link with a dashed outline; the group's combined capacity appears on each member
+- **Split a group** — click the **split** button on the group outline
+- **Reset all** — top-right of the sidebar
 
-It must work on desktop, on touch (the host might be using a tablet), and via keyboard (for accessibility).
+The status line under the floor plan announces every action — that's the same `aria-live` channel a screen reader hears.
 
-## Requirements
+## State shape
 
-These are the must-haves:
+Three pieces of state. Reservations live in a sidebar order. Tables are keyed by id with absolute coordinates. Groups are arrays of table ids that have been combined.
 
-- A floor plan canvas with at least 6 tables of varying capacities (2-, 4-, 6-seat) placed in 2D
-- A reservations sidebar that's a sortable list (drag to reorder reservations)
-- Drag a reservation onto a table → reservation is assigned, table is marked occupied
-- Drag tables on the floor → snap to a 20px grid
-- **Drag-to-connect:** drag table A within ~24px of table B → they auto-link with a visible connector. Combined seat count is shown on either table. Click the connector to disconnect.
-- Works on desktop, touch, and keyboard
-- localStorage persistence: floor plan layout, reservation assignments, and connections survive a page refresh
+```ts
+type Reservation = { id: string; partyName: string; partySize: number; time: string };
+type Table = { id: string; label: string; capacity: number; x: number; y: number; seatedId?: string };
 
-## Suggested file structure
-
-```
-src/
-├── App.tsx
-├── components/
-│   ├── FloorPlan.tsx          # the canvas + DndContext
-│   ├── Table.tsx              # one draggable table
-│   ├── Reservation.tsx        # one draggable reservation card
-│   ├── Sidebar.tsx            # the sortable reservations list
-│   └── Connector.tsx          # visual link between two connected tables
-├── hooks/
-│   ├── useTables.ts           # state: positions, occupants, connections
-│   └── usePersistence.ts      # read/write to localStorage
-├── lib/
-│   ├── grid.ts                # snap-to-grid math
-│   └── collision.ts           # custom proximity-based collision detection
-└── types.ts
+const [reservations, setReservations] = useState<Reservation[]>(SEED_RESERVATIONS);
+const [tables, setTables]             = useState<Record<string, Table>>(SEED_TABLES_KEYED);
+const [groups, setGroups]             = useState<string[][]>([]);
 ```
 
-## Step-by-step guideline
+Keeping tables in a record (not an array) lets us update one without touching the others, and makes group lookups by id cheap.
 
-Build it in this order — each step is a working app you can test before moving to the next.
+## A reservation card — sortable + draggable
 
-1. **Hardcoded floor plan canvas.** Put 6 tables on the screen with absolute positioning. No dragging yet. Just get the visual right.
-2. **Drag tables to reposition.** Wrap the floor in `DndContext`. Each table gets `useDraggable`. On `onDragEnd`, update the table's position in state. Add the snap-to-grid modifier from `@dnd-kit`.
-3. **Reservations sidebar (sortable).** Build the sidebar using `@dnd-kit/sortable`. Each reservation is a `useSortable` item. Reordering should work via mouse, touch, and keyboard.
-4. **Drag reservations onto tables.** Each table also gets `useDroppable`. In `onDragEnd`, if a reservation lands on a table, assign it. The table visually changes to show it's occupied.
-5. **Drag-to-connect tables.** This is the hardest step. You need custom collision detection — when one table's center is within ~24px of another's, they should connect. Look at `pointerWithin` and write your own collision algorithm based on it. Render a `<Connector>` line/box between connected tables.
-6. **Keyboard accessibility pass.** Make sure all three drag interactions (tables, reservations, drag-to-connect) work via keyboard. Add screen-reader announcements via `<DndContext announcements={...}>`.
-7. **localStorage persistence.** Wrap the whole state in `usePersistence`. Read on mount, write on change.
+Reservations are a sortable list **and** can be dragged onto the floor. `useSortable` already handles both: it registers the item as draggable in the @dnd-kit graph; whether it lands on another sortable item or on a table droppable is decided at drop time.
 
-## Common pitfalls
+```tsx
+function ReservationCard({ r }: { r: Reservation }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: r.id,
+    data: { type: 'reservation' },
+  });
+  return (
+    <li ref={setNodeRef} {...attributes} {...listeners} style={{
+      transform: CSS.Translate.toString(transform),
+      transition,
+      opacity: isDragging ? 0.35 : 1,
+      touchAction: 'none',
+    }}>
+      {r.partyName} · party of {r.partySize}
+    </li>
+  );
+}
+```
 
-- **Forgetting `preventDefault` in dragover** — only relevant if you're mixing in HTML5 DnD. With `@dnd-kit` you won't hit this, but it's the #1 gotcha if you ever drop down a layer.
-- **Stale closures in `onDragEnd`** — keep your handlers using functional state updates (`setTables(prev => ...)`) so you don't capture stale state.
-- **Custom collision detection running too often** — collision runs on every move event. Keep it cheap. Don't iterate every table on every pixel of movement; cache something.
-- **Connector lines that don't update on table drag** — the connector position needs to derive from the two table positions in render, not be stored separately.
-- **Mobile drag stealing scroll** — when wrapping a table in `useDraggable`, the touch sensor may need a small `activationConstraint: { delay: 150 }` so a quick swipe can still scroll the page.
+The `data: { type: 'reservation' }` is what custom collision detection will read to know how to behave (next section).
 
-## Stretch goals
+## A table — draggable AND droppable on the same node
 
-- **Multi-select with shift-click** — move several tables together
-- **Undo/redo** — keep an action history in state
-- **Time-based reservation filtering** — show only reservations for the next 2 hours
-- **Different table shapes** — round, square, rectangle, with capacity tied to shape
-- **Capacity warnings** — flag a connected group whose combined capacity is less than the assigned party size
+A table on the floor needs to be picked up (to reposition) **and** receive drops (when a reservation lands on it). `@dnd-kit` supports both hooks on the same DOM node — you just compose the refs.
 
-## Reference
+```tsx
+function TableNode({ table, reservation }: { table: Table; reservation?: Reservation }) {
+  const drag = useDraggable({ id: `drag-${table.id}`, data: { type: 'table', tableId: table.id } });
+  const drop = useDroppable({ id: `drop-${table.id}`, data: { type: 'table', tableId: table.id } });
 
-Once a reference implementation is published it'll be linked here.
+  const setNodeRef = (el: HTMLDivElement | null) => {
+    drag.setNodeRef(el);
+    drop.setNodeRef(el);
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...drag.attributes}
+      {...drag.listeners}
+      style={{
+        position: 'absolute',
+        left: table.x, top: table.y,
+        transform: CSS.Translate.toString(drag.transform),
+        touchAction: 'none',
+      }}
+    >
+      {/* … */}
+    </div>
+  );
+}
+```
+
+Two distinct ids (`drag-t1` / `drop-t1`) — that's what keeps the registries clean. Both carry `data.tableId` so handlers can recover which logical table is involved.
+
+## Custom collision: reservations prefer tables
+
+The default collision returns the closest container under the pointer. But a reservation card hovering over the sidebar overlaps both other reservation cards (sortable targets) **and** could be near a table on the floor — we need to disambiguate.
+
+The rule we want: when dragging a reservation, **if the pointer is inside a table**, that table wins. Otherwise fall back to sortable order.
+
+```ts
+const reservationsPreferTables: CollisionDetection = (args) => {
+  const t = args.active.data.current?.type;
+  if (t !== 'reservation') return closestCenter(args);
+
+  const tableTargets = args.droppableContainers.filter(
+    (c) => c.data.current?.type === 'table',
+  );
+  const tableHits = pointerWithin({ ...args, droppableContainers: tableTargets });
+  if (tableHits.length > 0) return tableHits;
+
+  const sortableTargets = args.droppableContainers.filter(
+    (c) => c.data.current?.type !== 'table',
+  );
+  return closestCenter({ ...args, droppableContainers: sortableTargets });
+};
+```
+
+Two pieces:
+1. Filter droppables by `data.type` to consider only the right population.
+2. Try `pointerWithin` against tables first; fall back to `closestCenter` against sortable items.
+
+That's the entire interaction model in one composed strategy.
+
+## Conditional snap-to-grid
+
+Tables should snap to a 20px grid. Reservations should not — they're sortable list items, not floor objects. A modifier applied at the `<DndContext>` level affects every drag, so we make it conditional on the active drag's data type.
+
+```ts
+const GRID = 20;
+
+const snapTablesToGrid: Modifier = ({ transform, active }) => {
+  if (active?.data.current?.type !== 'table') return transform;
+  return {
+    ...transform,
+    x: Math.round(transform.x / GRID) * GRID,
+    y: Math.round(transform.y / GRID) * GRID,
+  };
+};
+```
+
+Pass it via `<DndContext modifiers={[snapTablesToGrid]}>`. The reservations drag stays smooth; table drags snap.
+
+## Handling drops
+
+`onDragEnd` is the one place state changes. It branches on `active.data.current.type`.
+
+```ts
+function onDragEnd(e: DragEndEvent) {
+  const { active, over, delta } = e;
+  const data = active.data.current;
+
+  if (data?.type === 'reservation') {
+    // dropped on a table?
+    if (over?.data.current?.type === 'table') {
+      assignReservationToTable(active.id, over.data.current.tableId);
+      return;
+    }
+    // sidebar reorder
+    if (over && over.id !== active.id) {
+      setReservations((cur) => arrayMove(cur, indexOf(active.id), indexOf(over.id)));
+    }
+    return;
+  }
+
+  if (data?.type === 'table') {
+    // 1. commit the new (snapped) position
+    moveTableBy(data.tableId, delta);
+    // 2. if it landed near another free table, combine
+    const partner = findUngroupedNeighbor(data.tableId, COMBINE_RADIUS);
+    if (partner) setGroups((g) => [...g, [data.tableId, partner.id]]);
+  }
+}
+```
+
+The branching keeps the function readable. Each branch updates state with a single setter call.
+
+<Callout type="tip" title="Why proximity matching at drop, not during drag">
+You could compute combine candidates in `onDragOver` to highlight a target while dragging. We chose to do it on drop instead — simpler, and it makes "moving a table past another to get to its other side" forgiving (no flicker of fake combine state along the way). The tradeoff is no preview. For this scale of UI, that feels right.
+</Callout>
+
+## Capacity-aware seating
+
+When a reservation drops on a table, we need to check the **effective** capacity — including any group the table belongs to. Combined tables share seats, with a small junction loss (one seat per join).
+
+```ts
+const grp = findGroup(groups, tableId);
+const cap = grp
+  ? grp.reduce((s, id) => s + tables[id].capacity, 0) - (grp.length - 1)
+  : tables[tableId].capacity;
+
+if (reservation.partySize > cap) {
+  setStatus(`Party too large for that table.`);
+  return;
+}
+```
+
+A 4-top + 4-top combination seats 7, not 8 — the formula `sum − (count − 1)` makes that feel right.
+
+## Moving a group
+
+When a table that's part of a group is dragged, every member of the group should follow by the same delta. This is just two lines once you have the data structure.
+
+```ts
+const ids = findGroup(groups, tableId) ?? [tableId];
+setTables((cur) => {
+  const next = { ...cur };
+  for (const id of ids) {
+    next[id] = { ...cur[id], x: cur[id].x + dx, y: cur[id].y + dy };
+  }
+  return next;
+});
+```
+
+The whole group slides together. No special "group drag" mode needed — the data shape handles it.
+
+## DragOverlay for the reservation
+
+Reservations are dragged from a narrow sidebar onto a wider floor plan. Without a `<DragOverlay>`, the dragged card would be clipped by the sidebar's flex container. The overlay portals it to the document body, so it can travel anywhere.
+
+```tsx
+<DragOverlay>
+  {activeRes ? (
+    <div className="rounded border-2 border-accent bg-white px-3 py-2 shadow-lg rotate-1">
+      <div>{activeRes.partyName}</div>
+      <div>party of {activeRes.partySize}</div>
+    </div>
+  ) : null}
+</DragOverlay>
+```
+
+The active id is tracked in `onDragStart`, cleared in `onDragEnd`. The overlay reads from React state and renders the card "lifted" — a slight rotation and shadow distinguish it from the resting source card.
+
+## Accessibility
+
+Three things to verify before shipping:
+
+1. **Keyboard reachable.** Tab into a reservation, Space to pick up, ↑/↓ to reorder, Space to drop. The `KeyboardSensor` paired with `sortableKeyboardCoordinates` handles it for free.
+2. **Focus visible.** No `outline: none`. The default `:focus-visible` outline is restyled in CSS to match the brand accent.
+3. **Live region announcements.** The status line under the floor plan is `role="status" aria-live="polite"`. Every drag handler writes a sentence: *"Seated Chen at T1."* / *"Combined T2 + T3."* That's what a screen-reader user hears.
+
+## Stretch goals to try
+
+- **localStorage persistence** — reservations, tables, groups all survive a page refresh
+- **Undo/redo** — wrap setState calls in a history stack
+- **Multi-select** — shift-click multiple tables and move them as one
+- **Time-based filtering** — only show reservations for the next 2 hours
+- **Capacity warnings** — flag a group whose combined capacity is less than the seated party
+
+<Recap>
+- The whole interaction model is decided by **what data each drag carries** — `data: { type: 'reservation' | 'table' }` plumbed through useDraggable, useDroppable, custom collision, and a conditional modifier.
+- Custom collision composes built-in strategies; you rarely need to write one from scratch.
+- Modifiers are conditional too — read `active.data.current` and return the unchanged transform when the rule shouldn't apply.
+- `onDragEnd` is the only place state changes. Branching on `data.type` keeps the function readable.
+- DragOverlay solves cross-container clipping. Always reach for it when a drag travels between regions.
+- Accessibility lives at three layers — keyboard sensor, visible focus, live announcements. Wire all three from day one.
+</Recap>

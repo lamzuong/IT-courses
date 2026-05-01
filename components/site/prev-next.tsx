@@ -11,17 +11,19 @@ export function PrevNext({
   next: LessonMeta | null;
 }) {
   return (
-    <nav aria-label="Lesson navigation" className="mt-12 grid grid-cols-2 gap-3">
+    <nav aria-label="Lesson navigation" className="prevnext">
       {prev ? (
-        <Link href={`/courses/${courseSlug}/lessons/${prev.slug}`} className="rounded-md border border-[color:var(--color-border)] p-4 hover:border-black/30">
-          <span className="block text-xs uppercase tracking-widest text-[color:var(--color-text-soft)]">← Previous</span>
-          <span className="block mt-1 font-medium">{prev.title}</span>
+        <Link href={`/courses/${courseSlug}/lessons/${prev.slug}`} className="prevnext-card prev">
+          <span className="prevnext-direction">Previous</span>
+          <span className="prevnext-title">{prev.title}</span>
+          {prev.summary && <span className="prevnext-summary">{prev.summary}</span>}
         </Link>
       ) : <div aria-hidden />}
       {next ? (
-        <Link href={`/courses/${courseSlug}/lessons/${next.slug}`} className="rounded-md border border-[color:var(--color-border)] p-4 hover:border-black/30 text-right">
-          <span className="block text-xs uppercase tracking-widest text-[color:var(--color-text-soft)]">Next →</span>
-          <span className="block mt-1 font-medium">{next.title}</span>
+        <Link href={`/courses/${courseSlug}/lessons/${next.slug}`} className="prevnext-card next">
+          <span className="prevnext-direction">Next lesson</span>
+          <span className="prevnext-title">{next.title}</span>
+          {next.summary && <span className="prevnext-summary">{next.summary}</span>}
         </Link>
       ) : <div aria-hidden />}
     </nav>

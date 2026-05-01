@@ -10,7 +10,9 @@ const withMDX = createMDX({
     rehypePlugins: [
       ['rehype-slug', {}],
       ['rehype-autolink-headings', { behavior: 'wrap', properties: { className: ['heading-anchor'] } }],
-      ['@shikijs/rehype', { themes: { light: 'github-light', dark: 'github-dark-dimmed' } }],
+      ['@shikijs/rehype', {
+        theme: 'vitesse-light',
+      }],
     ],
   },
 });

@@ -1,0 +1,256 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { DataTransferDemo } from '@/components/demos/drag-drop-react/data-transfer-demo';
+import { DropEffectDemo } from '@/components/demos/drag-drop-react/drop-effect-demo';
+import { FileDropDemo } from '@/components/demos/drag-drop-react/file-drop-demo';
+
+Lesson 2 covered which events fire and when. This lesson covers what travels with the drag — the `DataTransfer` object — plus the visual feedback (drop effect, drag image) that makes the interaction feel right.
+
+## DataTransfer: the courier
+
+`DataTransfer` is the object available on every drag event as `e.dataTransfer`. Its job is to carry payload data from the source to the target.
+
+```ts
+e.dataTransfer.setData('text/plain', 'card-1');
+e.dataTransfer.setData('application/json', JSON.stringify({ id: 1 }));
+```
+
+You can attach multiple MIME types to the same drag. The target picks which type to read:
+
+```ts
+const id   = e.dataTransfer.getData('text/plain');
+const data = JSON.parse(e.dataTransfer.getData('application/json'));
+```
+
+<Callout type="warning" title="Data is read-only outside dragstart and drop">
+The browser blanks out `getData()` during `dragover` for security reasons (so cross-origin pages can't sniff dragged content). You can only *read* data inside `drop`. You can only *write* it inside `dragstart`.
+</Callout>
+
+Drag the card and drop it. The right panel shows what each MIME type carried.
+
+<Demo title="Multi-MIME dataTransfer">
+  <DataTransferDemo />
+</Demo>
+
+```tsx
+'use client';
+import { useState } from 'react';
+
+const MIME_TYPES = ['text/plain', 'application/json', 'text/uri-list'] as const;
+
+const PAYLOADS: Record<typeof MIME_TYPES[number], string> = {
+  'text/plain':       'Card #42',
+  'application/json': JSON.stringify({ id: 42, title: 'Hello', tags: ['drag','drop'] }),
+  'text/uri-list':    'https://example.com/cards/42',
+};
+
+export function DataTransferDemo() {
+  const [received, setReceived] = useState<Record<string, string> | null>(null);
+
+  function onDragStart(e: React.DragEvent) {
+    for (const mime of MIME_TYPES) e.dataTransfer.setData(mime, PAYLOADS[mime]);
+    e.dataTransfer.effectAllowed = 'copy';
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const out: Record<string, string> = {};
+    for (const mime of MIME_TYPES) out[mime] = e.dataTransfer.getData(mime);
+    setReceived(out);
+  }
+
+  return (
+    <div className="grid md:grid-cols-2 gap-4">
+      <div draggable onDragStart={onDragStart}>Card #42 — drag me</div>
+      <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>Drop to read all types</div>
+      {received && MIME_TYPES.map((m) => (
+        <pre key={m}>{m}: {received[m]}</pre>
+      ))}
+    </div>
+  );
+}
+```
+
+The pattern: write *everything you might want* on `dragstart`, read whatever you actually need on `drop`. Different drop targets can read different MIME types from the same drag.
+
+## Common MIME types
+
+- `text/plain` — universal, use for IDs and simple strings.
+- `text/html` — for rich content; targets like `<input>` will paste it.
+- `text/uri-list` — URLs.
+- `application/json` — your own structured data.
+- `Files` — populated when the user drags files in from the OS.
+
+## effectAllowed and dropEffect
+
+These two control the cursor and the visual feedback:
+
+- **`effectAllowed`** is set by the **source** in `dragstart`. It declares what kinds of drops are allowed: `'move'`, `'copy'`, `'link'`, `'copyMove'`, `'all'`, `'none'`, etc.
+- **`dropEffect`** is set by the **target** in `dragover`. It declares what *this* target will do — and the browser shows the matching cursor (move, copy with a +, link with an arrow).
+
+```ts
+// source
+e.dataTransfer.effectAllowed = 'copyMove';
+// target
+e.dataTransfer.dropEffect = 'copy'; // user holds Cmd/Ctrl? show copy
+```
+
+If `dropEffect` doesn't match `effectAllowed`, the browser shows a "no entry" cursor and the drop won't fire.
+
+Try every combination — the cursor changes to copy / move / link / no-entry as you drag.
+
+<Demo title="effectAllowed × dropEffect">
+  <DropEffectDemo />
+</Demo>
+
+```tsx
+'use client';
+import { useState } from 'react';
+
+type EffectAllowed = 'none'|'copy'|'move'|'link'|'copyMove'|'copyLink'|'linkMove'|'all';
+type DropEffect    = 'none'|'copy'|'move'|'link';
+
+export function DropEffectDemo() {
+  const [allowed, setAllowed] = useState<EffectAllowed>('copyMove');
+  const [effect,  setEffect]  = useState<DropEffect>('copy');
+
+  return (
+    <>
+      <select value={allowed} onChange={(e) => setAllowed(e.target.value as EffectAllowed)}>
+        {/* options… */}
+      </select>
+      <select value={effect} onChange={(e) => setEffect(e.target.value as DropEffect)}>
+        {/* options… */}
+      </select>
+
+      <div
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/plain', 'token');
+          e.dataTransfer.effectAllowed = allowed;   // ← source declares what's OK
+        }}
+      >
+        drag me
+      </div>
+
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = effect;       // ← target declares what it'll do
+        }}
+        onDrop={(e) => e.preventDefault()}
+      >
+        drop here
+      </div>
+    </>
+  );
+}
+```
+
+Two values, two assignment sites. The browser picks the cursor based on whether they're compatible — and suppresses the drop entirely if they aren't.
+
+## The drag image
+
+By default, the browser snapshots the dragged element and shows it semi-transparent under the pointer. You can replace it:
+
+```ts
+function onDragStart(e: React.DragEvent) {
+  const ghost = document.createElement('div');
+  ghost.textContent = 'Dragging…';
+  ghost.className = 'rounded bg-black text-white px-3 py-1';
+  document.body.appendChild(ghost);
+  e.dataTransfer.setDragImage(ghost, 10, 10); // offset from cursor
+  // remove the ghost after the browser has snapshotted it
+  requestAnimationFrame(() => ghost.remove());
+}
+```
+
+<Callout type="tip" title="Off-screen ghosts">
+The element passed to `setDragImage` must be in the DOM and visible at the moment of the call — but the browser snapshots it synchronously, so you can remove it on the next frame without flicker. A common trick is to position it at `top: -9999px` so the user never sees the source.
+</Callout>
+
+## Styling the source while dragging
+
+The browser doesn't change the source's styles — you do that yourself.
+
+```tsx
+const [dragging, setDragging] = useState(false);
+
+<div
+  draggable
+  onDragStart={(e) => { /* setData */; setDragging(true); }}
+  onDragEnd={() => setDragging(false)}
+  className={dragging ? 'opacity-30' : ''}
+>
+```
+
+`dragend` always fires — drop succeeded, drop cancelled, user pressed Escape — so it's the right place to clean up source-side UI.
+
+## Files: dropping from the OS
+
+If a user drags a file from Finder/Explorer, `e.dataTransfer.files` is populated on `drop`:
+
+```ts
+function onDrop(e: React.DragEvent) {
+  e.preventDefault();
+  for (const file of Array.from(e.dataTransfer.files)) {
+    console.log(file.name, file.size, file.type);
+  }
+}
+```
+
+This is one of the things HTML5 DnD is genuinely good at — file uploads.
+
+Drag any file from your desktop into the box.
+
+<Demo title="OS file drop">
+  <FileDropDemo />
+</Demo>
+
+```tsx
+'use client';
+import { useState } from 'react';
+
+type FileInfo = { name: string; size: number; type: string };
+
+export function FileDropDemo() {
+  const [files, setFiles] = useState<FileInfo[]>([]);
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const incoming = Array.from(e.dataTransfer.files).map((f) => ({
+      name: f.name,
+      size: f.size,
+      type: f.type || 'unknown',
+    }));
+    setFiles(incoming);
+  }
+
+  return (
+    <>
+      <div
+        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+        onDrop={onDrop}
+      >
+        Drop a file from your desktop
+      </div>
+      <ul>
+        {files.map((f, i) => (
+          <li key={i}>{f.name} — {f.type} — {f.size} bytes</li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+`e.dataTransfer.files` is a `FileList`. Use `Array.from` to iterate; each entry is a real `File` object you can read with `FileReader` or upload with `fetch`.
+
+<Recap>
+- `DataTransfer` carries payload via MIME-typed `setData` / `getData`.
+- Data can only be *read* in `drop`, only *written* in `dragstart`.
+- `effectAllowed` (source) and `dropEffect` (target) drive the cursor — they must agree.
+- `setDragImage` lets you replace the ghost; the element must be in the DOM and visible.
+- Style the dragging source yourself in `dragstart` / `dragend`.
+- Dropping files from the OS populates `e.dataTransfer.files`.
+</Recap>

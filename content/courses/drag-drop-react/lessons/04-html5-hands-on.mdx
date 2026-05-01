@@ -22,6 +22,74 @@ Drag a card into the bin. Inspect the events in DevTools to see the order they f
   <Html5BinDemo />
 </Demo>
 
+The full component:
+
+```tsx
+'use client';
+import { useState } from 'react';
+
+const ITEMS = [
+  { id: 'a', label: 'Card A' },
+  { id: 'b', label: 'Card B' },
+  { id: 'c', label: 'Card C' },
+];
+
+export function Html5BinDemo() {
+  const [items, setItems] = useState(ITEMS);
+  const [bin, setBin] = useState<typeof ITEMS>([]);
+  const [overBin, setOverBin] = useState(false);
+
+  function onDragStart(e: React.DragEvent, id: string) {
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault();                          // rule 3
+    e.dataTransfer.dropEffect = 'move';          // rule 5
+    setOverBin(true);
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/plain');
+    const moved = items.find((i) => i.id === id);
+    if (!moved) return;
+    setItems((cur) => cur.filter((i) => i.id !== id));
+    setBin((cur) => [...cur, moved]);
+    setOverBin(false);
+  }
+
+  return (
+    <div className="flex gap-4">
+      <ul>
+        {items.map((it) => (
+          <li
+            key={it.id}
+            draggable                               // rule 1
+            onDragStart={(e) => onDragStart(e, it.id)}  // rule 2
+          >
+            {it.label}
+          </li>
+        ))}
+      </ul>
+      <div
+        onDragOver={onDragOver}
+        onDragLeave={() => setOverBin(false)}
+        onDrop={onDrop}
+        aria-label="Drop bin"
+        className={overBin ? 'border-black bg-black/5' : ''}
+      >
+        {bin.map((it) => <div key={it.id}>{it.label}</div>)}
+        {bin.length === 0 && 'Drop cards here.'}
+      </div>
+    </div>
+  );
+}
+```
+
+The five rules from earlier map directly onto this code — see the inline comments. Removing any one of them breaks the demo in a different way; try it.
+
 ## Why this won't work on your phone
 
 If you opened this on a touch device, you noticed: nothing happens. HTML5 DnD ignores touch. The browser fires `touchstart` and starts a scroll, never a drag. We'll address this in Lesson 6 with Pointer Events.

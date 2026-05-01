@@ -1,0 +1,273 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { TrelloDemo } from '@/components/demos/drag-drop-react/trello-demo';
+
+A single sortable list is the warm-up. The real test is **multi-container drag** — moving items between lists, like Trello columns or Kanban boards. This is where `onDragOver` becomes essential, and where state management gets a little subtle.
+
+## The shape of the problem
+
+Three columns. Drag cards within a list, or across lists, with live cross-container preview.
+
+<Demo title="Trello-style multi-container">
+  <TrelloDemo />
+</Demo>
+
+The full assembly:
+
+```tsx
+'use client';
+import {
+  DndContext, PointerSensor, useSensor, useSensors, useDroppable,
+  type DragOverEvent, type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, arrayMove, useSortable, verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useState } from 'react';
+
+type ColKey = 'todo' | 'doing' | 'done';
+type State = Record<ColKey, { id: string; label: string }[]>;
+
+function Item({ id, label }: { id: string; label: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+  return (
+    <li ref={setNodeRef} {...attributes} {...listeners}
+        style={{ transform: CSS.Translate.toString(transform), transition, touchAction: 'none' }}>
+      {label}
+    </li>
+  );
+}
+
+function Column({ id, items }: { id: ColKey; items: State[ColKey] }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className={isOver ? 'border-accent' : ''}>
+      <SortableContext items={items.map((it) => it.id)} strategy={verticalListSortingStrategy}>
+        <ul>{items.map((it) => <Item key={it.id} id={it.id} label={it.label} />)}</ul>
+      </SortableContext>
+    </div>
+  );
+}
+
+export function TrelloDemo() {
+  const [state, setState] = useState<State>({
+    todo:  [{ id: 'a', label: 'Draft RFC' }, { id: 'b', label: 'Audit imports' }],
+    doing: [{ id: 'c', label: 'Migrate flag' }],
+    done:  [{ id: 'd', label: 'Ship hotfix' }],
+  });
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  function findContainer(id: string): ColKey | null {
+    if (id === 'todo' || id === 'doing' || id === 'done') return id;
+    for (const k of Object.keys(state) as ColKey[]) {
+      if (state[k].some((it) => it.id === id)) return k;
+    }
+    return null;
+  }
+
+  // ── 1. cross-list moves happen LIVE in onDragOver ────────────────────────
+  function onDragOver(e: DragOverEvent) {
+    const { active, over } = e;
+    if (!over) return;
+    const from = findContainer(active.id as string);
+    const to   = findContainer(over.id   as string);
+    if (!from || !to || from === to) return;     // skip same-list reorders here
+    setState((cur) => {
+      const fromList = [...cur[from]];
+      const toList   = [...cur[to]];
+      const i = fromList.findIndex((it) => it.id === active.id);
+      const j = toList.findIndex((it) => it.id === over.id);
+      const [moved] = fromList.splice(i, 1);
+      toList.splice(j === -1 ? toList.length : j, 0, moved);
+      return { ...cur, [from]: fromList, [to]: toList };
+    });
+  }
+
+  // ── 2. final intra-list ordering on drop ─────────────────────────────────
+  function onDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over) return;
+    const c = findContainer(over.id as string);
+    if (!c) return;
+    const list = state[c];
+    const i = list.findIndex((it) => it.id === active.id);
+    const j = list.findIndex((it) => it.id === over.id);
+    if (i === -1 || j === -1 || i === j) return;
+    setState((cur) => ({ ...cur, [c]: arrayMove(cur[c], i, j) }));
+  }
+
+  return (
+    <DndContext sensors={sensors} onDragOver={onDragOver} onDragEnd={onDragEnd}>
+      <div className="grid grid-cols-3 gap-3">
+        <Column id="todo"  items={state.todo} />
+        <Column id="doing" items={state.doing} />
+        <Column id="done"  items={state.done} />
+      </div>
+    </DndContext>
+  );
+}
+```
+
+The two numbered comments mark the central insight: **`onDragOver` handles cross-list moves, `onDragEnd` handles same-list reordering.** Without that split you either miss the cross-list preview or you flicker as items reorder mid-drag.
+
+
+Two (or more) `<SortableContext>` wrappers, one per list, all inside the same `<DndContext>`. Items can be reordered within a list *or* moved between lists. We need to handle both cases.
+
+```tsx
+<DndContext>
+  <div className="grid grid-cols-3 gap-4">
+    <Column id="todo"  title="To do"  items={state.todo} />
+    <Column id="doing" title="Doing"  items={state.doing} />
+    <Column id="done"  title="Done"   items={state.done} />
+  </div>
+</DndContext>
+```
+
+Each `Column` wraps its items in a `<SortableContext>` and renders them.
+
+## State shape
+
+Track items grouped by container:
+
+```ts
+type State = Record<'todo' | 'doing' | 'done', { id: string; label: string }[]>;
+
+const [state, setState] = useState<State>({
+  todo:  [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+  doing: [{ id: 'c', label: 'C' }],
+  done:  [],
+});
+```
+
+We also need a helper to find which container an ID lives in:
+
+```ts
+function findContainer(id: string): keyof State | null {
+  if (id in state) return id as keyof State;  // dropped on the empty column itself
+  for (const key of Object.keys(state) as (keyof State)[]) {
+    if (state[key].some((it) => it.id === id)) return key;
+  }
+  return null;
+}
+```
+
+The `id in state` check handles drops on a *whole column* (when it's empty or the user drops between items).
+
+## onDragOver vs onDragEnd
+
+This is the central insight of multi-container DnD:
+
+- **`onDragOver`** fires while dragging, every time the hovered target changes. Use it to **move the item between containers** as the user drags, so they see live feedback.
+- **`onDragEnd`** fires once on drop. Use it to **finalize the position within the destination container**.
+
+If you only used `onDragEnd`, the user would see no preview of the cross-list move — the card would teleport on drop. With `onDragOver`, the lists rearrange in real time.
+
+## The full handlers
+
+```tsx
+function onDragOver(e: DragOverEvent) {
+  const { active, over } = e;
+  if (!over) return;
+
+  const fromContainer = findContainer(active.id as string);
+  const toContainer = findContainer(over.id as string);
+  if (!fromContainer || !toContainer || fromContainer === toContainer) return;
+
+  setState((cur) => {
+    const fromList = [...cur[fromContainer]];
+    const toList = [...cur[toContainer]];
+    const fromIndex = fromList.findIndex((it) => it.id === active.id);
+    const overIndex = toList.findIndex((it) => it.id === over.id);
+    const [moved] = fromList.splice(fromIndex, 1);
+
+    // If dropped on the column itself (id matches container), append.
+    // If dropped on an item, insert above it.
+    const insertAt = overIndex === -1 ? toList.length : overIndex;
+    toList.splice(insertAt, 0, moved);
+
+    return { ...cur, [fromContainer]: fromList, [toContainer]: toList };
+  });
+}
+
+function onDragEnd(e: DragEndEvent) {
+  const { active, over } = e;
+  if (!over) return;
+
+  const container = findContainer(over.id as string);
+  if (!container) return;
+
+  const list = state[container];
+  const fromIndex = list.findIndex((it) => it.id === active.id);
+  const toIndex = list.findIndex((it) => it.id === over.id);
+  if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return;
+
+  setState((cur) => ({
+    ...cur,
+    [container]: arrayMove(cur[container], fromIndex, toIndex),
+  }));
+}
+```
+
+Read it carefully — `onDragOver` handles cross-list moves, `onDragEnd` handles the final intra-list reorder.
+
+<Callout type="warning" title="Don't reorder within the same list in onDragOver">
+If `fromContainer === toContainer`, return early in `onDragOver`. Reordering on every move event causes flickering and runaway state updates. Let `onDragEnd` do the final reorder.
+</Callout>
+
+## Empty columns
+
+A column with no items has nothing for the pointer to hover, so `over` will be the column container itself. That's why we check `id in state` in `findContainer` — drops on the column ID land at the end of an empty list.
+
+For the column to be a drop target on its own, it needs to be a `useDroppable` (with `id` matching the container key) that wraps the `<SortableContext>`:
+
+```tsx
+function Column({ id, items }: { id: keyof State; items: Item[] }) {
+  const { setNodeRef } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className="rounded bg-bg-soft p-3 min-h-32">
+      <SortableContext items={items.map((it) => it.id)} strategy={verticalListSortingStrategy}>
+        {items.map((it) => <SortableItem key={it.id} id={it.id} label={it.label} />)}
+      </SortableContext>
+    </div>
+  );
+}
+```
+
+This way the column itself accepts drops, even when empty.
+
+## Cross-list constraints
+
+You can prevent items from leaving one container by checking in `onDragOver`:
+
+```ts
+if (fromContainer === 'done' && toContainer !== 'done') {
+  return; // can't unfinish a task
+}
+```
+
+For more declarative rules, use the `disabled` option on `useDroppable` to block specific droppables based on the dragging item.
+
+## Persisting and undo
+
+Multi-container DnD is the kind of UI where users will accidentally move things. Two cheap mitigations:
+
+1. **Persist on drop, not on drag-over.** Save to backend in `onDragEnd`, not `onDragOver`.
+2. **Snapshot before the drag starts.** In `onDragStart`, copy the current state. If the user presses Escape (`onDragCancel`), restore the snapshot.
+
+```ts
+const snapshotRef = useRef<State | null>(null);
+
+onDragStart={() => { snapshotRef.current = state; }}
+onDragCancel={() => { if (snapshotRef.current) setState(snapshotRef.current); }}
+```
+
+`@dnd-kit` already restores positions on cancel for sortable transforms, but your **state** is yours — the library doesn't know how to undo your reducer.
+
+<Recap>
+- Multi-container DnD = multiple `<SortableContext>` wrappers inside one `<DndContext>`.
+- `onDragOver` moves items *between* containers in real time; `onDragEnd` finalizes the position within the destination.
+- Track items grouped by container; write a `findContainer(id)` helper that handles both items and empty-column drops.
+- Wrap each column in `useDroppable` so empty columns still accept drops.
+- Take a state snapshot in `onDragStart` and restore it in `onDragCancel` for clean Escape behavior.
+</Recap>

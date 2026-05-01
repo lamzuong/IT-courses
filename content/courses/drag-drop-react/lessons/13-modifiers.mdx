@@ -1,0 +1,206 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { ModifiersToggleDemo } from '@/components/demos/drag-drop-react/modifiers-toggle-demo';
+
+A **modifier** is a function that transforms the drag delta before it's applied. Modifiers let you constrain motion: lock to an axis, restrict to a container, snap to a grid. They're tiny pure functions you compose.
+
+This lesson is short — the API is small — but you'll use these constantly.
+
+## What a modifier is
+
+A modifier receives the drag transform plus context, and returns a transformed version:
+
+```ts
+type Modifier = (args: {
+  transform: { x: number; y: number; scaleX: number; scaleY: number };
+  active: { /* ... */ };
+  draggingNodeRect: ClientRect | null;
+  containerNodeRect: ClientRect | null;
+  windowRect: ClientRect | null;
+  // ...
+}) => Transform;
+```
+
+You return a new transform. The library re-applies it on every animation frame.
+
+## Built-in modifiers
+
+`@dnd-kit/modifiers` ships the common ones:
+
+```bash
+npm install @dnd-kit/modifiers
+```
+
+```ts
+import {
+  restrictToWindowEdges,
+  restrictToParentElement,
+  restrictToVerticalAxis,
+  restrictToHorizontalAxis,
+  snapCenterToCursor,
+  createSnapModifier,
+} from '@dnd-kit/modifiers';
+```
+
+## Applying modifiers
+
+Toggle each rule on and off. The grid lines appear when snap is on.
+
+<Demo title="Compose modifiers live">
+  <ModifiersToggleDemo />
+</Demo>
+
+```tsx
+'use client';
+import { DndContext, useDraggable } from '@dnd-kit/core';
+import {
+  restrictToParentElement,
+  restrictToVerticalAxis,
+  restrictToHorizontalAxis,
+  createSnapModifier,
+} from '@dnd-kit/modifiers';
+import { CSS } from '@dnd-kit/utilities';
+import { useMemo, useState } from 'react';
+
+function Card() {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: 'c' });
+  return (
+    <button
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), touchAction: 'none' }}
+      {...attributes}
+      {...listeners}
+    >
+      drag me
+    </button>
+  );
+}
+
+export function ModifiersToggleDemo() {
+  const [opts, setOpts] = useState({ parent: true, vertical: false, horizontal: false, snap: false });
+
+  const modifiers = useMemo(() => {
+    const m = [];
+    if (opts.parent)     m.push(restrictToParentElement);
+    if (opts.vertical)   m.push(restrictToVerticalAxis);
+    if (opts.horizontal) m.push(restrictToHorizontalAxis);
+    if (opts.snap)       m.push(createSnapModifier(20));
+    return m;
+  }, [opts]);
+
+  return (
+    <DndContext modifiers={modifiers}>
+      <div className="relative h-64">
+        <Card />
+      </div>
+      {(['parent','vertical','horizontal','snap'] as const).map((k) => (
+        <label key={k}>
+          <input type="checkbox" checked={opts[k]} onChange={(e) => setOpts((o) => ({ ...o, [k]: e.target.checked }))} />
+          {k}
+        </label>
+      ))}
+    </DndContext>
+  );
+}
+```
+
+The whole demo is "an array of modifiers, derived from a few booleans, passed to `<DndContext>`." Modifiers compose — toggling them on/off is just changing the array.
+
+
+You can apply them to the whole context, or per-draggable, or per-DragOverlay.
+
+```tsx
+<DndContext modifiers={[restrictToWindowEdges, restrictToVerticalAxis]}>
+  {/* ... */}
+</DndContext>
+```
+
+Modifiers are applied in array order — `restrictToWindowEdges` first, then `restrictToVerticalAxis`. Order doesn't always matter, but for snap + restrict, snap last.
+
+## Axis locks
+
+```tsx
+modifiers={[restrictToVerticalAxis]}
+```
+
+The drag can only move on the Y axis — perfect for vertical sortable lists. The horizontal counterpart, `restrictToHorizontalAxis`, is what you'd use for a row of tabs.
+
+## Restrict to a container
+
+`restrictToParentElement` pins the drag inside the parent of the source element:
+
+```tsx
+modifiers={[restrictToParentElement]}
+```
+
+For a custom container (not the parent), you can write your own modifier — see "Custom modifier" below.
+
+## Snap to grid
+
+`createSnapModifier(gridSize)` rounds the transform to multiples of `gridSize`:
+
+```tsx
+const snap = createSnapModifier(20);
+
+<DndContext modifiers={[snap]}>
+```
+
+Now the dragged element jumps in 20-pixel increments. This is exactly what we'll use for the table-positioning UI in the final project.
+
+<Callout type="tip" title="snap on the overlay only">
+If you have a `DragOverlay` (next lesson), you usually want the *overlay* to snap, not the underlying source. Pass modifiers to `<DragOverlay modifiers={[snap]}>` rather than to `<DndContext>`. The source stays where it is until drop, and the overlay shows the snapped preview.
+</Callout>
+
+## Writing your own modifier
+
+A modifier is just a function. Here's "lock dragging to a custom rect":
+
+```ts
+const restrictToFloorPlan: Modifier = ({ transform, draggingNodeRect, containerNodeRect }) => {
+  if (!draggingNodeRect || !containerNodeRect) return transform;
+
+  const minX = containerNodeRect.left - draggingNodeRect.left;
+  const maxX = containerNodeRect.right - draggingNodeRect.right;
+  const minY = containerNodeRect.top - draggingNodeRect.top;
+  const maxY = containerNodeRect.bottom - draggingNodeRect.bottom;
+
+  return {
+    ...transform,
+    x: Math.min(Math.max(transform.x, minX), maxX),
+    y: Math.min(Math.max(transform.y, minY), maxY),
+  };
+};
+```
+
+Compose with snap:
+
+```tsx
+modifiers={[restrictToFloorPlan, createSnapModifier(20)]}
+```
+
+## Common combinations
+
+| Use case                          | Modifiers |
+|-----------------------------------|-----------|
+| Vertical sortable list            | `[restrictToVerticalAxis, restrictToParentElement]` |
+| Free-form within a container      | `[restrictToParentElement]` |
+| Floor plan with snap-to-grid      | `[restrictToParentElement, createSnapModifier(20)]` |
+| Floating drag (any direction)     | `[restrictToWindowEdges]` |
+| Avoid offscreen overflow at edges | always end with `restrictToWindowEdges` |
+
+## What modifiers don't do
+
+Modifiers transform the drag delta. They don't:
+
+- Decide whether a drop is valid (that's collision detection — Lesson 17).
+- Animate (that's CSS transitions or the drop animation — Lesson 16).
+- Stop the drag from starting (that's sensor activation constraints — Lesson 12).
+
+Each layer of `@dnd-kit` has one job. Once you internalize that mapping, the API stops feeling like a maze.
+
+<Recap>
+- Modifiers are pure functions that transform the drag delta.
+- Built-ins cover the 90% case: axis locks, restrict to parent/window, snap to grid.
+- Apply to `<DndContext>` for context-wide rules, or to `<DragOverlay>` for visual-only constraints like snap previews.
+- Composing your own is straightforward — the function gets transform + node rects and returns a new transform.
+</Recap>

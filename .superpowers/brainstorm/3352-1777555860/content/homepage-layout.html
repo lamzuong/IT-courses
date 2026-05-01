@@ -1,0 +1,114 @@
+<h2>Homepage / course catalog — pick a direction</h2>
+<p class="subtitle">All three work for a portfolio site. They feel different and scale differently as you add courses. Click one to choose, or tell me to combine elements.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0">
+        <div class="mockup-header">A — Course platform grid</div>
+        <div class="mockup-body">
+          <div class="mock-nav" style="margin-bottom:14px;display:flex;justify-content:space-between">
+            <span style="font-weight:600">IT Courses</span>
+            <span style="font-size:11px;opacity:.6">Courses · About · Theme</span>
+          </div>
+          <div style="text-align:center;padding:18px 8px 22px">
+            <div style="font-size:18px;font-weight:700;line-height:1.2">Learn frontend tech,<br/>one focused course at a time.</div>
+            <div style="font-size:11px;opacity:.65;margin-top:8px">Hands-on lessons. Real projects.</div>
+            <button class="mock-button" style="margin-top:12px;font-size:11px">Start the first course →</button>
+          </div>
+          <div class="label" style="margin:6px 0 8px">Available courses</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="placeholder" style="padding:10px;height:auto;text-align:left">
+              <div style="font-size:11px;font-weight:600">Drag &amp; Drop in React</div>
+              <div style="font-size:10px;opacity:.6;margin-top:3px">18 lessons · Project</div>
+            </div>
+            <div class="placeholder" style="padding:10px;height:auto;text-align:left;opacity:.55">
+              <div style="font-size:11px;font-weight:600">Coming soon</div>
+              <div style="font-size:10px;opacity:.6;margin-top:3px">—</div>
+            </div>
+            <div class="placeholder" style="padding:10px;height:auto;text-align:left;opacity:.55">
+              <div style="font-size:11px;font-weight:600">Coming soon</div>
+              <div style="font-size:10px;opacity:.6;margin-top:3px">—</div>
+            </div>
+            <div class="placeholder" style="padding:10px;height:auto;text-align:left;opacity:.55">
+              <div style="font-size:11px;font-weight:600">Coming soon</div>
+              <div style="font-size:10px;opacity:.6;margin-top:3px">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Course platform grid</h3>
+      <p>Hero with CTA, then a grid of course cards. Looks like a real learning platform. Scales well to many courses. Most polished first impression for a portfolio.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0">
+        <div class="mockup-header">B — Editorial / personal</div>
+        <div class="mockup-body">
+          <div style="max-width:340px;margin:0 auto;padding:16px 8px">
+            <div style="font-size:11px;opacity:.6;letter-spacing:.08em;text-transform:uppercase">Phuoc Luu</div>
+            <div style="font-size:18px;font-weight:700;margin-top:8px;line-height:1.3">Notes &amp; courses on frontend engineering.</div>
+            <div style="font-size:11px;opacity:.7;margin-top:8px;line-height:1.5">I write deep, hands-on courses on the parts of the stack I find interesting. Each one ends in a real project you build yourself.</div>
+            <div class="label" style="margin:18px 0 10px">Courses</div>
+            <div style="border-top:1px solid var(--border,#222);padding:10px 0">
+              <div style="font-size:12px;font-weight:600">Drag &amp; Drop in React</div>
+              <div style="font-size:10px;opacity:.6;margin-top:2px">18 lessons · ends with a table-booking app</div>
+            </div>
+            <div style="border-top:1px solid var(--border,#222);padding:10px 0;opacity:.55">
+              <div style="font-size:12px;font-weight:600">Next course — coming soon</div>
+            </div>
+            <div style="border-top:1px solid var(--border,#222);padding:10px 0;opacity:.55">
+              <div style="font-size:12px;font-weight:600">Next course — coming soon</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Editorial / personal</h3>
+      <p>A single centered column. Very text-forward, blog-like. Reads as authored by a person, not a brand. Cheapest to build, looks great with one course but plain with twenty.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0">
+        <div class="mockup-header">C — Documentation sidebar</div>
+        <div class="mockup-body">
+          <div class="mock-nav" style="margin-bottom:8px;font-size:11px">IT Courses</div>
+          <div style="display:flex;gap:8px">
+            <div class="mock-sidebar" style="width:120px;padding:8px;font-size:10px;line-height:1.6">
+              <div style="font-weight:600;margin-bottom:4px">Drag &amp; Drop in React</div>
+              <div style="opacity:.7;padding-left:6px">1. Intro &amp; landscape</div>
+              <div style="opacity:.7;padding-left:6px">2. HTML5 events</div>
+              <div style="opacity:.7;padding-left:6px">3. dataTransfer</div>
+              <div style="opacity:.5;padding-left:6px">+ 15 more</div>
+              <div style="font-weight:600;margin-top:8px;opacity:.5">Coming soon</div>
+              <div style="font-weight:600;margin-top:4px;opacity:.5">Coming soon</div>
+            </div>
+            <div class="mock-content" style="flex:1;padding:10px;font-size:11px">
+              <div style="font-size:14px;font-weight:700">Welcome</div>
+              <div style="opacity:.7;margin-top:6px;line-height:1.5">Pick a lesson on the left to start, or jump into the featured course below.</div>
+              <div class="placeholder" style="margin-top:10px;padding:10px;text-align:left">
+                <div style="font-size:11px;font-weight:600">Featured: Drag &amp; Drop in React</div>
+                <div style="font-size:10px;opacity:.6;margin-top:3px">Start lesson 1 →</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Documentation sidebar</h3>
+      <p>Persistent left sidebar with every course's lesson list. Main area shows welcome / featured. Feels like Vercel/MDN docs. Great for browsing learners, but heavier UI for a homepage.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:24px">My recommendation: <strong>A</strong> for the homepage, then sidebar (C-style) <em>only</em> on lesson pages. Best of both. But it's your call.</p>

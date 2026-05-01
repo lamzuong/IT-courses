@@ -1,0 +1,264 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { OverlayToggleDemo } from '@/components/demos/drag-drop-react/overlay-toggle-demo';
+
+The `<DragOverlay>` component is what makes `@dnd-kit` drags look professional. It's a portal-rendered "ghost" that follows the pointer — separate from the source — and unlocks a few things you can't do without it: live React content while dragging, cross-container drag previews, and smooth drop animations.
+
+## Why a separate overlay?
+
+Toggle "Render with DragOverlay" off and on while dragging — feel the difference.
+
+<Demo title="Overlay vs no overlay">
+  <OverlayToggleDemo />
+</Demo>
+
+```tsx
+'use client';
+import {
+  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  type DragStartEvent, type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, arrayMove, useSortable, verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useState } from 'react';
+
+function Item({ id, hideWhileDragging }: { id: string; hideWhileDragging: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <li ref={setNodeRef} {...attributes} {...listeners}
+        style={{
+          transform: CSS.Translate.toString(transform),
+          transition,
+          opacity: hideWhileDragging && isDragging ? 0 : 1,  // ← hide source when overlay is on
+          touchAction: 'none',
+        }}>
+      {id}
+    </li>
+  );
+}
+
+export function OverlayToggleDemo() {
+  const [items, setItems] = useState(['Espresso', 'Cortado', 'Macchiato', 'Flat white']);
+  const [active, setActive] = useState<string | null>(null);
+  const [withOverlay, setWithOverlay] = useState(true);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  return (
+    <>
+      <label>
+        <input type="checkbox" checked={withOverlay} onChange={(e) => setWithOverlay(e.target.checked)} />
+        Render with DragOverlay
+      </label>
+
+      <DndContext
+        sensors={sensors}
+        onDragStart={(e: DragStartEvent) => setActive(String(e.active.id))}
+        onDragEnd={(e: DragEndEvent) => {
+          setActive(null);
+          if (!e.over || e.active.id === e.over.id) return;
+          setItems((cur) => arrayMove(cur, cur.indexOf(String(e.active.id)), cur.indexOf(String(e.over!.id))));
+        }}
+        onDragCancel={() => setActive(null)}
+      >
+        <SortableContext items={items} strategy={verticalListSortingStrategy}>
+          <ol>
+            {items.map((id) => <Item key={id} id={id} hideWhileDragging={withOverlay} />)}
+          </ol>
+        </SortableContext>
+
+        {withOverlay && (
+          <DragOverlay>
+            {active ? (
+              <div className="rounded border bg-white shadow-lg rotate-2">{active}</div>
+            ) : null}
+          </DragOverlay>
+        )}
+      </DndContext>
+    </>
+  );
+}
+```
+
+Three things change when you turn the overlay on: track an `activeId`, conditionally hide the source via `opacity: 0`, and render the overlay subtree (anything you want — usually a copy of the item with rotate + shadow).
+
+
+Without an overlay, the dragged item *is* its DOM node, transformed in place. That's fine for simple sortable lists — but it has limits:
+
+- The item is constrained by its parent's `overflow`. Drag a list item out of a scroll container and it gets clipped.
+- It can't easily render different content while dragging (a thumbnail instead of the full row).
+- Drop animations are awkward because the source DOM hasn't moved yet.
+
+`<DragOverlay>` solves these by rendering the dragged ghost in a portal at the document root, free of layout context. The original source can be hidden, dimmed, or removed; the overlay is what the user sees.
+
+## Setup
+
+```tsx
+'use client';
+import { DndContext, DragOverlay, useDraggable, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
+import { useState } from 'react';
+
+function Card({ id, label, asOverlay = false }: { id: string; label: string; asOverlay?: boolean }) {
+  const { setNodeRef, listeners, attributes, isDragging, transform } = useDraggable({ id });
+  return (
+    <div
+      ref={asOverlay ? undefined : setNodeRef}
+      {...(asOverlay ? {} : { ...listeners, ...attributes })}
+      style={{
+        transform: asOverlay ? undefined : (transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined),
+        opacity: !asOverlay && isDragging ? 0 : 1,
+        touchAction: 'none',
+      }}
+      className="rounded border bg-white px-3 py-2 cursor-grab active:cursor-grabbing"
+    >
+      {label}
+    </div>
+  );
+}
+
+export function OverlayDemo() {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const items = [
+    { id: 'a', label: 'Card A' },
+    { id: 'b', label: 'Card B' },
+    { id: 'c', label: 'Card C' },
+  ];
+
+  return (
+    <DndContext
+      onDragStart={(e: DragStartEvent) => setActiveId(String(e.active.id))}
+      onDragEnd={() => setActiveId(null)}
+      onDragCancel={() => setActiveId(null)}
+    >
+      <ul className="space-y-2">
+        {items.map((it) => <li key={it.id}><Card id={it.id} label={it.label} /></li>)}
+      </ul>
+
+      <DragOverlay>
+        {activeId
+          ? <Card id={activeId} label={items.find((it) => it.id === activeId)!.label} asOverlay />
+          : null}
+      </DragOverlay>
+    </DndContext>
+  );
+}
+```
+
+A few things worth pointing out:
+
+### Track activeId yourself
+
+`<DragOverlay>` doesn't know what to render — you tell it. Track the currently-dragging ID in `onDragStart`, render the matching component inside `<DragOverlay>`, clear it in `onDragEnd` and `onDragCancel`.
+
+### Hide the source while dragging
+
+Set `opacity: 0` (or remove from layout) on the source while `isDragging`. The overlay becomes the only visible representation. Without this, you'll see two copies — the source frozen at its original spot and the overlay following the pointer.
+
+### Don't apply transform to the overlay
+
+The overlay handles its own positioning. If you accidentally apply the `transform` from `useDraggable`, it gets compounded and the ghost flies off. Pass `asOverlay` (or check `isDragging` differently) and skip the transform when rendering inside `<DragOverlay>`.
+
+## Different content while dragging
+
+The overlay is a normal React subtree. You can render anything:
+
+```tsx
+<DragOverlay>
+  {activeId && (
+    <div className="rounded shadow-lg border bg-white px-3 py-2 rotate-2">
+      <span className="opacity-60 text-xs">Moving:</span>
+      {labelFor(activeId)}
+    </div>
+  )}
+</DragOverlay>
+```
+
+Tilted cards while dragging, badge counters showing how many items are being moved, a different layout entirely — all fair game. This is what you can't do without an overlay.
+
+## Drop animations
+
+`<DragOverlay>` accepts a `dropAnimation` prop. When the user drops, the overlay animates from its current position to where the source ends up.
+
+```tsx
+import { defaultDropAnimation } from '@dnd-kit/core';
+
+<DragOverlay dropAnimation={defaultDropAnimation}>
+  {/* ... */}
+</DragOverlay>
+```
+
+To disable the animation entirely:
+
+```tsx
+<DragOverlay dropAnimation={null}>
+```
+
+Or customize duration and easing:
+
+```tsx
+<DragOverlay
+  dropAnimation={{
+    duration: 250,
+    easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+  }}
+>
+```
+
+<Callout type="tip" title="Pair the overlay with an active source style">
+The classic pattern is `opacity: 0.4` on the source (so the user sees where it came from), full-color overlay following the pointer, then a brief drop animation as the source settles. That's the look every polished DnD app uses, and it's three lines of CSS once you have the overlay.
+</Callout>
+
+## Working with sortable
+
+For sortable lists with an overlay, render the overlay copy of the item with `asOverlay`-style rendering — *not* `useSortable`. The sortable items in the list animate among themselves via FLIP transitions; the overlay is independent.
+
+```tsx
+function SortableItem({ id, label }: { id: string; label: string }) {
+  const { setNodeRef, listeners, attributes, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <li
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition,
+        opacity: isDragging ? 0 : 1,
+      }}
+    >
+      {label}
+    </li>
+  );
+}
+
+// at the top level
+<DragOverlay>
+  {activeId ? <li className="rounded border bg-white px-3 py-2">{labelFor(activeId)}</li> : null}
+</DragOverlay>
+```
+
+The list item leaves a gap (because of the FLIP); the overlay rides the cursor; on drop, the gap closes and the overlay animates into its new home.
+
+## Modifiers on the overlay
+
+You can apply modifiers to the overlay independent of the context. Common: snap on the overlay only, so the user sees a snapped preview but the source stays still until drop.
+
+```tsx
+import { createSnapModifier } from '@dnd-kit/modifiers';
+
+<DragOverlay modifiers={[createSnapModifier(20)]}>
+  {/* ... */}
+</DragOverlay>
+```
+
+This is exactly the pattern we'll use for the snap-to-grid floor plan in the final project.
+
+<Recap>
+- `<DragOverlay>` renders the dragged ghost in a portal, free of layout context.
+- Track `activeId` yourself in `onDragStart`/`onDragEnd` and pass the matching content to the overlay.
+- Hide the source (`opacity: 0` while dragging) so only the overlay is visible.
+- Don't apply `useDraggable.transform` to the overlay copy — the overlay handles its own position.
+- `dropAnimation` controls the settle animation; pass `null` to disable.
+- Apply modifiers to the overlay for visual-only constraints like snap previews.
+</Recap>

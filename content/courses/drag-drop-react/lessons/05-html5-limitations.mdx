@@ -1,0 +1,177 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { TouchVsPointerDemo } from '@/components/demos/drag-drop-react/touch-vs-pointer-demo';
+import { DragleaveNoiseDemo } from '@/components/demos/drag-drop-react/dragleave-noise-demo';
+
+We've now seen HTML5 DnD work end-to-end. Before we move on, let's be honest about its limits — because they're the reason every modern React DnD library exists.
+
+## 1. It does not work on touch
+
+This is the headline. On phones and tablets, the HTML5 DnD events simply don't fire from a touch. The browser interprets a finger drag as either a *scroll* or a *long-press selection*, not a drag-and-drop gesture. There is no flag, no polyfill blessed by the spec, no fix at the API level.
+
+```tsx
+<div draggable onDragStart={start}>Try me on your phone</div>
+```
+
+On desktop: works.
+On mobile: nothing — `dragstart` never fires.
+
+For any product with mobile users, this alone disqualifies HTML5 DnD as a primary mechanism.
+
+Try both boxes — desktop fires both, phones only fire the right one.
+
+<Demo title="HTML5 DnD vs Pointer Events on touch">
+  <TouchVsPointerDemo />
+</Demo>
+
+```tsx
+'use client';
+import { useState } from 'react';
+
+export function TouchVsPointerDemo() {
+  const [dragFires, setDragFires] = useState(0);
+  const [pointerFires, setPointerFires] = useState(0);
+
+  return (
+    <div className="grid md:grid-cols-2 gap-4">
+      <div
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/plain', 'x');
+          setDragFires((c) => c + 1);
+        }}
+      >
+        HTML5 DnD — dragstart fired: {dragFires}×
+      </div>
+
+      <div
+        onPointerDown={() => setPointerFires((c) => c + 1)}
+        style={{ touchAction: 'none' }}
+      >
+        Pointer Events — pointerdown fired: {pointerFires}×
+      </div>
+    </div>
+  );
+}
+```
+
+Both boxes render the same JSX shape; the difference is the event family. HTML5's drag events depend on the browser deciding "this is a drag" — and on touch, it never does. Pointer Events are unified and fire from every input.
+
+## 2. The drag image is hard to style
+
+You can replace the drag image with `setDragImage`, but:
+
+- The replacement must already be in the DOM.
+- It's a **static snapshot** taken at `dragstart`. It does not animate, re-render, or react to state.
+- Different OSes render it slightly differently (some clip, some add a shadow).
+- You can't style it with hover or interaction states.
+
+If you want the dragged thing to *be* a live React component — updating, animating, reacting — you can't get there with HTML5.
+
+## 3. There's no built-in keyboard story
+
+HTML5 DnD is a pointer interaction. There is no spec for "press space to pick up, arrow keys to move." Nothing is announced to screen readers. If you need to ship to users who don't or can't use a pointer, you have to build keyboard handling yourself, completely outside the DnD API.
+
+That's not a small task — see Lesson 9 for what it actually involves.
+
+## 4. dragleave is unreliable
+
+We mentioned this in Lesson 2. `dragleave` fires when crossing into children, leading to phantom-leave bugs. Workarounds exist (depth counters, `pointer-events: none`), but every team rediscovers this the hard way.
+
+Watch the log: drag the source over the parent zone, then move the pointer over a child. You'll see `leave` fire **even though you're still inside the zone**.
+
+<Demo title="dragleave fires on every child boundary">
+  <DragleaveNoiseDemo />
+</Demo>
+
+```tsx
+'use client';
+import { useState } from 'react';
+
+type Entry = { kind: 'enter' | 'leave'; on: string; t: number };
+
+export function DragleaveNoiseDemo() {
+  const [log, setLog] = useState<Entry[]>([]);
+  const [active, setActive] = useState(false);
+
+  function record(kind: Entry['kind'], on: string) {
+    setLog((cur) => [...cur, { kind, t: Date.now(), on }].slice(-14));
+  }
+
+  return (
+    <>
+      <div
+        draggable
+        onDragStart={(e) => { e.dataTransfer.setData('text/plain', 'x'); setLog([]); }}
+      >
+        Drag this →
+      </div>
+
+      <div
+        onDragEnter={(e) => {
+          e.preventDefault();
+          record('enter', (e.target as HTMLElement).dataset.label ?? 'parent');
+          setActive(true);
+        }}
+        onDragLeave={(e) => {
+          record('leave', (e.target as HTMLElement).dataset.label ?? 'parent');
+          setActive(false);  // ← bug: this turns off even when we're still inside
+        }}
+        onDragOver={(e) => e.preventDefault()}
+        data-label="parent"
+        className={active ? 'border-amber-500' : ''}
+      >
+        <div data-label="child A">Child A</div>
+        <div data-label="child B">Child B</div>
+        <div data-label="child C">Child C</div>
+      </div>
+    </>
+  );
+}
+```
+
+The fix in production code is a **depth counter** — track every enter/leave pair, only consider the zone "left" when the count returns to zero:
+
+```ts
+const depth = useRef(0);
+
+function onDragEnter(e: React.DragEvent) {
+  e.preventDefault();
+  depth.current += 1;
+  if (depth.current === 1) setActive(true);
+}
+function onDragLeave() {
+  depth.current -= 1;
+  if (depth.current === 0) setActive(false);
+}
+```
+
+Or — simpler if you don't need the children to be interactive — set `pointer-events: none` on every child. The browser will treat the children as transparent for pointer purposes and `dragleave` only fires when you actually leave the parent's bounding box.
+
+## 5. Drop targets are coarse
+
+The events fire on whole elements. You can't easily ask "which *index* in this list is the pointer over?" — you have to compute it yourself from `e.clientY` and the bounding rects of children. Sortable lists with insertion indicators are doable but verbose.
+
+## 6. Custom hit-testing is awkward
+
+HTML5 DnD only knows about elements directly under the cursor. If you want "snap to nearest table within 40px" or "highlight every drop zone the dragged item overlaps," you're back to manual `getBoundingClientRect` math.
+
+## 7. Cross-browser behavior wobbles
+
+The spec is ancient (it predates HTML5's name) and was reverse-engineered from IE5. Different browsers disagree on small things — Firefox requires `setData` for the drag to start at all; Safari sometimes triggers text selection mid-drag; Chromium has the most predictable behavior.
+
+<Callout type="tip" title="When HTML5 DnD is still a fine choice">
+Single source, single target, desktop-only internal tool, no a11y requirement, drag image doesn't need to be live — go ahead. It's small, has zero dependencies, and will outlive any library. **File uploads** specifically are a great fit, since the OS-to-browser case has no library equivalent.
+</Callout>
+
+## What we'll do instead
+
+The rest of Part 1 walks through building drag from scratch with **Pointer Events** — the API the browser actually unified for mouse, touch, and pen. We'll cover the events (Lesson 6), build a draggable element (Lesson 7), add drop zones and hit-testing (Lesson 8), and wire up keyboard accessibility (Lesson 9). After that, Part 2 layers `@dnd-kit` on top so you don't have to write all that yourself in real apps.
+
+<Recap>
+- HTML5 DnD does not fire from touch — the single biggest reason to avoid it.
+- The drag image is a static snapshot, not a live React component.
+- There is no keyboard or screen-reader story; you have to build a11y entirely yourself.
+- `dragleave` is noisy; sortable lists and custom hit-testing are awkward.
+- It's still a reasonable choice for desktop-only file-drop and small internal tools.
+</Recap>

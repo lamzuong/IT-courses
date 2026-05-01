@@ -1,0 +1,236 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { KeyboardSortableDemo } from '@/components/demos/drag-drop-react/keyboard-sortable-demo';
+
+We built keyboard support and ARIA announcements from scratch in Lesson 9. `@dnd-kit` does most of that for you — but only if you configure it. This lesson shows what it gives you for free, what you need to add, and how to customize the screen-reader experience.
+
+## What you get out of the box
+
+When you include `KeyboardSensor` (which you should always do) and use the standard `useDraggable` / `useSortable` attributes, you get:
+
+- A focusable element (the `attributes` spread sets `tabIndex={0}` and a `role`).
+- `aria-roledescription="draggable"` on the source.
+- The pick / move / drop / cancel keyboard model: Space/Enter to pick, arrows to move, Space/Enter to drop, Escape to cancel.
+- An invisible `aria-live` announcer that the library writes to during drag.
+
+That's a lot. But the announcements are generic ("Picked up draggable item.") — for them to be useful, you customize them.
+
+## Customizing announcements
+
+Tab into the list and use Space + arrows. The right-hand panel mirrors what a screen reader hears.
+
+<Demo title="Keyboard sortable with live announcements">
+  <KeyboardSortableDemo />
+</Demo>
+
+```tsx
+'use client';
+import {
+  DndContext, KeyboardSensor, PointerSensor,
+  closestCenter, useSensor, useSensors,
+  type Announcements, type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove, SortableContext, sortableKeyboardCoordinates,
+  useSortable, verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useState } from 'react';
+
+function Item({ id, label, position, total }: { id: string; label: string; position: number; total: number }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id,
+    attributes: { roleDescription: 'sortable reservation' },  // ← override default 'draggable'
+  });
+  return (
+    <li ref={setNodeRef} {...attributes} {...listeners}
+        aria-label={`${label}, position ${position} of ${total}`}
+        style={{ transform: CSS.Translate.toString(transform), transition, touchAction: 'none' }}>
+      {label}
+    </li>
+  );
+}
+
+export function KeyboardSortableDemo() {
+  const [items, setItems] = useState([
+    { id: '1', label: 'Reservation: Chen, party of 2' },
+    { id: '2', label: 'Reservation: Garcia, party of 4' },
+    { id: '3', label: 'Reservation: Patel, party of 6' },
+    { id: '4', label: 'Reservation: Vuong, party of 3' },
+  ]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // ── custom announcements with positions and labels ───────────────────────
+  const announcements: Announcements = {
+    onDragStart({ active }) {
+      return `Picked up ${labelFor(items, active.id)}.`;
+    },
+    onDragOver({ active, over }) {
+      if (!over) return undefined;
+      const idx = items.findIndex((it) => it.id === over.id);
+      return `${labelFor(items, active.id)} moved to position ${idx + 1} of ${items.length}.`;
+    },
+    onDragEnd({ active, over }) {
+      return over
+        ? `Dropped ${labelFor(items, active.id)} on ${labelFor(items, over.id)}.`
+        : `Dropped ${labelFor(items, active.id)} without a target.`;
+    },
+    onDragCancel({ active }) {
+      return `Movement of ${labelFor(items, active.id)} cancelled.`;
+    },
+  };
+
+  function onDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    setItems((cur) => arrayMove(
+      cur,
+      cur.findIndex((it) => it.id === active.id),
+      cur.findIndex((it) => it.id === over.id),
+    ));
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={onDragEnd}
+      accessibility={{ announcements }}      // ← screen-reader feed lives here
+    >
+      <SortableContext items={items.map((it) => it.id)} strategy={verticalListSortingStrategy}>
+        <ol>
+          {items.map((it, i) => (
+            <Item key={it.id} id={it.id} label={it.label} position={i + 1} total={items.length} />
+          ))}
+        </ol>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+function labelFor(items: { id: string; label: string }[], id: string | number) {
+  return items.find((it) => it.id === String(id))?.label ?? String(id);
+}
+```
+
+The whole accessibility story is the `accessibility={{ announcements }}` prop and the `attributes.roleDescription` override on `useSortable`. Everything else — the keyboard sensor, focus, ARIA attrs — is wired in by default.
+
+
+Pass `accessibility.announcements` to `<DndContext>`:
+
+```tsx
+import { DndContext, type Announcements } from '@dnd-kit/core';
+
+const announcements: Announcements = {
+  onDragStart({ active }) {
+    return `Picked up ${labelFor(active.id)}.`;
+  },
+  onDragOver({ active, over }) {
+    if (over) return `${labelFor(active.id)} is over ${labelFor(over.id)}.`;
+    return `${labelFor(active.id)} is no longer over a droppable area.`;
+  },
+  onDragEnd({ active, over }) {
+    if (over) return `${labelFor(active.id)} dropped on ${labelFor(over.id)}.`;
+    return `${labelFor(active.id)} dropped without a target.`;
+  },
+  onDragCancel({ active }) {
+    return `Movement of ${labelFor(active.id)} was cancelled.`;
+  },
+};
+
+<DndContext accessibility={{ announcements }}>
+```
+
+`labelFor` is your function that turns an ID into a human-readable label. For sortable lists, the most useful announcements include the **position**:
+
+```ts
+onDragOver({ active, over }) {
+  if (!over) return undefined;
+  const overIndex = items.findIndex((it) => it.id === over.id);
+  return `${labelFor(active.id)} moved to position ${overIndex + 1} of ${items.length}.`;
+}
+```
+
+This is the difference between "useful for keyboard users" and "merely compliant."
+
+## Customizing the source's screen-reader text
+
+The default `aria-roledescription="draggable"` works, but for a sortable list "sortable item" is more accurate. Override via `attributes` on the call:
+
+```ts
+const { attributes /* ... */ } = useSortable({
+  id,
+  attributes: {
+    roleDescription: 'sortable item',
+  },
+});
+```
+
+For more invasive labels — say, the item should be announced as "Reservation: Lam Vuong, table for 4" — use `aria-label` on the element directly.
+
+## Screen-reader instructions
+
+When the user first lands on a draggable, the library announces a default instruction ("To pick up a draggable item, press space or enter…"). You can override it:
+
+```tsx
+<DndContext accessibility={{
+  screenReaderInstructions: {
+    draggable: 'Press space to pick up. Use arrow keys to move. Space to drop, Escape to cancel.',
+  },
+  announcements,
+}}>
+```
+
+Keep it short — assistive tech reads it on every focus.
+
+## Making the drag overlay accessible
+
+If you use `<DragOverlay>`, **don't** spread the original element's listeners or attributes onto the overlay copy — only the source needs to be focusable. The overlay is decorative.
+
+```tsx
+<DragOverlay>
+  {activeId ? <li className="...">{labelFor(activeId)}</li> : null}
+</DragOverlay>
+```
+
+The library handles announcing the overlay's existence implicitly via the announcer — you don't need ARIA on it.
+
+## Common a11y bugs to avoid
+
+- **Removing focus rings.** Don't suppress them. The keyboard sensor relies on focus to know which item to pick up.
+- **`tabIndex={-1}` on draggable items.** They become unreachable by keyboard. Let `attributes` set `tabIndex={0}`.
+- **Custom drag handles without keyboard equivalents.** If the drag handle is a sub-element with its own `listeners`, the *parent* must still be focusable for the keyboard model to work. Spread `attributes` on the outer focusable element, `listeners` on the grip.
+- **Not handling `disabled`.** A disabled sortable item shouldn't be picked up. `useSortable({ id, disabled: true })` blocks it cleanly.
+
+## Testing with a screen reader
+
+VoiceOver (macOS), NVDA (Windows), and TalkBack (Android) all expose drag interactions slightly differently. The shared baseline:
+
+1. Tab to a draggable. The screen reader reads label + roledescription + the pick-up hint.
+2. Press Space. The announcer reads your `onDragStart` message.
+3. Press arrow. The announcer reads your `onDragOver` message — including position if you wrote it that way.
+4. Press Space. The announcer reads your `onDragEnd` message.
+
+Run through this with VoiceOver (Cmd+F5) at least once before shipping. The announcements are easy to get wrong (omitting context, repeating verbose text, missing position) and a screen reader is the only way to tell.
+
+<Callout type="tip" title="Don't ship a11y as an afterthought">
+The cost of accessible drag-and-drop in `@dnd-kit` is *one* sensor + *one* announcements object. The cost of adding it later, after the app is wired with assumed-pointer interactions, is much higher. Wire announcements when you wire `onDragEnd`.
+</Callout>
+
+## You've reached the end of the lessons
+
+That's the curriculum: native HTML5, Pointer Events, `@dnd-kit/core`, `@dnd-kit/sortable`, modifiers, sensors, drag overlay, custom collisions, and accessibility throughout. The next thing is the **final project** — building the Restaurant Table Booking Manager with everything you've learned.
+
+The project guideline lives in the sidebar at the bottom — open it when you're ready.
+
+<Recap>
+- `@dnd-kit` ships built-in keyboard pick/move/drop, ARIA attributes, and an announcer; you customize, you don't reimplement.
+- Pass `accessibility.announcements` to `<DndContext>` with handlers for start/over/end/cancel — include positions and labels.
+- Override `roleDescription` on `useSortable` for accurate verbiage.
+- Don't suppress focus rings or set `tabIndex={-1}` on draggables.
+- Test with VoiceOver / NVDA at least once before shipping — announcements are easy to get subtly wrong.
+</Recap>

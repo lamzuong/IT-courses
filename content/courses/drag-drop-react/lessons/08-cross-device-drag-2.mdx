@@ -1,0 +1,221 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { DropBinsDemo } from '@/components/demos/drag-drop-react/drop-bins-demo';
+
+Lesson 7 gave us a draggable element that moves freely. Now we make the drop *mean* something: drop zones, hit-testing during drag, and edge auto-scroll for long lists.
+
+## Drop zones are just elements with a data attribute
+
+There's nothing special about a drop zone in this approach — it's a regular element you can identify. Use a `data-` attribute or a ref array.
+
+```tsx
+<div data-dropzone="bin-1" className="rounded border-2 border-dashed p-6">
+  Bin 1
+</div>
+```
+
+Now in `pointermove` we ask: "is the pointer over a dropzone right now?"
+
+## Hit-testing with elementsFromPoint
+
+`document.elementsFromPoint(x, y)` returns every element under that screen coordinate, top-most first. That's our hit-test.
+
+```ts
+function onPointerMove(e: React.PointerEvent) {
+  // ... existing position update ...
+  const els = document.elementsFromPoint(e.clientX, e.clientY);
+  const dropzone = els.find((el) => el.matches('[data-dropzone]'));
+  setHover(dropzone?.getAttribute('data-dropzone') ?? null);
+}
+```
+
+<Callout type="warning" title="The dragging element is always at the top">
+Because the source follows the pointer, `elementsFromPoint` will always include it as the first hit. Either skip it explicitly (`els.filter(el => el !== source)`) or set `pointer-events: none` on it during drag — the browser will then "see through" the drag visual to the elements below.
+</Callout>
+
+The `pointer-events: none` trick is cleaner. While dragging, set it on the source. The pointer events still flow to the source via `setPointerCapture`, but `elementsFromPoint` no longer reports it.
+
+## A complete pattern
+
+Drop the token in any bin and watch the count update.
+
+<Demo title="Hit-tested drop zones">
+  <DropBinsDemo />
+</Demo>
+
+```tsx
+'use client';
+import { useRef, useState } from 'react';
+
+const BINS = [
+  { id: 'a', label: 'Alpha' },
+  { id: 'b', label: 'Beta'  },
+  { id: 'c', label: 'Gamma' },
+];
+
+export function DropBinsDemo() {
+  const [pos, setPos] = useState({ x: 16, y: 16 });
+  const [dragging, setDragging] = useState(false);
+  const [hover, setHover] = useState<string | null>(null);
+  const [count, setCount] = useState<Record<string, number>>({ a: 0, b: 0, c: 0 });
+  const start = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
+
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    start.current = { pointerId: e.pointerId, offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(true);
+  }
+
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const s = start.current;
+    if (!s || s.pointerId !== e.pointerId) return;
+    const parent = e.currentTarget.parentElement!.getBoundingClientRect();
+    setPos({ x: e.clientX - parent.left - s.offsetX, y: e.clientY - parent.top - s.offsetY });
+
+    // hit-test: ask the DOM what's under the pointer
+    const hits = document.elementsFromPoint(e.clientX, e.clientY);
+    const zone = hits.find((el) => el.hasAttribute('data-bin'))?.getAttribute('data-bin') ?? null;
+    setHover(zone);
+  }
+
+  function end() {
+    if (hover) setCount((c) => ({ ...c, [hover]: (c[hover] ?? 0) + 1 }));
+    start.current = null;
+    setDragging(false);
+    setHover(null);
+    setPos({ x: 16, y: 16 });
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-3 gap-3">
+        {BINS.map((b) => (
+          <div key={b.id} data-bin={b.id} className={hover === b.id ? 'border-accent' : ''}>
+            {b.label} ({count[b.id]})
+          </div>
+        ))}
+      </div>
+      <div className="relative h-32">
+        <div
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={end}
+          onPointerCancel={end}
+          style={{
+            position: 'absolute',
+            left: pos.x,
+            top: pos.y,
+            touchAction: 'none',
+            pointerEvents: dragging ? 'none' : 'auto', // ← let elementsFromPoint see through
+          }}
+        >
+          drop in any bin
+        </div>
+      </div>
+    </>
+  );
+}
+```
+
+The two lines that make this work are `document.elementsFromPoint(x, y)` (returns every element at that screen coord) and `pointerEvents: 'none'` on the dragging source (so it doesn't shadow the bins from the hit-test).
+
+
+```tsx
+const [pos, setPos] = useState({ x: 40, y: 40 });
+const [dragging, setDragging] = useState(false);
+const [hoverZone, setHoverZone] = useState<string | null>(null);
+
+function onPointerMove(e: React.PointerEvent) {
+  if (!dragging) return;
+  setPos({ x: e.clientX, y: e.clientY });
+  const hits = document.elementsFromPoint(e.clientX, e.clientY);
+  const zone = hits
+    .find((el) => el.hasAttribute('data-dropzone'))
+    ?.getAttribute('data-dropzone') ?? null;
+  setHoverZone(zone);
+}
+
+function onPointerUp(e: React.PointerEvent) {
+  setDragging(false);
+  if (hoverZone) {
+    onDrop(hoverZone);
+  }
+  setHoverZone(null);
+}
+```
+
+`hoverZone` powers the highlight on whichever zone the pointer is over. On `pointerup`, you commit the drop to whichever zone was last under the cursor.
+
+## Throttling pointermove
+
+`pointermove` can fire 100+ times per second. `elementsFromPoint` and React state updates per move are usually fine on modern hardware, but on mobile or with many drop zones it gets choppy. Two cheap optimizations:
+
+```ts
+// 1. Skip if not actually moved enough
+const last = useRef({ x: 0, y: 0 });
+if (Math.hypot(e.clientX - last.current.x, e.clientY - last.current.y) < 2) return;
+
+// 2. Coalesce to animation frames
+let pending = false;
+function onPointerMove(e: React.PointerEvent) {
+  if (pending) return;
+  pending = true;
+  requestAnimationFrame(() => { pending = false; doWork(e); });
+}
+```
+
+## Edge auto-scroll
+
+When a draggable item nears the top or bottom of a scrollable container, the user expects the container to scroll. The browser doesn't do this for you with Pointer Events — you implement it.
+
+```ts
+function autoScroll(container: HTMLElement, clientY: number) {
+  const rect = container.getBoundingClientRect();
+  const edge = 40;
+  if (clientY < rect.top + edge)        container.scrollTop -= 8;
+  else if (clientY > rect.bottom - edge) container.scrollTop += 8;
+}
+```
+
+Call this in `pointermove` while dragging. For smoother behavior, use a `requestAnimationFrame` loop that runs while the pointer is in the edge band, instead of only stepping on each pointer event.
+
+```ts
+useEffect(() => {
+  if (!dragging) return;
+  let raf = 0;
+  function tick() {
+    autoScroll(scrollContainer.current!, lastY.current);
+    raf = requestAnimationFrame(tick);
+  }
+  raf = requestAnimationFrame(tick);
+  return () => cancelAnimationFrame(raf);
+}, [dragging]);
+```
+
+This way the container keeps scrolling even if the finger is held still in the edge band.
+
+## Multi-target drop with priority
+
+If multiple drop zones overlap (e.g. a list inside a panel), `elementsFromPoint` returns them all in z-order — top-most first. You can filter for the most specific match:
+
+```ts
+// prefer list-item dropzones over container dropzones
+const item = hits.find((el) => el.matches('[data-dropzone="item"]'));
+const list = hits.find((el) => el.matches('[data-dropzone="list"]'));
+const target = item ?? list;
+```
+
+This is exactly the kind of thing `@dnd-kit`'s collision-detection strategies generalize — but now you can see the bones.
+
+<Callout type="tip" title="When to bail out and use @dnd-kit">
+Everything in this lesson is doable in ~150 lines. But once you need sortable lists, smooth FLIP animations, accessibility, and modifiers like axis-locks or snap-to-grid, that 150 lines becomes 1500 — and you'll re-implement bugs that `@dnd-kit` has already fixed. Build from scratch when you're learning, when the use case is genuinely simple, or when bundle size is critical. Otherwise, reach for the library.
+</Callout>
+
+<Recap>
+- Mark drop zones with a data attribute and find them with `document.elementsFromPoint`.
+- Set `pointer-events: none` on the drag source so it doesn't shadow the hit-test.
+- Throttle pointermove with rAF for performance.
+- Auto-scroll near edges with a rAF loop, not only on pointer events.
+- Multi-zone overlap is solved by filtering hits in priority order — the seed of collision-detection strategies.
+</Recap>

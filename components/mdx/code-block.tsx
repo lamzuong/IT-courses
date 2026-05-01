@@ -13,21 +13,15 @@ export function CodeBlock({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="relative group my-6">
-      <pre
-        ref={ref}
-        tabIndex={0}
-        role="region"
-        aria-label="Code sample"
-        className="rounded-md bg-[color:var(--color-code-bg)] text-[color:var(--color-code-text)] p-4 overflow-x-auto text-sm leading-6 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[color:var(--color-link)]"
-      >
+    <div className="code-block-wrap group">
+      <pre ref={ref} tabIndex={0}>
         {children}
       </pre>
       <button
         type="button"
         onClick={copy}
         aria-label={copied ? 'Copied' : 'Copy code'}
-        className="absolute top-3 right-3 text-xs px-2 py-1 rounded bg-white/10 text-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition"
+        className="code-copy"
       >
         {copied ? 'Copied' : 'Copy'}
       </button>

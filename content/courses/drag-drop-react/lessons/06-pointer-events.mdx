@@ -1,0 +1,163 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { PointerTypeDemo } from '@/components/demos/drag-drop-react/pointer-type-demo';
+
+Pointer Events are the modern primitive for any custom drag interaction. Where HTML5 DnD treats touch as a second-class citizen, Pointer Events unify mouse, touch, and pen into a single API with the same event names and properties on every device.
+
+This lesson is the conceptual foundation for the next two — once you understand Pointer Events, building cross-device drag is *almost* mechanical.
+
+## The five events
+
+```
+pointerdown   — finger/mouse pressed
+pointermove   — moved while pressed (or hovered, with mouse)
+pointerup     — released
+pointercancel — the OS took over (e.g. system gesture interrupted us)
+pointerleave  — pointer left the element
+```
+
+These map cleanly onto what mouse and touch already do separately, but you write **one set of handlers** for all input types.
+
+## pointerType tells you what hardware
+
+Try it with whatever input you have nearby:
+
+<Demo title="Pointer inspector">
+  <PointerTypeDemo />
+</Demo>
+
+```tsx
+'use client';
+import { useState } from 'react';
+
+type Info = { type: string; isPrimary: boolean; pressure: number; x: number; y: number };
+
+export function PointerTypeDemo() {
+  const [info, setInfo] = useState<Info | null>(null);
+  const [active, setActive] = useState(false);
+
+  function read(e: React.PointerEvent) {
+    setInfo({
+      type: e.pointerType,
+      isPrimary: e.isPrimary,
+      pressure: e.pressure,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  }
+
+  return (
+    <div
+      onPointerDown={(e) => {
+        (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+        setActive(true);
+        read(e);
+      }}
+      onPointerMove={(e) => { if (active) read(e); }}
+      onPointerUp={() => setActive(false)}
+      onPointerCancel={() => setActive(false)}
+      style={{ touchAction: 'none' }}
+    >
+      {active ? 'sensing…' : 'press anywhere with mouse, finger, or pen'}
+      <pre>{JSON.stringify(info, null, 2)}</pre>
+    </div>
+  );
+}
+```
+
+Three things to notice: `setPointerCapture` on `pointerdown`, `touchAction: 'none'` so the browser doesn't scroll, `pointerType` to discover what hardware actually pressed.
+
+
+```ts
+function onPointerDown(e: React.PointerEvent) {
+  console.log(e.pointerType);  // 'mouse' | 'touch' | 'pen'
+  console.log(e.isPrimary);    // first finger? main mouse button?
+  console.log(e.pressure);     // 0..1, real on pen and some touchscreens
+}
+```
+
+You can branch on `pointerType` when you need to — e.g., require a slightly longer press on touch than on mouse — but most of the time the same code path works for all three.
+
+## setPointerCapture — the killer feature
+
+This is the single most important method in the API. By default, if your finger drifts off the element you started dragging, you stop receiving events from it. `setPointerCapture` says **"keep sending me events for this pointer until I release it, no matter where it goes."**
+
+```ts
+function onPointerDown(e: React.PointerEvent) {
+  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+}
+```
+
+Once captured, you'll get `pointermove` and `pointerup` even if the user drags way past the element's edges. **Without this, drag from scratch is essentially impossible.** With it, you don't need a global `mousemove` listener on `window` — the events just keep coming to your element.
+
+You release it implicitly on `pointerup`, or explicitly:
+
+```ts
+(el as HTMLElement).releasePointerCapture(e.pointerId);
+```
+
+## touch-action: stop the browser from stealing the gesture
+
+By default, the browser interprets a vertical finger drag as a *scroll* and steals the gesture before your code sees it. You opt out per-element with CSS:
+
+```css
+.draggable { touch-action: none; }
+```
+
+`touch-action: none` tells the browser "I'm handling all touch gestures here — don't scroll, don't pinch, don't double-tap-zoom." You almost always want this on the source element.
+
+<Callout type="warning" title="touch-action: none is for the source, not the page">
+Don't put `touch-action: none` on the body — your page won't scroll on mobile. Apply it only to draggable elements (or, with `@dnd-kit`, the library handles this for you).
+</Callout>
+
+## A minimal pointer drag (preview)
+
+Here's the skeleton — Lesson 7 builds the full version with state.
+
+```tsx
+function PointerCard() {
+  return (
+    <div
+      style={{ touchAction: 'none' }}
+      onPointerDown={(e) => {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+        // move the element by e.movementX / e.movementY
+      }}
+      onPointerUp={(e) => {
+        // capture is auto-released here
+      }}
+    >
+      Drag me
+    </div>
+  );
+}
+```
+
+Three things to note:
+
+1. `touch-action: none` on the source.
+2. `setPointerCapture` in `pointerdown`.
+3. `pointermove` checks `hasPointerCapture` to ignore hover events from a mouse.
+
+That's the entire pattern. Everything in Lessons 7 and 8 is built on top of these three lines.
+
+## Comparison with mouse + touch events
+
+You *could* write `mousedown` + `touchstart` and `mousemove` + `touchmove` separately — but:
+
+- Touch and mouse events fire in *different orders*, with `touchend` synthesizing a `mousedown` ~300ms later, leading to double-firing bugs.
+- `touchmove` requires `passive: false` to call `preventDefault`, which React's synthetic events don't expose cleanly.
+- Pen pressure, hover, and tilt only exist on Pointer Events.
+
+The Pointer Events API was created specifically to retire that mess. Use it.
+
+<Recap>
+- Pointer Events unify mouse/touch/pen with one set of handlers.
+- `pointerType` tells you which input you're dealing with.
+- `setPointerCapture(pointerId)` keeps events flowing to your element no matter where the finger goes — this is the primitive that makes drag-from-scratch possible.
+- `touch-action: none` on the source prevents the browser from hijacking the gesture as a scroll.
+- Don't go back to mixing mouse + touch handlers; Pointer Events exist precisely to replace that.
+</Recap>

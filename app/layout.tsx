@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
-import { Inter, Fraunces, JetBrains_Mono } from 'next/font/google';
+import { Manrope, Fraunces, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
-import { SkipLink } from '@/components/site/skip-link';
 import { SiteNav } from '@/components/site/nav';
 import { SiteFooter } from '@/components/site/footer';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
+const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope', display: 'swap' });
 const fraunces = Fraunces({ subsets: ['latin'], variable: '--font-fraunces', display: 'swap' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono-jb', display: 'swap' });
 
@@ -16,9 +15,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${fraunces.variable} ${mono.variable}`}>
-      <body>
-        <SkipLink />
+    <html lang="en" className={`${manrope.variable} ${fraunces.variable} ${mono.variable}`}>
+      <body suppressHydrationWarning>
         <SiteNav />
         {children}
         <SiteFooter />

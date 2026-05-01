@@ -1,7 +1,19 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { Course } from '@/content/courses/types';
+
+const STORAGE_KEY = 'lesson-toc-scroll';
+
+const ROMAN_MAP: [number, string][] = [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+function toRoman(n: number): string {
+  let out = '';
+  let rem = n;
+  for (const [v, s] of ROMAN_MAP) {
+    while (rem >= v) { out += s; rem -= v; }
+  }
+  return out;
+}
 
 export function LessonSidebar({
   course,
@@ -14,8 +26,23 @@ export function LessonSidebar({
 }) {
   const [open, setOpen] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const asideRef = useRef<HTMLElement | null>(null);
 
-  // Focus trap + Escape
+  function onLinkClick() {
+    if (asideRef.current) {
+      sessionStorage.setItem(STORAGE_KEY, String(asideRef.current.scrollTop));
+    }
+    setOpen(false);
+  }
+
+  useLayoutEffect(() => {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    if (saved !== null && asideRef.current) {
+      const y = parseInt(saved, 10);
+      if (!Number.isNaN(y)) asideRef.current.scrollTop = y;
+    }
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     const dlg = dialogRef.current;
@@ -34,59 +61,70 @@ export function LessonSidebar({
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
-  // Compute the global lesson number across parts (e.g., part 2 lesson 1 = 10)
-  const part1Count = course.parts[0]?.lessons.length ?? 0;
+  let lessonCounter = 0;
 
   const list = (
-    <nav aria-label="Course lessons">
+    <nav aria-label="Course lessons" className="toc">
       {course.parts.map((part, partIdx) => (
-        <div key={part.title} className="mb-6">
-          <p className="text-xs uppercase tracking-widest text-[color:var(--color-text-soft)] mb-2">
-            Part {partIdx + 1} · {part.title}
+        <section key={part.title} className="toc-part">
+          <p className="toc-part-label">
+            <span className="toc-part-pill">Part {toRoman(partIdx + 1)}</span>
+            <span className="toc-part-title">{part.title}</span>
           </p>
-          <ul className="space-y-0.5">
-            {part.lessons.map((lesson, idx) => {
+          <ol className="toc-list">
+            {part.lessons.map((lesson) => {
+              lessonCounter += 1;
               const active = lesson.slug === currentLessonSlug;
-              const globalNum = partIdx === 0 ? idx + 1 : part1Count + idx + 1;
+              const num = lessonCounter;
               return (
-                <li key={lesson.slug}>
+                <li key={lesson.slug} className="toc-item-wrap">
                   <Link
                     href={`/courses/${course.slug}/lessons/${lesson.slug}`}
-                    onClick={() => setOpen(false)}
+                    onClick={onLinkClick}
                     aria-current={active ? 'page' : undefined}
-                    className={`block px-2 py-1 rounded text-sm leading-snug ${active ? 'bg-white font-semibold border-l-2 border-black -ml-[2px]' : 'text-[color:var(--color-text-soft)] hover:text-black hover:bg-white/40'}`}
+                    className={`toc-item ${active ? 'is-active' : ''}`}
                   >
-                    <span className="font-mono text-[10px] mr-2">{String(globalNum).padStart(2, '0')}</span>
-                    {lesson.title}
+                    <span className="toc-num">{String(num).padStart(2, '0')}</span>
+                    <span className="toc-title">{lesson.title}</span>
                   </Link>
                 </li>
               );
             })}
-          </ul>
-        </div>
+          </ol>
+        </section>
       ))}
-      <div className="mt-6 pt-6 border-t border-[color:var(--color-border)]">
-        <Link
-          href={`/courses/${course.slug}/project`}
-          onClick={() => setOpen(false)}
-          aria-current={isProject ? 'page' : undefined}
-          className={`block px-2 py-1 rounded text-sm ${isProject ? 'bg-white font-semibold border-l-2 border-black -ml-[2px]' : 'text-[color:var(--color-text-soft)] hover:text-black hover:bg-white/40'}`}
-        >
-          <span className="text-xs uppercase tracking-widest mr-2">Project</span>
-          {course.project.title}
-        </Link>
-      </div>
+
+      <section className="toc-part">
+        <p className="toc-part-label">
+          <span className="toc-part-pill">Final</span>
+          <span className="toc-part-title">Project</span>
+        </p>
+        <ol className="toc-list">
+          <li className="toc-item-wrap">
+            <Link
+              href={`/courses/${course.slug}/project`}
+              onClick={onLinkClick}
+              aria-current={isProject ? 'page' : undefined}
+              className={`toc-item toc-project ${isProject ? 'is-active' : ''}`}
+            >
+              <span className="toc-num" aria-hidden>★</span>
+              <span className="toc-title">{course.project.title}</span>
+            </Link>
+          </li>
+        </ol>
+      </section>
     </nav>
   );
 
   return (
     <>
-      {/* Desktop sidebar */}
-      <aside className="hidden md:block w-64 shrink-0 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto px-2">
+      <aside
+        ref={asideRef}
+        className="hidden md:block w-72 shrink-0 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto pr-4 pb-8"
+      >
         {list}
       </aside>
 
-      {/* Mobile toggle + drawer */}
       <div className="md:hidden border-b border-[color:var(--color-border)] px-4 py-2">
         <button
           type="button"

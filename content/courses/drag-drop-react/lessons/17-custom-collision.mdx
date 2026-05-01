@@ -1,0 +1,238 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { CollisionStrategiesDemo } from '@/components/demos/drag-drop-react/collision-strategies-demo';
+
+**Collision detection** is how `@dnd-kit` decides which drop target the dragged item is "over." The library ships several strategies, and lets you write your own. Picking the right one — or composing one — fixes 90% of the "drops feel weird" bugs.
+
+## The built-in strategies
+
+Imported from `@dnd-kit/core`:
+
+- **`rectIntersection`** (default) — any overlap counts.
+- **`closestCenter`** — the target whose *center* is closest to the dragged item's center.
+- **`closestCorners`** — the target whose *closest corner* is closest to the item's corresponding corner.
+- **`pointerWithin`** — the target the pointer is inside.
+
+Pick one with the `collisionDetection` prop on `<DndContext>`:
+
+```tsx
+import { DndContext, closestCenter } from '@dnd-kit/core';
+
+<DndContext collisionDetection={closestCenter}>
+```
+
+## When to use which
+
+Park the puck so it overlaps two zones, then switch strategies. Watch which zone wins.
+
+<Demo title="Collision strategy switcher">
+  <CollisionStrategiesDemo />
+</Demo>
+
+```tsx
+'use client';
+import {
+  DndContext,
+  closestCenter,
+  closestCorners,
+  pointerWithin,
+  rectIntersection,
+  useDraggable,
+  useDroppable,
+  type CollisionDetection,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import { useState } from 'react';
+
+const STRATEGIES: Record<string, CollisionDetection> = {
+  rectIntersection,
+  closestCenter,
+  closestCorners,
+  pointerWithin,
+};
+
+function Drag() {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: 'puck' });
+  return (
+    <button
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), touchAction: 'none' }}
+      {...attributes}
+      {...listeners}
+    >
+      drag
+    </button>
+  );
+}
+
+function Zone({ id, label, x, y }: { id: string; label: string; x: number; y: number }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ position: 'absolute', left: x, top: y }}
+      className={isOver ? 'border-accent bg-soft' : 'border-default'}
+    >
+      {label}
+    </div>
+  );
+}
+
+export function CollisionStrategiesDemo() {
+  const [strat, setStrat] = useState<keyof typeof STRATEGIES>('rectIntersection');
+  return (
+    <>
+      <div>
+        {Object.keys(STRATEGIES).map((s) => (
+          <button key={s} onClick={() => setStrat(s as keyof typeof STRATEGIES)}>
+            {s}
+          </button>
+        ))}
+      </div>
+      <DndContext collisionDetection={STRATEGIES[strat]}>
+        <div className="relative h-72">
+          <Zone id="A" label="A" x={140} y={20}  />
+          <Zone id="B" label="B" x={250} y={20}  />
+          <Zone id="C" label="C" x={140} y={140} />
+          <Zone id="D" label="D" x={250} y={140} />
+          <Drag />
+        </div>
+      </DndContext>
+    </>
+  );
+}
+```
+
+Note: the `collisionDetection` prop on `<DndContext>` accepts any function with the `CollisionDetection` signature — built-in or your own. Swapping it is a single prop change.
+
+
+| Strategy           | Best for |
+|--------------------|----------|
+| `rectIntersection` | Multi-container drag where any overlap should target the column |
+| `closestCenter`    | Sortable lists — feels natural; swap when the centers cross |
+| `closestCorners`   | 2D grids and Trello-style boards with adjacent cards |
+| `pointerWithin`    | Free-form drag onto large drop zones (canvas, floor plan) |
+
+If your app feels like drops "snap to the wrong target" or "won't pick a target at all," try changing the strategy first. It's a one-line fix and often it's the right one.
+
+## A worked example
+
+Imagine a Kanban board with three columns. The user drags a card. Two scenarios:
+
+- The card overlaps the boundary between two columns — which column wins?
+  - With `rectIntersection`: whichever has *more* overlap.
+  - With `closestCenter`: the one whose center is closest to the dragged card's center.
+  - With `pointerWithin`: the one the pointer is in (most intuitive — the user is "aiming" with the cursor).
+
+- The card is between two cards in a column — where does it insert?
+  - With `closestCenter`: above the card whose center is below the pointer; below the card whose center is above. This is what users expect for vertical lists.
+
+So a typical Kanban setup uses `pointerWithin` for cross-column targeting *and* `closestCenter` for the items inside. That's where composition comes in.
+
+## Writing a custom strategy
+
+A collision-detection function takes the active item and the registered droppables, and returns an array of "collisions" (matches), most-relevant first.
+
+```ts
+import { CollisionDetection } from '@dnd-kit/core';
+
+const customCollision: CollisionDetection = (args) => {
+  // args.active, args.droppableContainers, args.collisionRect, args.pointerCoordinates
+  return [
+    { id: 'target-id' /* ...other collision data */ },
+  ];
+};
+```
+
+Most of the time you don't write from scratch — you compose existing ones.
+
+## Composing strategies
+
+The library ships helpers for composition. The most useful pattern: try strategy A, fall back to strategy B if it returns nothing.
+
+```ts
+import { closestCenter, pointerWithin, rectIntersection } from '@dnd-kit/core';
+
+const myCollision: CollisionDetection = (args) => {
+  // Prefer pointer-within results
+  const pointerCollisions = pointerWithin(args);
+  if (pointerCollisions.length > 0) return pointerCollisions;
+  // Fall back to rect intersection
+  return rectIntersection(args);
+};
+```
+
+Now: when the pointer is clearly inside a target, that target wins. Otherwise, fall back to overlap heuristics. This is great for drag-onto-canvas UIs where the user "aims" but might not perfectly cover a target.
+
+## Filtering droppables
+
+A second common pattern: filter the available targets before delegating. Imagine reservations and tables on a floor plan — reservations should *only* be droppable onto tables, not other reservations.
+
+```ts
+const reservationsOntoTables: CollisionDetection = (args) => {
+  const tableContainers = args.droppableContainers.filter(
+    (c) => c.data.current?.type === 'table',
+  );
+  return closestCenter({ ...args, droppableContainers: tableContainers });
+};
+```
+
+`useDroppable({ id, data: { type: 'table' } })` lets you tag droppables with arbitrary data, which the strategy can read. This is exactly how the final project enforces type-safe drops.
+
+## Proximity matching for table-to-table connections
+
+The headline feature of the table-booking project is "drag a table near another table to combine them." That's a custom strategy:
+
+```ts
+const tableProximity: CollisionDetection = (args) => {
+  if (!args.collisionRect) return [];
+  const me = args.collisionRect;
+
+  return args.droppableContainers
+    .filter((c) => c.id !== args.active.id) // not yourself
+    .map((c) => {
+      const other = c.rect.current;
+      if (!other) return null;
+      const dx = (me.left + me.width / 2) - (other.left + other.width / 2);
+      const dy = (me.top + me.height / 2) - (other.top + other.height / 2);
+      const distance = Math.hypot(dx, dy);
+      return distance < 80 ? { id: c.id, data: { distance } } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a!.data.distance - b!.data.distance) as ReturnType<CollisionDetection>;
+};
+```
+
+Translates to: only return a collision if another table's center is within 80 pixels of mine, sorted by distance. Drop within that band → connect them. Outside → just move the table.
+
+<Callout type="tip" title="Test collision strategies in isolation">
+Custom collision detection is hard to debug visually — too many things change at once. Start by `console.log`ing what your function returns at every drag-over, and verify it matches your expectation. Once it's right, the rest of the UI almost falls into place.
+</Callout>
+
+## Performance
+
+Collision detection runs on every drag-move. The built-ins are O(n) over droppable count and very fast. Custom strategies should keep that property:
+
+- Don't query the DOM (`getBoundingClientRect`) inside the strategy — `args.droppableContainers[i].rect.current` already has the cached rect.
+- Avoid sorting/work proportional to total items dragged-or-not; only iterate the droppables.
+
+For a few dozen droppables, performance is a non-issue.
+
+## What this unlocks for the final project
+
+In the table-booking app you'll have:
+
+- **Reservations sidebar** → sortable list (`closestCenter`).
+- **Reservation onto a table** → cross-container drop with type filtering (`closestCenter` over filtered table droppables).
+- **Table onto another table** → proximity-based custom strategy (the snippet above).
+- **Free-form table positioning** → no collision needed; just transform.
+
+Three different collision behaviors in one app, composed from one or two custom strategies. Without this customization the drops would all feel slightly off — a great example of why `@dnd-kit` exposes the layer at all.
+
+<Recap>
+- Collision detection picks which droppable a drag is "over." Built-in strategies cover most cases: `rectIntersection`, `closestCenter`, `closestCorners`, `pointerWithin`.
+- Compose strategies by trying one and falling back to another, or by filtering droppables before delegating.
+- Custom proximity matching (within N pixels) is a short function — perfect for "snap to nearest" UIs.
+- Tag droppables with `data` so strategies can filter by type.
+- The library calls collision detection on every drag move; keep custom strategies cheap.
+</Recap>

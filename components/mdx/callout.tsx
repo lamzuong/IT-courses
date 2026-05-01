@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 
-const styles = {
-  note:    'border-blue-300/60 bg-blue-50/50',
-  warning: 'border-amber-300/60 bg-amber-50/50',
-  tip:     'border-emerald-300/60 bg-emerald-50/50',
+const labels = {
+  note: 'Note',
+  warning: 'Heads up',
+  tip: 'Aside',
 } as const;
 
 export function Callout({
@@ -11,14 +11,14 @@ export function Callout({
   title,
   children,
 }: {
-  type?: keyof typeof styles;
+  type?: keyof typeof labels;
   title?: string;
   children: ReactNode;
 }) {
   return (
-    <aside className={`my-6 rounded-md border-l-4 px-4 py-3 ${styles[type]}`} role="note">
-      {title && <p className="font-semibold mb-1">{title}</p>}
-      <div className="prose-sm">{children}</div>
+    <aside className={`callout callout-${type}`} role="note">
+      <p className="callout-title">{title ?? labels[type]}</p>
+      <div>{children}</div>
     </aside>
   );
 }

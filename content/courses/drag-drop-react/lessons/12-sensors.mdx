@@ -1,0 +1,199 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { SensorConstraintsDemo } from '@/components/demos/drag-drop-react/sensor-constraints-demo';
+
+A **sensor** is the thing that detects "the user wants to start dragging." `@dnd-kit` ships several, and combining them with **activation constraints** is how you make drag feel right on each input device.
+
+If you skipped configuring sensors, you'd find the default works — but it has subtle issues: clicking a button inside a draggable starts a drag; long-pressing on mobile fights with the browser's text-selection menu. This lesson fixes those.
+
+## The built-in sensors
+
+- **`PointerSensor`** — covers mouse, touch, and pen via the unified Pointer Events API. The default, and what you'll usually want.
+- **`MouseSensor`** — mouse only.
+- **`TouchSensor`** — touch only.
+- **`KeyboardSensor`** — Tab + Space + arrows; the accessibility lifeline.
+
+`MouseSensor` and `TouchSensor` exist because sometimes you want different *constraints* for each — say, a small tolerance for mouse, but a longer press for touch.
+
+## Configuring sensors
+
+```tsx
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+
+function MyApp() {
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  return <DndContext sensors={sensors}>{/* ... */}</DndContext>;
+}
+```
+
+Without `useSensors`, `DndContext` falls back to a default `PointerSensor` + `KeyboardSensor`. Once you specify any, you specify all — pass both.
+
+## Activation constraints
+
+These are the rules for "how much movement / time before I count this as a drag." Two flavors:
+
+### distance: ignore tiny pointer jitter
+
+Set the slider to 0, then click the card. Notice the click never registers because every press starts a drag. Raise it to 5+ and clicks come back.
+
+<Demo title="Activation distance, tunable">
+  <SensorConstraintsDemo />
+</Demo>
+
+```tsx
+'use client';
+import { DndContext, PointerSensor, useDraggable, useSensor, useSensors } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import { useMemo, useState } from 'react';
+
+function Card({ onClick }: { onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: 'c' });
+  return (
+    <button
+      ref={setNodeRef}
+      onClick={onClick}
+      style={{ transform: CSS.Translate.toString(transform), touchAction: 'none' }}
+      {...attributes}
+      {...listeners}
+    >
+      drag me · or click me
+    </button>
+  );
+}
+
+export function SensorConstraintsDemo() {
+  const [distance, setDistance] = useState(5);
+  const [clicks, setClicks] = useState(0);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance } }),
+  );
+
+  // re-mount the context when distance changes so the new constraint takes effect
+  const dndKey = useMemo(() => `d-${distance}`, [distance]);
+
+  return (
+    <>
+      <DndContext key={dndKey} sensors={sensors}>
+        <Card onClick={() => setClicks((c) => c + 1)} />
+      </DndContext>
+      <input type="range" min={0} max={40} value={distance} onChange={(e) => setDistance(+e.target.value)} />
+      <p>distance: {distance}px · clicks: {clicks}</p>
+    </>
+  );
+}
+```
+
+The `key={dndKey}` is the trick that makes this demo work — `<DndContext>` reads sensor configs at mount, so we remount it when the user drags the slider.
+
+
+```ts
+useSensor(PointerSensor, {
+  activationConstraint: { distance: 5 },
+});
+```
+
+The user must move the pointer **5 pixels** from the press point before drag starts. Below that, pointer events bubble normally — meaning **clicks on buttons inside your draggable still work**. This is the constraint you almost always want for desktop.
+
+### delay + tolerance: long-press for touch
+
+```ts
+useSensor(TouchSensor, {
+  activationConstraint: { delay: 250, tolerance: 5 },
+});
+```
+
+The user must press and hold for **250ms** without moving more than **5px**. If they move first, it's a scroll. If they hold, it becomes a drag. This is the right pattern for sortable lists on mobile, where tap-to-scroll and long-press-to-drag need to coexist.
+
+<Callout type="warning" title="distance and delay are mutually exclusive">
+A sensor's `activationConstraint` is **either** `{ distance }` **or** `{ delay, tolerance }`. You can't combine both on a single sensor. The way to differentiate inputs is to use separate `MouseSensor` and `TouchSensor` instances:
+
+```ts
+useSensors(
+  useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+  useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+)
+```
+
+This is one of the most common configurations in real apps.
+</Callout>
+
+## When the same element has buttons and drag
+
+This is the classic pain point. Card with a star button, click the star to favorite, drag the card to reorder. Without a constraint, the click *and* drag both fire.
+
+Solution: use the `distance: 5` activation constraint so the press-and-release on the star doesn't count as a drag. Or, separate the drag handle from the click area:
+
+```tsx
+<div ref={setNodeRef} style={style} {...attributes}>
+  <span className="grip" {...listeners}>⋮⋮</span>
+  <button onClick={favorite}>★</button>
+  <span>{card.title}</span>
+</div>
+```
+
+## Keyboard sensor coordinates
+
+The keyboard sensor needs to know "what's the next position when the user presses the down arrow?" For sortable lists, `@dnd-kit/sortable` ships a `sortableKeyboardCoordinates` helper that figures it out. For 2D drag (like the floor plan in the final project), you'll often write your own `coordinateGetter`:
+
+```ts
+import { KeyboardCode, KeyboardCoordinateGetter } from '@dnd-kit/core';
+
+const STEP = 20;
+const myCoords: KeyboardCoordinateGetter = (event, { currentCoordinates }) => {
+  switch (event.code) {
+    case KeyboardCode.Right: return { ...currentCoordinates, x: currentCoordinates.x + STEP };
+    case KeyboardCode.Left:  return { ...currentCoordinates, x: currentCoordinates.x - STEP };
+    case KeyboardCode.Down:  return { ...currentCoordinates, y: currentCoordinates.y + STEP };
+    case KeyboardCode.Up:    return { ...currentCoordinates, y: currentCoordinates.y - STEP };
+  }
+  return undefined;
+};
+```
+
+Plug it into the keyboard sensor:
+
+```ts
+useSensor(KeyboardSensor, { coordinateGetter: myCoords });
+```
+
+## Common sensor configurations
+
+| Use case                            | Sensors |
+|-------------------------------------|---------|
+| Desktop sortable, no buttons        | `PointerSensor({ distance: 5 })`, `KeyboardSensor` |
+| Mobile + desktop sortable           | `MouseSensor({ distance: 5 })`, `TouchSensor({ delay: 250, tolerance: 5 })`, `KeyboardSensor` |
+| Free-form 2D (no scroll on touch)   | `PointerSensor({ distance: 5 })`, `KeyboardSensor` with custom `coordinateGetter` |
+| Card with embedded interactive UI   | Add `distance: 5`, give the drag handle its own listeners |
+
+## Touch + scroll: choosing between delay and touch-action: none
+
+You have two ways to make a touch drag-and-scroll page coexist:
+
+1. **`TouchSensor` with delay** — quick taps and short drags scroll the page; long-press picks up. Best for sortable lists in a scrollable container.
+2. **`touch-action: none` on the source** — the source never scrolls; touches always start a drag. Best for free-form 2D interactions with no scroll context (the floor plan).
+
+Pick one based on the gesture grammar your UI needs. Mixing them confuses users.
+
+<Recap>
+- The default sensor is `PointerSensor`, but you almost always want to configure activation constraints.
+- `distance: 5` is the right default for desktop — clicks on internal buttons still work.
+- `delay: 250 + tolerance: 5` is the right default for touch in scrollable lists.
+- `MouseSensor` + `TouchSensor` lets you tune each input separately.
+- `KeyboardSensor` needs a `coordinateGetter`; use `sortableKeyboardCoordinates` for sortable lists, write your own for 2D.
+</Recap>

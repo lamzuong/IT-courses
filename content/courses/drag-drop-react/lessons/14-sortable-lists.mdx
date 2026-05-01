@@ -1,0 +1,194 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { SortableListDemo } from '@/components/demos/drag-drop-react/sortable-list-demo';
+
+Sortable lists — drag a card up or down to reorder — are the most common DnD interaction in apps. `@dnd-kit/sortable` is a separate package built on top of `@dnd-kit/core` that makes them straightforward.
+
+## Install
+
+```bash
+npm install @dnd-kit/sortable
+```
+
+It also exports `arrayMove`, a tiny helper for reordering arrays.
+
+## The shape of a sortable
+
+Three pieces:
+
+- **`<SortableContext items={ids}>`** — declares the list and its current order.
+- **`useSortable({ id })`** — used per item; returns the same things `useDraggable` does, plus transition styles for animation.
+- **`onDragEnd`** — receives the active and over IDs; you compute the new order and update state.
+
+## A complete sortable list
+
+Drag rows to reorder. Mouse, touch, and keyboard all work — Tab into a row, Space to pick, ↑/↓ to move, Space to drop.
+
+<Demo title="Sortable list">
+  <SortableListDemo />
+</Demo>
+
+
+```tsx
+'use client';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useState } from 'react';
+
+function Item({ id, label }: { id: string; label: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    touchAction: 'none' as const,
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="rounded border bg-white px-3 py-2 cursor-grab active:cursor-grabbing select-none"
+    >
+      {label}
+    </li>
+  );
+}
+
+export function SortableList() {
+  const [items, setItems] = useState([
+    { id: '1', label: 'Buy groceries' },
+    { id: '2', label: 'Pick up laundry' },
+    { id: '3', label: 'Call mom' },
+    { id: '4', label: 'Ship the PR' },
+  ]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function onDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    setItems((cur) => {
+      const oldIndex = cur.findIndex((it) => it.id === active.id);
+      const newIndex = cur.findIndex((it) => it.id === over.id);
+      return arrayMove(cur, oldIndex, newIndex);
+    });
+  }
+
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <SortableContext items={items.map((it) => it.id)} strategy={verticalListSortingStrategy}>
+        <ul className="space-y-2">
+          {items.map((it) => <Item key={it.id} id={it.id} label={it.label} />)}
+        </ul>
+      </SortableContext>
+    </DndContext>
+  );
+}
+```
+
+This works on desktop, mobile, and keyboard out of the box. Tab to a list item, press Space, arrow up/down, Space to drop.
+
+## Anatomy
+
+### items prop is an array of IDs
+
+`<SortableContext items={ids}>` takes IDs, *not* the full objects. The order of the array is the current visual order. After a drag, your `setItems` should produce a new array in the new order — and `SortableContext` re-syncs.
+
+### useSortable returns transition
+
+The big difference between `useSortable` and `useDraggable` is the **`transition`** field:
+
+```ts
+const { transform, transition } = useSortable({ id });
+const style = { transform: CSS.Translate.toString(transform), transition };
+```
+
+Pass that to your style and the items animate smoothly into their new positions when neighbors are reordered. This is the FLIP animation effect — the library tracks every item's previous and next position and interpolates.
+
+### Sorting strategies
+
+The `strategy` prop to `<SortableContext>` controls how the library predicts the new layout while dragging:
+
+- **`verticalListSortingStrategy`** — vertical list, items shift up/down.
+- **`horizontalListSortingStrategy`** — horizontal row, items shift left/right.
+- **`rectSortingStrategy`** — 2D grid, items shuffle around.
+- **`rectSwappingStrategy`** — swap with the item under the pointer instead of inserting.
+
+Pick the one that matches your layout. Wrong strategy = items animate the wrong way during drag.
+
+<Callout type="tip" title="closestCenter is the default for sortable">
+For sortable lists, `closestCenter` collision detection feels best — the swap happens when the pointer's center crosses another item's center. The default `rectIntersection` swaps too eagerly. We'll see other strategies in Lesson 17.
+</Callout>
+
+## arrayMove
+
+```ts
+import { arrayMove } from '@dnd-kit/sortable';
+const next = arrayMove(items, fromIndex, toIndex);
+```
+
+Returns a new array (immutable). Use it inside your `setItems` updater. Don't mutate the original.
+
+## Disabling individual items
+
+Pass `disabled` to `useSortable` to make an item not draggable but still part of the list:
+
+```ts
+const { /* ... */ } = useSortable({ id, disabled: item.locked });
+```
+
+This is the right pattern for "pinned" or "completed" items that should hold their position.
+
+## Drag handle inside a sortable item
+
+Same trick as Lesson 11 — spread `listeners` on a sub-element:
+
+```tsx
+<li ref={setNodeRef} style={style} {...attributes}>
+  <span {...listeners} className="cursor-grab">⋮⋮</span>
+  <span>{label}</span>
+  <button onClick={() => deleteItem(id)}>×</button>
+</li>
+```
+
+Now the list item itself is focusable for keyboard, but only the grip is the pointer drag handle.
+
+## Performance: a thousand items
+
+`@dnd-kit/sortable` is fast for hundreds of items. Above that, consider:
+
+- `useSortable({ id, disabled: !isVisible })` for items outside the viewport (paired with virtualization).
+- Memoize each item with `React.memo` — `useSortable` only changes its transform for the items adjacent to the drag, so most items don't need to re-render.
+
+For most apps you'll never need this; it's worth knowing if you do.
+
+<Recap>
+- `@dnd-kit/sortable` adds three things on top of core: `SortableContext`, `useSortable`, and `arrayMove`.
+- `<SortableContext items={ids}>` takes IDs in current order; pick a strategy that matches your layout.
+- `useSortable` adds a `transition` field — apply it for smooth FLIP animations.
+- Use `closestCenter` collision detection for sortable lists.
+- `arrayMove(items, from, to)` is the immutable reorder helper.
+</Recap>

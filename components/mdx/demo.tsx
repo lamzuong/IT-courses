@@ -1,27 +1,42 @@
 'use client';
 import { useState, type ReactNode, isValidElement, cloneElement } from 'react';
 
+let counter = 0;
+function nextFigureNum() {
+  counter = (counter % 99) + 1;
+  return counter;
+}
+
 export function Demo({ title, children }: { title?: string; children: ReactNode }) {
   const [resetKey, setResetKey] = useState(0);
+  const [figureNum] = useState(() => nextFigureNum());
   const child =
     isValidElement(children)
       ? cloneElement(children, { key: resetKey } as Record<string, unknown>)
       : children;
 
   return (
-    <figure className="my-8 rounded-md border border-[color:var(--color-border)] bg-white/40 overflow-hidden">
-      <figcaption className="flex items-center justify-between text-xs uppercase tracking-wider text-[color:var(--color-text-soft)] px-4 py-2 border-b border-[color:var(--color-border)]">
-        <span>{title ?? 'Live demo'}</span>
-        <button
-          type="button"
-          onClick={() => setResetKey((k) => k + 1)}
-          className="text-xs px-2 py-1 rounded border border-[color:var(--color-border)] hover:bg-[color:var(--color-bg-soft)]"
-          aria-label="Reset demo"
-        >
-          Reset
-        </button>
-      </figcaption>
-      <div className="p-6">{child}</div>
+    <figure className="plate">
+      <div className="plate-frame">
+        <figcaption className="plate-caption">
+          <span className="plate-caption-left">
+            <span className="plate-tag">Live</span>
+            <span className="plate-figure-num">
+              Figure {String(figureNum).padStart(2, '0')}
+              {title ? <> — <em>{title}</em></> : null}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setResetKey((k) => k + 1)}
+            className="plate-reset"
+            aria-label="Reset figure"
+          >
+            Reset
+          </button>
+        </figcaption>
+        <div className="plate-body">{child}</div>
+      </div>
     </figure>
   );
 }

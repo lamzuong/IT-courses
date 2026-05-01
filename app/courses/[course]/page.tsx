@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { getAllCourses, getCourse } from '@/lib/courses';
+import { getAllCourses, getCourse, flattenLessons } from '@/lib/courses';
+import { getCourseStats, toRoman } from '@/lib/lesson-stats';
 
 export async function generateStaticParams() {
   return getAllCourses().map((c) => ({ course: c.slug }));
@@ -20,23 +21,30 @@ export async function generateMetadata(
   };
 }
 
+function formatReadTime(minutes: number): string {
+  if (minutes < 60) return `~${minutes} min reading`;
+  const h = minutes / 60;
+  return `~${h % 1 === 0 ? h : h.toFixed(1)} hours reading`;
+}
+
 export default async function CoursePage({ params }: { params: Promise<{ course: string }> }) {
   const { course: slug } = await params;
   const course = getCourse(slug);
   if (!course) notFound();
 
-  // The project card heading already shows the project title, so strip a
-  // leading "<title> —" prefix from whatYoullBuild for the card's description.
+  const { totalMinutes, perLesson } = await getCourseStats(slug, course.parts);
+  const lessons = flattenLessons(course);
+  const firstLessonSlug = lessons[0]?.slug;
+
   const projectBlurb = course.whatYoullBuild.includes('—')
     ? course.whatYoullBuild.split('—').slice(1).join('—').trim()
     : course.whatYoullBuild;
 
-  // The "What you'll build" panel uses the same trimmed blurb, since the
-  // course title is already rendered as the page h1 just above it.
-  const buildBlurb = projectBlurb;
+  // Continuous lesson numbering across parts
+  let lessonCounter = 0;
 
   return (
-    <main id="main-content" className="mx-auto max-w-4xl px-6 py-16">
+    <main id="main-content" className="mx-auto max-w-3xl px-6 py-10 md:py-16">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -49,60 +57,77 @@ export default async function CoursePage({ params }: { params: Promise<{ course:
           }),
         }}
       />
-      <header className="mb-12">
-        <p className="text-xs uppercase tracking-widest text-[color:var(--color-text-soft)] mb-3">Course</p>
-        <h1 className="font-serif text-4xl md:text-5xl font-bold tracking-tight leading-tight">{course.title}</h1>
-        <p className="mt-4 text-lg text-[color:var(--color-text-soft)]">{course.longDescription}</p>
 
-        <div className="mt-10 grid md:grid-cols-2 gap-8">
-          <div>
-            <h2 className="text-xs uppercase tracking-widest text-[color:var(--color-text-soft)] mb-3">What you&apos;ll learn</h2>
-            <ul className="space-y-2 text-sm">
-              {course.whatYoullLearn.map((b) => <li key={b} className="flex gap-2"><span aria-hidden>·</span><span>{b}</span></li>)}
-            </ul>
-          </div>
-          <div>
-            <h2 className="text-xs uppercase tracking-widest text-[color:var(--color-text-soft)] mb-3">What you&apos;ll build</h2>
-            <p className="text-sm">{buildBlurb}</p>
-          </div>
-        </div>
+      <header className="agenda-header">
+        <h1 className="agenda-title">{course.title}</h1>
+        <p className="agenda-deck">{course.summary}</p>
+        <p className="agenda-meta">
+          <span>{lessons.length} lessons</span>
+          <span aria-hidden className="agenda-meta-dot">·</span>
+          <span>{formatReadTime(totalMinutes)}</span>
+        </p>
       </header>
 
-      <section>
+      <hr className="agenda-rule" />
+
+      <section aria-label="Course curriculum">
         {course.parts.map((part, partIdx) => (
-          <div key={part.title} className="mb-10">
-            <h2 className="font-serif text-2xl font-semibold mb-4">
-              <span className="text-[color:var(--color-text-soft)] mr-2">Part {partIdx + 1}.</span>
-              {part.title}
+          <div key={part.title} className="agenda-part">
+            <h2 className="agenda-part-label">
+              <span className="agenda-part-pill">Part {toRoman(partIdx + 1)}</span>
+              <span className="agenda-part-title">{part.title}</span>
             </h2>
-            <ol className="border-t border-[color:var(--color-border)]">
-              {part.lessons.map((lesson, idx) => (
-                <li key={lesson.slug} className="border-b border-[color:var(--color-border)]">
-                  <Link
-                    href={`/courses/${course.slug}/lessons/${lesson.slug}`}
-                    className="flex items-baseline gap-4 py-3 hover:bg-[color:var(--color-bg-soft)] px-2 -mx-2 rounded"
-                  >
-                    <span className="font-mono text-xs text-[color:var(--color-text-soft)] w-8 shrink-0">{String(idx + 1).padStart(2, '0')}</span>
-                    <span className="flex-1">
-                      <span className="block font-medium">{lesson.title}</span>
-                      {lesson.summary && <span className="block text-sm text-[color:var(--color-text-soft)] mt-0.5">{lesson.summary}</span>}
-                    </span>
-                  </Link>
-                </li>
-              ))}
+            <ol className="agenda-list">
+              {part.lessons.map((lesson) => {
+                lessonCounter += 1;
+                const readMin = perLesson[lesson.slug] ?? 0;
+                return (
+                  <li key={lesson.slug} className="agenda-row">
+                    <Link
+                      href={`/courses/${course.slug}/lessons/${lesson.slug}`}
+                      className="agenda-link"
+                    >
+                      <span className="agenda-num">{lessonCounter}.</span>
+                      <span className="agenda-lesson-title">{lesson.title}</span>
+                      <span className="agenda-time">{readMin} min</span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ol>
           </div>
         ))}
 
-        <Link
-          href={`/courses/${course.slug}/project`}
-          className="block rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-soft)] p-6 hover:border-black/30 transition"
-        >
-          <p className="text-xs uppercase tracking-widest text-[color:var(--color-text-soft)] mb-2">Final project</p>
-          <h2 className="font-serif text-2xl font-semibold">{course.project.title}</h2>
-          <p className="mt-2 text-sm text-[color:var(--color-text-soft)]">{projectBlurb}</p>
-        </Link>
+        <div className="agenda-part">
+          <h2 className="agenda-part-label">
+            <span className="agenda-part-pill">Final</span>
+            <span className="agenda-part-title">Project</span>
+          </h2>
+          <ol className="agenda-list">
+            <li className="agenda-row">
+              <Link href={`/courses/${course.slug}/project`} className="agenda-link">
+                <span className="agenda-num" aria-hidden>★</span>
+                <span className="agenda-lesson-title">
+                  {course.project.title}
+                  <span className="agenda-lesson-summary">{projectBlurb}</span>
+                </span>
+                <span className="agenda-time">build</span>
+              </Link>
+            </li>
+          </ol>
+        </div>
       </section>
+
+      {firstLessonSlug && (
+        <div className="agenda-cta-row">
+          <Link
+            href={`/courses/${course.slug}/lessons/${firstLessonSlug}`}
+            className="agenda-cta"
+          >
+            Begin reading <span aria-hidden>→</span>
+          </Link>
+        </div>
+      )}
     </main>
   );
 }

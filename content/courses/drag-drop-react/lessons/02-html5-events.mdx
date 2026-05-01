@@ -1,0 +1,151 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EventLogDemo } from '@/components/demos/drag-drop-react/event-log-demo';
+
+The HTML5 Drag and Drop API is event-driven. To use it well, you need a clear mental model of which events fire, in what order, on which element. That's this lesson.
+
+## The two sides
+
+Every drag has two roles:
+
+- **The drag source** — the element being picked up (`draggable={true}`).
+- **The drop target** — the element being hovered or dropped onto.
+
+A single element can be both, but the events fire on whichever role it currently plays.
+
+## The lifecycle
+
+A successful drag-and-drop fires this sequence:
+
+```
+on the source:        dragstart
+on each target:       dragenter → dragover (repeats) → dragleave
+on the final target:  drop
+on the source:        dragend
+```
+
+The events you'll handle 90% of the time are **`dragstart`**, **`dragover`**, **`drop`**, and **`dragend`**.
+
+## Marking something draggable
+
+```tsx
+<div draggable onDragStart={handleStart}>Pick me up</div>
+```
+
+That's it for the source side. Almost every element is *not* draggable by default — links and images are exceptions. You opt in with the boolean attribute.
+
+## The four events you'll write
+
+```tsx
+function onDragStart(e: React.DragEvent) {
+  e.dataTransfer.setData('text/plain', 'card-1');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function onDragOver(e: React.DragEvent) {
+  e.preventDefault();              // <-- required, see callout
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function onDrop(e: React.DragEvent) {
+  e.preventDefault();
+  const id = e.dataTransfer.getData('text/plain');
+  // do the move
+}
+
+function onDragEnd(e: React.DragEvent) {
+  // cleanup — fires whether the drop succeeded or was cancelled
+}
+```
+
+<Callout type="warning" title="The #1 gotcha: preventDefault in dragover">
+The default behavior of `dragover` is "I do not accept drops here." If you don't `preventDefault()` it, the browser will never fire `drop` on that target. This is the most common mistake — the drop just silently doesn't happen.
+</Callout>
+
+## dragenter vs dragover
+
+Both fire when the pointer enters a target. The difference:
+
+- `dragenter` fires **once** as the pointer crosses into the element.
+- `dragover` fires **continuously**, every ~350ms while the pointer is inside.
+
+Use `dragenter` to apply highlight styles. Use `dragover` to call `preventDefault` and update `dropEffect`. They're cheap, but `dragover` runs a lot — keep its handler small.
+
+## dragleave is noisy
+
+`dragleave` fires every time the pointer crosses out of the element — including crossing into a *child* of that element. If your target has children, you'll get phantom `dragleave` events while the pointer is still inside. Common workaround: track depth with a counter, or use `pointer-events: none` on children.
+
+## Reading event order
+
+Watch the events fire as you drag.
+
+<Demo title="Live event log">
+  <EventLogDemo />
+</Demo>
+
+The component behind it:
+
+```tsx
+'use client';
+import { useState } from 'react';
+
+type Entry = { evt: string; t: number; on: 'source' | 'target' };
+
+export function EventLogDemo() {
+  const [log, setLog] = useState<Entry[]>([]);
+  const [over, setOver] = useState(false);
+  const start = log.length ? log[0].t : 0;
+
+  function record(evt: string, on: Entry['on']) {
+    setLog((cur) => [...cur, { evt, t: Date.now(), on }].slice(-12));
+  }
+
+  return (
+    <div className="grid md:grid-cols-2 gap-4">
+      <div className="space-y-3">
+        <div
+          draggable
+          onDragStart={(e) => { e.dataTransfer.setData('text/plain', 'card'); record('dragstart', 'source'); }}
+          onDragEnd={() => record('dragend', 'source')}
+          className="rounded border bg-white px-4 py-3 cursor-grab"
+        >
+          Drag this
+        </div>
+        <div
+          onDragEnter={() => { record('dragenter', 'target'); setOver(true); }}
+          onDragOver={(e) => { e.preventDefault(); record('dragover', 'target'); }}
+          onDragLeave={() => { record('dragleave', 'target'); setOver(false); }}
+          onDrop={(e) => { e.preventDefault(); record('drop', 'target'); setOver(false); }}
+          className={`rounded border-2 border-dashed p-5 ${over ? 'border-amber-400 bg-amber-50' : ''}`}
+        >
+          Drop here
+        </div>
+      </div>
+
+      <pre className="rounded bg-zinc-900 text-zinc-100 p-3 font-mono text-xs h-64 overflow-auto">
+        {log.length === 0 && '— start dragging —'}
+        {log.map((e) => `${String(e.t - start).padStart(4, ' ')}ms  ${e.on.padEnd(7, ' ')}  ${e.evt}\n`)}
+      </pre>
+    </div>
+  );
+}
+```
+
+The key is `record(name, on)` — every handler funnels into one state update so the log preserves true firing order.
+
+A useful exercise: log every drag event in your component and watch the order in DevTools.
+
+```tsx
+['dragstart','dragenter','dragover','dragleave','drop','dragend'].forEach((evt) => {
+  el.addEventListener(evt, (e) => console.log(evt, e.target));
+});
+```
+
+You'll see `dragenter` before each `dragover`, `dragleave` when crossing children, and `dragend` *after* `drop` on the source — even though they're on different elements.
+
+<Recap>
+- The lifecycle is `dragstart` → `dragenter` → `dragover` (repeats) → `drop` → `dragend`.
+- You almost always write four handlers: `dragstart`, `dragover`, `drop`, `dragend`.
+- `dragover` *must* call `preventDefault()` or the drop will never fire.
+- `dragleave` fires when crossing into children — track depth or use `pointer-events: none`.
+</Recap>

@@ -1,0 +1,139 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { PointerCardDemo } from '@/components/demos/drag-drop-react/pointer-card-demo';
+
+We have the primitives. Now let's build a draggable element that works on desktop, touch, and pen — using Pointer Events, no library. By the end of this lesson you'll have a card you can pick up and move freely on any device.
+
+The next lesson adds drop zones, hit-testing, and auto-scroll.
+
+## What we're building
+
+A single absolutely-positioned card you can grab from anywhere — mouse, finger, or pen. Press, drag, release. Position is React state. No HTML5 DnD anywhere.
+
+<Demo title="Pointer-events draggable">
+  <PointerCardDemo />
+</Demo>
+
+```tsx
+type Pos = { x: number; y: number };
+
+export function DraggableCard() {
+  const [pos, setPos] = useState<Pos>({ x: 40, y: 40 });
+  const [dragging, setDragging] = useState(false);
+  const start = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
+
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    start.current = {
+      pointerId: e.pointerId,
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(true);
+  }
+
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!start.current || start.current.pointerId !== e.pointerId) return;
+    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+    setPos({
+      x: e.clientX - start.current.offsetX,
+      y: e.clientY - start.current.offsetY,
+    });
+  }
+
+  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    start.current = null;
+    setDragging(false);
+  }
+
+  return (
+    <div
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      style={{
+        position: 'absolute',
+        left: pos.x,
+        top: pos.y,
+        touchAction: 'none',
+        cursor: dragging ? 'grabbing' : 'grab',
+      }}
+      className="rounded border bg-white px-4 py-3 select-none shadow-sm"
+    >
+      Drag me
+    </div>
+  );
+}
+```
+
+That's the whole thing. Let's walk through what each piece does and why.
+
+## Step 1: capture the offset, not the position
+
+In `pointerdown`, we record the offset between the pointer and the element's top-left corner — *not* the element's absolute position. Why? Because we want the element to follow the finger from wherever the user grabbed it. If you skip this, the card will jump so the cursor is at its top-left corner the moment you press.
+
+```ts
+offsetX: e.clientX - rect.left,
+offsetY: e.clientY - rect.top,
+```
+
+Then in `pointermove`, the new position is `pointer - offset`. The pointer stays in the same spot relative to the card.
+
+## Step 2: setPointerCapture
+
+We covered this last lesson — without it, fast drags off the edge would lose the pointer. With it, every move event flows back to our element until we release.
+
+```ts
+e.currentTarget.setPointerCapture(e.pointerId);
+```
+
+## Step 3: track the active pointer
+
+A user can have multiple fingers down. We store `pointerId` from the press and ignore moves from any other pointer:
+
+```ts
+if (start.current.pointerId !== e.pointerId) return;
+```
+
+This stops a stray second finger (say, holding the phone) from interfering with the drag.
+
+## Step 4: pointercancel
+
+The OS can interrupt your drag — system gestures, incoming calls, the user swiping in from the edge. `pointercancel` fires when that happens. If you don't handle it, your card will be "stuck" in dragging state. Treat it the same as `pointerup`.
+
+```tsx
+onPointerCancel={onPointerUp}
+```
+
+## Step 5: touch-action: none
+
+Without this, the browser will scroll the page when the user tries to drag vertically on a phone. With it, every touch on this element is yours.
+
+```ts
+style={{ touchAction: 'none' }}
+```
+
+<Callout type="tip" title="useState vs ref vs CSS variable">
+We used React state for `pos` here, which causes a re-render on every move. That's fine for a few elements but expensive at scale. For high-performance drag — say, dozens of items moving at once — write the position to a CSS custom property via a ref instead, and let the browser repaint without React in the loop. We'll see this trick in the @dnd-kit lessons.
+</Callout>
+
+## What's still missing
+
+You have a draggable element. You don't have:
+
+- Drop zones (no concept of where the drop is *valid*)
+- Hit-testing (which target is the pointer over right now?)
+- Auto-scroll near the viewport edges
+- Keyboard support
+- Screen-reader announcements
+
+The next two lessons fill those in. After Lesson 9, you'll have everything `@dnd-kit` does internally — and a real appreciation for why we use a library in production.
+
+<Recap>
+- Cross-device drag from scratch needs three things: `setPointerCapture`, `touch-action: none`, and `pointercancel` cleanup.
+- Capture the *offset* on pointerdown so the element follows the finger from where the user grabbed.
+- Track the active `pointerId` and ignore other pointers.
+- React state on every pointermove is fine for small demos; ref + CSS variable scales better.
+</Recap>

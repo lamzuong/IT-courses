@@ -1,0 +1,250 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { KeyboardPickupDemo } from '@/components/demos/drag-drop-react/keyboard-pickup-demo';
+
+Pointer drag works for fingers and mice. It does not work for keyboard users, voice-control users, or screen readers. This lesson is the third leg of the stool — making your custom drag interaction usable without a pointer at all.
+
+You don't need every feature `@dnd-kit` ships, but you do need *something*. WCAG 2.1 SC 2.5.7 ("Dragging Movements") explicitly requires a non-drag alternative for any drag interaction.
+
+## The keyboard model
+
+Try the pattern with your keyboard. Tab into the list, then Space to pick, ↑/↓ to move, Space to drop, Esc to cancel. The right-hand panel shows what a screen reader would announce.
+
+<Demo title="Keyboard pick-and-drop">
+  <KeyboardPickupDemo />
+</Demo>
+
+```tsx
+'use client';
+import { useEffect, useRef, useState } from 'react';
+
+export function KeyboardPickupDemo() {
+  const [items, setItems] = useState(['Buy groceries', 'Pick up laundry', 'Call mom', 'Ship the PR']);
+  const [picked, setPicked] = useState<number | null>(null);
+  const [origin, setOrigin] = useState<number | null>(null);
+  const [status, setStatus] = useState('Tab to an item, then Space to pick up.');
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  function pick(i: number) {
+    setPicked(i); setOrigin(i);
+    setStatus(`Picked up "${items[i]}". Use ↑/↓ to move, Space to drop, Escape to cancel.`);
+  }
+
+  function move(delta: number) {
+    if (picked === null) return;
+    const next = Math.max(0, Math.min(items.length - 1, picked + delta));
+    if (next === picked) return;
+    setItems((cur) => {
+      const arr = [...cur];
+      const [m] = arr.splice(picked, 1);
+      arr.splice(next, 0, m);
+      return arr;
+    });
+    setPicked(next);
+    setStatus(`Moved to position ${next + 1} of ${items.length}.`);
+  }
+
+  function drop() {
+    if (picked === null) return;
+    setStatus(`Dropped at position ${picked + 1}.`);
+    const at = picked;
+    setPicked(null); setOrigin(null);
+    requestAnimationFrame(() => refs.current[at]?.focus());
+  }
+
+  function cancel() {
+    if (picked === null || origin === null) return;
+    setItems((cur) => {
+      const arr = [...cur];
+      const [m] = arr.splice(picked, 1);
+      arr.splice(origin, 0, m);
+      return arr;
+    });
+    setStatus('Movement cancelled.');
+    const back = origin;
+    setPicked(null); setOrigin(null);
+    requestAnimationFrame(() => refs.current[back]?.focus());
+  }
+
+  // global key listener while a pick is held
+  useEffect(() => {
+    if (picked === null) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+      else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); drop(); }
+      else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [picked, items]);
+
+  return (
+    <>
+      <ol>
+        {items.map((label, i) => (
+          <li key={label}>
+            <button
+              ref={(el) => { refs.current[i] = el; }}
+              type="button"
+              aria-roledescription="sortable item"
+              aria-pressed={picked === i}
+              onKeyDown={(e) => { if (picked === null && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); pick(i); } }}
+            >
+              {label}
+            </button>
+          </li>
+        ))}
+      </ol>
+      <div role="status" aria-live="assertive">{status}</div>
+    </>
+  );
+}
+```
+
+Three accessibility primitives in one place: focusable `<button>` per item with `aria-pressed` for state, an `aria-live` region the user's screen reader hears every transition through, and explicit focus management on drop and cancel so the keyboard user never gets stranded.
+
+The standard pattern, popularized by `@dnd-kit` and `react-beautiful-dnd`, is:
+
+- **Tab** to focus an item.
+- **Space** or **Enter** to "pick it up." Visual state changes; an ARIA live region announces it.
+- **Arrow keys** to move it (between list positions, or in a 2D grid).
+- **Space / Enter** again to drop.
+- **Escape** to cancel.
+
+This doesn't try to mimic a mouse drag — it gives keyboard users their own coherent model.
+
+## Step 1: focusable, with a role
+
+Every draggable thing needs a focusable element with a clear role and label:
+
+```tsx
+<button
+  type="button"
+  role="button"
+  aria-roledescription="draggable item"
+  aria-pressed={picked}
+  className="rounded border bg-white px-3 py-2"
+  onKeyDown={onKeyDown}
+>
+  {item.label}
+</button>
+```
+
+A few things:
+
+- We use a real `<button>` so it's natively focusable, has Enter/Space, and is in the tab order.
+- `aria-roledescription` lets a screen reader say "draggable item" instead of "button," which is more useful context. Use sparingly — too many roledescriptions confuse users.
+- `aria-pressed` reflects the picked-up state.
+
+## Step 2: handle keys
+
+```ts
+function onKeyDown(e: React.KeyboardEvent) {
+  if (!picked) {
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      pick(item.id);
+    }
+    return;
+  }
+  // when picked
+  if (e.key === 'ArrowDown') { e.preventDefault(); move(+1); }
+  if (e.key === 'ArrowUp')   { e.preventDefault(); move(-1); }
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); drop(); }
+  if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+}
+```
+
+The `preventDefault` calls are crucial — Space scrolls the page by default, Enter submits forms, arrows scroll. You don't want any of that during a keyboard drag.
+
+## Step 3: an ARIA live region for announcements
+
+Screen readers need to know what just happened. The pattern is a visually-hidden region with `aria-live="assertive"` that you write status sentences into.
+
+```tsx
+const [status, setStatus] = useState('');
+
+<div
+  role="status"
+  aria-live="assertive"
+  className="sr-only"
+>
+  {status}
+</div>
+```
+
+Then, in your drag handlers:
+
+```ts
+function pick(id: string) {
+  setPicked(id);
+  setStatus(`Picked up ${labelFor(id)}. Use arrow keys to move, Space to drop, Escape to cancel.`);
+}
+
+function move(delta: number) {
+  // reorder the array
+  const newIndex = clamp(currentIndex + delta, 0, items.length - 1);
+  reorder(picked, newIndex);
+  setStatus(`Moved ${labelFor(picked)} to position ${newIndex + 1} of ${items.length}.`);
+}
+
+function drop() {
+  setStatus(`Dropped ${labelFor(picked)} at position ${currentIndex + 1}.`);
+  setPicked(null);
+}
+
+function cancel() {
+  // restore original index
+  setStatus(`Movement cancelled. Returned ${labelFor(picked)} to position ${originalIndex + 1}.`);
+  setPicked(null);
+}
+```
+
+<Callout type="tip" title="Why two live regions, sometimes">
+You may want a `role="status"` (`aria-live="polite"`) for routine moves and an `assertive` one for picks/drops/cancels — so reorder spam doesn't interrupt other speech, but the start-and-end of drag is heard immediately. Test with VoiceOver / NVDA to see what feels right.
+</Callout>
+
+## Step 4: focus management on drop
+
+When the user drops with keyboard, focus should stay on the element they just moved — at its **new** position. Otherwise the keyboard user is dumped into the document and has to tab back. The cleanest way is to focus by data attribute:
+
+```ts
+useEffect(() => {
+  if (justDropped) {
+    document.querySelector<HTMLElement>(`[data-id="${justDropped}"]`)?.focus();
+  }
+}, [justDropped]);
+```
+
+For Escape-cancel, focus the *original* position so the user can try again.
+
+## Step 5: visible focus and pickup styles
+
+Keyboard users live and die by your focus ring. Don't suppress it with `outline: none` — restyle it.
+
+```css
+.draggable:focus-visible       { outline: 2px solid #2563eb; outline-offset: 2px; }
+.draggable[aria-pressed="true"] { box-shadow: 0 0 0 3px rgba(37,99,235,0.3); }
+```
+
+Both states need to be obvious. Pickup is a stateful change — make it visually unmissable, the same way a screen reader announcement is unmissable to its user.
+
+## What you've built
+
+By the end of Lesson 8, you had pointer drag with drop zones and auto-scroll. With this lesson layered on, you have a drag interaction that:
+
+- Works with mouse, touch, and pen via Pointer Events.
+- Works with keyboard alone via the pick/move/drop pattern.
+- Announces every transition to assistive tech.
+- Keeps focus where the user expects it after drop or cancel.
+
+That's the *complete* foundation. Part 2 starts here — `@dnd-kit` gives you all of this, plus sortable lists and animations, in a few hooks.
+
+<Recap>
+- Drag interactions need a non-drag keyboard alternative; the standard pattern is Space/Enter pick → arrows move → Space/Enter drop → Escape cancel.
+- Use a real `<button>`, `aria-roledescription="draggable item"`, and `aria-pressed`.
+- Announce pick, every move, drop, and cancel via an `aria-live` region.
+- Manage focus on drop (move with the item) and on cancel (return to origin).
+- Visible focus rings are non-negotiable for keyboard users.
+</Recap>

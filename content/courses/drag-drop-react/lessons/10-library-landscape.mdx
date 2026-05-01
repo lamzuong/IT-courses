@@ -1,0 +1,129 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { LibraryPickerDemo } from '@/components/demos/drag-drop-react/library-picker-demo';
+
+You now know what drag-and-drop looks like with no library. This part of the course shifts to `@dnd-kit` — the library you'll actually use in production. Before we dive in, a quick tour of the React DnD landscape so you understand *why* it's the default.
+
+## The four contenders
+
+### @dnd-kit — the modern default
+
+- **Maintained by Claudéric Demers**, originally seeded by Atlassian alumni; now widely adopted (Linear, Vercel dashboards, etc.).
+- **Hooks-first API.** No render-prop or HOC wrapping.
+- **Modular packages**: `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/modifiers`, `@dnd-kit/utilities`. You only ship what you use.
+- **Built-in keyboard sensor** and a screen-reader announcement system. Accessibility is in the design, not an afterthought.
+- **Cross-device by default** — works with mouse, touch, pen, keyboard.
+- **Bundle size** — small, tree-shakable. Core is ~10kb gzipped.
+
+This is what we'll use for the rest of the course and the final project.
+
+### react-dnd — the older, still-OK option
+
+- The original popular React DnD library, dating back to 2015.
+- Uses a **monad/HOC pattern** with `useDrag` / `useDrop` hooks (added later) plus a "DnD backend" abstraction (HTML5, touch, etc.).
+- More verbose API, more concepts to learn before you can render anything.
+- Touch support is via a separate community backend; it's serviceable but not as polished.
+- Still maintained, still works. Pick it if you're already in a `react-dnd` codebase. For new projects, `@dnd-kit` is a strictly better starting point.
+
+### react-beautiful-dnd — deprecated
+
+- Built by Atlassian, used to be the gold standard for sortable lists.
+- **Officially deprecated** as of 2024 — repo archived, no React 18+ updates, breaks in concurrent mode.
+- Beautiful animations and a focused API, but you should not start a new project with it.
+- Migration path: rewrite the sortable parts with `@dnd-kit/sortable` (mostly mechanical).
+
+If you inherit a project using it, you'll need to migrate before React 19.
+
+### react-grid-layout — specialized
+
+- Not a general DnD library — specifically a **draggable, resizable grid** for dashboard layouts.
+- If you're building a Notion-style dashboard with widget tiles, this is great.
+- For everything else (sortable lists, free-form drag, multi-container), it's the wrong tool.
+
+## How to choose
+
+Tick the things you need on the left; libraries that can't deliver fade out, and the cleanest match is highlighted.
+
+<Demo title="Library decision matrix">
+  <LibraryPickerDemo />
+</Demo>
+
+A quick reference, by use case:
+
+| Need                                | Pick |
+|-------------------------------------|------|
+| Sortable list                       | `@dnd-kit/sortable` |
+| Free-form 2D drag                   | `@dnd-kit/core` |
+| Multi-container drag (Trello-like)  | `@dnd-kit/core` + `@dnd-kit/sortable` |
+| Keyboard accessibility              | `@dnd-kit` (built-in) |
+| Dashboard tile grid                 | `react-grid-layout` |
+| Existing `react-dnd` codebase       | stay on `react-dnd` |
+| Single draggable, file upload only  | native HTML5, no library |
+
+For the table-booking project at the end of this course, we'll use `@dnd-kit/core` for the floor plan and `@dnd-kit/sortable` for the reservation sidebar.
+
+The shape of the picker, in case you're curious how it scores:
+
+```ts
+type Mark = 'yes' | 'no' | 'partial';
+
+type Library = {
+  name: string;
+  caps: Record<NeedKey, Mark>;
+  notes: Partial<Record<NeedKey, string>>;
+};
+
+function score(lib: Library, selected: Set<NeedKey>) {
+  const missing: NeedKey[] = [];
+  const partials: NeedKey[] = [];
+  for (const k of selected) {
+    const m = lib.caps[k];
+    if (m === 'no') missing.push(k);
+    else if (m === 'partial') partials.push(k);
+  }
+  return { ok: missing.length === 0, missing, partials };
+}
+
+// "Best fit" = passes every selected need + currently maintained,
+//              tie-broken by fewest partials.
+const fits = LIBRARIES
+  .map((lib) => ({ lib, ...score(lib, selected) }))
+  .filter((s) => s.ok && s.lib.caps.maintained !== 'no')
+  .sort((a, b) => a.partials.length - b.partials.length);
+
+const recommended = fits[0]?.lib ?? null;
+```
+
+The data is hand-curated based on each library's documented capabilities — it's not a benchmark, it's a decision aid. Notice that `react-beautiful-dnd` is filtered out *even when it would score perfectly* on technical capabilities, because `maintained: 'no'` overrides everything. Deprecated libraries can't be the recommendation.
+
+<Callout type="tip" title="Don't rewrite working code">
+If your team already ships drag interactions with `react-dnd` or even `react-beautiful-dnd` and they work, don't rewrite for the sake of it. Rewrite when you hit a wall — accessibility, mobile, animation, multi-container — that the current library can't easily clear.
+</Callout>
+
+## What @dnd-kit gives you out of the box
+
+A short list of things you'd otherwise build yourself (you saw most of these in Part 1):
+
+- Sensor abstraction for pointer / touch / keyboard
+- Activation constraints (distance, delay, tolerance)
+- Collision detection strategies (closest center, closest corners, pointer-within, custom)
+- Modifiers (axis lock, restrict to container, snap to grid)
+- DragOverlay (the dragged "ghost" can be a live React component)
+- Sortable transforms with smooth FLIP animations
+- Auto-scroll when the pointer nears edges
+- Keyboard pick-up / move / drop with a customizable announcement layer
+- A way to wire all of this together that's actually testable
+
+Lessons 11 through 18 walk through each of these.
+
+## A note about Pragmatic drag-and-drop
+
+You may run into Atlassian's **Pragmatic drag-and-drop** library too. It's a leaner replacement for `react-beautiful-dnd` from the same team, framework-agnostic and based on HTML5 DnD events. It's promising for some use cases but doesn't yet have the React-idiomatic ergonomics or the deep keyboard/accessibility story `@dnd-kit` has. We won't cover it in this course — `@dnd-kit` is the better starting point for the final project we're building.
+
+<Recap>
+- `@dnd-kit` is the recommended modern default in 2026.
+- `react-dnd` is older but still works; pick it only if you're already in a `react-dnd` codebase.
+- `react-beautiful-dnd` is deprecated — don't start new projects with it.
+- `react-grid-layout` is specialized for dashboard tile grids, not general DnD.
+- The rest of the course uses `@dnd-kit/core` and `@dnd-kit/sortable`.
+</Recap>

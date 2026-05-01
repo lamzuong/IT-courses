@@ -1,64 +1,246 @@
 import Link from 'next/link';
 import { getAllCourses, flattenLessons } from '@/lib/courses';
 import { placeholderCourses } from '@/content/courses';
+import { getCourseStats } from '@/lib/lesson-stats';
+import type { ReactNode } from 'react';
 
-export default function Home() {
+type CardProps = {
+  variant: 'peach' | 'sage' | 'butter' | 'sky';
+  tag: string;
+  title: string;
+  summary: string;
+  stats: { label: string; value: string }[];
+  pct: number;
+  pctLabel: string;
+  footerLeft: string;
+  cta: { label: string; href: string; disabled?: boolean };
+  illustration: ReactNode;
+};
+
+function CourseCard({
+  variant, tag, title, summary, stats, pct, pctLabel, footerLeft, cta, illustration,
+}: CardProps) {
+  const inner = (
+    <article className={`course-card course-card--${variant}`}>
+      <div className="course-card-fill">
+        <div className="course-card-art" aria-hidden>{illustration}</div>
+        <span className="course-card-tag">{tag}</span>
+        <h2 className="course-card-title">{title}</h2>
+        <p className="course-card-summary">{summary}</p>
+        <ul className="course-card-stats">
+          {stats.map((s) => (
+            <li key={s.label}>
+              <span className="course-card-stat-num">{s.value}</span>
+              <span className="course-card-stat-label">{s.label}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="course-card-progress-row">
+          <span>Authoring</span>
+          <span>{pctLabel}</span>
+        </div>
+        <div className="course-card-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={`Authoring progress: ${pctLabel}`}>
+          <span className="course-card-progress-fill" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+      <div className="course-card-footer">
+        <span className="course-card-footer-left">{footerLeft}</span>
+        {cta.disabled ? (
+          <span className="course-card-cta course-card-cta--disabled">{cta.label}</span>
+        ) : (
+          <span className="course-card-cta">{cta.label}</span>
+        )}
+      </div>
+    </article>
+  );
+
+  if (cta.disabled || cta.href === '#') return inner;
+  return (
+    <Link href={cta.href} aria-label={`${title} — ${cta.label}`} className="course-card-link">
+      {inner}
+    </Link>
+  );
+}
+
+// ─── illustrations ─────────────────────────────────────────────────────────
+
+function ArtDragDrop() {
+  return (
+    <svg viewBox="0 0 140 140" width="140" height="140" fill="none">
+      <defs>
+        <linearGradient id="dd-card" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#fff" />
+          <stop offset="1" stopColor="#c5e8a8" />
+        </linearGradient>
+      </defs>
+      <rect x="22" y="22" width="74" height="46" rx="8" fill="url(#dd-card)" stroke="#091610" strokeWidth="2" />
+      <rect x="44" y="50" width="74" height="46" rx="8" fill="#fff" stroke="#091610" strokeWidth="2" />
+      <rect x="66" y="78" width="60" height="40" rx="8" fill="#091610" />
+      <circle cx="74" cy="32" r="2.5" fill="#091610" />
+      <circle cx="84" cy="32" r="2.5" fill="#091610" />
+      <circle cx="94" cy="32" r="2.5" fill="#091610" />
+      <path d="M30 110 Q 42 100, 60 102 T 96 88" stroke="#0e6b3f" strokeWidth="2" strokeDasharray="3 4" strokeLinecap="round" />
+      <path d="M93 86 l 6 1 l -3 5" stroke="#0e6b3f" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ArtAnimations() {
+  return (
+    <svg viewBox="0 0 140 140" width="140" height="140" fill="none">
+      <path d="M14 90 Q 40 30, 70 70 T 130 50" stroke="#091610" strokeWidth="2" fill="none" strokeLinecap="round" />
+      <circle cx="14" cy="90" r="4" fill="#091610" />
+      <circle cx="36" cy="60" r="3" fill="#fff" stroke="#091610" strokeWidth="2" />
+      <circle cx="60" cy="74" r="3" fill="#fff" stroke="#091610" strokeWidth="2" />
+      <circle cx="84" cy="62" r="3" fill="#fff" stroke="#091610" strokeWidth="2" />
+      <circle cx="108" cy="56" r="3" fill="#fff" stroke="#091610" strokeWidth="2" />
+      <circle cx="130" cy="50" r="6" fill="#9ee04a" stroke="#0a4729" strokeWidth="2" />
+      <rect x="20" y="100" width="20" height="20" rx="3" fill="#fff" stroke="#091610" strokeWidth="2" transform="rotate(-8 30 110)" />
+      <rect x="50" y="104" width="20" height="20" rx="3" fill="#fff" stroke="#091610" strokeWidth="2" transform="rotate(2 60 114)" />
+      <rect x="80" y="108" width="20" height="20" rx="3" fill="#fff" stroke="#091610" strokeWidth="2" transform="rotate(10 90 118)" />
+    </svg>
+  );
+}
+
+function ArtAccessibility() {
+  return (
+    <svg viewBox="0 0 140 140" width="140" height="140" fill="none">
+      <rect x="20" y="40" width="100" height="60" rx="8" fill="#fff" stroke="#091610" strokeWidth="2" />
+      <rect x="28" y="50" width="14" height="10" rx="2" fill="#091610" />
+      <rect x="46" y="50" width="14" height="10" rx="2" fill="#fff" stroke="#091610" strokeWidth="1.5" />
+      <rect x="64" y="50" width="14" height="10" rx="2" fill="#fff" stroke="#091610" strokeWidth="1.5" />
+      <rect x="82" y="50" width="14" height="10" rx="2" fill="#fff" stroke="#091610" strokeWidth="1.5" />
+      <rect x="100" y="50" width="14" height="10" rx="2" fill="#fff" stroke="#091610" strokeWidth="1.5" />
+      <rect x="28" y="64" width="14" height="10" rx="2" fill="#fff" stroke="#091610" strokeWidth="1.5" />
+      <rect x="46" y="64" width="50" height="10" rx="2" fill="#fff" stroke="#091610" strokeWidth="1.5" />
+      <rect x="100" y="64" width="14" height="10" rx="2" fill="#fff" stroke="#091610" strokeWidth="1.5" />
+      <rect x="28" y="78" width="68" height="10" rx="2" fill="#fff" stroke="#091610" strokeWidth="1.5" />
+      <rect x="100" y="78" width="14" height="10" rx="2" fill="#fff" stroke="#091610" strokeWidth="1.5" />
+      {/* focus ring on the highlighted key */}
+      <rect x="24" y="46" width="22" height="18" rx="4" fill="none" stroke="#0e6b3f" strokeWidth="2" strokeDasharray="3 3" />
+      <text x="68" y="120" fontFamily="ui-monospace" fontSize="11" fill="#091610" fontWeight="600">Tab ↹</text>
+    </svg>
+  );
+}
+
+function ArtTypeScript() {
+  return (
+    <svg viewBox="0 0 140 140" width="140" height="140" fill="none">
+      <rect x="22" y="22" width="96" height="96" rx="14" fill="#091610" />
+      <text x="34" y="76" fontFamily="ui-monospace" fontSize="34" fontWeight="700" fill="#fff">{'<T/>'}</text>
+      <circle cx="108" cy="34" r="6" fill="#9ee04a" />
+      <path d="M30 100 l 80 0" stroke="#fff" strokeWidth="2" strokeOpacity="0.25" strokeDasharray="2 4" />
+      <text x="34" y="112" fontFamily="ui-monospace" fontSize="9" fill="#fff" fillOpacity="0.6">type Foo&lt;T&gt;</text>
+    </svg>
+  );
+}
+
+// ─── page ──────────────────────────────────────────────────────────────────
+
+function formatHours(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const h = minutes / 60;
+  return `~${h % 1 === 0 ? h : h.toFixed(1)} h`;
+}
+
+export default async function Home() {
   const courses = getAllCourses();
+  const real = courses[0];
+  const lessonCount = flattenLessons(real).length;
+  const stats = await getCourseStats(real.slug, real.parts);
+  const totalRead = formatHours(stats.totalMinutes);
 
   return (
-    <main id="main-content" className="mx-auto max-w-6xl px-6">
-      <section className="py-20 text-center">
-        <h1 className="font-serif text-5xl md:text-6xl font-bold tracking-tight max-w-3xl mx-auto leading-[1.05]">
+    <main id="main-content" className="mx-auto max-w-5xl px-6 py-12 md:py-16">
+      <header className="mb-10 md:mb-14">
+        <p className="text-xs uppercase tracking-[0.22em] text-[color:var(--color-text-faint)] font-semibold">
+          IT Courses · A small shelf
+        </p>
+        <h1 className="font-serif text-4xl md:text-5xl font-bold tracking-tight mt-3 leading-[1.05] max-w-2xl">
           Hands-on courses on the parts of frontend I find interesting.
         </h1>
-        <p className="mt-6 text-lg text-[color:var(--color-text-soft)] max-w-xl mx-auto">
-          Each course ends in a real project you build yourself. No fluff.
+        <p className="font-serif italic text-lg text-[color:var(--color-text-soft)] mt-4 max-w-xl">
+          Each course ships with its own working final project. No fluff, no quizzes — just builds you can read.
         </p>
-        <Link
-          href={`/courses/${courses[0].slug}`}
-          className="inline-block mt-8 px-5 py-3 bg-black text-white rounded-md text-sm font-medium hover:bg-black/85"
-        >
-          Start the first course →
-        </Link>
-      </section>
+      </header>
 
-      <section className="pb-24">
-        <p className="text-xs uppercase tracking-widest text-[color:var(--color-text-soft)] mb-6">
-          Available courses
-        </p>
+      <section aria-labelledby="course-shelf-heading">
+        <h2 id="course-shelf-heading" className="sr-only">Available courses</h2>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {courses.map((course) => {
-            const lessonCount = flattenLessons(course).length;
-            return (
-              <Link
-                key={course.slug}
-                href={`/courses/${course.slug}`}
-                className="group rounded-md border border-[color:var(--color-border)] bg-white/50 p-6 hover:border-black/30 transition"
-              >
-                <div className="aspect-[16/9] rounded bg-gradient-to-br from-[#e8e2d8] to-[#d4cab9] mb-4" aria-hidden="true" />
-                <h2 className="font-serif text-xl font-semibold">{course.title}</h2>
-                <p className="mt-2 text-sm text-[color:var(--color-text-soft)] line-clamp-2">
-                  {course.summary}
-                </p>
-                <p className="mt-3 text-xs uppercase tracking-wider text-[color:var(--color-text-soft)]">
-                  {lessonCount} lessons · Project
-                </p>
-              </Link>
-            );
-          })}
-          {placeholderCourses.map((p, i) => (
-            <div
-              key={i}
-              className="rounded-md border border-dashed border-[color:var(--color-border)] p-6 opacity-50"
-              aria-label="Coming soon"
-            >
-              <div className="aspect-[16/9] rounded bg-[color:var(--color-bg-soft)] mb-4" aria-hidden="true" />
-              <h2 className="font-serif text-xl font-semibold">{p.title}</h2>
-              <p className="mt-2 text-sm text-[color:var(--color-text-soft)]">{p.summary}</p>
-            </div>
-          ))}
+          <CourseCard
+            variant="peach"
+            tag="Featured"
+            title={real.title}
+            summary={real.summary}
+            stats={[
+              { label: 'lessons', value: String(lessonCount) },
+              { label: 'demos',   value: '13' },
+              { label: 'project', value: '1' },
+            ]}
+            pct={100}
+            pctLabel="Complete"
+            footerLeft={`${lessonCount} lessons · ${totalRead} read`}
+            cta={{ label: 'Begin reading', href: `/courses/${real.slug}` }}
+            illustration={<ArtDragDrop />}
+          />
+
+          <CourseCard
+            variant="sage"
+            tag={placeholderCourses[0].tag}
+            title={placeholderCourses[0].title}
+            summary={placeholderCourses[0].summary}
+            stats={[
+              { label: 'lessons', value: String(placeholderCourses[0].lessons) },
+              { label: 'demos',   value: String(placeholderCourses[0].demos) },
+              { label: 'project', value: '1' },
+            ]}
+            pct={placeholderCourses[0].authoringPct}
+            pctLabel={`${placeholderCourses[0].authoringPct}%`}
+            footerLeft="Coming soon"
+            cta={{ label: 'In progress', href: '#', disabled: true }}
+            illustration={<ArtAnimations />}
+          />
+
+          <CourseCard
+            variant="butter"
+            tag={placeholderCourses[1].tag}
+            title={placeholderCourses[1].title}
+            summary={placeholderCourses[1].summary}
+            stats={[
+              { label: 'lessons', value: String(placeholderCourses[1].lessons) },
+              { label: 'demos',   value: String(placeholderCourses[1].demos) },
+              { label: 'project', value: '1' },
+            ]}
+            pct={placeholderCourses[1].authoringPct}
+            pctLabel={`${placeholderCourses[1].authoringPct}%`}
+            footerLeft="Coming soon"
+            cta={{ label: 'Planned', href: '#', disabled: true }}
+            illustration={<ArtAccessibility />}
+          />
+
+          <CourseCard
+            variant="sky"
+            tag={placeholderCourses[2].tag}
+            title={placeholderCourses[2].title}
+            summary={placeholderCourses[2].summary}
+            stats={[
+              { label: 'lessons', value: String(placeholderCourses[2].lessons) },
+              { label: 'demos',   value: String(placeholderCourses[2].demos) },
+              { label: 'project', value: '1' },
+            ]}
+            pct={placeholderCourses[2].authoringPct}
+            pctLabel={`${placeholderCourses[2].authoringPct}%`}
+            footerLeft="Coming soon"
+            cta={{ label: 'Planned', href: '#', disabled: true }}
+            illustration={<ArtTypeScript />}
+          />
         </div>
       </section>
+
+      <p className="mt-10 text-sm text-[color:var(--color-text-soft)] font-serif italic">
+        New cards as I finish them. The shelf grows.
+      </p>
     </main>
   );
 }

@@ -1,0 +1,119 @@
+<h2>Lesson page layout</h2>
+<p class="subtitle">This is the page learners see most. Pick the layout that feels right for reading prose + interacting with embedded React demos.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0">
+        <div class="mockup-header">A — Two-column: lesson list + content</div>
+        <div class="mockup-body" style="padding:0">
+          <div class="mock-nav" style="margin:0;font-size:11px">IT Courses / Drag &amp; Drop in React / Lesson 6</div>
+          <div style="display:flex;gap:0">
+            <div class="mock-sidebar" style="width:130px;padding:10px;font-size:10px;line-height:1.7">
+              <div style="font-weight:600;margin-bottom:6px;font-size:10px">Course lessons</div>
+              <div style="opacity:.6">1. Intro</div>
+              <div style="opacity:.6">2. HTML5 events</div>
+              <div style="opacity:.6">3. dataTransfer</div>
+              <div style="opacity:.6">4. Hands-on demo</div>
+              <div style="opacity:.6">5. Limitations</div>
+              <div style="font-weight:700;background:rgba(120,120,255,.15);padding:2px 4px;margin:0 -4px;border-radius:3px">6. Pointer Events ←</div>
+              <div style="opacity:.6">7. Cross-device pt.1</div>
+              <div style="opacity:.4">+ 11 more</div>
+            </div>
+            <div class="mock-content" style="flex:1;padding:12px;font-size:11px">
+              <div style="font-size:14px;font-weight:700">Pointer Events API</div>
+              <div style="opacity:.7;margin-top:6px;line-height:1.5">Modern unified API for mouse, touch, and pen. The right primitive for cross-device drag.</div>
+              <div style="margin-top:10px;padding:8px;background:rgba(0,0,0,.25);border-radius:4px;font-family:monospace;font-size:9px">
+                element.addEventListener('pointerdown', ...)
+              </div>
+              <div class="placeholder" style="margin-top:8px;padding:14px;text-align:center;font-size:10px">▶ Live demo: drag this</div>
+              <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:10px;opacity:.7">
+                <span>← Prev: Limitations</span>
+                <span>Next: Cross-device pt.1 →</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Two-column (sidebar + content)</h3>
+      <p>Persistent lesson list on the left, content + embedded demos in main. Best balance for an 18-lesson course — learner always knows where they are. Recommended.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0">
+        <div class="mockup-header">B — Three-column: lesson list + content + TOC</div>
+        <div class="mockup-body" style="padding:0">
+          <div class="mock-nav" style="margin:0;font-size:11px">IT Courses / Drag &amp; Drop in React / Lesson 6</div>
+          <div style="display:flex;gap:0">
+            <div class="mock-sidebar" style="width:100px;padding:8px;font-size:9px;line-height:1.7">
+              <div style="font-weight:600;margin-bottom:4px">Lessons</div>
+              <div style="opacity:.6">1. Intro</div>
+              <div style="opacity:.6">2. HTML5</div>
+              <div style="opacity:.6">3. Transfer</div>
+              <div style="opacity:.6">4. Demo</div>
+              <div style="opacity:.6">5. Limits</div>
+              <div style="font-weight:700;background:rgba(120,120,255,.15);padding:2px 4px;border-radius:3px">6. Pointer ←</div>
+              <div style="opacity:.4">+ 12 more</div>
+            </div>
+            <div class="mock-content" style="flex:1;padding:10px;font-size:10px">
+              <div style="font-size:13px;font-weight:700">Pointer Events API</div>
+              <div style="opacity:.7;margin-top:5px;line-height:1.5">Modern unified API for mouse, touch, and pen.</div>
+              <div class="placeholder" style="margin-top:8px;padding:10px;text-align:center;font-size:9px">▶ Live demo</div>
+            </div>
+            <div style="width:90px;padding:8px;font-size:9px;line-height:1.7;border-left:1px solid var(--border,#222)">
+              <div style="font-weight:600;margin-bottom:4px;opacity:.7">On this page</div>
+              <div style="opacity:.6">Why pointer</div>
+              <div style="font-weight:700">setPointerCapture</div>
+              <div style="opacity:.6">Hit-testing</div>
+              <div style="opacity:.6">Demo</div>
+              <div style="opacity:.6">Recap</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Three-column (+ on-this-page TOC)</h3>
+      <p>Adds a right-side table of contents with anchor links to sections within the lesson. Great for long-reference docs but might feel busy for instructional prose. Squeezes the demo column.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0">
+        <div class="mockup-header">C — Single-column reader</div>
+        <div class="mockup-body" style="padding:0">
+          <div class="mock-nav" style="margin:0;font-size:11px;display:flex;justify-content:space-between">
+            <span>← Drag &amp; Drop in React</span>
+            <span style="opacity:.6">6 / 18</span>
+          </div>
+          <div style="max-width:340px;margin:0 auto;padding:14px 12px">
+            <div style="font-size:10px;opacity:.55;letter-spacing:.06em;text-transform:uppercase">Lesson 6</div>
+            <div style="font-size:16px;font-weight:700;margin-top:6px">Pointer Events API</div>
+            <div style="opacity:.75;margin-top:8px;font-size:11px;line-height:1.6">The Pointer Events API gives us a single unified model for input — mouse, touch, and stylus all flow through the same handlers. This is the foundation we'll use to build cross-device drag from scratch.</div>
+            <div style="margin-top:10px;padding:8px;background:rgba(0,0,0,.25);border-radius:4px;font-family:monospace;font-size:9px">
+              element.addEventListener('pointerdown', ...)
+            </div>
+            <div class="placeholder" style="margin-top:10px;padding:18px;text-align:center;font-size:10px">▶ Live demo: drag this</div>
+            <div style="display:flex;justify-content:space-between;margin-top:18px;padding-top:10px;border-top:1px solid var(--border,#222);font-size:10px">
+              <span>← Prev: Limitations</span>
+              <span>Next: Cross-device pt.1 →</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Single column, no sidebar</h3>
+      <p>Just breadcrumb + content + prev/next. Cleanest read experience. Risk: with 18 lessons, learner has to bounce back to course page to see where they are.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:24px">My recommendation: <strong>A</strong>. Sidebar is essential when there are 18 lessons. We can collapse it on mobile.</p>

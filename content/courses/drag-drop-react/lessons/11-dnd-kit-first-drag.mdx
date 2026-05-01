@@ -1,0 +1,162 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { HelloDndKitDemo } from '@/components/demos/drag-drop-react/hello-dnd-kit-demo';
+
+Time to use `@dnd-kit`. This lesson is your "Hello, DnD" — a single draggable element and a single drop zone, end to end. Three hooks, one context. By the end, you'll see why everyone reaches for this library.
+
+## Install
+
+```bash
+npm install @dnd-kit/core @dnd-kit/utilities
+```
+
+`@dnd-kit/utilities` gives us `CSS.Translate.toString()` for applying the drag transform.
+
+## The three primitives
+
+- **`<DndContext>`** — wraps any subtree that participates in drag. Owns sensors, collision detection, drag state, and event handlers.
+- **`useDraggable({ id })`** — a hook on the source. Returns refs and event listeners to spread on the element.
+- **`useDroppable({ id })`** — a hook on the target. Returns a ref and an `isOver` boolean.
+
+## Hello, DnD
+
+The whole thing in one demo:
+
+<Demo title="useDraggable + useDroppable">
+  <HelloDndKitDemo />
+</Demo>
+
+```tsx
+'use client';
+import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import { useState } from 'react';
+
+function Draggable() {
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({ id: 'card-1' });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.4 : 1,
+    touchAction: 'none' as const,
+  };
+
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="rounded border bg-white px-4 py-2 cursor-grab active:cursor-grabbing"
+    >
+      Drag me
+    </button>
+  );
+}
+
+function Droppable({ children }: { children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'bin' });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded border-2 border-dashed p-6 ${isOver ? 'border-black bg-black/5' : ''}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function HelloDndKit() {
+  const [dropped, setDropped] = useState(false);
+
+  function onDragEnd(e: DragEndEvent) {
+    if (e.over?.id === 'bin') setDropped(true);
+  }
+
+  return (
+    <DndContext onDragEnd={onDragEnd}>
+      <div className="flex gap-6 items-start">
+        {!dropped && <Draggable />}
+        <Droppable>{dropped ? 'Got it.' : 'Drop here'}</Droppable>
+      </div>
+    </DndContext>
+  );
+}
+```
+
+That's a working drag-and-drop. Let's unpack it.
+
+## What useDraggable returns
+
+```ts
+const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
+```
+
+- **`setNodeRef`** — pass to the element's `ref` so the library can measure it.
+- **`listeners`** — pointer/touch/keyboard event handlers. Spread these on whatever you want to be the drag handle (the whole element, or a smaller grip icon).
+- **`attributes`** — ARIA attributes (`role`, `aria-roledescription`, `tabIndex`, etc.). Spread on the focusable element.
+- **`transform`** — `{ x, y }` offset from the original position while dragging, or `null` when idle. Apply via the `CSS.Translate.toString` helper.
+- **`isDragging`** — boolean for styling the source.
+
+## Drag handle vs whole-element drag
+
+Spread `listeners` on a sub-element to make only that part the drag handle:
+
+```tsx
+<div ref={setNodeRef} style={style} {...attributes}>
+  <span {...listeners} className="cursor-grab">⋮⋮</span>
+  <span>Card content (clickable, selectable)</span>
+</div>
+```
+
+This is the right pattern when the card itself contains buttons or text users want to interact with.
+
+## What useDroppable returns
+
+```ts
+const { setNodeRef, isOver, active, over } = useDroppable({ id });
+```
+
+- **`setNodeRef`** — pass to the target's `ref`.
+- **`isOver`** — true when a draggable is currently over this drop zone.
+- **`active`** — the currently-dragging item (for cross-target awareness).
+- **`over`** — the currently-hovered drop target (might be us).
+
+## The drag events
+
+`<DndContext>` exposes four events:
+
+```tsx
+<DndContext
+  onDragStart={(e) => { /* e.active.id */ }}
+  onDragOver={(e) => { /* e.active.id, e.over?.id */ }}
+  onDragEnd={(e) => { /* e.active.id, e.over?.id, e.delta */ }}
+  onDragCancel={(e) => { /* user pressed Escape, etc. */ }}
+>
+```
+
+`onDragEnd` is where you commit state changes. Read `e.over?.id` to see where the drop landed (or `null` if dropped on nothing).
+
+<Callout type="tip" title="touch-action: none, again">
+You'll see `touchAction: 'none'` on the source style. `@dnd-kit` would handle pointer events for you, but the browser still tries to scroll on touch unless you opt out — same lesson as Pointer Events. The library's docs include this in every example for a reason.
+</Callout>
+
+## What you didn't have to write
+
+Compare this to the ~150 lines from Lessons 7–9. With `@dnd-kit` you got, for free:
+
+- Pointer + touch + keyboard sensors
+- Drag transform
+- Active/over state propagation
+- ARIA attributes on the source
+- Collision detection (the default `rectIntersection`)
+
+You haven't even started using sortable lists, modifiers, or the drag overlay yet. Those are the next several lessons.
+
+<Recap>
+- `<DndContext>` wraps the subtree; `useDraggable` and `useDroppable` are the two hooks you'll use most.
+- Spread `listeners` on the drag handle, `attributes` on the focusable element, and pass `setNodeRef` to the element's ref.
+- Apply `transform` via `CSS.Translate.toString(transform)`.
+- `onDragEnd` is the handler where you commit state changes; read `e.over?.id` for the drop target.
+</Recap>
