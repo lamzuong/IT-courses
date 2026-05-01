@@ -1,0 +1,64 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Tool design is API design with one extra constraint — your caller is a probabilistic interpreter, not a deterministic one. Every other API you've ever shipped has been called by code that does exactly what its author told it to. This one is called by a model that read your description, formed a guess about what the tool does, and is now trying. If your description was vague, the guess will be vague. If your name was clever, the guess will be wrong. Tool design rewards the dull, specific, and obvious in a way most software design does not.
+
+This lesson is the principles file. Four rules to follow and five mistakes to recognize. None of them are revolutionary — they're the same things experienced API designers have always preached — but the cost of getting them wrong is higher when the caller can't read your source code and won't ask clarifying questions.
+
+## 01 — Narrow beats broad
+
+The instinct from human library design is to build one general tool and let the caller compose. *"`promotions.create` with sixteen optional fields covers everything."* For an LLM this is the wrong move. The model has to discover, from your description and schema, that a particular combination of fields means *"a 15% off code targeted at customers who haven't ordered in 60 days."* It will sometimes get it. It will sometimes not.
+
+`promotions.create_for_lapsed_customers` is a worse tool from a code-aesthetic standpoint. Six tools instead of one, each a thin wrapper over the same primitive. But it's a much better tool for an LLM, because *the name itself tells the model what the tool does and when to use it*. The model picks the right tool by reading the directory; you don't have to teach it your composition rules.
+
+A practical rule: if you find yourself writing *"to do X, set field A to Y and field B to Z"* in a tool description, that's two tools, not one. Split it.
+
+## 02 — Idempotent by default
+
+The model will retry. Sometimes because the first call timed out, sometimes because it parsed your error response and decided the call didn't take, sometimes for no reason a logfile can explain. If your tool is `orders.charge` and a retry double-charges, you have a billing incident waiting for you.
+
+The fix is the same fix you'd apply to a webhook handler: an idempotency key supplied (or generated) per logical operation, and a `check-and-insert` pattern in the database. The first call goes through. The second call sees the existing row and returns the cached result. The model gets the same answer either way and doesn't know — or need to know — that it was a retry.
+
+For read tools this is almost free, because reads are naturally idempotent. The discipline matters most for the write tools we get to in lesson 12, but instilling it now means you don't have to retrofit it later.
+
+## 03 — The description IS the prompt
+
+The single highest-leverage thing you'll write in your AI codebase is the description string on each tool. It is sent to the model on every turn. It is what the model uses to decide *whether* to call the tool, *when* to call it, and *what arguments* to send. A vague description guarantees a confused model.
+
+The bad version: `"Search customers."` Five characters of signal. The model has to guess what fields are searchable, what's returned, what the limits are.
+
+The good version: `"Search customers by lapsed-days threshold, tag membership, or email domain. Returns up to 25 rows ordered by last_order_at descending. Use customers.list for unfiltered listing."` Three sentences, three things the model now knows it didn't have to guess. Notice the cross-reference at the end — pointing at a sibling tool helps the model pick the right one.
+
+<Callout type="tip" title="Read your descriptions out loud">
+The fastest test for tool descriptions: read them aloud as if you were briefing a coworker. If a sentence makes you stumble, the model will stumble. If you used jargon you'd normally explain, the model didn't get the explanation. If you said "etc." or "and so on", the model has no idea what was elided. Tool descriptions are technical writing, and the same instincts that make a good README make a good description.
+</Callout>
+
+## 04 — Typed errors
+
+When something goes wrong inside a tool, the model receives the thrown error message verbatim as a `ToolMessage` and decides what to do next. That decision is going to be informed by what your error says.
+
+`Error: ENOENT` tells the model nothing useful. It will retry, or give up, or hallucinate that the customer doesn't exist.
+
+`Error: Customer with id 7041 not found. Use customers.search to look up customers by name or email.` tells the model exactly what happened and exactly what to do instead. Often the model will *follow the suggestion in your error message* and fix the call on the next turn — which means a well-written error becomes a self-healing recovery path with zero scaffolding code.
+
+The shape that works: `<what failed>. <why>. <suggested next step>.` Treat error messages as part of the prompt — because that's what they are.
+
+## 05 — Common mistakes
+
+A short, brutal checklist. If your tool matches any of these, refactor before you ship:
+
+- **Tools that take 12 arguments.** The model will fill three correctly, two incorrectly, and forget seven. Split into smaller tools.
+- **Tools that mutate without acknowledgment.** Every write tool should return what it wrote — the row, the ID, the timestamp. Returning `void` leaves the model with no way to confirm the call landed and no way to reference what it just did.
+- **Tools that return free-form text instead of structured data.** *"I sent the email to ana@example.com at 14:32"* is a paragraph; the model has to re-parse it. Return `{ sentTo, sentAt }` and the model can quote the values directly.
+- **Tools that call other tools recursively.** The model orchestrates tool sequences. Tools should not. A tool that internally calls three other tools is hiding work from the model and making the round-trip un-debuggable.
+- **Tools that depend on global state.** *"This tool uses the customer set in the previous call."* No. Pass the customer ID explicitly every time. Implicit state across calls is how you build features that work in development and silently fail in production.
+
+A useful exercise after writing a tool: read it back and ask *"could a model that has never seen my code call this correctly using only the name, description, and schema?"* If the answer is no, you have more work to do.
+
+<Recap>
+- Narrow tools beat broad tools. The name should describe the situation, not just the verb.
+- Idempotent by default. The model will retry, often invisibly. Build for that.
+- Tool descriptions are part of the prompt. Spend real time on them; cross-reference siblings.
+- Typed errors are recovery paths. *What failed. Why. What to do instead.* Three sentences, big leverage.
+- Five anti-patterns to avoid: 12-arg tools, silent writes, free-form returns, recursive tools, implicit global state.
+</Recap>

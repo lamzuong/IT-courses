@@ -1,0 +1,106 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { FirstToolDemo } from '@/components/demos/ai-in-your-project/first-tool-demo';
+
+A tool is a typed function the model can call. You define one with three things — a name, a Zod input schema, and a function that runs when the model decides to invoke it. The model never executes your code itself; it emits a structured request that says *"please call `customers.search` with these arguments"*, your runtime executes it, and the result goes back into the conversation as another message. The whole loop runs server-side, and your TypeScript is in charge from start to finish.
+
+That separation is the entire point. Up until now the model has been a paragraph generator with read-only access to whatever you stuffed into the prompt. With tools, it gets verbs. It can search, fetch, count, and (once we get to writes in lesson 12) act. The prompt explains the world; the tools let the model touch it.
+
+## 01 — Defining a tool with `tool()`
+
+LangChain ships a thin wrapper that turns a function into something the model can call. The whole shape is one call:
+
+```ts
+import { tool } from '@langchain/core/tools';
+import { z } from 'zod';
+import { db } from '@/lib/db';
+
+export const searchCustomers = tool(
+  async ({ filter }) => {
+    const rows = await db.customers.findMany({
+      where: {
+        lastOrderAt: filter.lapsedDays
+          ? { lt: daysAgo(filter.lapsedDays) }
+          : undefined,
+        tags: filter.tagIn ? { hasSome: filter.tagIn } : undefined,
+      },
+      take: 25,
+    });
+    return JSON.stringify(rows);
+  },
+  {
+    name: 'customers.search',
+    description: 'Search customers by lapsed-days threshold or by tag. Returns up to 25 rows.',
+    schema: z.object({
+      filter: z.object({
+        lapsedDays: z.number().int().positive().optional(),
+        tagIn: z.array(z.string()).optional(),
+      }),
+    }),
+  },
+);
+```
+
+Four things to notice. The `name` is the identifier the model uses when calling it — keep it dotted and namespaced (`customers.search`, not `searchCustomers`) so a directory of tools reads like an API surface. The `description` is what the model actually reads to decide *whether* to call this tool; we'll come back to it. The `schema` is a Zod object that constrains the arguments — the model is forced to fit its call into this shape, so your function body never has to defend against malformed input. The function itself is plain TypeScript; it returns a string (or anything stringifiable) which becomes the tool's reply.
+
+## 02 — Binding tools to a model
+
+Defining a tool doesn't expose it. You bind a list of tools to a model and the bound model is what you invoke:
+
+```ts
+import { ChatOpenAI } from '@langchain/openai';
+
+const model = new ChatOpenAI({ model: 'gpt-4o-mini' })
+  .bindTools([searchCustomers, listProducts, getOrderTotals]);
+
+const response = await model.invoke([
+  { role: 'system', content: 'You are an operator assistant for a small e-commerce shop.' },
+  { role: 'user', content: 'Who hasn\'t ordered in the last two months?' },
+]);
+```
+
+The response will not be a finished answer this time. It'll come back with a `tool_calls` array — the model has decided that `customers.search` is the right next step, and it's asking your runtime to run it. Your job is to execute each call, append the result as a `ToolMessage`, and invoke the model again. The second call is where it sees the result and writes the prose answer.
+
+Most of that loop is mechanical, and LangGraph (which we get to in Part IV) automates it. For this lesson, the picture you want in your head is just: *model emits tool calls, runtime executes them, runtime appends results, model speaks again.*
+
+<Callout type="note" title="Tool descriptions are part of the prompt">
+The `description` field is not documentation. It is sent to the model on every turn, alongside the schema, and it's how the model decides whether your tool is the right one to use. Write it as if a junior engineer were reading it for the first time: "Search customers by lapsed-days threshold or by tag. Returns up to 25 rows ordered by last-order date descending." Be specific about what it returns and what it doesn't.
+</Callout>
+
+## 03 — Watch a tool round-trip
+
+Pick a scenario and watch the full round-trip play out: user message, the model deciding to call `customers.search`, the JSON arguments it emitted, the rows your runtime fed back, and the prose summary the model wrote with the result in hand.
+
+<Demo title="A single tool round-trip">
+  <FirstToolDemo />
+</Demo>
+
+The transcript on the left is the conversation; the inspector on the right is the part you don't normally see. In production, both halves are happening for every turn — the visible chat is the small tip; the tool calls and results are the iceberg. When something goes wrong with an AI feature, the inspector view is where you debug.
+
+## 04 — The tool-call protocol
+
+The shape the model emits is small and well-specified. After your bound model runs, the response object contains a `tool_calls` array that looks like this:
+
+```ts
+{
+  tool_calls: [
+    {
+      id: 'call_abc123',
+      name: 'customers.search',
+      args: { filter: { lapsedDays: 60 } },
+    },
+  ],
+}
+```
+
+Three fields. The `id` is so you can route the result back to the right call when the model asks for several at once (we'll see that in lesson 10). The `name` matches a tool you bound. The `args` are already parsed and Zod-validated against your schema — if the model produced something invalid, the whole turn fails and you handle the retry, rather than your tool body having to cope with junk.
+
+Your runtime takes that array, runs each tool, and pushes a `ToolMessage` onto the conversation for each one with the matching `tool_call_id`. Then you call the model a second time, and it sees the results and continues. Two model invocations, one tool execution, one turn — that's the unit. Everything in this part of the course builds on it.
+
+<Recap>
+- A tool is a typed function: name, Zod schema, and async function. `tool()` from `@langchain/core/tools` is the wrapper.
+- `model.bindTools([...])` exposes a list of tools to a model. The bound model emits `tool_calls` instead of a final answer when it wants to use one.
+- Tool descriptions are sent on every turn — they ARE part of the prompt. Write them carefully.
+- The protocol is small: `{ id, name, args }`. Run the call, return a `ToolMessage` with the matching `tool_call_id`, invoke again.
+- Two model calls + one tool execution = one turn. That's the loop the rest of Part III is built on.
+</Recap>

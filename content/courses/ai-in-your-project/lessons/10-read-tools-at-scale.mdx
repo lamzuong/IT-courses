@@ -1,0 +1,126 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { MultiToolRunnerDemo } from '@/components/demos/ai-in-your-project/multi-tool-runner-demo';
+
+One tool that returns 25 customers is fine. One tool that returns 25 million is a denial-of-service attack against your model's context window — and your bill. Once tools graduate from your local seed file to a production database, the design problem shifts from *"can I expose this query to the model"* to *"can I expose this query in a way that doesn't melt down the moment a row count gets interesting."*
+
+This lesson is the read-side playbook. Three patterns will cover most of what you ever need: pagination so the model can ask for more without seeing everything, filtering so the model expresses intent and you translate it into a real query, and aggregation so the model can ask for *summaries* instead of raw rows. Each pattern shrinks the data flowing into context by an order of magnitude or more.
+
+## 01 — Pagination
+
+The simplest mistake is the most common: a tool that returns *all* matching rows. The right shape is cursor-based — the tool returns a fixed page plus an opaque cursor the model can hand back to ask for the next page:
+
+```ts
+export const listCustomers = tool(
+  async ({ cursor, limit = 25 }) => {
+    const rows = await db.customers.findMany({
+      take: limit + 1,
+      cursor: cursor ? { id: parseInt(cursor, 10) } : undefined,
+      orderBy: { id: 'asc' },
+    });
+    const nextCursor = rows.length > limit ? String(rows[limit].id) : null;
+    return JSON.stringify({ rows: rows.slice(0, limit), nextCursor });
+  },
+  {
+    name: 'customers.list',
+    description: 'List customers, 25 per page. Pass nextCursor from the previous page to continue.',
+    schema: z.object({
+      cursor: z.string().nullable().optional(),
+      limit: z.number().int().min(1).max(50).optional(),
+    }),
+  },
+);
+```
+
+A few things to notice. The `limit` is bounded — `min(1).max(50)` means even a confused model can't ask for ten thousand rows. The cursor is opaque to the model: it never has to know that internally it's an integer ID. The shape returned by the tool is `{ rows, nextCursor }` — the model learns the convention once and applies it across every paginated tool you build.
+
+Models are good at multi-step reasoning when the protocol is consistent. If half your tools paginate with `cursor` and half with `page`, you'll see the model send `page: 2` to a cursor tool and stop. Pick one shape and apply it everywhere.
+
+## 02 — Filtering
+
+The second pattern is letting the model say *what* it wants instead of getting everything. The temptation is to expose a tool that takes a SQL string. Don't. The model does not need to learn SQL; it needs an object that describes intent.
+
+```ts
+const filterSchema = z.object({
+  lapsedDays: z.number().int().positive().max(3650).optional(),
+  tagIn: z.array(z.string().max(40)).max(10).optional(),
+  emailDomain: z.string().max(80).optional(),
+  createdAfter: z.string().datetime().optional(),
+});
+
+export const searchCustomers = tool(
+  async ({ filter }) => {
+    const where: Prisma.CustomerWhereInput = {};
+    if (filter.lapsedDays) where.lastOrderAt = { lt: daysAgo(filter.lapsedDays) };
+    if (filter.tagIn) where.tags = { hasSome: filter.tagIn };
+    if (filter.emailDomain) where.email = { endsWith: '@' + filter.emailDomain };
+    if (filter.createdAfter) where.createdAt = { gte: new Date(filter.createdAfter) };
+    const rows = await db.customers.findMany({ where, take: 25 });
+    return JSON.stringify({ rows });
+  },
+  {
+    name: 'customers.search',
+    description: 'Search customers by lapsed-days, tags, email domain, or creation date.',
+    schema: z.object({ filter: filterSchema }),
+  },
+);
+```
+
+The Zod schema does two jobs at once. It tells the model what filters are available (the schema is part of the tool's exposed surface) and it locks down what your function will ever receive. The body of the function is a switch from validated-intent to parameterized query — you're the translator, not the model.
+
+<Callout type="warning" title="Never interpolate the model's filter into raw SQL">
+The single largest class of AI security incidents in the last two years has been someone exposing a tool that takes a SQL fragment, a JSONPath expression, or a free-form `where` string. The model will eventually emit `'; DROP TABLE customers; --` because someone in a chat asked it nicely. Always parse with Zod, always translate to a parameterized query, always treat the model's input as adversarial. *You* write the SQL; the model only describes what it wants.
+</Callout>
+
+## 03 — Aggregation
+
+The third pattern is the one that saves the most tokens: when the model wants to know *about* the data rather than the data itself, expose a tool that pre-computes the answer.
+
+```ts
+export const totalsBySegment = tool(
+  async ({ segment }) => {
+    const cohort = await db.customers.findMany({
+      where: segment === 'lapsed-pre-q4'
+        ? { lastOrderAt: { lt: daysAgo(60) } }
+        : { lastOrderAt: { gte: daysAgo(30) } },
+      select: { id: true },
+    });
+    const ids = cohort.map((c) => c.id);
+    const orders = await db.orders.findMany({ where: { customerId: { in: ids } } });
+    const total = orders.reduce((s, o) => s + o.totalCents, 0);
+    return JSON.stringify({
+      customerCount: ids.length,
+      orderCount: orders.length,
+      totalRevenueCents: total,
+      avgOrderValueCents: orders.length ? Math.round(total / orders.length) : 0,
+    });
+  },
+  {
+    name: 'orders.totals_by_segment',
+    description: 'Return revenue, order count, and average order value for a named customer segment.',
+    schema: z.object({ segment: z.enum(['lapsed-pre-q4', 'active-30d']) }),
+  },
+);
+```
+
+A model asking *"how much have lapsed customers spent?"* shouldn't need to see every order. It needs four numbers. Pre-compute the four numbers, return them, and the synthesis paragraph the model writes will be just as good — and the round-trip will use 200 tokens instead of 200,000.
+
+A useful heuristic: if a model ever asks a tool for raw rows just to count them, you're missing an aggregation tool. Add `count_by_tag`, `revenue_by_month`, `top_products_for_customer`. Each one is fifteen lines of TypeScript and saves a context window.
+
+## 04 — Three tools, one prompt
+
+Here's the payoff. Watch a single user request fan out into three sequential tool calls — search the segment, aggregate its revenue, list candidate products — and finish with one synthesis paragraph the model writes from the three results.
+
+<Demo title="Three tools the model orchestrates itself">
+  <MultiToolRunnerDemo />
+</Demo>
+
+You wrote the tools. The model wrote the orchestration. That's the part that surprises people the first time they see it: nobody told the assistant to call those three tools in that order. It read the tool descriptions, picked the ones that would answer the question, and called them. The reason it works is the work you did *in the tool descriptions and schemas* — every constraint you put there is something the model didn't have to guess.
+
+<Recap>
+- Pagination: cursor-based, bounded `limit`, return `{ rows, nextCursor }`. Pick one shape and use it everywhere.
+- Filtering: a typed `filter` object, Zod-validated, translated to a parameterized query in your function body.
+- Aggregation: pre-compute summaries the model can ask for. Beats raw rows on cost, latency, and answer quality.
+- Never interpolate model output into SQL, JSONPath, or any other code surface. Parse, validate, translate.
+- Good tool descriptions + good schemas = the model orchestrates multi-tool sequences correctly without you scripting them.
+</Recap>
