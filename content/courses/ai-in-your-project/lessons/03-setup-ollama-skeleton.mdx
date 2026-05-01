@@ -1,0 +1,135 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Time to install something. By the end of this lesson you'll have a local model server running, a Next.js project that hits it, and a streaming "hello" coming back over an SSE response. That's the smallest possible vertical slice — every later lesson is just adding to it.
+
+## 1. Install Ollama
+
+Ollama is a tiny local server that loads open-weight models and exposes an HTTP API on `localhost:11434`. Install it once:
+
+```bash
+# macOS
+brew install ollama
+
+# Linux
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Windows: download the installer from https://ollama.com/download
+```
+
+Then start the server in a terminal you'll leave open:
+
+```bash
+ollama serve
+```
+
+You should see logs like `Listening on 127.0.0.1:11434`.
+
+## 2. Pull a model
+
+Open another terminal and pull a model. Two reasonable starting points:
+
+- **`qwen2.5:3b`** — ~2 GB, runs on most laptops, supports tool calling. Use this if you're not sure.
+- **`llama3.1:8b`** — ~5 GB, smarter, also supports tool calling. Pick this if you have at least 16 GB RAM.
+
+```bash
+ollama pull qwen2.5:3b
+```
+
+Most open-weight models *don't* support tool calling reliably. The two above are picked because they do — which matters from lesson 9 onwards. Don't substitute without testing.
+
+## 3. Scaffold the project
+
+In a fresh directory:
+
+```bash
+npx create-next-app@latest ai-operator --typescript --app --tailwind --no-src-dir --eslint
+cd ai-operator
+npm install @langchain/core @langchain/langgraph @langchain/ollama zod
+npm install drizzle-orm better-sqlite3
+npm install -D drizzle-kit
+```
+
+Your `package.json` should now include the LangChain packages and Drizzle. We won't use Drizzle until lesson 9 (when we wire tools to the database), but installing it up front saves you from a context switch later.
+
+## 4. Your first handler
+
+Create `app/api/chat/route.ts`:
+
+```ts
+import { ChatOllama } from '@langchain/ollama';
+
+export const runtime = 'nodejs';
+
+export async function POST(req: Request) {
+  const { message } = await req.json();
+
+  const model = new ChatOllama({
+    model: 'qwen2.5:3b',
+    baseUrl: 'http://localhost:11434',
+    temperature: 0,
+  });
+
+  const stream = await model.stream(message);
+
+  const encoder = new TextEncoder();
+  const body = new ReadableStream({
+    async start(controller) {
+      for await (const chunk of stream) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk.content)}\n\n`));
+      }
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      controller.close();
+    },
+  });
+
+  return new Response(body, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
+}
+```
+
+That's it. Three concepts in twenty lines:
+
+1. **`ChatOllama`** — the LangChain adapter pointed at our local server.
+2. **`model.stream(message)`** — async iterator of token chunks.
+3. **`Response` + `ReadableStream`** — the standard Web API for SSE; no extra library.
+
+<Callout type="note" title="Why temperature: 0?">
+Lower temperature = more deterministic outputs. For tool calling (lessons 9+) you almost always want `0` — you want the model to *do the same thing* given the same inputs. Crank it up only when you want creative variation, like email drafts.
+</Callout>
+
+## 5. Try it
+
+In one terminal: `npm run dev`. In another:
+
+```bash
+curl -N -X POST http://localhost:3000/api/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"Say hi in one short sentence."}'
+```
+
+You should see SSE chunks drip in:
+
+```
+data: "Hi"
+data: "!"
+data: " How"
+data: " are"
+...
+data: [DONE]
+```
+
+If you got that, the vertical slice is alive: browser → Next.js Route Handler → Ollama → model → tokens streaming back. From lesson 4 onwards, we wire this to a real React UI; from lesson 9, we attach tools that read and write your database.
+
+<Recap>
+- Ollama is a local model server. Install once, `ollama serve` in a leftover terminal.
+- `qwen2.5:3b` or `llama3.1:8b` — both support tool calling, which matters for Part III.
+- Project deps: `@langchain/core`, `@langchain/langgraph`, `@langchain/ollama`, `zod`, `drizzle-orm`, `better-sqlite3`.
+- A streaming Route Handler is `ChatOllama` + `model.stream()` + `Response(ReadableStream)`. Twenty lines, three concepts.
+- `temperature: 0` for tool calling. Higher only when you want variation.
+</Recap>

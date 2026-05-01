@@ -1,0 +1,72 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Before you write a single LLM call, you need a clear picture of what your AI is allowed to read and what it's allowed to do. This lesson is the prep work nobody publishes blog posts about: a 30-minute audit of your data and your actions that pays off every lesson after this one.
+
+We'll do the audit on the mock CMS we use for the rest of the course, so you have a concrete example to copy. If you're following along with your own app, do the same audit on your schema as you read.
+
+## The mock CMS, in one table
+
+| Table | Columns the AI cares about | What it represents |
+|---|---|---|
+| `customers` | id, name, email, phone, created_at, **last_order_at**, tags (JSON) | People who've ordered. `last_order_at` and `tags` are the levers most workflows pull. |
+| `products` | id, name, sku, price_cents, category, active | The catalog. Small enough (~20 rows) that the AI can list it in one tool call. |
+| `orders` | id, customer_id, total_cents, placed_at, items (JSON) | Transaction history. Items are JSON for beginner readability. |
+| `promotions` | id, code, description, discount_type, discount_value, starts_at, ends_at, audience_filter (JSON), active, created_by | The main *write* target. `audience_filter` is a stored predicate. |
+| `email_drafts` | id, customer_id, subject, body, created_at, sent_at (nullable) | The AI drafts; `sent_at` stays NULL until the user clicks Send. Confirmation made structural. |
+
+That's it. Five tables, ~25 customers, 10 products, a few promotions seeded already. Every demo in this course operates on this shape.
+
+## Read surface vs write surface
+
+Two columns of paper. On the left, every question someone might ask the AI:
+
+- *Who hasn't ordered in 60 days?*
+- *Which products did Ana Garcia buy last month?*
+- *What's our most popular category this quarter?*
+
+On the right, every change someone might ask the AI to make:
+
+- *Create a 15% promo expiring Sunday.*
+- *Draft a re-engagement email for these 12 customers.*
+- *Mark this customer as VIP.*
+
+The left list becomes your *read tools* (Part III, lessons 9–11). The right list becomes your *write tools* (lessons 12–14) — and every entry on the right needs a confirmation step (Part IV, lesson 19).
+
+## A 5-question audit of your own app
+
+Steal this checklist for your own schema:
+
+1. **What are your top 5 most-queried entities?** These are your AI's "nouns."
+2. **Which of those are ever queried by a human-readable description rather than an ID?** Those are the ones the AI needs to *find* before it can act on them. (*"the customer in Brooklyn who bought the linen apron"* requires a search tool.)
+3. **What writes do humans currently perform manually that could be batched?** A sequence of 12 small clicks is a great candidate for one prompted plan.
+4. **Which writes are reversible?** Tagging a customer is reversible. Sending an email is not. Plan your confirmation strictness accordingly.
+5. **Where does sensitive data live, and how do you keep it out of the model's context window?** Phone numbers, addresses, payment data — the AI doesn't need to *see* them to act on them. Pass IDs, fetch the sensitive fields server-side.
+
+<Callout type="warning" title="Don't let the AI see what it doesn't need to see">
+Leaking customer phone numbers into the LLM context is a privacy incident even if no email is sent. The model provider may log inputs. Audit what's in your prompts as carefully as you'd audit what's in your logs.
+</Callout>
+
+## The output: an action inventory
+
+Finish this lesson by writing yourself a small markdown table — for the mock CMS or your own app:
+
+| Action | Read / Write | Reversible? | Confirmation needed? |
+|---|---|---|---|
+| Search customers by tag or activity | Read | n/a | No |
+| List products | Read | n/a | No |
+| Customer order history | Read | n/a | No |
+| Create promotion | Write | Yes (delete) | **Yes** |
+| Draft email | Write | Yes (drafts only) | No (drafting is safe) |
+| Send email | Write | **No** | **Yes — strict** |
+| Tag customer | Write | Yes | No |
+
+Keep this table next to you. By lesson 12 you'll be implementing it as TypeScript tools, and by lesson 19 you'll be wiring the "Confirmation needed?" column into a LangGraph interrupt node.
+
+<Recap>
+- The mock CMS is five tables: customers, products, orders, promotions, email_drafts. Every demo uses this shape.
+- Two columns of paper: questions (read tools) and changes (write tools). Every change is a candidate confirmation gate.
+- Audit your own schema with five questions; output is an action inventory table.
+- Pass IDs to the model, not sensitive fields. The AI doesn't need to see what it isn't acting on.
+- The action inventory is the spine of the rest of the course — Parts III and IV are this table, implemented.
+</Recap>
