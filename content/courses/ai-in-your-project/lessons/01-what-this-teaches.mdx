@@ -1,0 +1,54 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+You have an app. It has a database. You want users to be able to ask it things in plain English — and have it actually do them. *Create a 15% promotion for customers who haven't ordered in 60 days. Draft them a re-engagement email. Don't email anyone yet — show me the list first.* That's the kind of thing this course teaches you to build.
+
+It's not the same as a chatbot, and it's not magic. It's a specific shape: an LLM, a small set of typed tools that touch your data, and a confirmation step between "the AI wants to do this" and "the AI did this." The whole course is about getting that shape right.
+
+## Three things that look like one
+
+People say "AI feature" and mean three different things:
+
+- **Chat** — text in, text out. Useful for summarization, brainstorming, drafting. The AI never touches your data; it just talks.
+- **Agents** — chat plus *tools*. The AI can call a function (search customers, list products) and use the result in its next reply. It can read your data.
+- **Human-in-the-loop agents** — the AI proposes a sequence of writes, the user reviews each one, the AI executes only after approval.
+
+Most "AI features" worth building in a real product today are the third kind. The first is a parlor trick. The second is dangerous without supervision. The third is the one your users will actually trust.
+
+## Why confirmation is the default
+
+Reading data is cheap. The worst case is the AI returns the wrong record and the user notices. *Writing* data — creating a discount, sending an email, refunding an order — has a different blast radius. A model that hallucinates a write is now an expensive bug.
+
+The fix isn't "be more careful with prompts." It's structural: every write tool the AI can call is gated by an explicit confirmation step. The AI says *"I'd like to create promo `LAPSED15` for these 27 customers"* and the user clicks **Approve** or **Reject**. Built into the architecture, not bolted on.
+
+LangGraph — which we'll meet in Part IV — turns this into a one-line primitive. The first three parts of the course get you to where that primitive is the obvious next move.
+
+## The shape of the course
+
+- **Part I** — preparation. What can you AI-call in the app you already have?
+- **Part II** — text in, text out. Streaming, system prompts, structured output.
+- **Part III** — tools. Read tools, write tools, error handling.
+- **Part IV** — LangGraph and the confirmation pattern.
+- **Part V** — shipping. Safety, testing, observability, deployment.
+
+By lesson 20 you'll have wired together a working *AI Operator* — type a complex prompt, watch the agent plan, confirm each write, see the database change.
+
+## What you need before lesson 2
+
+- React + TypeScript familiarity (not expert).
+- Basic SQL.
+- A laptop that can run a 2–8 GB local model (most modern hardware works).
+- **Zero API keys, zero spend.** We use Ollama and a small open-weight model for the entire course. Lesson 24 covers the one-import swap to a hosted provider when you're ready to ship.
+- About 30 seconds of homework: open your project's database schema and pick three tables you'd want an AI to be able to read or write.
+
+<Callout type="tip" title="If you don't have a project of your own">
+The course's running example is a mock ecommerce CMS — `customers`, `products`, `orders`, `promotions`, `email_drafts`. You'll see its schema in lesson 2 and we'll reference it throughout. Map it onto your own project's tables as you go, or just follow along with the mock.
+</Callout>
+
+<Recap>
+- "AI feature" usually means one of three things: chat, agents, or human-in-the-loop agents. Most products want the third.
+- Reads are cheap; writes need a confirmation gate. Build it into the architecture, not as an afterthought.
+- The course goes prep → text → tools → LangGraph → shipping. End state: a working AI Operator.
+- Setup is free: Ollama plus a small local model. No API keys until you ship.
+- Before lesson 2, pick three tables in your own app you'd want the AI to touch.
+</Recap>
