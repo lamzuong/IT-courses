@@ -41,8 +41,16 @@ type AuditEntry = {
 
 const PROMO_CODE = 'LAPSED15';
 
-function nowStamp() {
-  return new Date().toLocaleTimeString([], { hour12: false });
+// Deterministic clock — every audit entry shows a stable, reproducible timestamp
+// derived from a fixed start time. Resetting and re-running shows the same log.
+const FIXED_START = '14:03:17';
+function stampAt(secondsFromStart: number) {
+  const [h, m, s] = FIXED_START.split(':').map(Number);
+  const total = h * 3600 + m * 60 + s + secondsFromStart;
+  const hh = String(Math.floor(total / 3600) % 24).padStart(2, '0');
+  const mm = String(Math.floor(total / 60) % 60).padStart(2, '0');
+  const ss = String(total % 60).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
 }
 
 export function LapsedCustomerDemo() {
@@ -52,6 +60,7 @@ export function LapsedCustomerDemo() {
   const [recipients, setRecipients] = useState<Customer[]>([]);
   const timeoutsRef = useRef<number[]>([]);
   const auditIdRef = useRef(0);
+  const auditClockRef = useRef(0);
 
   const lapsed = useMemo(() => lapsedCustomers(60), []);
 
@@ -64,9 +73,10 @@ export function LapsedCustomerDemo() {
 
   function pushAudit(query: string, rowsAffected: number) {
     auditIdRef.current += 1;
+    auditClockRef.current += 1;
     setAudit((prev) => [
       ...prev,
-      { id: auditIdRef.current, ts: nowStamp(), query, rowsAffected },
+      { id: auditIdRef.current, ts: stampAt(auditClockRef.current), query, rowsAffected },
     ]);
   }
 
@@ -78,6 +88,7 @@ export function LapsedCustomerDemo() {
     clearAll();
     setAudit([]);
     auditIdRef.current = 0;
+    auditClockRef.current = 0;
     setRecipients([]);
     setState('planning');
 
@@ -209,7 +220,7 @@ export function LapsedCustomerDemo() {
 
       <div className="grid md:grid-cols-2 gap-4 items-start">
         {/* LEFT: plan + confirmation */}
-        <div className="rounded border border-[color:var(--color-rule)] bg-white p-3 min-h-80" aria-live="polite">
+        <div className="rounded border border-[color:var(--color-rule)] bg-white p-3 min-h-80">
           <p className="text-[0.7rem] uppercase tracking-wider text-[color:var(--color-text-faint)] mb-2">
             plan
           </p>
@@ -293,27 +304,29 @@ export function LapsedCustomerDemo() {
             />
           )}
 
-          {(state === 'executing_promo' || state === 'executing_find' || state === 'executing_emails' || state === 'executing_tag') && (
-            <p className="text-[0.85rem] text-[color:var(--color-pine)] flex items-center gap-2">
-              <Spinner /> running step…
-            </p>
-          )}
-
-          {state === 'done' && (
-            <div className="rounded border border-[color:var(--color-pine)] bg-[color:var(--color-bg-soft)] p-3">
-              <p className="text-[0.85rem]">
-                Workflow committed. {audit.length} mutations logged below.
+          <div role="status" aria-live="polite" aria-atomic="true">
+            {(state === 'executing_promo' || state === 'executing_find' || state === 'executing_emails' || state === 'executing_tag') && (
+              <p className="text-[0.85rem] text-[color:var(--color-pine)] flex items-center gap-2">
+                <Spinner /> running step…
               </p>
-            </div>
-          )}
+            )}
 
-          {state === 'cancelled' && (
-            <div className="rounded border border-red-700 bg-red-50 p-3">
-              <p className="text-[0.85rem] text-red-800">
-                Cancelled — no further changes committed. Earlier steps that already ran remain in the audit log.
-              </p>
-            </div>
-          )}
+            {state === 'done' && (
+              <div className="rounded border border-[color:var(--color-pine)] bg-[color:var(--color-bg-soft)] p-3">
+                <p className="text-[0.85rem]">
+                  Workflow committed. {audit.length} mutations logged below.
+                </p>
+              </div>
+            )}
+
+            {state === 'cancelled' && (
+              <div className="rounded border border-red-700 bg-red-50 p-3">
+                <p className="text-[0.85rem] text-red-800">
+                  Cancelled — no further changes committed. Earlier steps that already ran remain in the audit log.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* RIGHT: audit log */}
