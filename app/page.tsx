@@ -180,7 +180,7 @@ export default async function Home() {
             summary={aiCourse.summary}
             stats={[
               { label: 'lessons', value: String(aiLessonCount) },
-              { label: 'demos',   value: '17' },
+              { label: 'demos',   value: '17' }, // TODO(task-9): swap to derived count once all demos land
               { label: 'project', value: '1' },
             ]}
             pct={100}

@@ -70,7 +70,7 @@ export const SEED_CUSTOMERS: Customer[] = [
   { id: 8, name: 'Mateo Diaz',       email: 'mateo.diaz@example.com',   phone: '555-0108', createdAt: daysAgo(210), lastOrderAt: daysAgo(60),  tags: [] },
   { id: 9, name: 'Yuki Tanaka',      email: 'yuki.t@example.com',       phone: '555-0109', createdAt: daysAgo(200), lastOrderAt: daysAgo(8),   tags: ['vip'] },
   { id: 10, name: 'Femi Adeyemi',    email: 'femi.a@example.com',       phone: '555-0110', createdAt: daysAgo(190), lastOrderAt: daysAgo(150), tags: [] },
-  // Add 5 more lapsed (>90 days), 5 dormant (30-90), 5 active (<30) for a total of 25
+  // Customers 11-15: a mix of lapsed, dormant, and active for segmentation demos.
   { id: 11, name: 'Priya Singh',     email: 'priya.s@example.com',      phone: '555-0111', createdAt: daysAgo(175), lastOrderAt: daysAgo(110), tags: [] },
   { id: 12, name: 'Marco Bianchi',   email: 'marco.b@example.com',      phone: '555-0112', createdAt: daysAgo(160), lastOrderAt: daysAgo(75),  tags: [] },
   { id: 13, name: 'Lena Schulz',     email: 'lena.s@example.com',       phone: '555-0113', createdAt: daysAgo(150), lastOrderAt: daysAgo(11),  tags: [] },
