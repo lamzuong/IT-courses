@@ -1,0 +1,53 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { WriteToolDangerDemo } from '@/components/demos/ai-in-your-project/write-tool-danger-demo';
+
+Read tools fail safe. The worst case is a wrong answer — the model says *"there are 41 lapsed customers"* when the right number was 42, and a human spots it during review. Write tools fail expensive. The worst case is a charge to a customer's card, an email to fifty thousand inboxes, or a `DELETE` that took out three weeks of orders. The same model running the same loop with the same prompt becomes a different category of risk the moment it can mutate state.
+
+The whole reason this part of the course exists is that almost every AI integration starts as read-only — chatbot, search, summary — and then someone says *"can it also create the promo code?"* and the answer is *"yes, but…"* That *but* is the rest of this lesson.
+
+## The default for writes is wrong
+
+When you call `model.bindTools([searchCustomers, createPromo, sendEmail])`, the model is now allowed to invoke any of those three on its own initiative, in any order, as many times as it wants, on any turn of the conversation. For the read tool that's fine — it's how you got the lovely multi-tool orchestration in lesson 10. For the write tools it's a problem, because *you* aren't in the loop. The model decides, the tool executes, the email is gone.
+
+The framework's default is permissive. The system you build on top of it has to be restrictive. There is no setting in `bindTools` for *"ask the user first"* — that gate is something you add in your application logic, between the model's tool call and the actual mutation. Until lesson 19 introduces LangGraph's `interrupt` primitive we'll build it by hand, but the principle is the same: a write tool call is a *proposal*, not an instruction.
+
+## Two bad patterns and one good one
+
+The first bad pattern is *"I'll just trust the model."* This is what every AI demo on the internet looks like and what no production system should. The model is right most of the time. Most-of-the-time is the failure mode.
+
+The second bad pattern is *"I'll add a manual review queue."* Workable, but slow and expensive. The model proposes the write, the proposal lands in a queue, a human reviews it later, the write fires asynchronously. For low-frequency, high-stakes operations this is fine. For *"create this promo and email these seven people right now"* it's a UX disaster — the user is sitting at their screen waiting.
+
+The third pattern, the one we'll build, is the **per-call confirmation gate.** Every time the model proposes a write, your app intercepts the call, shows the user a card describing the proposed mutation, and only fires the actual database call after they click Approve. The gate is structural — it lives in the orchestrator, not in the prompt — so it cannot be talked away by clever input.
+
+## What confirmation looks like
+
+<Demo title="Confirmation gate ON vs OFF — and the dedup problem">
+  <WriteToolDangerDemo />
+</Demo>
+
+Two things to notice. With the gate **off**, hitting *"Run twice rapidly"* — simulating the model retrying the same tool call inside one turn — produces two rows in `promotions`. Same code, same discount, two writes. That's a duplicate-coupon incident on a real system. With the gate **on**, the same two rapid retries produce **one** confirmation card, because the gate dedupes by request key while a confirmation is pending. One card, one user decision, one row. The dedup is the topic of the next lesson, but it's already visible here as the natural partner of the gate.
+
+The gate is not a popup. In production it's a panel, a notification, an email — whatever channel reaches the user fast. The point is structural: no write fires without an explicit human Yes, and that Yes is recorded next to the row that was created.
+
+## A taxonomy of write tools
+
+Not all writes need the same level of confirmation. A useful three-level taxonomy:
+
+- **Trivial / draft-quality writes** — saving a draft note, tagging an internal record. Reversible in one click, low blast radius. A single confirmation can be elided or batched ("you have 4 pending tags — approve all?").
+- **Standard writes** — creating a promo code, scheduling a job. Reversible with effort. One confirmation per call.
+- **Irreversible writes** — sending an email, charging a card, deleting an account. Cannot be un-done. Two-step confirmation: a card with a typed phrase ("type the customer's email to confirm") or a 24-hour cooling-off window.
+
+The lesson isn't *"every write needs a modal."* It's *"every write tool should be classified, and the gate calibrated to its class."* When you build the tool, write the class on the tool description. When you bind it to the model, the orchestrator reads the class and picks the right gate.
+
+<Callout type="warning" title="Irreversibility × temperature × no-gate = incident">
+If your write tool isn't reversible, the cost of `temperature > 0` is now *"we sent emails to people who don't exist."* Either drop temperature for write-bearing turns, or wrap the tool in a gate that is impossible to bypass. Both is better than either.
+</Callout>
+
+<Recap>
+- Read tools fail safe; write tools fail expensive. The defaults of `bindTools` are permissive — your app has to be restrictive.
+- Don't trust the model unsupervised. A manual queue is too slow for interactive flows. Build a per-call confirmation gate.
+- The gate is structural: no mutation fires without an explicit user Yes, deduped while pending.
+- Classify your write tools — trivial, standard, irreversible — and pick the right gate strength for each class.
+- Temperature plus irreversibility plus no gate is the incident waiting to happen. Pick your defenses.
+</Recap>
