@@ -1,25 +1,23 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import { useTimeoutQueue } from '@/lib/use-timeout-queue';
 
 type Build = { name?: string; email?: string | null; segment?: 'active' | 'dormant' | 'lapsed' };
 
 export function StructuredOutputDemo() {
   const [build, setBuild] = useState<Build>({});
   const [running, setRunning] = useState(false);
-  const timeouts = useRef<number[]>([]);
+  const { schedule, clear } = useTimeoutQueue();
 
   function run() {
-    timeouts.current.forEach((t) => window.clearTimeout(t));
-    timeouts.current = [];
+    clear();
     setBuild({});
     setRunning(true);
-    timeouts.current.push(window.setTimeout(() => setBuild((b) => ({ ...b, name: 'Phuoc Vuong' })), 350));
-    timeouts.current.push(window.setTimeout(() => setBuild((b) => ({ ...b, email: null })), 900));
-    timeouts.current.push(window.setTimeout(() => setBuild((b) => ({ ...b, segment: 'lapsed' })), 1500));
-    timeouts.current.push(window.setTimeout(() => setRunning(false), 1700));
+    schedule(() => setBuild((b) => ({ ...b, name: 'Phuoc Vuong' })), 350);
+    schedule(() => setBuild((b) => ({ ...b, email: null })), 900);
+    schedule(() => setBuild((b) => ({ ...b, segment: 'lapsed' })), 1500);
+    schedule(() => setRunning(false), 1700);
   }
-
-  useEffect(() => () => { timeouts.current.forEach((t) => window.clearTimeout(t)); }, []);
 
   return (
     <div className="grid md:grid-cols-2 gap-4">

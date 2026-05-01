@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { SEED_CUSTOMERS, lapsedCustomers, type Customer } from '@/lib/ai-mock-cms';
+import { useTimeoutQueue } from '@/lib/use-timeout-queue';
 
 type Scenario = 'lapsed' | 'vip' | 'name';
 type Step = 'idle' | 'calling' | 'results' | 'responding' | 'done';
@@ -50,28 +51,28 @@ export function FirstToolDemo() {
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [step, setStep] = useState<Step>('idle');
   const [output, setOutput] = useState('');
-  const timeoutsRef = useRef<number[]>([]);
+  const { schedule, clear } = useTimeoutQueue();
   const intervalRef = useRef<number | null>(null);
 
-  function clearAll() {
-    timeoutsRef.current.forEach((id) => window.clearTimeout(id));
-    timeoutsRef.current = [];
+  function stopStream() {
     if (intervalRef.current !== null) {
       window.clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
   }
 
+
   function run(s: Scenario) {
-    clearAll();
+    clear();
+    stopStream();
     setScenario(s);
     setStep('idle');
     setOutput('');
     const spec = SCENARIOS[s];
 
-    timeoutsRef.current.push(window.setTimeout(() => setStep('calling'), 300));
-    timeoutsRef.current.push(window.setTimeout(() => setStep('results'), 800));
-    timeoutsRef.current.push(window.setTimeout(() => {
+    schedule(() => setStep('calling'), 300);
+    schedule(() => setStep('results'), 800);
+    schedule(() => {
       setStep('responding');
       const rows = spec.rows();
       const reply = spec.reply(rows);
@@ -79,17 +80,16 @@ export function FirstToolDemo() {
       intervalRef.current = window.setInterval(() => {
         i += 1;
         if (i > reply.length) {
-          if (intervalRef.current !== null) window.clearInterval(intervalRef.current);
-          intervalRef.current = null;
+          stopStream();
           setStep('done');
           return;
         }
         setOutput(reply.slice(0, i));
       }, 18);
-    }, 2000));
+    }, 2000);
   }
 
-  useEffect(() => () => clearAll(), []);
+  useEffect(() => () => stopStream(), []);
 
   const spec = scenario ? SCENARIOS[scenario] : null;
   const rows = spec ? spec.rows() : [];

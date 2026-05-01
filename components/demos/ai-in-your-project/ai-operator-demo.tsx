@@ -7,6 +7,7 @@ import {
   lapsedCustomers,
   type Customer,
 } from '@/lib/ai-mock-cms';
+import { useTimeoutQueue } from '@/lib/use-timeout-queue';
 
 // ──────────────────────────────────────────────────────────────────────────
 // types
@@ -335,7 +336,7 @@ export function AiOperatorDemo() {
   const [textareaValue, setTextareaValue] = useState('');
   const [showTypingHint, setShowTypingHint] = useState(false);
 
-  const timeoutsRef = useRef<number[]>([]);
+  const { schedule, clear } = useTimeoutQueue();
   const msgIdRef = useRef(0);
   const auditIdRef = useRef(0);
   const auditClockRef = useRef(0);
@@ -350,16 +351,19 @@ export function AiOperatorDemo() {
     [],
   );
 
-  function clearTimers() {
-    timeoutsRef.current.forEach((id) => window.clearTimeout(id));
-    timeoutsRef.current = [];
+  function clearTypingTimer() {
     if (typingTimerRef.current !== null) {
       window.clearTimeout(typingTimerRef.current);
       typingTimerRef.current = null;
     }
   }
 
-  useEffect(() => () => clearTimers(), []);
+  function clearTimers() {
+    clear();
+    clearTypingTimer();
+  }
+
+  useEffect(() => () => clearTypingTimer(), []);
 
   function nextMsgId(): number {
     msgIdRef.current += 1;
@@ -430,17 +434,13 @@ export function AiOperatorDemo() {
 
     // Plan rows fade in one at a time.
     builtPlan.forEach((_, i) => {
-      timeoutsRef.current.push(
-        window.setTimeout(() => setPlan(builtPlan.slice(0, i + 1)), 450 + i * 500),
-      );
+      schedule(() => setPlan(builtPlan.slice(0, i + 1)), 450 + i * 500);
     });
 
     // After all rows are visible, advance to the first step.
-    timeoutsRef.current.push(
-      window.setTimeout(
-        () => advanceTo(builtPlan, 0, preset),
-        450 + builtPlan.length * 500 + 300,
-      ),
+    schedule(
+      () => advanceTo(builtPlan, 0, preset),
+      450 + builtPlan.length * 500 + 300,
     );
   }
 
@@ -461,23 +461,19 @@ export function AiOperatorDemo() {
       // Read steps auto-execute; no gate.
       setPhase({ kind: 'executing', stepIdx: idx });
       setStepStatus(idx, 'running');
-      timeoutsRef.current.push(
-        window.setTimeout(() => {
-          setStepStatus(idx, 'done');
-          if (step.readResult) {
-            pushAssistant(step.readResult);
-          }
-          // Continue to next step, with the latest plan reference.
-          setPlan((prev) => {
-            const next = prev ? prev.slice() : currentPlan.slice();
-            next[idx] = { ...next[idx], status: 'done' };
-            timeoutsRef.current.push(
-              window.setTimeout(() => advanceTo(next, idx + 1, preset), 450),
-            );
-            return next;
-          });
-        }, 1100),
-      );
+      schedule(() => {
+        setStepStatus(idx, 'done');
+        if (step.readResult) {
+          pushAssistant(step.readResult);
+        }
+        // Continue to next step, with the latest plan reference.
+        setPlan((prev) => {
+          const next = prev ? prev.slice() : currentPlan.slice();
+          next[idx] = { ...next[idx], status: 'done' };
+          schedule(() => advanceTo(next, idx + 1, preset), 450);
+          return next;
+        });
+      }, 1100);
     }
   }
 
@@ -489,22 +485,18 @@ export function AiOperatorDemo() {
     const step = plan[idx];
     setPhase({ kind: 'executing', stepIdx: idx });
     setStepStatus(idx, 'running');
-    timeoutsRef.current.push(
-      window.setTimeout(() => {
-        setStepStatus(idx, 'done');
-        if (step.audit) {
-          pushAudit(step.audit.query, step.audit.rowsAffected);
-        }
-        setPlan((prev) => {
-          const next = prev ? prev.slice() : plan.slice();
-          next[idx] = { ...next[idx], status: 'done' };
-          timeoutsRef.current.push(
-            window.setTimeout(() => advanceTo(next, idx + 1, preset), 400),
-          );
-          return next;
-        });
-      }, 1200),
-    );
+    schedule(() => {
+      setStepStatus(idx, 'done');
+      if (step.audit) {
+        pushAudit(step.audit.query, step.audit.rowsAffected);
+      }
+      setPlan((prev) => {
+        const next = prev ? prev.slice() : plan.slice();
+        next[idx] = { ...next[idx], status: 'done' };
+        schedule(() => advanceTo(next, idx + 1, preset), 400);
+        return next;
+      });
+    }, 1200);
   }
 
   function rejectCurrent() {

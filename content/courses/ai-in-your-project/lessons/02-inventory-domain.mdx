@@ -10,12 +10,12 @@ We'll do the audit on the mock CMS we use for the rest of the course, so you hav
 | Table | Columns the AI cares about | What it represents |
 |---|---|---|
 | `customers` | id, name, email, phone, created_at, **last_order_at**, tags (JSON) | People who've ordered. `last_order_at` and `tags` are the levers most workflows pull. |
-| `products` | id, name, sku, price_cents, category, active | The catalog. Small enough (~20 rows) that the AI can list it in one tool call. |
+| `products` | id, name, sku, price_cents, category, active | The catalog. Small enough (~10 rows) that the AI can list it in one tool call. |
 | `orders` | id, customer_id, total_cents, placed_at, items (JSON) | Transaction history. Items are JSON for beginner readability. |
 | `promotions` | id, code, description, discount_type, discount_value, starts_at, ends_at, audience_filter (JSON), active, created_by | The main *write* target. `audience_filter` is a stored predicate. |
 | `email_drafts` | id, customer_id, subject, body, created_at, sent_at (nullable) | The AI drafts; `sent_at` stays NULL until the user clicks Send. Confirmation made structural. |
 
-That's it. Five tables, ~25 customers, 10 products, a few promotions seeded already. Every demo in this course operates on this shape.
+That's it. Five tables, ~15 customers, 10 products, a few promotions seeded already. Every demo in this course operates on this shape.
 
 ## Read surface vs write surface
 

@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import { useTimeoutQueue } from '@/lib/use-timeout-queue';
 
 type NodeId = 'agent' | 'tools' | 'end';
 
@@ -32,35 +33,24 @@ export function GraphRunnerDemo() {
   const [running, setRunning] = useState(false);
   const [stepIdx, setStepIdx] = useState(-1);
   const [messages, setMessages] = useState<string[]>([]);
-  const timeoutsRef = useRef<number[]>([]);
-
-  function clearAll() {
-    timeoutsRef.current.forEach((id) => window.clearTimeout(id));
-    timeoutsRef.current = [];
-  }
-
-  useEffect(() => () => clearAll(), []);
+  const { schedule, clear } = useTimeoutQueue();
 
   function run() {
-    clearAll();
+    clear();
     setRunning(true);
     setStepIdx(-1);
     setMessages([]);
 
     SCRIPT.forEach((s, i) => {
-      timeoutsRef.current.push(
-        window.setTimeout(() => {
-          setStepIdx(i);
-          setMessages((prev) => [...prev, s.message]);
-        }, STEP_MS * (i + 1)),
-      );
+      schedule(() => {
+        setStepIdx(i);
+        setMessages((prev) => [...prev, s.message]);
+      }, STEP_MS * (i + 1));
     });
 
-    timeoutsRef.current.push(
-      window.setTimeout(() => {
-        setRunning(false);
-      }, STEP_MS * (SCRIPT.length + 1)),
-    );
+    schedule(() => {
+      setRunning(false);
+    }, STEP_MS * (SCRIPT.length + 1));
   }
 
   const currentNode: NodeId | null = stepIdx >= 0 ? SCRIPT[stepIdx].node : null;

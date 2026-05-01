@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import { useTimeoutQueue } from '@/lib/use-timeout-queue';
 
 type NodeId = 'agent' | 'read_tools' | 'await_confirmation' | 'write_tools';
 
@@ -91,17 +92,10 @@ export function ConditionalRoutingDemo() {
   const [running, setRunning] = useState(false);
   const [stepIdx, setStepIdx] = useState(-1);
   const [messages, setMessages] = useState<string[]>([]);
-  const timeoutsRef = useRef<number[]>([]);
-
-  function clearAll() {
-    timeoutsRef.current.forEach((id) => window.clearTimeout(id));
-    timeoutsRef.current = [];
-  }
-
-  useEffect(() => () => clearAll(), []);
+  const { schedule, clear } = useTimeoutQueue();
 
   function run(p: Preset) {
-    clearAll();
+    clear();
     setPreset(p);
     setRunning(true);
     setStepIdx(-1);
@@ -109,17 +103,13 @@ export function ConditionalRoutingDemo() {
 
     const script = SCRIPTS[p];
     script.forEach((s, i) => {
-      timeoutsRef.current.push(
-        window.setTimeout(() => {
-          setStepIdx(i);
-          setMessages((prev) => [...prev, s.message]);
-        }, STEP_MS * (i + 1)),
-      );
+      schedule(() => {
+        setStepIdx(i);
+        setMessages((prev) => [...prev, s.message]);
+      }, STEP_MS * (i + 1));
     });
 
-    timeoutsRef.current.push(
-      window.setTimeout(() => setRunning(false), STEP_MS * (script.length + 1)),
-    );
+    schedule(() => setRunning(false), STEP_MS * (script.length + 1));
   }
 
   const script = preset ? SCRIPTS[preset] : null;

@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useTimeoutQueue } from '@/lib/use-timeout-queue';
 
 // ──────────────────────────────────────────────────────────────────────────
 // types
@@ -51,15 +52,8 @@ export function ConfirmationInterruptDemo() {
   const [state, setState] = useState<State>('idle');
   const [messages, setMessages] = useState<Message[]>([]);
   const [plan, setPlan] = useState<PlanStep[]>([]);
-  const timeoutsRef = useRef<number[]>([]);
+  const { schedule, clear } = useTimeoutQueue();
   const msgIdRef = useRef(0);
-
-  function clearAll() {
-    timeoutsRef.current.forEach((id) => window.clearTimeout(id));
-    timeoutsRef.current = [];
-  }
-
-  useEffect(() => () => clearAll(), []);
 
   function nextMsgId() {
     msgIdRef.current += 1;
@@ -75,7 +69,7 @@ export function ConfirmationInterruptDemo() {
   }
 
   function start() {
-    clearAll();
+    clear();
     msgIdRef.current = 0;
     setMessages([]);
     setPlan([]);
@@ -91,57 +85,51 @@ export function ConfirmationInterruptDemo() {
       { id: 2, label: 'Find lapsed customers (60d)',      tool: 'customers.lapsed',      kind: 'read',  status: 'pending' },
       { id: 3, label: 'Draft re-engagement emails',       tool: 'emails.draft_bulk',     kind: 'write', status: 'pending' },
     ];
-    timeoutsRef.current.push(window.setTimeout(() => setPlan([planRows[0]]),                        500));
-    timeoutsRef.current.push(window.setTimeout(() => setPlan([planRows[0], planRows[1]]),           1100));
-    timeoutsRef.current.push(window.setTimeout(() => setPlan(planRows),                             1700));
+    schedule(() => setPlan([planRows[0]]),                        500);
+    schedule(() => setPlan([planRows[0], planRows[1]]),           1100);
+    schedule(() => setPlan(planRows),                             1700);
 
     // 2. interrupt before step 1
-    timeoutsRef.current.push(window.setTimeout(() => setState('awaiting_confirm_1'),                2200));
+    schedule(() => setState('awaiting_confirm_1'),                2200);
   }
 
   function approveStep1() {
     setState('executing_1');
     setStepStatus(1, 'running');
-    timeoutsRef.current.push(
-      window.setTimeout(() => {
-        setStepStatus(1, 'done');
-        // step 2 (read) auto-runs
-        setState('executing_2');
-        setStepStatus(2, 'running');
-      }, 1100),
-    );
-    timeoutsRef.current.push(
-      window.setTimeout(() => {
-        setStepStatus(2, 'done');
-        // interrupt before step 3 (multi-customer write)
-        setState('awaiting_confirm_3');
-      }, 2200),
-    );
+    schedule(() => {
+      setStepStatus(1, 'done');
+      // step 2 (read) auto-runs
+      setState('executing_2');
+      setStepStatus(2, 'running');
+    }, 1100);
+    schedule(() => {
+      setStepStatus(2, 'done');
+      // interrupt before step 3 (multi-customer write)
+      setState('awaiting_confirm_3');
+    }, 2200);
   }
 
   function approveStep3() {
     setState('executing_3');
     setStepStatus(3, 'running');
-    timeoutsRef.current.push(
-      window.setTimeout(() => {
-        setStepStatus(3, 'done');
-        pushMessage({
-          role: 'assistant',
-          text: `Done. ${RECIPIENTS.length} drafts saved. None sent yet.`,
-        });
-        setState('done');
-      }, 1300),
-    );
+    schedule(() => {
+      setStepStatus(3, 'done');
+      pushMessage({
+        role: 'assistant',
+        text: `Done. ${RECIPIENTS.length} drafts saved. None sent yet.`,
+      });
+      setState('done');
+    }, 1300);
   }
 
   function reject() {
-    clearAll();
+    clear();
     pushMessage({ role: 'system', text: 'Cancelled — no changes committed.' });
     setState('cancelled');
   }
 
   function reset() {
-    clearAll();
+    clear();
     msgIdRef.current = 0;
     setMessages([]);
     setPlan([]);

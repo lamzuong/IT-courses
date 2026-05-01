@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useTimeoutQueue } from '@/lib/use-timeout-queue';
 
 type Decision = 'inserted' | 'deduped';
 
@@ -26,18 +27,11 @@ export function IdempotencyDemo() {
   const [naive, setNaive] = useState<ColumnState>(EMPTY);
   const [dedup, setDedup] = useState<ColumnState>(EMPTY);
   const [running, setRunning] = useState(false);
-  const timeoutsRef = useRef<number[]>([]);
+  const { schedule, clear } = useTimeoutQueue();
   const seenKeysRef = useRef<Set<string>>(new Set());
 
-  function clearAll() {
-    timeoutsRef.current.forEach((id) => window.clearTimeout(id));
-    timeoutsRef.current = [];
-  }
-
-  useEffect(() => () => clearAll(), []);
-
   function reset() {
-    clearAll();
+    clear();
     setNaive(EMPTY);
     setDedup(EMPTY);
     seenKeysRef.current = new Set();
@@ -60,37 +54,35 @@ export function IdempotencyDemo() {
     const sharedKey = makeReqKey();
 
     for (let i = 1; i <= 3; i += 1) {
-      timeoutsRef.current.push(
-        window.setTimeout(() => {
-          // naive: every attempt inserts a new row, with a fresh per-call request id.
-          recordAttempt('naive', {
+      schedule(() => {
+        // naive: every attempt inserts a new row, with a fresh per-call request id.
+        recordAttempt('naive', {
+          attempt: i,
+          requestKey: makeReqKey(),
+          decision: 'inserted',
+        });
+
+        // dedup: same logical key; insert only the first time.
+        const seen = seenKeysRef.current.has(sharedKey);
+        if (!seen) {
+          seenKeysRef.current.add(sharedKey);
+          recordAttempt('dedup', {
             attempt: i,
-            requestKey: makeReqKey(),
+            requestKey: sharedKey,
             decision: 'inserted',
           });
+        } else {
+          recordAttempt('dedup', {
+            attempt: i,
+            requestKey: sharedKey,
+            decision: 'deduped',
+          });
+        }
 
-          // dedup: same logical key; insert only the first time.
-          const seen = seenKeysRef.current.has(sharedKey);
-          if (!seen) {
-            seenKeysRef.current.add(sharedKey);
-            recordAttempt('dedup', {
-              attempt: i,
-              requestKey: sharedKey,
-              decision: 'inserted',
-            });
-          } else {
-            recordAttempt('dedup', {
-              attempt: i,
-              requestKey: sharedKey,
-              decision: 'deduped',
-            });
-          }
-
-          if (i === 3) {
-            timeoutsRef.current.push(window.setTimeout(() => setRunning(false), 200));
-          }
-        }, i * 300),
-      );
+        if (i === 3) {
+          schedule(() => setRunning(false), 200);
+        }
+      }, i * 300);
     }
   }
 

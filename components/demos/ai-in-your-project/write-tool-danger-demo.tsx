@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useTimeoutQueue } from '@/lib/use-timeout-queue';
 
 type PromoRow = {
   id: number;
@@ -31,15 +32,8 @@ export function WriteToolDangerDemo() {
   const [rows, setRows] = useState<PromoRow[]>([]);
   const [pending, setPending] = useState<Pending | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
-  const timeoutsRef = useRef<number[]>([]);
+  const { schedule, clear } = useTimeoutQueue();
   const nextIdRef = useRef(1);
-
-  function clearAll() {
-    timeoutsRef.current.forEach((id) => window.clearTimeout(id));
-    timeoutsRef.current = [];
-  }
-
-  useEffect(() => () => clearAll(), []);
 
   function pushLog(entry: LogEntry) {
     setLog((prev) => [...prev, entry].slice(-8));
@@ -70,21 +64,17 @@ export function WriteToolDangerDemo() {
   }
 
   function runOnce() {
-    clearAll();
+    clear();
     const requestKey = makeReqKey();
     attempt('LAPSED15', '15% off', requestKey);
   }
 
   function runTwiceRapidly() {
-    clearAll();
+    clear();
     const k1 = makeReqKey();
     const k2 = makeReqKey();
-    timeoutsRef.current.push(
-      window.setTimeout(() => attempt('LAPSED15', '15% off', k1), 50),
-    );
-    timeoutsRef.current.push(
-      window.setTimeout(() => attempt('LAPSED15', '15% off', k2), 250),
-    );
+    schedule(() => attempt('LAPSED15', '15% off', k1), 50);
+    schedule(() => attempt('LAPSED15', '15% off', k2), 250);
   }
 
   function approve() {
@@ -101,7 +91,7 @@ export function WriteToolDangerDemo() {
   }
 
   function reset() {
-    clearAll();
+    clear();
     setRows([]);
     setPending(null);
     setLog([]);

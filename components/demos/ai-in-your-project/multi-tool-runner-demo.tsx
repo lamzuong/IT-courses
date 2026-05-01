@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { SEED_PRODUCTS, lapsedCustomers } from '@/lib/ai-mock-cms';
+import { useTimeoutQueue } from '@/lib/use-timeout-queue';
 
 type ToolCall = {
   name: string;
@@ -40,12 +41,10 @@ export function MultiToolRunnerDemo() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [visibleCalls, setVisibleCalls] = useState(0);
   const [output, setOutput] = useState('');
-  const timeoutsRef = useRef<number[]>([]);
+  const { schedule, clear } = useTimeoutQueue();
   const intervalRef = useRef<number | null>(null);
 
-  function clearAll() {
-    timeoutsRef.current.forEach((id) => window.clearTimeout(id));
-    timeoutsRef.current = [];
+  function stopStream() {
     if (intervalRef.current !== null) {
       window.clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -53,34 +52,34 @@ export function MultiToolRunnerDemo() {
   }
 
   function run() {
-    clearAll();
+    clear();
+    stopStream();
     setPhase('calling');
     setVisibleCalls(0);
     setOutput('');
 
     TOOL_CALLS.forEach((_, idx) => {
-      timeoutsRef.current.push(window.setTimeout(() => {
+      schedule(() => {
         setVisibleCalls(idx + 1);
-      }, 500 * (idx + 1)));
+      }, 500 * (idx + 1));
     });
 
-    timeoutsRef.current.push(window.setTimeout(() => {
+    schedule(() => {
       setPhase('streaming');
       let i = 0;
       intervalRef.current = window.setInterval(() => {
         i += 1;
         if (i > FINAL_REPLY.length) {
-          if (intervalRef.current !== null) window.clearInterval(intervalRef.current);
-          intervalRef.current = null;
+          stopStream();
           setPhase('done');
           return;
         }
         setOutput(FINAL_REPLY.slice(0, i));
       }, 18);
-    }, 500 * (TOOL_CALLS.length + 1)));
+    }, 500 * (TOOL_CALLS.length + 1));
   }
 
-  useEffect(() => () => clearAll(), []);
+  useEffect(() => () => stopStream(), []);
 
   const showAssistant = phase === 'streaming' || phase === 'done';
   const showUser = phase !== 'idle';

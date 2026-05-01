@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { lapsedCustomers, type Customer } from '@/lib/ai-mock-cms';
+import { useTimeoutQueue } from '@/lib/use-timeout-queue';
 
 // ──────────────────────────────────────────────────────────────────────────
 // types
@@ -58,18 +59,11 @@ export function LapsedCustomerDemo() {
   const [plan, setPlan] = useState<PlanStep[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [recipients, setRecipients] = useState<Customer[]>([]);
-  const timeoutsRef = useRef<number[]>([]);
+  const { schedule, clear } = useTimeoutQueue();
   const auditIdRef = useRef(0);
   const auditClockRef = useRef(0);
 
   const lapsed = useMemo(() => lapsedCustomers(60), []);
-
-  function clearAll() {
-    timeoutsRef.current.forEach((id) => window.clearTimeout(id));
-    timeoutsRef.current = [];
-  }
-
-  useEffect(() => () => clearAll(), []);
 
   function pushAudit(query: string, rowsAffected: number) {
     auditIdRef.current += 1;
@@ -85,7 +79,7 @@ export function LapsedCustomerDemo() {
   }
 
   function start() {
-    clearAll();
+    clear();
     setAudit([]);
     auditIdRef.current = 0;
     auditClockRef.current = 0;
@@ -99,75 +93,67 @@ export function LapsedCustomerDemo() {
       { id: 4, label: 'Tag recipients as lapsed-q4',                                tool: 'customers.tag_bulk', status: 'pending' },
     ];
 
-    timeoutsRef.current.push(window.setTimeout(() => setPlan([planRows[0]]),                              500));
-    timeoutsRef.current.push(window.setTimeout(() => setPlan([planRows[0], planRows[1]]),                 1000));
-    timeoutsRef.current.push(window.setTimeout(() => setPlan([planRows[0], planRows[1], planRows[2]]),    1500));
-    timeoutsRef.current.push(window.setTimeout(() => setPlan(planRows),                                   2000));
-    timeoutsRef.current.push(window.setTimeout(() => setState('awaiting_promo'),                          2400));
+    schedule(() => setPlan([planRows[0]]),                              500);
+    schedule(() => setPlan([planRows[0], planRows[1]]),                 1000);
+    schedule(() => setPlan([planRows[0], planRows[1], planRows[2]]),    1500);
+    schedule(() => setPlan(planRows),                                   2000);
+    schedule(() => setState('awaiting_promo'),                          2400);
   }
 
   function approvePromo() {
     setState('executing_promo');
     setStepStatus(1, 'running');
-    timeoutsRef.current.push(
-      window.setTimeout(() => {
-        setStepStatus(1, 'done');
-        pushAudit(
-          `INSERT INTO promotions (code, discount_type, discount_value, audience) VALUES ('${PROMO_CODE}','pct',15,'lapsed-60d')`,
-          1,
-        );
-        // step 2 (read) auto-runs
-        setState('executing_find');
-        setStepStatus(2, 'running');
-      }, 900),
-    );
-    timeoutsRef.current.push(
-      window.setTimeout(() => {
-        setRecipients(lapsed);
-        setStepStatus(2, 'done');
-        // read tools don't audit-log (no mutation), but we still narrate
-        setState('awaiting_emails');
-      }, 1900),
-    );
+    schedule(() => {
+      setStepStatus(1, 'done');
+      pushAudit(
+        `INSERT INTO promotions (code, discount_type, discount_value, audience) VALUES ('${PROMO_CODE}','pct',15,'lapsed-60d')`,
+        1,
+      );
+      // step 2 (read) auto-runs
+      setState('executing_find');
+      setStepStatus(2, 'running');
+    }, 900);
+    schedule(() => {
+      setRecipients(lapsed);
+      setStepStatus(2, 'done');
+      // read tools don't audit-log (no mutation), but we still narrate
+      setState('awaiting_emails');
+    }, 1900);
   }
 
   function approveEmails() {
     setState('executing_emails');
     setStepStatus(3, 'running');
-    timeoutsRef.current.push(
-      window.setTimeout(() => {
-        setStepStatus(3, 'done');
-        pushAudit(
-          `INSERT INTO email_drafts (customer_id, subject, body) — ${recipients.length} rows`,
-          recipients.length,
-        );
-        setState('awaiting_tag');
-      }, 1100),
-    );
+    schedule(() => {
+      setStepStatus(3, 'done');
+      pushAudit(
+        `INSERT INTO email_drafts (customer_id, subject, body) — ${recipients.length} rows`,
+        recipients.length,
+      );
+      setState('awaiting_tag');
+    }, 1100);
   }
 
   function approveTag() {
     setState('executing_tag');
     setStepStatus(4, 'running');
-    timeoutsRef.current.push(
-      window.setTimeout(() => {
-        setStepStatus(4, 'done');
-        pushAudit(
-          `UPDATE customers SET tags = tags || ARRAY['lapsed-q4'] WHERE id IN (${recipients.length} ids)`,
-          recipients.length,
-        );
-        setState('done');
-      }, 1100),
-    );
+    schedule(() => {
+      setStepStatus(4, 'done');
+      pushAudit(
+        `UPDATE customers SET tags = tags || ARRAY['lapsed-q4'] WHERE id IN (${recipients.length} ids)`,
+        recipients.length,
+      );
+      setState('done');
+    }, 1100);
   }
 
   function reject() {
-    clearAll();
+    clear();
     setState('cancelled');
   }
 
   function reset() {
-    clearAll();
+    clear();
     setState('idle');
     setPlan([]);
     setAudit([]);

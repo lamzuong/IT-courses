@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import { useTimeoutQueue } from '@/lib/use-timeout-queue';
 
 type Scenario = 'validation' | 'unique' | 'timeout';
 type Status = 'error' | 'ok';
@@ -87,22 +88,15 @@ const SCENARIOS: Record<Scenario, ScenarioSpec> = {
 export function ErrorsRetryDemo() {
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [revealed, setRevealed] = useState(0);
-  const timeoutsRef = useRef<number[]>([]);
-
-  function clearAll() {
-    timeoutsRef.current.forEach((id) => window.clearTimeout(id));
-    timeoutsRef.current = [];
-  }
-
-  useEffect(() => () => clearAll(), []);
+  const { schedule, clear } = useTimeoutQueue();
 
   function run(s: Scenario) {
-    clearAll();
+    clear();
     setScenario(s);
     setRevealed(0);
     const total = SCENARIOS[s].attempts.length;
     for (let i = 1; i <= total; i += 1) {
-      timeoutsRef.current.push(window.setTimeout(() => setRevealed(i), i * 700));
+      schedule(() => setRevealed(i), i * 700);
     }
   }
 

@@ -123,14 +123,32 @@ function ArtAccessibility() {
   );
 }
 
-function ArtTypeScript() {
+function ArtAIOperator() {
   return (
     <svg viewBox="0 0 140 140" width="140" height="140" fill="none">
-      <rect x="22" y="22" width="96" height="96" rx="14" fill="#091610" />
-      <text x="34" y="76" fontFamily="ui-monospace" fontSize="34" fontWeight="700" fill="#fff">{'<T/>'}</text>
-      <circle cx="108" cy="34" r="6" fill="#9ee04a" />
-      <path d="M30 100 l 80 0" stroke="#fff" strokeWidth="2" strokeOpacity="0.25" strokeDasharray="2 4" />
-      <text x="34" y="112" fontFamily="ui-monospace" fontSize="9" fill="#fff" fillOpacity="0.6">type Foo&lt;T&gt;</text>
+      <defs>
+        <linearGradient id="ai-card" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#fff" />
+          <stop offset="1" stopColor="#c5e8a8" />
+        </linearGradient>
+      </defs>
+      {/* graph: three nodes connected by arrows */}
+      <circle cx="28" cy="34" r="9" fill="#fff" stroke="#091610" strokeWidth="2" />
+      <circle cx="28" cy="78" r="9" fill="#fff" stroke="#091610" strokeWidth="2" />
+      <circle cx="68" cy="56" r="11" fill="#9ee04a" stroke="#091610" strokeWidth="2" />
+      <path d="M37 38 Q 50 44, 58 52" stroke="#0e6b3f" strokeWidth="2" fill="none" strokeLinecap="round" />
+      <path d="M56 50 l 4 2 l -1 5" stroke="#0e6b3f" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M37 74 Q 50 68, 58 60" stroke="#0e6b3f" strokeWidth="2" fill="none" strokeLinecap="round" />
+      <path d="M56 62 l 4 -2 l -1 -5" stroke="#0e6b3f" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {/* overlaid confirmation card */}
+      <rect x="58" y="74" width="62" height="40" rx="6" fill="url(#ai-card)" stroke="#091610" strokeWidth="2" />
+      <text x="65" y="89" fontFamily="ui-monospace" fontSize="8" fontWeight="600" fill="#091610">confirm?</text>
+      {/* check mark */}
+      <circle cx="76" cy="102" r="7" fill="#fff" stroke="#0e6b3f" strokeWidth="2" />
+      <path d="M73 102 l 2.5 2.5 l 4.5 -5" stroke="#0e6b3f" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {/* cross mark */}
+      <circle cx="102" cy="102" r="7" fill="#fff" stroke="#091610" strokeWidth="2" />
+      <path d="M99 99 l 6 6 M105 99 l -6 6" stroke="#091610" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -175,19 +193,19 @@ export default async function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <CourseCard
             variant="peach"
-            tag="Featured"
+            tag="Complete"
             title={aiCourse.title}
             summary={aiCourse.summary}
             stats={[
               { label: 'lessons', value: String(aiLessonCount) },
-              { label: 'demos',   value: '17' }, // TODO(task-9): swap to derived count once all demos land
+              { label: 'demos',   value: '17' },
               { label: 'project', value: '1' },
             ]}
             pct={100}
             pctLabel="Complete"
             footerLeft={`${aiLessonCount} lessons · ${aiTotalRead} read`}
             cta={{ label: 'Begin reading', href: `/courses/${aiCourse.slug}` }}
-            illustration={<ArtTypeScript />}
+            illustration={<ArtAIOperator />}
           />
 
           <CourseCard
