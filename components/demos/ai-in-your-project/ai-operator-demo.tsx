@@ -537,7 +537,7 @@ export function AiOperatorDemo() {
       {/* ── HEADER ─────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[color:var(--color-rule)] pb-3">
         <div>
-          <h3 className="font-serif text-2xl font-semibold leading-tight">AI Operator</h3>
+          <p className="font-serif text-2xl font-semibold leading-tight">AI Operator</p>
           <p className="text-[0.78rem] text-[color:var(--color-text-soft)] mt-0.5">
             Mock CMS · {counts.customers} customers · {counts.products} products ·{' '}
             {counts.promotions} promotions
@@ -554,7 +554,7 @@ export function AiOperatorDemo() {
 
       <div className="grid gap-4 md:grid-cols-[minmax(0,3fr)_minmax(0,4fr)_minmax(0,3fr)]">
         {/* ── LEFT: Quick prompts ───────────────────────────────── */}
-        <aside className="rounded border border-[color:var(--color-rule)] bg-[color:var(--color-bg-soft)] p-3 flex flex-col gap-3">
+        <div className="rounded border border-[color:var(--color-rule)] bg-[color:var(--color-bg-soft)] p-3 flex flex-col gap-3">
           <div>
             <p className="text-[0.7rem] uppercase tracking-wider text-[color:var(--color-text-faint)] mb-2">
               Quick prompts
@@ -606,7 +606,7 @@ export function AiOperatorDemo() {
                 : ' '}
             </p>
           </div>
-        </aside>
+        </div>
 
         {/* ── CENTER: Transcript + confirmation ─────────────────── */}
         <section className="rounded border border-[color:var(--color-rule)] bg-white p-3 min-h-[28rem] flex flex-col gap-3">
@@ -744,7 +744,7 @@ export function AiOperatorDemo() {
         </section>
 
         {/* ── RIGHT: Audit log ───────────────────────────────────── */}
-        <aside className="rounded border border-[color:var(--color-rule)] bg-[color:var(--color-code-bg)] text-[color:var(--color-code-text)] p-3 font-mono text-xs min-h-[28rem]">
+        <div className="rounded border border-[color:var(--color-rule)] bg-[color:var(--color-code-bg)] text-[color:var(--color-code-text)] p-3 font-mono text-xs min-h-[28rem]">
           <p className="text-[color:var(--color-code-soft)] mb-2 flex items-center justify-between">
             <span>{'>'} audit log</span>
             <span className="opacity-60">
@@ -766,7 +766,7 @@ export function AiOperatorDemo() {
               </li>
             ))}
           </ol>
-        </aside>
+        </div>
       </div>
     </div>
   );

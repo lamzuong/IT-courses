@@ -1,6 +1,11 @@
 # IT Courses
 
-A personal-portfolio site that publishes hands-on technology courses, starting with **Drag and Drop in React**.
+A personal-portfolio site that publishes hands-on technology courses.
+
+## Available courses
+
+- **AI in Your Project** (24 lessons, 17 demos, 1 final project) — How to wire LangChain + LangGraph + Ollama into a real app, with confirmation per write action.
+- **Drag and Drop in React** (18 lessons, 13 demos, 1 final project) — From native HTML5 DnD to @dnd-kit, ending in a Restaurant Table Booking Manager.
 
 ## Stack
 
@@ -28,6 +33,8 @@ npm run typecheck    # tsc --noEmit
 4. Author the final-project guideline at `content/courses/<slug>/project.mdx`.
 5. Register the course by importing it in `content/courses/index.ts` and adding it to `allCourses`.
 6. (Optional) Add live demo components under `components/demos/<slug>/`.
+
+The AI course's demos live in `components/demos/ai-in-your-project/` and import shared mock data (customers, products, orders, promotions, email drafts) from `lib/ai-mock-cms.ts` so every demo speaks the same domain.
 
 ## Authoring a lesson
 
