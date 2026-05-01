@@ -1,0 +1,39 @@
+import { Recap } from '@/components/mdx/recap';
+
+By the end of lesson 14 you have something that genuinely works: a tool-calling agent that loops, recovers from errors, and produces a sensible final answer. For a single question with one or two tool calls, this loop is roughly all you need. The trouble starts the moment your prompts get even slightly more ambitious — *"create a promo, find the customers, draft them an email"* — and the abstractions you've leaned on so far quietly start to crack.
+
+This lesson is the seam between Part III and Part IV. We're not going to write much code; we're going to look at the loop, name what it can't do, and notice that any honest fix would, step by step, reinvent something that already exists. That something is LangGraph, and the next lesson is its proper introduction. Today is the *why*.
+
+## Where the bare loop works
+
+The `while (lastMessage.tool_calls)` shape from lesson 14 is genuinely good at a narrow band of work. A user asks one question, the model decides whether to look something up, runs one or two reads, and writes the answer. The loop terminates because the model stops emitting tool calls; the orchestrator returns the final assistant message; the user reads it and the request ends. *"How many lapsed customers do we have?"* fits this shape perfectly. So does *"what was our top-selling SKU last week?"* or *"draft me a one-line subject line for a re-engagement email."*
+
+These are *interactive Q&A* shapes. One turn from the user, a few internal turns from the model, one final reply. The loop is the right tool, the code is short, and you don't need anything fancier.
+
+## Where it cracks
+
+Now try *"Create a 15% promo for customers who haven't ordered in 60 days, and draft them a re-engagement email."* That's three steps minimum: create the promo, look up the recipients, draft the emails. Each step depends on the one before it. Each one is a write — the kind of action you really do not want firing without a human signing off. And each one can fail in a way that matters: maybe the promo code already exists, maybe two of the recipients have unsubscribed, maybe the draft tool times out on the third email and the first two have already been saved.
+
+The bare loop has nothing to say about any of this. It can't pause before a write. It can't branch — *"if the segment is bigger than fifty people, ask the human first; otherwise just go."* It can't undo. If the second of three writes fails, you don't have any clean way to ask the model *"please continue from step three"*; you can only run the whole prompt again and hope it converges to the same plan. And there's nowhere natural to put a checkpoint, so if the user closes the tab mid-workflow, the half-completed plan is gone.
+
+These aren't edge cases. They're the everyday shape of *"AI that does work in your product."*
+
+## What you'd start writing
+
+If you decided to fix this without help, you'd reach for the same tools every framework eventually does. You'd add a `state` object the model and the loop both read from. You'd split your single loop into named steps — `plan`, `confirm`, `execute`, `summarize` — and put logic between them: *"if the next step is a write, hand control back to the UI and wait for an approval"*; *"if a step failed, route to a recovery node instead of the next one."* You'd add a way to pause and resume, which means the state has to be serializable. You'd add a way to stream partial progress, which means each step has to emit events. You'd find yourself building a small graph: nodes are steps, edges are transitions, and the runtime walks the graph until something stops it.
+
+By the time you've got all of that working — really working, with timeouts and retries and resumption tokens — you'll have spent a couple of weeks reinventing a state-machine library, badly. There's nothing wrong with that learning trajectory. There's also no reason to do it twice when someone has done it well already.
+
+## The pivot
+
+LangGraph is, very precisely, the state machine you'd otherwise write yourself, well-engineered, with the API conventions LangChain users already know. State + nodes + edges; conditional routing; pauses, resumption, persistence; streaming; first-class checkpointing. It looks at the bare loop the same way you do — *"this is fine for one-shot Q&A and not enough for anything else"* — and gives you the next layer up without throwing away what you already know.
+
+Everything you've built so far in Part III still applies. Tool definitions don't change. Zod schemas don't change. The system prompt and few-shot examples don't change. What changes is the orchestrator: instead of `while (toolCalls.length) { ... }`, you describe a graph and `compile()` it. The model still calls tools; the tools still return strings; you still validate and you still log. Only the runner is different — and from the next lesson on, dramatically more capable.
+
+<Recap>
+- The bare while-loop is a great fit for single-turn Q&A and one-or-two-tool calls. It is not a fit for multi-step plans.
+- Multi-step work needs branching, pauses, recovery, partial-failure handling, resumption — all the ordinary state-machine concerns.
+- Building these on top of the loop yourself means reinventing a graph runtime; LangGraph is that runtime, designed for exactly this shape.
+- Tools, schemas, prompts, errors — everything from Part III stays. Only the orchestrator graduates.
+- The next lesson is the proper introduction: state, nodes, edges, compile, invoke.
+</Recap>

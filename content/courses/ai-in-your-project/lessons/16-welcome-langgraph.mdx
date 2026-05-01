@@ -1,0 +1,95 @@
+import { Recap } from '@/components/mdx/recap';
+
+A graph is three things, and once you have those three things you have a runtime. There's a piece of *state* that gets passed from step to step. There are *nodes* — plain functions that read the state and return a partial update. And there are *edges* — declarations of which node comes next, sometimes unconditionally and sometimes based on what the state looks like at that moment. Compile the lot and you get a runner you can `invoke` like any other function.
+
+That's LangGraph in one paragraph. Everything else — checkpointing, streaming, interrupts, multi-agent setups — is built on those three primitives. This lesson walks them in order, ending with a complete (tiny) graph you could run today.
+
+## 01 — `StateGraph`
+
+The starting point is `StateGraph`. You instantiate one by describing the *shape* of your state. In TypeScript that's a regular type — typically an object with a few fields, often including a `messages` array because chat is the most common case.
+
+```ts
+import { StateGraph, END } from '@langchain/langgraph';
+import type { BaseMessage } from '@langchain/core/messages';
+
+type GraphState = {
+  messages: BaseMessage[];
+  pendingTool: { name: string; args: unknown } | null;
+};
+
+const graph = new StateGraph<GraphState>({
+  channels: {
+    messages: { reducer: (a, b) => a.concat(b), default: () => [] },
+    pendingTool: null,
+  },
+});
+```
+
+The `channels` config is the part that takes a moment to absorb. Each field declares how partial updates merge into the existing state. `messages` is *appended* — every node that returns `{ messages: [...] }` adds to the array rather than replacing it. `pendingTool` is replaced wholesale. The reducer is what makes the state shape useful: nodes can be small and local because the merging logic is centralised.
+
+## 02 — Nodes
+
+A node is a function from state to a partial state update. They're easy to write and easy to test, because they don't touch the runtime — they just read what's in front of them and return what they want to change.
+
+```ts
+async function agentNode(state: GraphState): Promise<Partial<GraphState>> {
+  const reply = await model.bindTools(allTools).invoke(state.messages);
+  return { messages: [reply] };
+}
+
+async function toolsNode(state: GraphState): Promise<Partial<GraphState>> {
+  const last = state.messages.at(-1);
+  const results = await runToolCalls(last);
+  return { messages: results };
+}
+
+graph.addNode('agent', agentNode);
+graph.addNode('tools', toolsNode);
+```
+
+Notice how each node returns *only* the part it wants to change. The reducer on `messages` does the rest. A node that fails to handle a case can return an empty object and the state passes through unchanged. There's no class hierarchy to inherit, no special interface to satisfy beyond *takes state, returns a partial update.*
+
+## 03 — Edges
+
+Edges declare the topology. Two flavours: unconditional and conditional. An unconditional edge is *"after node A, go to node B."* A conditional edge runs a small router function and uses its return value to pick the next node from a map.
+
+```ts
+graph.addEdge('tools', 'agent');
+
+graph.addConditionalEdges('agent', (state) => {
+  const last = state.messages.at(-1);
+  return last?.tool_calls?.length ? 'tools' : '__end__';
+}, { tools: 'tools', __end__: END });
+
+graph.setEntryPoint('agent');
+```
+
+The router is plain TypeScript. It looks at the state and returns a string; the third argument is a map from those strings to actual node names. `END` is a sentinel that tells the runtime to stop and return the final state. Conditional edges are where multi-step plans get their *if/else* — and they're how you'll wire confirmation, recovery, and routing-by-tool-type in the next two lessons.
+
+## 04 — Compile and invoke
+
+Once the topology is described, you compile the graph. Compilation is what produces the runnable; the `StateGraph` itself is a builder.
+
+```ts
+const app = graph.compile();
+
+const final = await app.invoke({
+  messages: [new HumanMessage('Who hasn’t ordered in 60 days?')],
+  pendingTool: null,
+});
+
+console.log(final.messages.at(-1)?.content);
+```
+
+`invoke` runs the graph from the entry point until it hits an `END` (or an interrupt — we get there in lesson 19). It returns the *final state*. There's also `stream` and `streamEvents` for the same UI patterns we set up in Part II, except now you're streaming a graph's intermediate states, not just a model's tokens.
+
+That is the whole minimum surface. State, nodes, edges, compile, invoke. The next lesson rebuilds the bare loop from Part III as a graph — same behaviour, same tools, dramatically more flexibility from there on.
+
+<Recap>
+- A graph is *state* + *nodes* + *edges*. `StateGraph` builds it; `compile()` produces a runnable.
+- State channels declare reducers — how partial updates merge. `messages` is almost always appended.
+- Nodes are functions from state to partial state. Pure-ish, easy to test.
+- `addEdge('a', 'b')` for unconditional transitions. `addConditionalEdges('a', router, map)` for branching.
+- `END` is the sentinel for *stop here.* The runner halts and returns the final state.
+- `app.invoke(initialState)` runs to completion or to the next interrupt — exactly the shape you'll need in lesson 19.
+</Recap>

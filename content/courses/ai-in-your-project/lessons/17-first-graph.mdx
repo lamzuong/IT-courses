@@ -1,0 +1,109 @@
+import { Recap } from '@/components/mdx/recap';
+import { GraphRunnerDemo } from '@/components/demos/ai-in-your-project/graph-runner-demo';
+
+Take the tool-calling agent from Part III and rebuild it as a graph. Same tools, same prompts, same model — only the orchestrator changes. The behaviour you'll see at the end of this lesson is identical to lesson 14: the model decides whether to call tools, the runtime executes them, the model speaks again, and the loop terminates when there's nothing left to do. The difference is invisible from the outside and structural on the inside: every step is a node, every transition is an edge, and you have somewhere to *put* every concern that's coming in the rest of Part IV.
+
+This is the canonical *ReAct* shape — Reason, Act, Reason, Act, until the model decides it's done. It's the spine you'll bolt confirmation, conditional routing, and persistence onto over the next three lessons.
+
+## 01 — The state
+
+The simplest possible state is a transcript. Just messages.
+
+```ts
+import { StateGraph, END } from '@langchain/langgraph';
+import { HumanMessage, type BaseMessage } from '@langchain/core/messages';
+
+type GraphState = { messages: BaseMessage[] };
+
+const graph = new StateGraph<GraphState>({
+  channels: {
+    messages: { reducer: (a, b) => a.concat(b), default: () => [] },
+  },
+});
+```
+
+That's it. Later we'll grow this to include a plan, a `pendingTool`, an audit trail. For lesson 17, a transcript is all we need to faithfully reproduce the lesson 14 loop.
+
+## 02 — The agent node
+
+The agent node is one model call. Bind the tools, invoke against the current message list, append whatever the model returns. The model decides on its own whether to emit `tool_calls`; the node doesn't care.
+
+```ts
+async function agentNode(state: GraphState): Promise<Partial<GraphState>> {
+  const reply = await model.bindTools(allTools).invoke(state.messages);
+  return { messages: [reply] };
+}
+```
+
+If the reply has tool calls, the router will send us to the tools node next. If it doesn't, the router will send us to `END`. Either way, the agent node's job is done.
+
+## 03 — The tools node
+
+The tools node looks at the most recent message — which the agent just appended — and runs each tool call it finds. Each result is a `ToolMessage` keyed back to the original call's `id`, so the model can match results to requests on the next turn.
+
+```ts
+import { ToolMessage } from '@langchain/core/messages';
+
+async function toolsNode(state: GraphState): Promise<Partial<GraphState>> {
+  const last = state.messages.at(-1);
+  const calls = last?.tool_calls ?? [];
+  const out: ToolMessage[] = [];
+  for (const call of calls) {
+    const tool = TOOL_REGISTRY[call.name];
+    const result = await tool.invoke(call.args);
+    out.push(new ToolMessage({ tool_call_id: call.id, content: result }));
+  }
+  return { messages: out };
+}
+```
+
+`TOOL_REGISTRY` is just a `Record<string, Tool>` you build once at startup from the same tools you bound to the model. The reducer on `messages` appends each `ToolMessage` to the transcript automatically.
+
+## 04 — The router
+
+A graph this small has exactly one decision: *should we loop, or should we stop?* That's the conditional edge attached to the agent node.
+
+```ts
+function shouldContinue(state: GraphState): 'tools' | typeof END {
+  const last = state.messages.at(-1);
+  return (last && 'tool_calls' in last && last.tool_calls?.length) ? 'tools' : END;
+}
+
+graph
+  .addNode('agent', agentNode)
+  .addNode('tools', toolsNode)
+  .setEntryPoint('agent')
+  .addConditionalEdges('agent', shouldContinue, { tools: 'tools', [END]: END })
+  .addEdge('tools', 'agent');
+
+const app = graph.compile();
+
+const final = await app.invoke({
+  messages: [new HumanMessage('Who hasn’t ordered in 60 days?')],
+});
+```
+
+Read the wiring out loud and you have your answer to *what is this thing?* The graph starts at `agent`. After `agent`, it asks `shouldContinue`; if there are tool calls, it goes to `tools`; otherwise it ends. After `tools`, it always loops back to `agent`. That's the entire ReAct pattern in nine lines of edge declarations.
+
+## 05 — Watch the graph step
+
+The demo below visualises a single invocation of the graph above. Each node lights up green as the runtime enters it, fades to soft mint as it completes, and the message log on the bottom narrates each transition the way LangGraph's `streamEvents` would — *"step: agent → produced tool_calls"*, *"step: tools → executed customers.search"*, all the way through to *"step: __end__ → graph halted."*
+
+<Demo title="ReAct graph stepping through agent → tools → agent → end">
+  <GraphRunnerDemo />
+</Demo>
+
+The shape is the same as lesson 14's loop. The mental picture is different. Every iteration of the bare loop is now a labelled traversal across two nodes. When you come back in the next lesson and split tools by side effect — read tools that auto-run, write tools that need confirmation — you'll add one more node and one more conditional edge and the rest of the graph won't notice. That's the leverage you bought by graduating from a `while` to a graph: changes are localised. New behaviour is a new node, not a new branch in a tangled function.
+
+## What you have now
+
+You have, structurally, exactly what lesson 14 had — and a place to grow. The next lesson splits the tools node in two. The lesson after that adds an interrupt before writes, which is the centerpiece of the entire course. The one after that wires the lapsed-customer workflow end to end, with confirmations and audit logging, on the same graph spine.
+
+<Recap>
+- The state for a basic ReAct agent is just `{ messages }` — a transcript that grows with every node.
+- The agent node calls the model with bound tools and appends the reply. That's the whole thing.
+- The tools node looks at the last message, runs each `tool_call`, and appends a matching `ToolMessage`.
+- The router decides loop vs. end by checking whether the last message has tool calls. One conditional edge, two destinations.
+- Compile and invoke. The graph reproduces the lesson 14 loop with named steps and a place to put every future concern.
+- The leverage of moving from `while` to a graph is that new behaviour becomes new nodes — not new branches inside a growing function.
+</Recap>
