@@ -591,9 +591,10 @@ export function AiOperatorDemo() {
               id="ai-operator-textarea"
               value={textareaValue}
               onChange={(e) => onTextareaChange(e.target.value)}
+              disabled={!isInteractive}
               rows={3}
               placeholder="Ask the operator something…"
-              className="w-full rounded border border-[color:var(--color-rule)] bg-white px-2 py-1.5 text-[0.85rem] font-serif resize-none focus:outline focus:outline-2 focus:outline-[color:var(--color-accent)] focus:outline-offset-1"
+              className="w-full rounded border border-[color:var(--color-rule)] bg-white px-2 py-1.5 text-[0.85rem] font-serif resize-none focus:outline focus:outline-2 focus:outline-[color:var(--color-accent)] focus:outline-offset-1 disabled:opacity-60 disabled:cursor-not-allowed"
             />
             <p
               role="status"

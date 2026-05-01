@@ -32,7 +32,7 @@ const [plan, setPlan]             = useState<Step[] | null>(null);
 const [auditLog, setAuditLog]     = useState<AuditEntry[]>([]);
 ```
 
-The phase is a discriminated union — `'idle' | 'planning' | { kind: 'awaiting_confirm', stepIdx } | { kind: 'executing', stepIdx } | 'done' | 'cancelled'`. Every UI region reads from it; none of them ever needs to second-guess what to render.
+The phase is a discriminated union — `{ kind: 'idle' } | { kind: 'planning' } | { kind: 'awaiting_confirm'; stepIdx: number } | { kind: 'executing'; stepIdx: number } | { kind: 'done' } | { kind: 'cancelled' }`. Every UI region narrows on `phase.kind` and reads `stepIdx` only on the variants that carry one — exhaustive checks at compile time, no parallel boolean flags.
 
 ## Defining the graph state and nodes
 
