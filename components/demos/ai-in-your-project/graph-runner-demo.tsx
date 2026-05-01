@@ -33,7 +33,6 @@ export function GraphRunnerDemo() {
   const [stepIdx, setStepIdx] = useState(-1);
   const [messages, setMessages] = useState<string[]>([]);
   const timeoutsRef = useRef<number[]>([]);
-  const iterationsRef = useRef(0);
 
   function clearAll() {
     timeoutsRef.current.forEach((id) => window.clearTimeout(id));
@@ -47,12 +46,10 @@ export function GraphRunnerDemo() {
     setRunning(true);
     setStepIdx(-1);
     setMessages([]);
-    iterationsRef.current = 0;
 
     SCRIPT.forEach((s, i) => {
       timeoutsRef.current.push(
         window.setTimeout(() => {
-          iterationsRef.current = i + 1;
           setStepIdx(i);
           setMessages((prev) => [...prev, s.message]);
         }, STEP_MS * (i + 1)),

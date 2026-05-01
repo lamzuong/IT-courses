@@ -64,9 +64,12 @@ async function toolsNode(state: GraphState): Promise<Partial<GraphState>> {
 A graph this small has exactly one decision: *should we loop, or should we stop?* That's the conditional edge attached to the agent node.
 
 ```ts
+import { isAIMessage } from '@langchain/core/messages';
+
 function shouldContinue(state: GraphState): 'tools' | typeof END {
   const last = state.messages.at(-1);
-  return (last && 'tool_calls' in last && last.tool_calls?.length) ? 'tools' : END;
+  if (last && isAIMessage(last) && (last.tool_calls?.length ?? 0) > 0) return 'tools';
+  return END;
 }
 
 graph

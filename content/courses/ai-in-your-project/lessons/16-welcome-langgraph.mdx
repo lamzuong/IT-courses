@@ -14,18 +14,16 @@ import type { BaseMessage } from '@langchain/core/messages';
 
 type GraphState = {
   messages: BaseMessage[];
-  pendingTool: { name: string; args: unknown } | null;
 };
 
 const graph = new StateGraph<GraphState>({
   channels: {
     messages: { reducer: (a, b) => a.concat(b), default: () => [] },
-    pendingTool: null,
   },
 });
 ```
 
-The `channels` config is the part that takes a moment to absorb. Each field declares how partial updates merge into the existing state. `messages` is *appended* — every node that returns `{ messages: [...] }` adds to the array rather than replacing it. `pendingTool` is replaced wholesale. The reducer is what makes the state shape useful: nodes can be small and local because the merging logic is centralised.
+The `channels` config is the part that takes a moment to absorb. Each field declares how partial updates merge into the existing state. `messages` is *appended* — every node that returns `{ messages: [...] }` adds to the array rather than replacing it. The reducer is what makes the state shape useful: nodes can be small and local because the merging logic is centralised. We'll add more channels (like a `pendingTool` for the confirmation pattern) in lesson 18 — for now, one channel keeps the example focused.
 
 ## 02 — Nodes
 
