@@ -1,7 +1,8 @@
 import { course as dragDropReact } from './drag-drop-react/course';
+import { course as aiInYourProject } from './ai-in-your-project/course';
 import type { Course } from './types';
 
-export const allCourses: Course[] = [dragDropReact];
+export const allCourses: Course[] = [aiInYourProject, dragDropReact];
 
 export type PlaceholderCourse = {
   title: string;
@@ -13,6 +14,8 @@ export type PlaceholderCourse = {
   status: string;
 };
 
+// Two placeholders remain (the third — TypeScript for React engineers — has been
+// replaced by the AI in Your Project course, which is now real).
 export const placeholderCourses: PlaceholderCourse[] = [
   {
     title: 'Animations in React',
@@ -30,15 +33,6 @@ export const placeholderCourses: PlaceholderCourse[] = [
     authoringPct: 8,
     lessons: 16,
     demos: 11,
-    status: 'Planned',
-  },
-  {
-    title: 'TypeScript for React engineers',
-    summary: 'Generics, conditional types, and the patterns that actually pay off in component libraries.',
-    tag: 'Planned',
-    authoringPct: 0,
-    lessons: 12,
-    demos: 8,
     status: 'Planned',
   },
 ];

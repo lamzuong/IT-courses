@@ -145,10 +145,15 @@ function formatHours(minutes: number): string {
 
 export default async function Home() {
   const courses = getAllCourses();
-  const real = courses[0];
-  const lessonCount = flattenLessons(real).length;
-  const stats = await getCourseStats(real.slug, real.parts);
-  const totalRead = formatHours(stats.totalMinutes);
+  const aiCourse = courses.find((c) => c.slug === 'ai-in-your-project')!;
+  const dndCourse = courses.find((c) => c.slug === 'drag-drop-react')!;
+
+  const aiLessonCount = flattenLessons(aiCourse).length;
+  const dndLessonCount = flattenLessons(dndCourse).length;
+  const aiStats = await getCourseStats(aiCourse.slug, aiCourse.parts);
+  const dndStats = await getCourseStats(dndCourse.slug, dndCourse.parts);
+  const aiTotalRead = formatHours(aiStats.totalMinutes);
+  const dndTotalRead = formatHours(dndStats.totalMinutes);
 
   return (
     <main id="main-content" className="mx-auto max-w-5xl px-6 py-12 md:py-16">
@@ -171,22 +176,39 @@ export default async function Home() {
           <CourseCard
             variant="peach"
             tag="Featured"
-            title={real.title}
-            summary={real.summary}
+            title={aiCourse.title}
+            summary={aiCourse.summary}
             stats={[
-              { label: 'lessons', value: String(lessonCount) },
+              { label: 'lessons', value: String(aiLessonCount) },
+              { label: 'demos',   value: '17' },
+              { label: 'project', value: '1' },
+            ]}
+            pct={100}
+            pctLabel="Complete"
+            footerLeft={`${aiLessonCount} lessons · ${aiTotalRead} read`}
+            cta={{ label: 'Begin reading', href: `/courses/${aiCourse.slug}` }}
+            illustration={<ArtTypeScript />}
+          />
+
+          <CourseCard
+            variant="sage"
+            tag="Complete"
+            title={dndCourse.title}
+            summary={dndCourse.summary}
+            stats={[
+              { label: 'lessons', value: String(dndLessonCount) },
               { label: 'demos',   value: '13' },
               { label: 'project', value: '1' },
             ]}
             pct={100}
             pctLabel="Complete"
-            footerLeft={`${lessonCount} lessons · ${totalRead} read`}
-            cta={{ label: 'Begin reading', href: `/courses/${real.slug}` }}
+            footerLeft={`${dndLessonCount} lessons · ${dndTotalRead} read`}
+            cta={{ label: 'Begin reading', href: `/courses/${dndCourse.slug}` }}
             illustration={<ArtDragDrop />}
           />
 
           <CourseCard
-            variant="sage"
+            variant="butter"
             tag={placeholderCourses[0].tag}
             title={placeholderCourses[0].title}
             summary={placeholderCourses[0].summary}
@@ -203,7 +225,7 @@ export default async function Home() {
           />
 
           <CourseCard
-            variant="butter"
+            variant="sky"
             tag={placeholderCourses[1].tag}
             title={placeholderCourses[1].title}
             summary={placeholderCourses[1].summary}
@@ -217,23 +239,6 @@ export default async function Home() {
             footerLeft="Coming soon"
             cta={{ label: 'Planned', href: '#', disabled: true }}
             illustration={<ArtAccessibility />}
-          />
-
-          <CourseCard
-            variant="sky"
-            tag={placeholderCourses[2].tag}
-            title={placeholderCourses[2].title}
-            summary={placeholderCourses[2].summary}
-            stats={[
-              { label: 'lessons', value: String(placeholderCourses[2].lessons) },
-              { label: 'demos',   value: String(placeholderCourses[2].demos) },
-              { label: 'project', value: '1' },
-            ]}
-            pct={placeholderCourses[2].authoringPct}
-            pctLabel={`${placeholderCourses[2].authoringPct}%`}
-            footerLeft="Coming soon"
-            cta={{ label: 'Planned', href: '#', disabled: true }}
-            illustration={<ArtTypeScript />}
           />
         </div>
       </section>
