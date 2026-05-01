@@ -1,0 +1,187 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { AiOperatorDemo } from '@/components/demos/ai-in-your-project/ai-operator-demo';
+
+You spent twenty-four lessons learning how to do one thing well: take an operator's intent in plain English, plan a sequence of tool calls, gate every write behind a confirmation, and stream the result back. The lapsed-customer demo from lesson 20 was one shape of that problem. This project is many shapes — the same machinery wired so the operator can prompt arbitrary workflows and the agent figures out the rest. Read the prompt. Build the plan. Show the writes. Wait for a human. Commit. Log everything.
+
+The demo below is the finished console. Click any preset; watch the chat fill, the plan render, the confirmation rise, and the audit log fill. Then read on for the architecture that makes it work.
+
+<Demo title="AI Operator Console — full project">
+  <AiOperatorDemo />
+</Demo>
+
+## What you can do
+
+- **Send any of five canned prompts** — each plays a different shape: a 3-step write workflow, a one-shot read summary, a tag-bulk write, a slow-product report, or a VIP thank-you draft.
+- **Watch the model plan** — every prompt produces a numbered plan with tool names and read/write pills before any code runs.
+- **Approve or reject every write** — read steps run automatically, but each `write` step pauses until you click Approve. Reject any of them and the workflow stops cold.
+- **See the audit log fill in real time** — every committed mutation lands on the right with a deterministic timestamp and a row count.
+- **Reset the console** — wipes the transcript, the plan, and the audit log so you can play another scenario from scratch.
+
+## State shape
+
+Three pieces of state, three responsibilities. The transcript is what the user and the model say to each other. The plan is what the model proposes for the next user message. The audit log is the immutable record of what actually happened. Keep those separate and most of the hard problems disappear.
+
+```ts
+type Message = { id: number; role: 'user' | 'assistant' | 'system'; text: ReactNode };
+type Step    = { id: number; name: string; kind: 'read' | 'write'; status: 'pending' | 'running' | 'done'; /* … */ };
+type AuditEntry = { id: number; ts: string; query: string; rowsAffected: number };
+
+const [transcript, setTranscript] = useState<Message[]>([]);
+const [plan, setPlan]             = useState<Step[] | null>(null);
+const [auditLog, setAuditLog]     = useState<AuditEntry[]>([]);
+```
+
+The phase is a discriminated union — `'idle' | 'planning' | { kind: 'awaiting_confirm', stepIdx } | { kind: 'executing', stepIdx } | 'done' | 'cancelled'`. Every UI region reads from it; none of them ever needs to second-guess what to render.
+
+## Defining the graph state and nodes
+
+In the real backend you'd replace the scripted timeouts with a LangGraph state machine. The state object carries the conversation, the plan, and pointers into the plan. Each node is a node — `plan`, `tool`, `human`, `respond` — connected by edges.
+
+```ts
+import { StateGraph, END, MessagesAnnotation } from '@langchain/langgraph';
+import { isAIMessage } from '@langchain/core/messages';
+
+const graph = new StateGraph(MessagesAnnotation)
+  .addNode('plan',     planNode)      // model decides which tool(s) to call
+  .addNode('tool',     toolNode)      // executes one tool call
+  .addNode('respond',  respondNode)   // model summarises results to the user
+  .addEdge('__start__', 'plan')
+  .addConditionalEdges('plan', routeAfterPlan)   // → 'tool' | 'respond' | END
+  .addEdge('tool', 'plan')
+  .addEdge('respond', END);
+```
+
+`MessagesAnnotation` is the conversation channel; `END` is imported, never spelled `'__end__'`. Tool results flow back into `plan` so the model can decide whether the workflow is done.
+
+## The router and conditional edges
+
+Most of the choreography is in one function. Did the last AI message ask for a tool? If yes, route to `tool`. Otherwise, the model produced a final answer — go straight to `respond`.
+
+```ts
+function routeAfterPlan(state: typeof MessagesAnnotation.State) {
+  const last = state.messages.at(-1);
+  if (isAIMessage(last) && last.tool_calls && last.tool_calls.length > 0) {
+    return 'tool';
+  }
+  return 'respond';
+}
+```
+
+That's the whole router. Tool steps loop back into `plan` so the model can chain calls; once it stops asking for tools, the final response goes out.
+
+## The interrupt for confirmation
+
+Every `write` tool gates on a human in the loop. The trick is that the interrupt happens **inside the tool node**, before the side effect — not after, when undo is hard.
+
+```ts
+import { interrupt } from '@langchain/langgraph';
+
+async function toolNode(state: typeof MessagesAnnotation.State) {
+  const call = lastToolCall(state.messages);
+  const tool = TOOLS[call.name];
+
+  if (tool.kind === 'write') {
+    const decision = interrupt({
+      tool: call.name,
+      args: call.args,
+      preview: tool.previewArgs(call.args),
+    });
+    if (decision !== 'approve') {
+      return { messages: [toolMessage(call, 'cancelled by operator')] };
+    }
+  }
+  const result = await tool.invoke(call.args);
+  return { messages: [toolMessage(call, result)] };
+}
+```
+
+The graph pauses at `interrupt`. The frontend renders the confirmation card. When the operator clicks Approve, the resume call sends `'approve'` back and the tool runs.
+
+<Callout type="warning" title="Don't move the gate to 'after'">
+A tempting optimization is to run the write first and let the operator undo if they object. Resist it. Some writes don't have undos — emails sent, charges made, customers notified. The interrupt belongs <em>before</em> the side effect, every time, even when it costs you a few hundred milliseconds of perceived latency.
+</Callout>
+
+## The audit log table
+
+Every committed write writes a row to an `audit_log` table. Drizzle keeps it terse:
+
+```ts
+import { pgTable, serial, text, integer, timestamp } from 'drizzle-orm/pg-core';
+
+export const auditLog = pgTable('audit_log', {
+  id: serial('id').primaryKey(),
+  occurredAt: timestamp('occurred_at').defaultNow().notNull(),
+  actor: text('actor').notNull(),                  // 'ai-operator' | userId
+  toolName: text('tool_name').notNull(),
+  argsJson: text('args_json').notNull(),
+  rowsAffected: integer('rows_affected').notNull(),
+  idempotencyKey: text('idempotency_key').unique(),
+});
+```
+
+The `idempotencyKey` is what stops you from creating ten identical promotions when a network blip retries the call. Hash the `(toolName, args)` and pass it through; the unique index does the rest.
+
+<Callout type="tip" title="Audit and idempotency are one feature">
+You'll be tempted to build the audit log first and idempotency later. They're the same feature wearing different hats. The thing that makes a write "the same write" is also the thing you log. Define <code>idempotencyKey</code> on day one — even if you don't enforce it yet — and your future self ships rollbacks for free.
+</Callout>
+
+## The streaming UI
+
+The frontend reads `streamEvents` from LangGraph, forwards them to the browser as Server-Sent Events, and reduces them into the same three pieces of state you saw above.
+
+```tsx
+const stream = await graph.streamEvents({ messages: [user] }, { version: 'v2' });
+for await (const ev of stream) {
+  if (ev.event === 'on_chat_model_stream') {
+    write({ type: 'token', delta: ev.data.chunk.content });
+  } else if (ev.event === 'on_tool_start') {
+    write({ type: 'plan_step', step: { name: ev.name, kind: kindOf(ev.name) } });
+  } else if (ev.event === 'on_interrupt') {
+    write({ type: 'confirm', payload: ev.data });
+  }
+}
+```
+
+On the React side, an SSE subscription dispatches into a reducer; the reducer is the only thing that mutates the three state pieces. Every render is a pure function of those three.
+
+## Building it yourself
+
+A reasonable order of attack — eight steps, none of them giant:
+
+1. **Mock CMS schema + seed data.** Drizzle migrations for `customers`, `products`, `orders`, `promotions`, `email_drafts`. Seed it with twenty rows; you don't need realism, just shape.
+2. **First handler: streaming chat.** Lessons 3-4. A POST route, a `streamText` from the model, an SSE response. No tools yet — just words.
+3. **Read tools.** `customers.search`, `orders.recent`, `products.list`. These are pure functions over the database — no surprises, no audit log, no gate.
+4. **Write tools with idempotency.** `promotions.create`, `email_drafts.create`, `customers.tag`. Each takes an `idempotencyKey`; duplicate keys return the prior result. (Lesson 13.)
+5. **ReAct graph.** Lesson 17. Wire the read tools into a LangGraph agent and confirm the model can call them in a chain.
+6. **Conditional routing + interrupt.** Lessons 18 and 19. Add the write tools, gate them with `interrupt`, build the confirmation card UI.
+7. **Audit log + observability.** Every successful write writes a row. A small admin page reads recent rows. Add basic OTEL spans around tool calls.
+8. **Polish.** The quick-prompts panel. The audit-log styling. Error states (model unavailable, tool throws, timeout). Keyboard focus order. The reset button.
+
+Each step is a commit. Each commit boots and serves real requests. None of them try to skip ahead.
+
+## Common pitfalls
+
+- **Re-planning every turn.** The plan node should only plan when the previous message wasn't a tool result. Otherwise you'll get the model "deciding to do step 3" five times in a row. Read the messages list before you call the model.
+- **Schema-shaped tool args, prose-shaped tool args.** If a tool takes `{ ids: number[] }`, the model will sometimes return a comma-separated string. Validate with Zod at the tool boundary and throw a friendly error so the model can self-correct on retry.
+- **Audit-logging reads.** Tempting because it makes the log look busy. Don't. The audit log is for things that changed; reads belong in a different observability channel.
+- **Forgetting to clear timers.** Every `setTimeout` you start has to die when the demo resets or unmounts. Track them in a `useRef<number[]>` and clear on cleanup. (You'll see the bug as duplicate audit entries on the second run otherwise.)
+- **Wide live regions.** Wrapping the whole confirmation panel in `aria-live="polite"` re-announces the buttons every render. Keep live regions narrow — just the status string — and let the buttons be normal interactive elements.
+
+## Stretch goals
+
+- **Real email send.** Swap `email_drafts.create` for `email.send`. Add a second confirmation gate at the outbox layer.
+- **Multi-user with auth.** Each operator has their own audit attribution. Sessions, RBAC, the works.
+- **Undo.** For the writes that have inverses (tag/untag, draft/discard), expose a "revert" button on each audit row that runs the inverse tool with the same idempotency hash.
+- **Time-window filtering.** &ldquo;Show me top spenders <em>last week</em>&rdquo; should narrow the read window without you hardcoding it.
+- **Schedule a workflow.** A cron entry that runs &ldquo;every Monday, draft a re-engagement email to anyone who lapsed in the last 7 days.&rdquo; Same graph, different trigger.
+- **Spend dashboard.** Pipe `streamEvents` into a token-cost meter so you can see what each workflow costs in real money.
+
+<Recap>
+- Three pieces of state — transcript, plan, audit log — and a discriminated phase. Every render is a function of those four. Don't add a fifth piece without a fight.
+- The graph is small: a planner, a tool node, a responder, and one conditional edge. Most of the &ldquo;intelligence&rdquo; lives in the prompt and the tool descriptions.
+- The interrupt is non-negotiable. Every write goes through human approval before the side effect, not after. Idempotency keys protect against retries.
+- The audit log is the contract with your operator: &ldquo;everything I did, with timestamps, attributed.&rdquo; Build it on day one.
+- Streaming is a reducer over events. `streamEvents` from LangGraph → SSE → dispatch → state. The UI is the easy part once the events are clean.
+- You have the skills now. Twenty-four lessons in, one final project — the next thing you ship is your call. Pick a workflow at your job that takes a person an hour, and give them an AI Operator that does it in a minute, with their hand on the gate.
+</Recap>
