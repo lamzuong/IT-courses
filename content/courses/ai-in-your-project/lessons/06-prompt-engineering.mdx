@@ -1,0 +1,81 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { FewShotToggleDemo } from '@/components/demos/ai-in-your-project/few-shot-toggle-demo';
+
+Most of what passes for "prompt engineering" online is folklore — emoji rituals, ALL-CAPS pleas, unverifiable claims about the magic word that doubles output quality. Strip the noise away and only two techniques have stood up to repeated testing across model families and years: showing examples, and pinning the output format. Everything else is decoration.
+
+This lesson is about those two techniques. Both take ten minutes to apply and both produce a measurable lift on real tasks. After that, we'll talk about what *doesn't* matter, so you can stop worrying about it.
+
+## 01 — Few-shot examples
+
+A few-shot example is a worked input/output pair you put inside the prompt before the real input. It teaches the model the pattern by demonstration instead of describing it in English.
+
+```md
+Classify the customer feedback below.
+
+Input: "The shirt is too small."
+Output: {"category":"sizing_issue","severity":"low","action":"offer_exchange"}
+
+Input: "Package never arrived."
+Output: {"category":"shipping_issue","severity":"high","action":"investigate_and_resend"}
+
+Input: "Wrong color sent."
+Output: {"category":"order_error","severity":"medium","action":"offer_replacement"}
+
+Input: "{{user_message}}"
+Output:
+```
+
+The model copies the pattern. It infers the categories, the severity scale, and the JSON shape — all from the three examples — and applies them to the new input. No instruction text required.
+
+Few-shot is especially powerful when the task has implicit conventions you can't easily put into words. *"Severity is medium when the customer is annoyed but not angry, low when they're calm, high when they're threatening to leave"* — that's hard to write down. Three examples make it obvious.
+
+## 02 — Format pinning
+
+The other technique is telling the model what shape the output must take. Models are surprisingly good at obeying explicit format instructions — and surprisingly bad at producing useful structure when you don't ask. *"Respond clearly"* gets you a paragraph. *"Respond as JSON with keys `category`, `severity`, and `action`"* gets you JSON.
+
+The same principle applies to non-JSON outputs:
+
+- *"Return three options as a bullet list."*
+- *"Reply in two short sentences. No more."*
+- *"Output a single line, no punctuation."*
+
+Models trip on free-form open requests but lock onto explicit shapes. Specifying the shape costs you four words and saves you a regex parser later.
+
+A subtle bonus: format pinning makes downstream parsing reliable. If you say "JSON with these three keys," every response you get back can be `JSON.parse`d without defensive code. Without the constraint you'll write a parser that handles bullet lists, paragraphs, and numbered lists, and it will still break.
+
+## 03 — Toggle the lift
+
+Same user input. The only thing that changes is whether three examples sit above it.
+
+<Demo title="Few-shot examples on/off">
+  <FewShotToggleDemo />
+</Demo>
+
+Without examples the model writes prose — useful to a human, useless to your code. With examples it locks onto the JSON shape and severity scale you taught it. That's the entire lift. No re-tuning, no fine-tuning, no upgrading the model.
+
+<Callout type="tip" title="How many examples?">
+Three is usually plenty. Two often works. Going past five rarely helps and starts costing real tokens — at five examples averaging 30 tokens each you've spent 150 tokens before the user has said anything. If three examples don't lift the output, the issue is something other than example count.
+</Callout>
+
+## 04 — Things that don't matter much
+
+A short list of techniques that have either negligible effect or negative effect, ranked from "harmless" to "actively bad":
+
+- **Politeness.** Saying "please" and "thank you" doesn't change output quality. Models don't have feelings; they have probabilities.
+- **"You are an expert in…"** A 20-year-veteran preamble doesn't outperform "Classify this feedback." It does add 15 tokens to every turn.
+- **ALL CAPS.** Yelling at the model is no more effective than yelling at a compiler. Sometimes models will mirror it back, which is annoying.
+- **Threats.** "I will lose my job if you get this wrong" is a meme that briefly worked on early models and now does nothing. Don't bother.
+- **Long flattering preambles.** *"As a brilliant assistant trained on the wisdom of the ages…"* — pure token waste. The model behaves the same with or without it.
+
+The reliable lift is in *what the model sees* (examples, format, schema), not *how you address it*. Save your characters for the part that actually changes the output.
+
+A quick heuristic: when you're tempted to add another adjective, add another example instead. Adjectives are cheap and the model usually ignores them. Examples are slightly more expensive and the model almost always copies them.
+
+<Recap>
+- Two techniques produce a real lift: few-shot examples and format pinning. Most everything else is folklore.
+- Few-shot teaches by demonstration. Three input/output pairs is the sweet spot.
+- Format pinning ("respond as JSON with keys X, Y, Z") gives you parseable output without a defensive parser.
+- Politeness, expert preambles, ALL CAPS, and threats produce no measurable lift. Skip them.
+- When in doubt, add an example, not an adjective.
+</Recap>

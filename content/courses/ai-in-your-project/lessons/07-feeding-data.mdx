@@ -1,0 +1,67 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { SchemaContextDemo } from '@/components/demos/ai-in-your-project/schema-context-demo';
+
+An LLM that doesn't know your data is a generalist on a leash. It can write you a paragraph about *customers in general* but it can't tell you anything about *your* customers. The system prompt is one place where you can extend the leash — by feeding the model your schema, a few sample rows, and the business definitions that don't live anywhere else.
+
+This lesson is about doing that well. The trick isn't pasting more text in; it's choosing the smallest set of facts that makes the model useful, and being deliberate about everything else.
+
+## 01 — What to put in context
+
+Three categories earn their token cost:
+
+- **Schema definitions.** A few SQL `CREATE TABLE` statements, or the Zod/Drizzle equivalent. Tells the model what fields exist, what types they have, and how tables relate. Cheap, dense, high payoff.
+- **Sample rows.** Three to five real-shaped rows per table. They show the model what data *looks like* — typical name lengths, email formats, whether `tags` is an array of strings or comma-separated. Real samples are worth more than English descriptions.
+- **Business definitions.** *"We count a customer as 'lapsed' when their `last_order_at` is more than 60 days ago."* These don't live in your schema and the model can't guess them. One sentence per definition.
+
+That's roughly the whole list. Anything that isn't schema, samples, or definitions is probably noise.
+
+The key property is *reusability*: this stuff doesn't change between conversations. You pay the tokens once at design time and amortize them over every turn. Compare that to per-request data (the customer's actual order history, last week's revenue) which we'll feed via tools instead — see lesson 9.
+
+## 02 — What NOT to put in context
+
+The mirror image. Things that look helpful and aren't:
+
+- **PII at scale.** Names, emails, phone numbers belong in the database, not the prompt. The model can't keep them straight; the privacy review will torch you.
+- **Full table dumps.** A 25-row customer table fits in context. A 25,000-row table burns 50,000 tokens and the model still won't reliably find the right row. Use a search tool.
+- **Anything that changes per request.** Today's order count, this user's pending tasks, the current cart. These are tool calls, not system-prompt content.
+- **Stale derived fields.** *"The most popular product is X."* If it's true today and false next week, don't bake it in.
+
+The rule of thumb: if it's true for every user on every turn and unlikely to change in a month, it's a candidate for the system prompt. Otherwise it's a tool call.
+
+## 03 — See the difference
+
+Toggle whether the schema is in the system prompt and run the same question.
+
+<Demo title="With and without schema in context">
+  <SchemaContextDemo />
+</Demo>
+
+Without the schema, the model has to admit ignorance — there's no honest way to answer "how many customers do we have?" if it can't see them. With the schema (and in this demo, a tiny aggregate computed from the seed data), it answers immediately and correctly. Same model, same user prompt; the only thing that changed is what the system prompt let it see.
+
+Note what *isn't* happening: the model is not running SQL. It's reading numbers we computed and gave it. In Part III we'll wire actual tools so the model can query live data on its own. For now, "give the model the schema and a tiny precomputed summary" is enough to feel real.
+
+## 04 — The token budget
+
+Every character in the system prompt is paid for on every turn. Some quick math at GPT-4o-class rates (the exact numbers shift; the shape doesn't):
+
+- An average English token is ~4 characters.
+- 8 KB of schema + samples is ~2,000 tokens.
+- At about $3 per million input tokens, that's $0.006 per turn.
+- A 100-turn-per-day app with 1,000 daily users: $600/month, just to re-send the schema.
+
+That number is small enough to ignore at a hobby project, large enough to matter at scale. The fix isn't to make the schema smaller — it's to use prompt caching. Most providers will cache an unchanged prefix and bill it at a fraction of the live rate (sometimes 10%). Put your schema and definitions at the *top* of the system prompt, in a fixed order, and you can keep them in the cache for hours.
+
+We'll wire prompt caching properly in Part V. The point for now: design your context as if you'll cache it. Stable bits at the top, per-turn bits at the bottom.
+
+<Callout type="warning" title="Don't paste your users table into the prompt">
+A common mistake: copying a SELECT result into the system prompt so "the model has the data." Don't. Pass the user's *id* in the prompt, then call a `get_customer(id)` tool to fetch the row server-side. Sensitive fields stay on the server; tokens stay small; the schema is the same as production.
+</Callout>
+
+<Recap>
+- Three things earn their tokens in context: schema, sample rows, business definitions. Skip everything else.
+- Don't put PII at scale, full table dumps, or per-request data in the system prompt. Those are tool calls.
+- Same model + schema visible vs. hidden = different answers. The lift is real and free.
+- Schema costs are continuous: ~2,000 tokens × every turn × every user. Layout for prompt caching from day one.
+- Pass IDs to the model. Fetch sensitive rows server-side via tools. Always.
+</Recap>

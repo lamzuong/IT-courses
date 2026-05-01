@@ -1,0 +1,78 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { StructuredOutputDemo } from '@/components/demos/ai-in-your-project/structured-output-demo';
+
+The difference between "the AI returned some text I have to parse with regex" and "the AI returned a typed object I can use directly" is one method call. That's the whole gap structured output closes. You hand the model a schema, the model is constrained to fit its answer into that schema, and your TypeScript code receives a value of the type you declared. No parsing, no defensive checks, no `try { JSON.parse(content) } catch`.
+
+This lesson covers the API, why a Zod schema is the right place to draw the type boundary, what changes under the hood, and the gotchas around strictness. By the end, every place in your app that previously parsed AI output by hand will collapse into a one-liner.
+
+## 01 — `withStructuredOutput`
+
+LangChain's API is short:
+
+```ts
+import { z } from 'zod';
+
+const schema = z.object({
+  name: z.string(),
+  email: z.string().email().nullable(),
+  segment: z.enum(['active', 'dormant', 'lapsed']),
+});
+
+const structured = model.withStructuredOutput(schema);
+const result = await structured.invoke('Extract name, email, and segment from: "Hi Phuoc, …"');
+//    ^ result is typed as z.infer<typeof schema>
+```
+
+Three lines you'll write a hundred times. `withStructuredOutput` returns a wrapped model whose `.invoke()` returns a parsed, validated, fully-typed object. If the model produces something that doesn't fit the schema, you get a thrown error — not a silent half-broken object — which is exactly what you want.
+
+There's no streaming version of structured output (yet) for most providers, because the response only makes sense once it's complete. That's fine for the cases where you need it. Use streaming for chat; use structured output for extraction, classification, and tool inputs.
+
+## 02 — Zod as the source of truth
+
+A Zod schema does double duty in a way that's worth pausing on:
+
+- It validates the model's output (via `withStructuredOutput`).
+- It validates inputs from your API routes (via `schema.parse(req.body)`).
+- It generates the TypeScript type (via `z.infer`).
+- It can be turned into a JSON Schema for documentation, OpenAPI specs, or other tools.
+
+One file, four jobs. The schema becomes the single place where the shape of `Customer` lives in your app. Change a field there and everything that touches it — the API, the database adapter, the AI extractor, your component props — gets a type error or a runtime error in the right place.
+
+Compare to the alternative: a TypeScript `type` declaration plus a hand-written validator plus a separate prompt that says "return JSON with these fields." Three places to change, three opportunities for them to drift apart, and the AI prompt was always the one that lagged behind.
+
+## 03 — Watch the object build
+
+Run the extractor and watch the typed object fill in.
+
+<Demo title="Schema-constrained extraction">
+  <StructuredOutputDemo />
+</Demo>
+
+The shape of the output is fixed at the moment you declare the schema. The model can't add a field, can't omit a required one, can't put a string where you asked for a number. `email` came back `null` because the source text didn't contain one — the schema permits that with `.nullable()`. `segment` came back `'lapsed'` rather than something the model invented, because the enum constrained it to exactly three values.
+
+That last property is what makes structured output more than a parsing convenience. The model is *prevented* from hallucinating new categories. If your downstream code does `if (segment === 'churned')` you'll get a TypeScript error before you ship — because `'churned'` is not in the enum. Errors caught early are cheap.
+
+## 04 — Strictness gotchas
+
+A handful of surprises worth knowing before you hit them:
+
+- **`.nullable()` vs `.optional()`.** `nullable()` means the field will be present and either the type or `null`. `optional()` means the field might be missing. They're not the same — `result.email` is `string | null` in the first case and `string | undefined` in the second. Pick deliberately. Models fill in `null` more reliably than they leave fields out.
+- **Enums.** Always prefer `z.enum([...])` to `z.string()` when the field has a small fixed set of values. The constraint is real — the model will refuse to invent new values — and your downstream `switch` becomes exhaustive.
+- **Refinements.** `.refine()` lets you add custom validation (*"this string must be a valid SKU"*). They run after the model returns, so a refinement failure throws and you have to retry. Good for safety, expensive for happy paths.
+- **Nested objects.** They work, but every level of nesting makes the schema harder for the model to fill correctly. Flat is better than nested unless the structure really demands it.
+- **Optional fields the model "forgets."** Even when a field is required, smaller models will occasionally omit it. Validation catches this — you'll get a thrown error rather than a silent miss — but a one-line `.catch` and retry is sometimes warranted.
+
+A rule of thumb: design your schemas tight on day one. It's easier to relax a constraint later than to add one after a thousand stored records were saved without it.
+
+<Callout type="note" title="How structured output works under the hood">
+On most providers, `withStructuredOutput` is implemented by passing your schema as a single tool the model is forced to call. The "response" is the tool's arguments. Some providers (notably OpenAI's JSON mode and Gemini's response schema) have a dedicated parameter, but the API surface LangChain gives you is the same. You don't need to know which path your provider takes — the contract is the same: you get a typed object or a thrown error.
+</Callout>
+
+<Recap>
+- `model.withStructuredOutput(schema)` turns AI output into a typed object. No parsing, no retries.
+- Use Zod once: for AI output, API input validation, TypeScript types, and JSON Schema export. One source of truth.
+- Enums prevent the model from inventing categories. `nullable()` and `optional()` are not the same — choose carefully.
+- Tight schemas on day one. Loosening is cheap; tightening after data is stored is not.
+- Under the hood it's usually a forced tool call, but you can ignore that and trust the API.
+</Recap>

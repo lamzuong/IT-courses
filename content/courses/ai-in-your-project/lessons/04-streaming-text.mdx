@@ -1,0 +1,108 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { StreamingTextDemo } from '@/components/demos/ai-in-your-project/streaming-text-demo';
+
+Streaming is the difference between "the model is thinking" and "the model is talking." Same wait time, very different feel. The user who watches words appear is patient; the user who stares at a spinner is not. Nothing about the model changes — only what the browser does with the bytes as they arrive.
+
+This lesson takes the SSE handler from lesson 3 and connects it to a real React UI. By the end, your app will drip tokens in as the model produces them, and you'll have a small `useStream` hook you can drop into every page that needs it.
+
+## 01 — Why streaming is worth the small extra work
+
+A model that emits 200 tokens at 30 tokens per second takes about seven seconds. If you wait for the whole response, the user stares at a spinner for seven seconds and then sees a wall of text. If you stream, the first word appears in ~50ms and the user reads while the rest is generating. The total wall-clock time is identical, but the *perceived* latency is the time-to-first-token.
+
+The reading speed of a typical adult is roughly 250 words per minute, or about four words per second. Most modern open-weight models emit faster than that. Once the user starts reading, the model has effectively *caught up to them* — they finish the sentence at the same moment the model finishes generating it. The wait disappears.
+
+Streaming also gives you a free progress signal. If tokens stop arriving you know something is wrong; if they're trickling in, the system is alive. You don't need a separate "is it still working?" indicator.
+
+## 02 — `model.stream()` on the server
+
+You wrote this handler in lesson 3. Read it again with streaming in mind:
+
+```ts
+const stream = await model.stream(message);
+
+const body = new ReadableStream({
+  async start(controller) {
+    for await (const chunk of stream) {
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk.content)}\n\n`));
+    }
+    controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+    controller.close();
+  },
+});
+```
+
+`model.stream()` returns an async iterator of `AIMessageChunk` objects. Each iteration is one chunk — usually a single token or a small group of them. You wrap them in the SSE format (`data: ...\n\n`) and push them through a `ReadableStream`. The `[DONE]` sentinel is a convention, not a spec — but every browser SSE consumer expects something like it, so we follow the crowd.
+
+Three things to notice:
+
+- The handler is *push-shaped*, not pull-shaped. The model decides when chunks arrive; you forward them as they show up.
+- `JSON.stringify` is mandatory — newlines in raw text would corrupt the SSE framing.
+- The stream closes itself when the model finishes. No timeout, no `setTimeout`, no manual cleanup.
+
+## 03 — The React side: a tiny `useStream` hook
+
+The browser side is shorter than people expect. `fetch` returns a `Response` whose `body` is a `ReadableStream`. You read it chunk by chunk, parse the `data: ` lines, and append to state.
+
+```tsx
+'use client';
+import { useState } from 'react';
+
+export function useStream() {
+  const [text, setText] = useState('');
+  const [running, setRunning] = useState(false);
+
+  async function send(message: string) {
+    setText('');
+    setRunning(true);
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      for (const line of buf.split('\n\n')) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6);
+        if (payload === '[DONE]') break;
+        setText((t) => t + JSON.parse(payload));
+      }
+      buf = buf.split('\n\n').slice(-1)[0];
+    }
+    setRunning(false);
+  }
+
+  return { text, running, send };
+}
+```
+
+Twenty-five lines, no dependency. The only subtle bit is the trailing-buffer trick: SSE frames are separated by `\n\n`, but a network read can split a frame in the middle. We keep the unfinished tail in `buf` and prepend it next time around. Without that, you'll randomly drop tokens whenever the network gives you a small chunk.
+
+Once you have this hook, every chat-shaped page is roughly the same: a textarea, a button, and `<div>{text}</div>`. The streaming machinery becomes invisible.
+
+## 04 — See it run
+
+Click Run and watch the response drip in.
+
+<Demo title="Streaming text into the UI">
+  <StreamingTextDemo />
+</Demo>
+
+In a real wire, each character would correspond to a token from the model. Here we cheat a little — characters are easier to animate convincingly than the irregular bursts a real LLM produces — but the *shape* is identical to what you'd see in production.
+
+<Callout type="note" title="What about Server-Sent Events libraries?">
+You don't need one. `EventSource` is a built-in browser API, but it can't send a POST body — that's why we use `fetch` and parse manually. Fifteen lines of decoder logic beats pulling in a 30 KB dependency.
+</Callout>
+
+<Recap>
+- Streaming doesn't change wall-clock time; it changes perceived latency. Time-to-first-token is what the user feels.
+- Server side: `model.stream()` → `ReadableStream` → SSE frames. About 15 lines.
+- Browser side: `fetch` → `body.getReader()` → decoder → split on `\n\n` → parse `data: ` lines → setState. About 25 lines.
+- Once you have a `useStream` hook, every chat page becomes "a textarea and a div." The streaming machinery disappears.
+</Recap>

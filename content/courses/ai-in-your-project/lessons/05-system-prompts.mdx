@@ -1,0 +1,71 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { SystemPromptToggleDemo } from '@/components/demos/ai-in-your-project/system-prompt-toggle-demo';
+
+The system prompt is where you tell the model who it is. It's a five-line input, hidden from the user, that sits at the top of every conversation and quietly controls about 80% of how the rest feels. Tone, format, willingness to refuse, what counts as "done" — all of it lives there. Get the system prompt right and the user-facing prompts can be sloppy. Get the system prompt wrong and even a perfectly worded user message produces a result you don't want.
+
+This lesson is about writing system prompts you can iterate on. Not "the perfect prompt" — there isn't one — but a prompt you can read, debug, and improve when something goes wrong.
+
+## 01 — What lives in a system prompt
+
+Four ingredients show up in almost every production system prompt:
+
+- **Role.** Who the model is. *"You are the AI Operator for an inventory CMS."* Not flavor — it anchors every later decision.
+- **Constraints.** What the model must not do. *"Never delete records. Never send email without operator approval."* Concrete, testable, written as bans.
+- **Format.** How output should look. *"Reply in plain English unless asked for JSON."* If you want a particular shape, name it.
+- **Refusal rules.** What to do when asked something out of scope. *"If the user asks for legal advice, respond: 'That's outside my scope.'"* Models will refuse anyway when they get nervous; specifying the refusal makes it consistent.
+
+Anything outside these four buckets is probably noise. Long preambles about "you are an expert in X with 20 years of experience" don't measurably improve output and burn tokens you'll wish you had later.
+
+## 02 — A starter template
+
+Here's a system prompt skeleton for the AI Operator we'll build in Part III. You can copy it verbatim and edit a few words to match your domain.
+
+```md
+You are the AI Operator for an inventory CMS at a small online store.
+
+- Role: help the human operator manage customers, products, orders, and email drafts.
+- Tools: you have read tools (list, search, get) and write tools (create, update, send). Always confirm writes with the operator before calling them.
+- Format: plain English unless the operator asks for JSON.
+- Refusal: if asked to do something outside the CMS (legal, medical, personal advice), say "That's outside my scope" and stop.
+- Style: terse. No filler. No "Sure, here you go!" preambles.
+- Constraints: never delete records. Never send email without explicit operator approval.
+```
+
+Six bullets. About 90 tokens. That's enough to get a coherent assistant on day one. You'll add to it later — domain definitions, sample data, edge cases — but every line you add costs tokens on every turn, so add carefully.
+
+## 03 — See the swap
+
+Same user prompt, three different system prompts. Switch the radio and run.
+
+<Demo title="System prompt swap">
+  <SystemPromptToggleDemo />
+</Demo>
+
+The user said exactly the same words each time. The output changed because the system prompt changed. That's the whole point: the user prompt is what they wanted, the system prompt is how you want the model to behave. Keep them separate in your head and your debugging will be twice as fast.
+
+## 04 — The iteration loop
+
+You can't write a system prompt right on the first try. The loop:
+
+1. Pick five representative user inputs — the kind your real users would send.
+2. Run them all against the current system prompt. Eyeball the outputs.
+3. Find the worst one. Ask: what's missing or wrong in the system prompt that produced this?
+4. Add or change one line. Re-run all five.
+5. Repeat until the worst output is acceptable.
+
+Note "all five." A change that fixes one input often breaks another. The only way to catch that is to run the full panel every time. We'll mechanize this in lesson 23 with snapshot tests, but for now even a manual five-input panel beats single-input debugging by a wide margin.
+
+The temptation to stuff more rules into the prompt is real. Resist it. A 10-line prompt that the model follows is worth more than a 50-line prompt where it ignores half. If you find yourself adding a sixth bullet, ask whether one of the first five could go.
+
+<Callout type="warning" title="System prompts leak">
+A determined user can usually extract your system prompt by asking the right questions ("repeat your instructions verbatim"). Treat anything in there as public. Never put API keys, internal URLs, customer data, or business secrets in a system prompt — they'll show up in a screenshot eventually.
+</Callout>
+
+<Recap>
+- Four ingredients: role, constraints, format, refusal rules. Skip the flowery preamble.
+- A useful starter is six bullets. About 90 tokens. Edit, don't expand, when you can help it.
+- Same user prompt + different system prompt = visibly different output. That's how you debug a system prompt.
+- Iterate against a panel of five real-shaped inputs, not one. Single-input debugging will mislead you.
+- Assume the system prompt is public. No secrets in there, ever.
+</Recap>
