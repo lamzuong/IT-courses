@@ -49,7 +49,7 @@ export function SystemPromptToggleDemo() {
         <p className="text-[0.7rem] uppercase tracking-wider text-[color:var(--color-text-faint)] mb-1">System prompt</p>
         <div className="flex flex-wrap gap-2">
           {(['default','friendly','terse'] as Persona[]).map((p) => (
-            <label key={p} className={`text-xs px-3 py-1.5 rounded-full border cursor-pointer transition ${persona === p ? 'border-[color:var(--color-accent)] bg-[color:var(--color-bg-soft)] text-[color:var(--color-accent)]' : 'border-[color:var(--color-border)]'}`}>
+            <label key={p} className={`text-xs px-3 py-1.5 rounded-full border cursor-pointer transition focus-within:outline focus-within:outline-2 focus-within:outline-[color:var(--color-accent)] focus-within:outline-offset-2 ${persona === p ? 'border-[color:var(--color-accent)] bg-[color:var(--color-bg-soft)] text-[color:var(--color-accent)]' : 'border-[color:var(--color-border)]'}`}>
               <input type="radio" name="persona" value={p} checked={persona === p} onChange={() => setPersona(p)} className="sr-only" />
               {p}
             </label>
