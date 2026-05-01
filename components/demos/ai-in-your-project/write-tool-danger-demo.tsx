@@ -17,7 +17,6 @@ type Pending = {
 
 type LogEntry = { kind: 'info' | 'write' | 'block'; text: string };
 
-let nextId = 1;
 function makeReqKey() {
   return 'req_' + Math.random().toString(36).slice(2, 8);
 }
@@ -33,6 +32,7 @@ export function WriteToolDangerDemo() {
   const [pending, setPending] = useState<Pending | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
   const timeoutsRef = useRef<number[]>([]);
+  const nextIdRef = useRef(1);
 
   function clearAll() {
     timeoutsRef.current.forEach((id) => window.clearTimeout(id));
@@ -48,7 +48,7 @@ export function WriteToolDangerDemo() {
   function commit(code: string, discount: string, requestKey: string) {
     setRows((prev) => [
       ...prev,
-      { id: nextId++, code, discount, createdAt: nowStamp(), requestKey },
+      { id: nextIdRef.current++, code, discount, createdAt: nowStamp(), requestKey },
     ]);
     pushLog({ kind: 'write', text: `INSERT promotions (${code}, ${discount}) [${requestKey}]` });
   }
@@ -105,7 +105,7 @@ export function WriteToolDangerDemo() {
     setRows([]);
     setPending(null);
     setLog([]);
-    nextId = 1;
+    nextIdRef.current = 1;
   }
 
   return (
