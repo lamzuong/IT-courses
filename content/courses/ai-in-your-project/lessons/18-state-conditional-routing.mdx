@@ -1,0 +1,101 @@
+import { Recap } from '@/components/mdx/recap';
+import { ConditionalRoutingDemo } from '@/components/demos/ai-in-your-project/conditional-routing-demo';
+
+Two tool nodes, one router, two paths. That's how reads run free and writes wait for the user. The single-tools-node graph from lesson 17 works, but it treats every tool the same — every result is appended automatically, every loop closes without a human in the loop. The instant a tool starts mutating the database, you want a different shape: *reads continue automatically; writes pause for confirmation*. That's a routing decision, and routing decisions live on conditional edges.
+
+You won't change the agent node. You won't change the model. You'll split one node into three and add one router function. That's the whole upgrade, and it's how every production-grade agent starts looking different from the toy ones.
+
+## 01 — Splitting tools by side effect
+
+Pick any tool you've built and ask: *if the model called this twenty times in a row by mistake, would the cleanup take five minutes or five hours?* If five minutes (it's a search), it's a read tool. If five hours (it's a refund), it's a write tool. There's no middle. Categorise every tool in your registry that way.
+
+```ts
+const READ_TOOLS = ['customers.search', 'orders.totals', 'products.list'] as const;
+const WRITE_TOOLS = ['promotions.create', 'emails.draft_bulk', 'customers.tag_bulk'] as const;
+
+type ReadName = (typeof READ_TOOLS)[number];
+type WriteName = (typeof WRITE_TOOLS)[number];
+
+function isReadTool(name: string): name is ReadName {
+  return (READ_TOOLS as readonly string[]).includes(name);
+}
+function isWriteTool(name: string): name is WriteName {
+  return (WRITE_TOOLS as readonly string[]).includes(name);
+}
+```
+
+Now your tools registry has two halves, and the graph can have two nodes: `read_tools` (executes immediately, like before) and `write_tools` (only entered after a human approves).
+
+## 02 — Conditional edges as logic
+
+In LangGraph, an `addConditionalEdges` call is a router: a function that looks at state and returns the name of the next node. The agent node already produces an `AIMessage` with optional `tool_calls`; the router's job is to classify those calls and pick a destination.
+
+```ts
+import { StateGraph, END } from '@langchain/langgraph';
+
+graph
+  .addNode('agent', agentNode)
+  .addNode('read_tools', readToolsNode)
+  .addNode('await_confirmation', awaitConfirmationNode)
+  .addNode('write_tools', writeToolsNode)
+  .setEntryPoint('agent')
+  .addConditionalEdges('agent', routeByToolType, {
+    read: 'read_tools',
+    write: 'await_confirmation',
+    done: END,
+  })
+  .addEdge('read_tools', 'agent')
+  .addEdge('await_confirmation', 'write_tools')
+  .addEdge('write_tools', 'agent');
+```
+
+Read that wiring out loud. From `agent`, the router can go three places: into the read pile, into the confirmation pause before the write pile, or out to `END`. From `read_tools` and `write_tools`, the graph always loops back to `agent` so the model can react to the new `ToolMessages`. The `await_confirmation` node sits between `agent` and `write_tools` precisely so that no write happens without a human deciding it should.
+
+## 03 — The router function
+
+The router is small and deterministic. It looks at the last message; if it's an `AIMessage` with tool calls, it classifies them.
+
+```ts
+import { isAIMessage } from '@langchain/core/messages';
+
+type Route = 'read' | 'write' | 'done';
+
+function routeByToolType(state: GraphState): Route {
+  const last = state.messages.at(-1);
+  if (!last || !isAIMessage(last)) return 'done';
+
+  const calls = last.tool_calls ?? [];
+  if (calls.length === 0) return 'done';
+
+  // If *any* call is a write, route through confirmation. Reads are batched
+  // into the next agent turn — confirmation pauses the entire batch.
+  if (calls.some((c) => isWriteTool(c.name))) return 'write';
+  if (calls.every((c) => isReadTool(c.name))) return 'read';
+
+  // A tool the registry doesn't classify is treated as a write — fail safe.
+  return 'write';
+}
+```
+
+Three behaviours worth pinning down. A reply with no tool calls means the model is done; route to `END`. A reply with only read calls runs free. A reply with *any* write call — even one mixed into a list of reads — routes through `await_confirmation`. The conservative default for an unknown tool name is *write*, so adding a tool without classifying it first never silently bypasses the gate.
+
+This is exactly the kind of logic that wants to be a small named function. It's deterministic, it's testable in five lines (`expect(routeByToolType(stateWithOnlyReads)).toBe('read')`), and it's the kind of code reviewers can sign off on without running the model.
+
+## 04 — Watch the routing change
+
+Three preset prompts, three different paths. The read-only prompt traces `agent → read_tools → agent → END`. The write-only prompt pauses at `await_confirmation` before letting `write_tools` run. The mixed prompt does both — the write call drags the whole batch into confirmation, exactly like the router said it would. Edges that don't get traversed for the chosen prompt fade so you can see the path your input took without losing the rest of the topology.
+
+<Demo title="Conditional routing — reads run free, writes wait for the user">
+  <ConditionalRoutingDemo />
+</Demo>
+
+The shape that just appeared on screen is the whole thesis of Part IV. Splitting tools by side effect isn't a clever trick — it's the boundary your application puts between *the model that proposes* and *the human who disposes*. The next lesson fills in what happens inside `await_confirmation`. That node is where the graph actually pauses.
+
+<Recap>
+- Sort every tool into reads (auto-run) and writes (pause for confirmation). The category drives the route.
+- The agent node doesn't change. You add `read_tools`, `await_confirmation`, and `write_tools` around it.
+- A conditional edge from `agent` is just a function returning the next node's name — `'read'`, `'write'`, or `END`.
+- The router rule that earns its keep: *any* write call in the batch routes through confirmation. Reads-only is the only way to skip the gate.
+- An unknown tool name routes to write by default — fail safe so a forgotten classification can't bypass the human.
+- Conditional edges are logic. Logic is testable. Routing is now a five-line unit test, not a code review of a thousand-line agent loop.
+</Recap>

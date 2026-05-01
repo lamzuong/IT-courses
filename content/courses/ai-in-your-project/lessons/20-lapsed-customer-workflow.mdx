@@ -1,0 +1,82 @@
+import { Recap } from '@/components/mdx/recap';
+import { LapsedCustomerDemo } from '@/components/demos/ai-in-your-project/lapsed-customer-demo';
+
+Walk through the example from lesson 1 with every tool you've built. The lapsed-customer workflow has been the carrot on a stick since the first page of this course: *create a 15% promo for customers who haven't ordered in 60 days, draft them a re-engagement email, and tag them so we can see what worked.* Twenty lessons ago that sentence felt like a paragraph for a feature spec. Now it's three nodes, four tool calls, and three confirmation gates wired up on a graph you understand line by line. This lesson runs the whole thing end-to-end and points out where each primitive from the course earns its keep.
+
+## 01 — The prompt
+
+> *"Create a 15% promo for customers who haven't ordered in 60 days, draft them a re-engagement email, and tag them as `lapsed-q4`."*
+
+That's the operator's input. One sentence. Three mutations, one read, and at least three places a human ought to be asked before the database changes. The model doesn't have to figure out the schema (your tools advertise it), doesn't have to infer the audience cutoff (the prompt says 60 days), and doesn't have to invent the workflow (it's been laid out in the system prompt and the few-shot examples from Part II). What the model *does* have to do is decompose the sentence into a plan whose steps your tools can execute, in an order whose dependencies it correctly identifies.
+
+## 02 — The plan the model produces
+
+A structured-output call (lesson 8) at the top of the agent turn produces something like this:
+
+```json
+{
+  "plan": [
+    { "id": 1, "action": "create_promo",  "args": { "code": "LAPSED15", "discountType": "pct", "discountValue": 15, "audience": "lapsed-60d" } },
+    { "id": 2, "action": "find_lapsed",   "args": { "days": 60 } },
+    { "id": 3, "action": "draft_emails",  "args": { "promoCode": "LAPSED15", "from": "step-2.recipients" } },
+    { "id": 4, "action": "tag_customers", "args": { "tag": "lapsed-q4", "ids": "step-2.recipients.ids" } }
+  ]
+}
+```
+
+Two things to notice. First, the read step is in the *middle* — step 2 produces the recipient list that steps 3 and 4 depend on, so the plan can't be a flat list of independent calls. Second, the dependencies are encoded with placeholder strings (`step-2.recipients`) the agent loop resolves on the fly. Your structured-output schema is what guarantees this shape every time; you don't trust the model's free-form prose to be parseable.
+
+## 03 — Step-by-step execution
+
+The graph starts at `agent`. The model emits its first `tool_call`: `promotions.create`. The router (lesson 18) classifies it as a write and routes to `await_confirmation`. The interrupt (lesson 19) fires; the UI shows the confirmation card. The user clicks Approve. The resume value flows back into the node, the graph routes onward to `write_tools`, and a single Drizzle insert runs:
+
+```ts
+await db.insert(promotions).values({
+  code: 'LAPSED15',
+  discountType: 'pct',
+  discountValue: 15,
+  audienceFilter: { lapsedDays: 60 },
+  active: true,
+  createdBy: 'ai',
+});
+```
+
+The audit log (lesson 12) records the row. The graph loops back to `agent`. The model emits its next call: `customers.lapsed({ days: 60 })`. The router classifies it as a read. No interrupt — it goes straight to `read_tools`, which runs the Drizzle query and returns rows:
+
+```ts
+return await db.select()
+  .from(customers)
+  .where(lt(customers.lastOrderAt, sql`now() - interval '60 days'`));
+```
+
+Seven rows come back. The graph loops to `agent` again. The model now has the recipient list and emits `emails.draft_bulk` with the seven customer IDs. The router classifies it as a write — back to `await_confirmation`. The UI shows a confirmation card with the recipient names visible so the operator can spot a wrong audience before it ships. Approve. The graph runs the bulk insert, audits seven new rows in `email_drafts`, and loops once more.
+
+The model emits the final tool: `customers.tag_bulk` with the same seven IDs and the tag `lapsed-q4`. Router → confirmation → approve → write. The graph loops, the model produces a final `AIMessage` with no tool calls (`"Done — promo created, 7 drafts saved, 7 customers tagged."`), and the conditional edge sends it to `END`.
+
+Three confirmation gates. Three Drizzle write queries. One Drizzle read. One audit-log row per write. Idempotency keys (lesson 13) on every write so a retried request never doubles up. Error recovery (lesson 14) so a transient failure on the email drafts doesn't take down the promo creation. Every primitive from the course is in there.
+
+## 04 — Watch it run
+
+The demo below runs the whole sequence with the *real* `lapsedCustomers(60)` from the course's mock CMS — the recipient list isn't placeholder strings, it's the actual seven customers whose `lastOrderAt` is more than 60 days ago in the seed data. Three confirmation gates, an audit log on the right that gains a row every time a mutation commits, and a final state that makes it obvious what landed and what didn't.
+
+<Demo title="Lapsed customer workflow — the full Part IV pipeline">
+  <LapsedCustomerDemo />
+</Demo>
+
+Run it once and approve everything to see the audit log fill in row by row. Run it again and reject the second card — notice that the promo creation from step 1 *stays in the audit log* (it already committed) but nothing else does. That's the cleanest possible failure mode: every mutation is audited the moment it commits, and rejection is a hard stop that leaves earlier work in place rather than trying to roll it back. Recovery, when needed, is its own approved workflow — not silent undo magic.
+
+## 05 — What the student now has
+
+Look at the list of primitives composed in that demo: structured output, read tools, write tools, idempotency keys, error recovery, conditional routing, interrupt + confirmation, audit logging. Eight things. Every one of them was a lesson, often a lesson with its own little demo, and now they all snap together on a single graph spine. That's the whole arc of Part IV: *a graph isn't a fancy way to draw an agent loop, it's a place to put each separately-developed concern without them tangling with each other.*
+
+There is exactly one thing missing before this is a thing you'd ship to production: durability. The graph as it stands today lives in memory; close the page mid-confirmation and the half-completed plan is gone. That's what Part V Lesson 21 fixes with checkpointers, and after that Part V covers safety, testing, observability, and deploy. The structural work is done. What's left is making it *survive in the wild*.
+
+<Recap>
+- One operator sentence decomposes into a four-step plan: create promo, find lapsed customers, draft emails, tag customers. Three writes, one read.
+- Structured output keeps the plan's shape predictable; you don't parse free-form prose.
+- The router classifies each tool call: writes route through `await_confirmation`, reads run free.
+- Each write step is one interrupt → one confirmation card → one Drizzle mutation → one audit-log row. Three gates, three rows.
+- Idempotency keys protect against double-writes on retried requests; error recovery isolates failure of one step from the others.
+- Reject is a hard stop. Earlier mutations stay committed and stay in the audit log; rolling back is its own approved workflow.
+- Every primitive from Parts I–IV composes onto one graph. The next part makes that graph durable, safe, observable, and shippable.
+</Recap>
