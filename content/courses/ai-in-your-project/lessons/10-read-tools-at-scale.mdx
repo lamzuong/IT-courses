@@ -32,7 +32,7 @@ export const listCustomers = tool(
 );
 ```
 
-A few things to notice. The `limit` is bounded — `min(1).max(50)` means even a confused model can't ask for ten thousand rows. The cursor is opaque to the model: it never has to know that internally it's an integer ID. The shape returned by the tool is `{ rows, nextCursor }` — the model learns the convention once and applies it across every paginated tool you build.
+A few things to notice. The `limit` is bounded — `min(1).max(50)` means even a confused model can't ask for ten thousand rows. The cursor here is a stringified ID for teaching clarity; in production you'd encode it (e.g. `Buffer.from(JSON.stringify({id})).toString('base64url')`) so the model can't synthesize one by guessing the scheme — it just hands back whatever string the previous response gave it. The shape `{ rows, nextCursor }` is the convention the model learns once and applies across every paginated tool you build.
 
 Models are good at multi-step reasoning when the protocol is consistent. If half your tools paginate with `cursor` and half with `page`, you'll see the model send `page: 2` to a cursor tool and stop. Pick one shape and apply it everywhere.
 
