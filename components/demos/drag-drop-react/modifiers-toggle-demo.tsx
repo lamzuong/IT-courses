@@ -48,7 +48,7 @@ export function ModifiersToggleDemo() {
     <div className="grid md:grid-cols-[1fr_220px] gap-4">
       <DndContext modifiers={modifiers}>
         <div
-          className="relative h-64 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-soft)]"
+          className="demo-canvas relative h-64 rounded border border-[color:var(--color-border)]"
           style={{ backgroundImage: gridBg, backgroundSize: '20px 20px' }}
         >
           <Card />

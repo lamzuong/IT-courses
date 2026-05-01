@@ -56,7 +56,7 @@ export function DropBinsDemo() {
           </div>
         ))}
       </div>
-      <div className="relative h-32 rounded bg-[color:var(--color-bg-soft)] border border-[color:var(--color-border)]">
+      <div className="demo-canvas relative h-32 rounded border border-[color:var(--color-border)]">
         <div
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}

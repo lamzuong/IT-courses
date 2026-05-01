@@ -450,7 +450,7 @@ export function TableBookingDemo() {
               backgroundImage: `linear-gradient(to right, color-mix(in oklab, var(--color-rule), transparent 70%) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklab, var(--color-rule), transparent 70%) 1px, transparent 1px)`,
               backgroundSize: `${GRID}px ${GRID}px`,
             }}
-            className="relative rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg-soft)]/50 overflow-hidden"
+            className="demo-canvas relative rounded-lg border border-[color:var(--color-border)] overflow-hidden"
           >
             {/* group outlines below tables */}
             {groups.map((grp, i) => (

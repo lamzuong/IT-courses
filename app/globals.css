@@ -428,6 +428,13 @@
 .plate-reset:hover { border-color: var(--color-ink); background: var(--color-bg-soft); }
 .plate-body { padding: 1.5rem; }
 
+/* Static playground canvas — used inside demos as the area where users drag.
+   Pure white at the top fading to pale mint, so the canvas reads as a fresh
+   sheet that gently nods to the green theme without dominating the demo. */
+.demo-canvas {
+  background: linear-gradient(180deg, #ffffff 0%, #f0f7e6 100%);
+}
+
 /* ───────────────────────── code blocks ───────────────────────── */
 
 .code-block-wrap {

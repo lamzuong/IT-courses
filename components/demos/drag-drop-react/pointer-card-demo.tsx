@@ -32,7 +32,7 @@ export function PointerCardDemo() {
   }
 
   return (
-    <div className="relative h-64 rounded bg-[color:var(--color-bg-soft)] border border-[color:var(--color-border)] overflow-hidden">
+    <div className="demo-canvas relative h-64 rounded border border-[color:var(--color-border)] overflow-hidden">
       <p className="absolute inset-0 flex items-center justify-center font-serif italic text-[color:var(--color-text-faint)] pointer-events-none">
         {dragging ? '' : 'try with mouse, finger, or pen'}
       </p>

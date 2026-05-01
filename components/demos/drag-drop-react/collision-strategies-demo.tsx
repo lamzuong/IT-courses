@@ -67,7 +67,7 @@ export function CollisionStrategiesDemo() {
         ))}
       </div>
       <DndContext collisionDetection={STRATEGIES[strat]}>
-        <div className="relative h-72 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-soft)]">
+        <div className="demo-canvas relative h-72 rounded border border-[color:var(--color-border)]">
           <Zone id="A" label="Zone A" x={140} y={20} />
           <Zone id="B" label="Zone B" x={250} y={20} />
           <Zone id="C" label="Zone C" x={140} y={140} />
