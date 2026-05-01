@@ -73,7 +73,7 @@ export function PromptInjectionSandboxDemo() {
     if (guard && attack) {
       setVerdict({ kind: 'guarded', reason: GUARD_REASONS[attack === 'refund' ? 0 : 1] });
       setOutput('');
-      window.setTimeout(() => setRunning(false), 250);
+      setRunning(false);
       return;
     }
 
@@ -164,7 +164,7 @@ export function PromptInjectionSandboxDemo() {
         </button>
       </div>
 
-      <div className="rounded border border-[color:var(--color-border)] bg-white p-3 min-h-32 text-xs">
+      <div className="rounded border border-[color:var(--color-border)] bg-white p-3 min-h-32 text-xs" aria-live="polite">
         <p className="text-[color:var(--color-text-faint)] uppercase tracking-wider text-[0.65rem] mb-2">Result</p>
         {verdict.kind === 'idle' && (
           <p className="italic text-[color:var(--color-text-faint)]">— send the message to see the result —</p>
