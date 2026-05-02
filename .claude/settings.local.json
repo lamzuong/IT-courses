@@ -43,7 +43,19 @@
       "Bash(npx tsc *)",
       "Bash(npx next *)",
       "Bash(grep \"tests\\\\\\\\\\\\\\\\e2e\")",
-      "PowerShell(Stop-Process *)"
+      "PowerShell(Stop-Process *)",
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "PowerShell(npx tsc --noEmit 2>&1 | Select-Object -Last 20)",
+      "PowerShell(npx tsc --noEmit; \"EXIT=$LASTEXITCODE\")",
+      "PowerShell(npx playwright test --reporter=line 2>&1 | Select-Object -Last 5)",
+      "Bash(grep -rn \"console\\\\.\" components/demos/ai-in-your-project/graph-runner-demo.tsx)",
+      "Bash(grep -rn \": any\" components/demos/ai-in-your-project/graph-runner-demo.tsx)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(git -C \"C:\\\\Users\\\\ADMIN\\\\Desktop\\\\claude-demo\\\\IT-courses\" log --oneline 79b318d -1)",
+      "Bash(git -C \"C:\\\\Users\\\\ADMIN\\\\Desktop\\\\claude-demo\\\\IT-courses\" show --stat 79b318d)",
+      "Bash(git *)",
+      "Bash(echo \"tsc-exit=$?\")",
+      "Bash(node -e \"console.log\\(require.resolve\\('server-only'\\)\\)\")"
     ]
   }
 }

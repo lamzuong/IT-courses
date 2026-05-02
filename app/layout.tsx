@@ -3,6 +3,7 @@ import { Manrope, Fraunces, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { SiteNav } from '@/components/site/nav';
 import { SiteFooter } from '@/components/site/footer';
+import { getSearchIndex } from '@/lib/search-index';
 
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope', display: 'swap' });
 const fraunces = Fraunces({ subsets: ['latin'], variable: '--font-fraunces', display: 'swap' });
@@ -14,10 +15,11 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const searchIndex = getSearchIndex();
   return (
     <html lang="en" className={`${manrope.variable} ${fraunces.variable} ${mono.variable}`}>
       <body suppressHydrationWarning>
-        <SiteNav />
+        <SiteNav searchIndex={searchIndex} />
         {children}
         <SiteFooter />
       </body>
