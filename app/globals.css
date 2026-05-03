@@ -759,6 +759,7 @@
   text-decoration: none;
   color: inherit;
   border-radius: 18px;
+  height: 100%;
   transition: transform 200ms cubic-bezier(0.2, 0.7, 0.3, 1.2);
 }
 .course-card-link:hover { transform: translateY(-3px); }
@@ -774,6 +775,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  height: 100%;
   box-shadow: 0 1px 0 rgba(15, 24, 21, 0.03);
   transition: box-shadow 240ms ease, border-color 240ms ease, transform 240ms cubic-bezier(0.2, 0.7, 0.3, 1.2);
 }
@@ -785,6 +787,7 @@
 .course-card-fill {
   position: relative;
   padding: 1.4rem 1.55rem 1.4rem;
+  flex: 1;
   background:
     linear-gradient(
       180deg,
