@@ -230,7 +230,7 @@ export default async function Home() {
       <section aria-labelledby="course-shelf-heading">
         <h2 id="course-shelf-heading" className="sr-only">Available courses</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           <CourseCard
             variant="peach"
             tag="Complete"
