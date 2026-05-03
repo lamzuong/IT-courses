@@ -214,7 +214,7 @@ export default async function Home() {
   const dndTotalRead = formatHours(dndStats.totalMinutes);
 
   return (
-    <main id="main-content" className="mx-auto max-w-5xl px-6 py-12 md:py-16">
+    <main id="main-content" className="mx-auto max-w-7xl px-6 py-12 md:py-16">
       <header className="mb-10 md:mb-14">
         <p className="text-xs uppercase tracking-[0.22em] text-[color:var(--color-text-faint)] font-semibold">
           IT Courses · A small shelf
