@@ -1,0 +1,171 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Tool use is what turns Claude from a text generator into something that *does* things. You declare typed functions; Claude decides when to call them and with what arguments; your code runs them; the results go back; the model continues. The pattern is small once you've seen it. The pitfalls are the same three every time. This lesson walks through the call envelope end-to-end, then the parallel-call and error patterns that production code needs.
+
+## 01 — The shape
+
+Three pieces:
+
+```ts
+const tools = [{
+  name: 'get_weather',
+  description: 'Get the current weather for a city.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      city: { type: 'string', description: 'City name, e.g. "Hanoi"' },
+    },
+    required: ['city'],
+  },
+}];
+
+const reply = await client.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  tools,
+  messages: [{ role: 'user', content: 'What\'s the weather in Hanoi?' }],
+});
+```
+
+Three things to notice. The schema is JSON Schema, not Zod or TS — descriptive enough for the model to fill it correctly. `description` matters: it's what the model uses to decide when to call. And the `tools` array is part of the prompt — it pays input tokens (cache it; see lesson 7).
+
+## 02 — Reading the response
+
+When Claude wants to call a tool, the response stops with `stop_reason: 'tool_use'` and one or more `tool_use` blocks:
+
+```ts
+reply.stop_reason; // 'tool_use'
+reply.content;
+// [
+//   { type: 'text', text: 'Let me check.' },           // optional preamble
+//   { type: 'tool_use', id: 'toolu_01...', name: 'get_weather', input: { city: 'Hanoi' } },
+// ]
+```
+
+You don't run the tool yet — you read the request. The `id` is what ties the call to its result on the next turn.
+
+## 03 — Returning the result
+
+Push the assistant's reply *as the array of blocks*, then a user message containing a `tool_result` block keyed to the same `id`:
+
+```ts
+const toolUse = reply.content.find(b => b.type === 'tool_use');
+
+const result = await getWeather(toolUse.input.city); // your code
+
+const followup = await client.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  tools,
+  messages: [
+    { role: 'user', content: 'What\'s the weather in Hanoi?' },
+    { role: 'assistant', content: reply.content },                  // include the tool_use block as-is
+    {
+      role: 'user',
+      content: [
+        { type: 'tool_result', tool_use_id: toolUse.id, content: JSON.stringify(result) },
+      ],
+    },
+  ],
+});
+```
+
+The model now has the answer and produces a final text reply. `stop_reason: 'end_turn'` means the loop is done.
+
+## 04 — The loop
+
+Production tool use is a loop, not a single round:
+
+```ts
+while (true) {
+  const reply = await client.messages.create({ model, max_tokens, tools, messages });
+  messages.push({ role: 'assistant', content: reply.content });
+
+  if (reply.stop_reason !== 'tool_use') break;
+
+  const results = [];
+  for (const block of reply.content) {
+    if (block.type !== 'tool_use') continue;
+    const out = await dispatch(block.name, block.input);
+    results.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(out) });
+  }
+  messages.push({ role: 'user', content: results });
+}
+```
+
+Read it carefully — this is *the* shape of every agent. The model decides when to stop; your code dispatches the tools; results come back as a single user turn. Lesson 11 covers the Agent SDK that wraps this loop with timeouts, retries, and lifecycle hooks. The framework view: see the LangChain course's [tool-binding lesson](/courses/langchain-langgraph-toolkit/lessons/07-bind-tools-loop) — same loop, different package.
+
+## 05 — Parallel tool calls
+
+Claude can return multiple `tool_use` blocks in one reply. Run them in parallel; return one `tool_result` per `id` in any order:
+
+```ts
+const results = await Promise.all(
+  reply.content
+    .filter(b => b.type === 'tool_use')
+    .map(async b => ({
+      type: 'tool_result',
+      tool_use_id: b.id,
+      content: JSON.stringify(await dispatch(b.name, b.input)),
+    }))
+);
+
+messages.push({ role: 'user', content: results });
+```
+
+The default is "parallel where it can." If you need strict sequencing — tool A's output is tool B's input — that's a *plan* the model produces across multiple loop iterations, not parallel calls in one turn.
+
+## 06 — Errors are part of the contract
+
+When a tool fails, return the error *as a tool_result* with `is_error: true`:
+
+```ts
+{
+  type: 'tool_result',
+  tool_use_id: id,
+  content: 'API timeout after 5s',
+  is_error: true,
+}
+```
+
+Don't throw out of the loop. The model is good at handling tool errors — it'll retry with different args, fall back to a different tool, or apologise to the user. Throwing aborts that recovery and turns a graceful failure into an outage.
+
+The same goes for partial failures (one tool of three failed). Return the error envelope for the failed one and the real results for the others. The model uses what it can.
+
+## 07 — `tool_choice`: when you need to force it
+
+Three modes:
+
+- **`auto`** (default) — model decides whether to call any tool.
+- **`any`** — model *must* call some tool, but picks which.
+- **`{ type: 'tool', name: 'extract_person' }`** — model must call this specific tool.
+
+Force a specific tool when you're using tools as structured-output coercion (lesson 9). Force `any` when "answer in prose" is wrong for the workflow — e.g. a router that must classify into one of N tools.
+
+<Callout type="note" title="Tool descriptions are the prompt">
+The biggest tool-use mistake: writing terse `description` fields. The model uses descriptions to decide *when* and *how* to call. "Get weather" is worse than "Returns current temperature, humidity, and conditions for a named city. Use when the user asks about weather, or when planning outdoor activities." Verbose-but-precise tool descriptions move accuracy more than any sampling parameter.
+</Callout>
+
+## 08 — Cache the tools array
+
+Tool definitions are repeated input on every loop iteration. Cache them. With even modest tool schemas, this is a meaningful chunk of every prompt:
+
+```ts
+tools: [
+  { ...allTools[0], cache_control: { type: 'ephemeral' } }, // any one block on the boundary
+  ...allTools.slice(1),
+],
+```
+
+The cache breakpoint covers everything before it including tools and system. Lesson 7 has the full cache geometry; for tool-heavy agents this is often the single biggest cost saver.
+
+<Recap>
+- Tools are typed functions: name, description, JSON-Schema input. Description quality drives accuracy.
+- The loop: model returns `tool_use` blocks → your code dispatches → return `tool_result` blocks keyed by `id`.
+- Push `reply.content` as the assistant turn — include the `tool_use` blocks unchanged.
+- Parallel tool calls land in one turn; run with `Promise.all` and return results in any order.
+- Tool errors are data, not exceptions. Set `is_error: true` and let the model recover.
+- `tool_choice: { type: 'tool', ... }` forces a specific call — the basis of structured output (lesson 9).
+- Cache the tools array. It's repeated every loop iteration; the savings compound.
+</Recap>

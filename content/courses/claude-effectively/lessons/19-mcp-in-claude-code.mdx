@@ -1,0 +1,115 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Lesson 12 introduced MCP at the protocol level. Claude Code is the harness where you'll feel the difference most — adding a server takes one command, and suddenly Claude has a whole new set of typed actions instead of "use shell to figure it out." This lesson is the practical side: scoping servers, the auth model, and the moment your shell-based workflows become *safer* by being typed.
+
+## 01 — Adding a server
+
+Three commands you'll use:
+
+```bash
+# user-scoped: available in every project
+claude mcp add github --scope user -- npx -y @modelcontextprotocol/server-github
+
+# project-scoped: shipped with the repo via .mcp.json
+claude mcp add postgres --scope project --env DATABASE_URL=$DB_URL -- npx -y mcp-server-postgres
+
+# local-only: just for your machine in this repo (.mcp.json with local override)
+claude mcp add scratch --scope local -- /path/to/my-server
+```
+
+`--scope user` writes to your user config; `--scope project` writes to `.mcp.json` (commit it); `--scope local` is gitignored. Think of it like settings.json scoping.
+
+After adding, restart the session (or `/mcp reload`). The server's tools, resources, and prompts appear in the model's available tool list.
+
+## 02 — Project-scoped: the team-onboarding pattern
+
+`.mcp.json` checked into the repo means new contributors get the same MCP servers wired up automatically:
+
+```json
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "mcp-server-postgres"],
+      "env": { "DATABASE_URL": "${env:DATABASE_URL}" }
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_TOKEN": "${env:GITHUB_TOKEN}" }
+    }
+  }
+}
+```
+
+`${env:VAR}` reads from the user's environment — keep secrets in `.env` (gitignored), reference them here. New contributor clones the repo, sets `.env`, runs `claude`, has the same MCP-equipped Claude as everyone else.
+
+## 03 — When MCP beats shell
+
+The pattern: a shell-based workflow that you're trying to make *safe* or *typed* should become an MCP server.
+
+- **Database queries.** "Read-only psql" via Bash is a footgun (one missing `-r` flag and the model can write). An MCP server with a `query(sql)` tool that's hard-coded read-only is safer and cleaner.
+- **Cloud APIs.** Calling AWS via shell means the model can do anything your IAM allows. An MCP server scoped to specific operations limits blast radius.
+- **GitHub interactions.** `gh` works fine but spreads across many subcommands. The GitHub MCP server bundles them with descriptions the model uses to pick the right one.
+
+The general test: if you're constantly approving the same shell command pattern, or worrying about a typo destroying state, MCP is the upgrade.
+
+## 4 — When shell still wins
+
+- **Genuinely local, project-specific operations.** Running your own `npm run` scripts. No need for an MCP layer.
+- **Read-only inspection.** `git log`, `ls`, `cat` — Bash with allow-list permissions is fine.
+- **One-off scripts.** A migration tool, a maintenance command. The MCP wrapper costs more than the discipline it adds.
+
+## 05 — The auth model
+
+MCP servers run with whatever credentials you give them via `env`. There's no isolation beyond that — if the server has access to your prod database, the model can query it.
+
+Practical hygiene:
+
+- **Read-only credentials whenever possible.** A read-only DB role for the postgres MCP server. The model can analyse without writing.
+- **Scoped tokens.** GitHub tokens with `repo:read` only, not full admin. Treat MCP-server tokens like webhook secrets — narrow scope, rotated regularly.
+- **Per-environment.** Don't connect a production DB MCP server in your day-to-day session. Make a `prod` profile that requires `--mcp-config prod.json` — friction is the right shape here.
+
+## 06 — Resources and prompts surfaces
+
+Lesson 12 mentioned the underused parts of MCP. In Claude Code:
+
+- **Resources** show up in the file picker as @-mentions. `@github:issue:42` becomes the issue body in your prompt.
+- **Prompts** show up in the slash-command picker, like local commands.
+
+A well-built MCP server exposes all three — tools for actions, resources for data, prompts for runbooks. Most public servers focus on tools and skip the others; that's a missed opportunity if you're authoring one.
+
+## 07 — Common servers worth installing
+
+Curated short list:
+
+- **GitHub** — official server. Tools for issues, PRs, code search, file content. Resources for repos.
+- **Filesystem** — typed file operations. Useful when you want the model to manipulate files outside the project root with explicit allow-list paths.
+- **Postgres / MySQL** — typed query tools. Read-only mode is the right default.
+- **Slack / Linear / Notion** — productivity surfaces. Useful for "agent that triages issues" workflows.
+
+Search for the rest; the ecosystem is growing. The risk-management framing: install like you'd install a CLI tool — review what it does, who maintains it.
+
+## 08 — Debugging an MCP server
+
+When something goes wrong:
+
+- **Run `/mcp`** to list connected servers and their status.
+- **Check stderr.** Servers run as subprocesses; their stderr is captured in the harness logs.
+- **Test the server independently.** Most MCP SDKs have a CLI test mode (`npx @modelcontextprotocol/inspector`); use it to confirm tools list, calls return expected output, etc.
+
+The most common failure: env var not set or not propagated. The second most common: server expects a working directory the harness didn't set. Both are quick fixes once you know to check.
+
+<Callout type="note" title="MCP is a wrapper, not a feature">
+Adopting MCP doesn't make Claude smarter; it makes Claude *more constrained, in a useful way*. You're trading "model decides everything via shell" for "model picks among a small typed set of safe operations." That trade pays off when the constraint matters (production data, irreversible actions). It's overhead when the constraint doesn't (local dev tooling).
+</Callout>
+
+<Recap>
+- Add MCP servers with `claude mcp add`. Scope: user (everywhere), project (in `.mcp.json`), local (gitignored).
+- Project scope is the team-onboarding pattern: clone, set .env, run, everyone has the same servers.
+- Reach for MCP when a shell workflow needs typing, safety, or shared discoverability.
+- Auth happens via env vars passed in. Use read-only credentials and narrow-scope tokens.
+- Resources and prompts (@-mentions, slash commands) are the underused MCP surfaces.
+- Debug with `/mcp`, the inspector, and stderr. Most failures are env-var related.
+</Recap>

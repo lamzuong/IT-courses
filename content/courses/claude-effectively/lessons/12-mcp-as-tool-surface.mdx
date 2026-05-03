@@ -1,0 +1,107 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+MCP — the Model Context Protocol — is a way of describing tools that lives outside your application. Instead of declaring five tools in your prompt, you point Claude at an MCP server and it discovers tools, resources, and prompts at runtime. The pitch is "give Claude an MCP server, not five tools," and for many workloads it's the right answer. This lesson is when MCP wins, when it's overkill, and how to think about the choice.
+
+## 01 — What MCP actually is
+
+A protocol — JSON-RPC over stdio or HTTP/SSE — that lets a model harness talk to a server that exposes:
+
+- **Tools** — functions the model can call (same shape as native tools).
+- **Resources** — typed data sources (files, database rows, API responses).
+- **Prompts** — reusable templated prompts the host can offer to the user.
+
+The harness (Claude Code, the API SDK, Claude.ai) connects to the server, lists what's available, and surfaces it to the model on demand. The server runs your code; the harness runs the loop.
+
+## 02 — The shift in mindset
+
+Native tools are *defined in your prompt*. You ship them in the API call; the model sees them on every request. They're great for tightly-scoped, app-specific actions.
+
+MCP tools are *defined by a server*. The server owns the tool definitions, schemas, and runtime. The harness pays a small overhead to discover them. They're great when you want one tool surface used across many apps, or when the tool surface is large enough to be worth caching at the harness level.
+
+## 03 — When MCP wins
+
+Four shapes of problem:
+
+- **Reusable across multiple agents/apps.** A "Linear MCP server" exposes the same tools to Claude Code, your API agent, and Claude.ai — write once, use everywhere.
+- **Large tool surfaces.** A database with 30 useful queries doesn't fit cleanly in a prompt's tools array. As an MCP server, the model gets discoverability without the prompt bloat.
+- **Per-team or per-org tooling.** Internal MCP servers wrap your internal APIs once. Anyone with access gets the tools.
+- **Out-of-band auth.** MCP servers handle OAuth flows, secret management, and rate limiting on the *server* side, not in your app. Cleaner separation.
+
+## 04 — When native tools win
+
+- **Tight, app-specific tools.** A search tool for one product in one app: declare it native, ship it.
+- **Latency-sensitive paths.** MCP adds a network hop and a discovery phase. Native tools are zero-overhead.
+- **Single-use scripts.** Standing up an MCP server for one cron job is overkill. Native tools are five lines of code.
+
+A useful heuristic: if you're going to use this tool surface in *one* place, native. If you're going to use it in *three or more*, MCP.
+
+## 05 — Building a server in 30 lines
+
+```ts
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+
+const server = new Server({ name: 'weather', version: '0.1.0' });
+
+server.setRequestHandler('tools/list', async () => ({
+  tools: [{
+    name: 'get_weather',
+    description: 'Get current weather for a city.',
+    inputSchema: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] },
+  }],
+}));
+
+server.setRequestHandler('tools/call', async ({ params }) => {
+  if (params.name === 'get_weather') {
+    const data = await fetchWeather(params.arguments.city);
+    return { content: [{ type: 'text', text: JSON.stringify(data) }] };
+  }
+  throw new Error(`unknown tool: ${params.name}`);
+});
+
+await server.connect(new StdioServerTransport());
+```
+
+That's a fully-functional MCP server. The harness launches it as a subprocess, lists tools, calls them, and you get all the discovery benefits.
+
+## 06 — MCP in Claude Code vs the API
+
+Two consumer surfaces, slightly different ergonomics:
+
+- **Claude Code** — add servers via `.mcp.json` or `claude mcp add`. The CLI manages the lifecycle. Tools appear automatically in conversations. Lesson 19 covers this in detail.
+- **Anthropic API** — pass `mcp_servers: [...]` to `messages.create`. The API harness connects, lists tools, and exposes them to the model for that call. Pay-as-you-go from your application.
+
+The API integration is newer and slightly less polished than Claude Code's. For server prototyping, develop against Claude Code first (faster iteration), then wire into the API integration once stable.
+
+## 07 — Resources and prompts (the underused parts)
+
+Most people use MCP only for tools. Two other primitives:
+
+- **Resources** — read-only data sources. Think "@-mention this file" or "the current value of this config." The harness surfaces them to the user; the user can attach them to messages without you defining a tool for it.
+- **Prompts** — templated prompts the server offers. The user picks one in their UI; the model fills in the args. Useful for shipping "best-practice" prompts as part of your tooling.
+
+If your MCP server exposes interesting *data* and not just actions, resources earn their keep. Many production servers neglect this and force everything through tools, which is suboptimal.
+
+## 08 — The MCP marketplace and what to install
+
+Public servers exist for GitHub, Linear, Slack, Notion, Postgres, filesystems, browsers. The risk: an MCP server runs in your environment and can do whatever your harness allows. Treat installing one like installing a CLI tool from the internet — review what it does, who maintains it, what auth it requests.
+
+For Claude Code specifically: scope MCP servers to projects (not user-global) when they have access to credentials. A leaked MCP server with database creds is a worse outage than the same as a CLI.
+
+<Callout type="note" title="The right question to ask">
+"Should I expose this as a native tool or an MCP server?" reduces to: "Will I use this from more than one harness?" If yes, MCP. If no, native. The cost of MCP is the server you have to run; the benefit is reuse. When reuse exists, the cost is paid for. When it doesn't, native tools are simpler and cheaper.
+</Callout>
+
+## 09 — Cross-link
+
+The framework-agnostic way to do the same thing is "tools" in LangChain. MCP is the *transport* — the underlying tool concept is the same. See the [LangChain course's tools lesson](/courses/langchain-langgraph-toolkit/lessons/06-first-tool) for the framework-side view; understanding both lets you pick the right wrapper for each situation.
+
+<Recap>
+- MCP is a protocol for exposing tools, resources, and prompts to a model harness.
+- Native tools live in your prompt; MCP tools live on a server. Different ownership, different reuse story.
+- Reach for MCP when the tool surface is large, reused across apps, or owned by a different team.
+- Stick with native tools for app-specific, latency-sensitive, or single-use surfaces.
+- Underused: resources (typed read-only data) and prompts (server-shipped templates).
+- Treat third-party MCP servers like third-party CLI tools — review them before installing.
+</Recap>

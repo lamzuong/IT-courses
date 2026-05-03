@@ -1,0 +1,48 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+This is a course about getting work done with Claude. Not a "prompt engineering tips" listicle. Not a feature tour. A field guide for the three places Claude actually shows up in a developer's day: the **API** (calling the model from your code), **Claude Code** (the agentic CLI), and the **meta-skills** that apply across every surface — briefing well, reading the model's output, designing for refusal.
+
+It's opinionated where the docs are neutral. When to cache. When to switch from Sonnet to Opus. When a hook beats a sentence in your prompt. When extended thinking earns its cost. Where MCP is the right answer and where it's overkill.
+
+## Three surfaces, one collaborator
+
+The course has six parts and they line up on the spine "where am I working":
+
+- **Part I (meta-skills)** — applies everywhere. How to brief Claude, what shape to ask for, how to handle uncertainty. The lessons here are what makes the rest stick.
+- **Part II–III (the API)** — how to call Claude from your own code. The Messages API, prompt caching, tool use, structured output, extended thinking, the Agent SDK, MCP, batch.
+- **Part IV–V (Claude Code)** — how to live in the CLI. Slash commands, hooks, subagents, plan mode, worktrees, memory.
+- **Part VI (synthesis)** — designing a team workflow, cost and observability, knowing when *not* to use Claude.
+
+## What you should already know
+
+- TypeScript or Python at a comfortable level.
+- That an LLM is a probabilistic next-token predictor, not a database. (We won't dwell on this; we will rely on it.)
+- The shape of a HTTP API call. We won't touch curl directly but it'll feel familiar.
+
+The [AI in Your Project](/courses/ai-in-your-project) and [LangChain & LangGraph](/courses/langchain-langgraph-toolkit) courses on this site are good prerequisites for the API parts but not required. We'll re-derive the agent loop, structured output, and tool use from first principles.
+
+## What you'll build
+
+The final project is **Your Claude Workbench** — a personal toolkit you check into your dotfiles and reuse on every project. Three custom slash commands, two subagents, two hooks, an MCP server, and a `CLAUDE.md` template. Each piece has a written rationale: what it fires on, what it makes safer or faster, what it doesn't do.
+
+The point isn't to copy the workbench. It's to build *your* workbench by the end — the one tuned to your habits, your codebase, your team's review style.
+
+## What the course is not
+
+Three explicit non-goals:
+
+- **Not a Claude vs other-model comparison.** Other models exist; this course assumes you've decided to invest in Claude. The patterns transfer; the specifics are Claude-shaped.
+- **Not a tutorial on prompt engineering as a discipline.** We'll cover the prompt patterns that consistently help; we won't list 47 framings of "act as a senior X." Most of that advice is folklore.
+- **Not a Claude Code installation guide.** We assume you've installed it. The CLI's own docs handle setup; we focus on what to do with it once you have it running.
+
+<Callout type="note" title="The course is opinionated. Read accordingly.">
+You'll see "default to X," "skip Y," "Z is rarely worth it." Those are real opinions formed by use, not hedged "consider X" non-statements. Disagree freely. The point of an opinionated course is that you have something specific to disagree with, which is more useful than reading a balanced doc that gives you nothing to push against.
+</Callout>
+
+<Recap>
+- Three surfaces: API, Claude Code, meta-skills. The course is one path through all three.
+- Final project is the Workbench — your personal Claude toolkit, checked into your dotfiles.
+- Course is opinionated by design; disagreement is fine and expected.
+- Not a model comparison, not a generic prompt-engineering tour, not an install guide.
+</Recap>

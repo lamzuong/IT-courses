@@ -1,0 +1,126 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+The Messages API is the core. Every other Anthropic feature — caching, tool use, extended thinking, streaming, the Agent SDK — is layered on top of one shape: send a list of messages, get a reply. This lesson is the ten lines of code you'll write a thousand times, the parameters that matter, and the response shape that the rest of the course builds on.
+
+## 01 — The minimal call
+
+```ts
+import Anthropic from '@anthropic-ai/sdk';
+
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+const reply = await client.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: 'Say hello in one sentence.' }],
+});
+
+console.log(reply.content[0]);
+```
+
+Five required pieces: a client, a model ID, a `max_tokens` cap, a list of messages, and the call. The reply's `content` is an array of *content blocks*. The first block is usually a `{ type: 'text', text: '...' }` block; with tools or thinking enabled, you'll see other block types alongside it.
+
+The Python SDK looks structurally identical: `client.messages.create(model=..., max_tokens=..., messages=[...])`. If you can write one, you can write the other.
+
+## 02 — `system` is its own parameter
+
+System prompts don't go in the `messages` array on the Anthropic API — they're a top-level field:
+
+```ts
+await client.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  system: 'You are a careful classifier. Reply with one word.',
+  messages: [{ role: 'user', content: 'Classify: "shipping is slow"' }],
+});
+```
+
+This is different from OpenAI-style APIs where the system message is the first item in `messages`. It's also where prompt caching attaches (lesson 7) — keep your system block stable to maximise cache hits.
+
+## 03 — The conversation grows by appending
+
+Multi-turn is what you'd expect: append the assistant's reply, then append the next user message:
+
+```ts
+const messages = [{ role: 'user', content: 'What is the capital of France?' }];
+
+const r1 = await client.messages.create({ model, max_tokens: 1024, messages });
+messages.push({ role: 'assistant', content: r1.content });
+
+messages.push({ role: 'user', content: 'And of Spain?' });
+const r2 = await client.messages.create({ model, max_tokens: 1024, messages });
+```
+
+Notice we push `r1.content` (the array of content blocks), not the text. Always preserve block structure. If you flatten to a string, you lose tool-use blocks, citations, and thinking blocks. Push the array; the SDK accepts it on the next round.
+
+## 04 — Streaming
+
+Two modes: server-sent events (a stream of typed events) and the helper that gives you the final accumulated message at the end:
+
+```ts
+const stream = client.messages.stream({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: 'Write a paragraph about hobbits.' }],
+});
+
+for await (const event of stream) {
+  if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+    process.stdout.write(event.delta.text);
+  }
+}
+
+const final = await stream.finalMessage();
+```
+
+Event types you'll handle: `message_start`, `content_block_start`, `content_block_delta` (the token chunks), `content_block_stop`, `message_delta` (final usage info), `message_stop`. For chat UIs, you mostly care about `content_block_delta`. For tracing, you care about all of them.
+
+## 05 — `usage` and what to log
+
+Every reply carries a `usage` field:
+
+```ts
+console.log(reply.usage);
+// { input_tokens: 12, output_tokens: 24,
+//   cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }
+```
+
+The four fields are the basis of every cost calculation in the rest of the course. `input_tokens` is what you sent. `output_tokens` is what you got back. `cache_*` show up when prompt caching is on (lesson 7); they're how you confirm your cache is actually hitting.
+
+Log usage on every call. A two-line wrapper that records `{model, input, output, cache_read, latency, runId}` is the foundation of any later cost or performance work — lesson 25 builds on this.
+
+## 06 — `temperature`, `top_p`, `top_k`, `stop_sequences`
+
+The sampling knobs:
+
+- **`temperature`** (0–1) — randomness. `0` for deterministic output (classification, structured extraction). `0.7` for creative writing. Default is `1.0`; lower it more often than you raise it.
+- **`top_p`** — nucleus sampling. Mostly leave at default; tweak only when temperature alone isn't varied enough.
+- **`top_k`** — limits the candidate token set. Even more rarely used; leave at default.
+- **`stop_sequences`** — array of strings that, if produced, halt generation. Useful for chat-style "User:" / "Assistant:" continuations and for cutting off rambling.
+
+In practice you set `temperature` and call it a day. The other three exist for advanced cases and most code never touches them.
+
+## 07 — `max_tokens` is a budget, not a target
+
+`max_tokens` caps the *output*. It doesn't make the model produce that many tokens; it just stops it from producing more. Set it generously:
+
+- For one-line classifications: 50–100 is plenty.
+- For paragraph answers: 500–1000.
+- For long-form writing or detailed code: 4000+.
+- For agent loops with tool calls: 4096+ to leave room for the final synthesis.
+
+Setting `max_tokens` too low truncates mid-sentence and is a real production bug. Set it too high and you waste nothing — you only pay for tokens actually produced.
+
+<Callout type="note" title="The model IDs evolve; the shape doesn't">
+Anthropic releases new models continuously. The latest at the time of writing is `claude-opus-4-7` (most capable), `claude-sonnet-4-6` (balanced), and `claude-haiku-4-5-20251001` (fastest). The API shape doesn't change between models — same call, swap the `model` string. Always check the docs for the current ID; keeping a constant `MODEL_SONNET`, `MODEL_HAIKU` in your code makes the swap a one-line edit when a new version drops.
+</Callout>
+
+<Recap>
+- `messages.create({ model, max_tokens, messages, system? })` — the whole API in one call.
+- `system` is a top-level field, not a message. It's also the canonical cache anchor.
+- Multi-turn: append `reply.content` (the array) to `messages`, then add the next user turn.
+- Streaming via `messages.stream`. Handle `content_block_delta` for the typing effect; `finalMessage()` for the accumulated result.
+- Log `usage` on every call. Foundation for cost and performance work.
+- `max_tokens` is a budget. Set it generously; you only pay for what's actually produced.
+</Recap>

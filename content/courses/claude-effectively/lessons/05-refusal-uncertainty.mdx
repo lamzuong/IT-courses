@@ -1,0 +1,111 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Most production AI bugs aren't hallucinations in the dramatic sense. They're confident wrong answers when "I don't know" was the right reply. The model doesn't *want* to refuse. Refusing feels unhelpful. So it confabulates plausibly, you ship it, and one day a user notices that the system invented a customer who doesn't exist. The fix is structural: design every prompt and every output so that "no answer" is a first-class output the model can produce without feeling like a failure.
+
+## The two failure modes
+
+When Claude has insufficient context to answer correctly, it can do one of two things:
+
+- **Fail loudly** — say "I don't have enough information to do X" or refuse, ideally with what it would need.
+- **Fail silently** — produce a confident, plausible, wrong answer.
+
+Loud failure is recoverable. The user retries with more context, or your code falls back, or your error path triggers. Silent failure is the one that ships to production and hurts customers six months later. The whole goal of this lesson is to bias the model toward loud.
+
+## Pattern 1: Make refusal an explicit option
+
+Add it to the prompt. Repeat it. Make it the easy answer:
+
+```
+Answer the question using only the provided context. If the context is
+insufficient, reply exactly: "I don't know based on the provided information."
+Do not guess. Do not fill in.
+```
+
+Three things this does:
+- Tells the model refusal is okay.
+- Specifies the exact refusal phrase, so your code can detect it deterministically.
+- Says "do not guess" — the model takes the prohibition seriously when phrased that way.
+
+In structured output, encode the same idea:
+
+```ts
+const schema = z.object({
+  answer: z.string().nullable(),
+  confidence: z.enum(['high', 'medium', 'low']),
+  reason: z.string().describe('If answer is null, why. If non-null, what evidence.'),
+});
+```
+
+`answer` can be null. `confidence` is required. `reason` is required. The model can't produce a "confident wrong" without explicitly setting confidence high — which makes hallucination structurally harder.
+
+## Pattern 2: Ask for sources
+
+When Claude is grounded in retrieved documents (RAG, MCP queries, file context), the prompt asks for citations:
+
+```
+For each claim in your answer, cite the document and section it came from.
+If you cannot cite, say so.
+```
+
+A model that has to cite is far less likely to invent. The act of "I'd need to source this" prompts a check the un-cited reply doesn't get. It's also exactly the feature your users want — answers they can verify.
+
+Implementation: structure the citations as data, not as text in the prose. A `citations: [{ docId, span }]` field, rendered in the UI as clickable links. See lesson 13 for the Anthropic API's native citations feature.
+
+## Pattern 3: Pre-flight checks
+
+Some questions are unanswerable for structural reasons. Catch them in code, not in the prompt:
+
+```ts
+async function answer(question: string, docs: Document[]) {
+  if (docs.length === 0) {
+    return { answer: null, reason: 'no documents provided' };
+  }
+  const totalTokens = countTokens(docs.map(d => d.text).join(''));
+  if (totalTokens > 100_000) {
+    return { answer: null, reason: 'context too large; narrow the query' };
+  }
+  // …actually call Claude
+}
+```
+
+Don't waste a model call on a request that can't possibly succeed. The pre-flight is your "I don't know" before the model even sees the question.
+
+## Pattern 4: Ask the model to challenge itself
+
+A second pass that explicitly looks for problems:
+
+```
+Now review the answer above. List any claims that aren't directly supported
+by the context. If everything is supported, reply with "verified". If not,
+list the unsupported claims.
+```
+
+This is a model call you can run on every output. It catches a real fraction of confident-wrong outputs because the second pass is *prompted to be skeptical*, not to defend the first answer. Cheap, effective, surprisingly underused.
+
+## Calibrate, don't just refuse
+
+Total refusal — "I cannot answer" — is the safe extreme. The useful version is *calibration*: produce a partial answer with explicit hedging where it's warranted.
+
+```
+For each part of the answer, mark it as:
+- HIGH (directly supported by context)
+- MEDIUM (inferred from context)
+- LOW (general knowledge, not in context)
+```
+
+The user reads the LOW parts more carefully. Your code can suppress LOW parts in regulated contexts. The same model call gives you both speed (you got an answer) and safety (you know how much to trust each part).
+
+<Callout type="note" title="The single biggest production-AI safety win">
+Add "if you're not sure, say so" to every prompt that produces user-facing or business-impacting output. Then put a deterministic detector in the response path that surfaces "I don't know" cleanly to your UI. That single discipline catches more issues than any guardrail framework. It's also the cheapest discipline to adopt.
+</Callout>
+
+<Recap>
+- Confident wrong is the most expensive AI bug. "I don't know" is the cheapest.
+- Make refusal explicit and exact in the prompt. Detect the refusal phrase deterministically.
+- For structured output, allow nullable answer + required confidence + required reason. Hallucination becomes structurally harder.
+- Ask for citations. Models that cite invent less.
+- Pre-flight what you can in code; don't waste calls on impossible requests.
+- Run a self-review pass for high-stakes outputs. It catches a real fraction of mistakes.
+- Calibrate, don't just refuse. Mark parts of the answer with confidence levels.
+</Recap>

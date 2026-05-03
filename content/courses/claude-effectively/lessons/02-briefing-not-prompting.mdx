@@ -1,0 +1,64 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Most "prompt engineering" advice fixes the wrong problem. The model doesn't need clever incantations. It needs the same thing a smart colleague would need: enough context to make good calls, a clear request, and a sense of what "done" looks like. Call it briefing. Briefing is the skill. Prompting is the typing.
+
+## The triangle: context, cost, quality
+
+Three things move together when you talk to Claude:
+
+- **Context** — how much background you provide.
+- **Cost** — tokens (and time) spent.
+- **Quality** — how good the answer is.
+
+You can almost always trade one for another. Adding context lifts quality and adds cost. Tightening the request lowers cost and may or may not hurt quality. Removing context is cheap but risks the model guessing wrong about constraints you forgot to mention.
+
+The mistake everyone makes: optimising for cost first. Tokens are pennies; bad outputs are hours. For anything that matters, **default to over-briefing**, then trim if costs become real.
+
+## What good context looks like
+
+A good brief has three sections — though you don't need to label them as such:
+
+1. **What you're trying to do, and why.** The why matters. "Write a function that takes a date and returns the start of the week" is a request. "I'm normalising timestamps before bucketing into a histogram, and the off-by-one I had earlier was Sunday/Monday confusion" is a brief. The model writes meaningfully different code given the second.
+2. **What you've already learned or ruled out.** "I tried `date-fns` already and it gave me Sunday-starts; we want Monday-starts to match our analytics tool." Saves the model from re-suggesting what's wrong.
+3. **What "done" looks like.** "I want a single function, no class, no extra dependencies, with one Vitest test." Concrete shape; not "make it good."
+
+Three short sections. Most people skip 1 and 3 and over-write 2. Try the inverse.
+
+## When *less* context is right
+
+There are real cases where minimal context wins:
+
+- **Open-ended exploration.** "What are five different ways to model this?" — the model produces more variety with less framing. Constraints narrow it.
+- **One-shot factual lookup.** "What's the syntax for a `pgvector` cosine search in Postgres 16?" — over-context just bloats the prompt.
+- **Tasks where the request is the whole thing.** "Convert this snippet to TypeScript." The snippet *is* the context; everything else is noise.
+
+The skill is recognising which kind of task you have. Brief tasks brief; lookup tasks lookup. Don't compose elaborate paragraphs for "what's the syntax."
+
+## The shape patterns that consistently help
+
+Six shape decisions that lift quality more than any wording change:
+
+- **Examples beat instructions.** Two-and-a-half examples of input → output beat a paragraph describing them.
+- **Numbered constraints beat prose.** A model is better at following "1. async function 2. no try/catch in body 3. throws on null input" than at parsing the same thing from prose.
+- **A single concrete reference beats a vague aspiration.** "Match the style of `lib/utils/date.ts`" beats "make it idiomatic."
+- **State the question last.** Context first, question at the end. Models give the end more weight.
+- **Tell it the audience.** "This is for an experienced TS engineer" produces different output than the same prompt without that line.
+- **Tell it the verbosity.** "Reply in under 200 words" or "give me a one-paragraph answer" cuts the rambling.
+
+## When to be terse
+
+After all that — there's a counter-skill. For *interactive* work, terseness is a feature. The model has the prior turns. You can say "now do the same for the user table" and it'll work. Repeating context every turn is what makes hand-typed conversations feel like you're talking to a goldfish.
+
+The pattern: brief on round one. Be terse from round two. If you find yourself re-briefing every round, the model has lost the thread — start fresh, brief again, but don't keep stacking.
+
+<Callout type="note" title="Over-briefing is the smaller mistake">
+If you're choosing between under-briefing and over-briefing, pick over. Bad outputs from under-context cost rework. Bad outputs from over-context just cost a few extra tokens and maybe a longer answer to skim. Asymmetric stakes — bias toward more.
+</Callout>
+
+<Recap>
+- Brief, don't prompt. Three sections: what you're doing, what you've ruled out, what "done" looks like.
+- Default to over-briefing for anything that matters. Tokens are cheap; bad outputs are expensive.
+- Examples beat instructions. Numbered constraints beat prose. References beat aspirations.
+- For interactive work, brief once, then be terse. The model has the prior turns.
+</Recap>

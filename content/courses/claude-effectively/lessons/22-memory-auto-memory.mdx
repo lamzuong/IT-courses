@@ -1,0 +1,94 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Claude Code can persist things across sessions. Some of it you do explicitly (`CLAUDE.md` is a file you write). Some of it the harness does for you (the auto-memory system saves user, project, feedback, and reference notes between sessions). Done well, memory means you stop re-briefing every conversation and the model's behaviour gets steadily better-tuned to you. Done badly, it's a junk drawer that confuses sessions instead of helping them. This lesson is the discipline of memory: what to save, what to skip, and how the two systems compose.
+
+## 01 — Two memory systems
+
+- **`CLAUDE.md`** — a markdown file in the repo (or your home directory). Always loaded into every conversation. You write it; it's static; it's project-scoped.
+- **Auto-memory** — typed notes the harness writes to `~/.claude/projects/<project-hash>/memory/`. The harness loads `MEMORY.md` (the index) into every conversation and pulls in specific notes when relevant.
+
+They serve different purposes. CLAUDE.md is for *always-true* facts about the project (architecture, conventions, build commands). Auto-memory is for *contextual* facts about you, the team, and ongoing work (your role, feedback, project state).
+
+## 02 — What auto-memory captures
+
+Four types:
+
+- **user** — your role, expertise, preferences. "Senior TS engineer; new to this Postgres codebase; prefers terse responses."
+- **feedback** — guidance you've given. "Don't summarise after every change; integration tests must use a real DB."
+- **project** — ongoing work, deadlines, decisions. "Mobile release branch cuts 2026-03-05; auth rewrite driven by compliance, not tech debt."
+- **reference** — pointers to external systems. "Pipeline bugs in Linear project INGEST. Oncall dashboard at grafana.internal/d/api-latency."
+
+Each type has a clear purpose. Don't smush them — a feedback masquerading as a project note rots in the wrong way.
+
+## 03 — When to save (and when to skip)
+
+The harness has built-in heuristics, but the rule is yours to enforce. Save when:
+
+- The user **corrects** an approach. "No, don't mock the DB" — feedback memory.
+- The user **confirms** a non-obvious choice. "Yes, the bundled PR was right" — also feedback. Easy to miss; save it anyway.
+- You learn a **fact about the user** that will shape future conversations.
+- A **deadline / decision / stakeholder ask** changes the work — project memory.
+- An **external system** is introduced — reference memory.
+
+Don't save:
+
+- **Code patterns or conventions.** They're in the code.
+- **Recent changes / git history.** `git log` is authoritative.
+- **Debugging recipes.** The fix is in the code; the commit message has the why.
+- **Activity summaries.** The PR list is the PR list. Save what was *surprising* about it, not the list itself.
+
+## 04 — Stale memories are worse than no memories
+
+A memory written six months ago can be flat-out wrong. The auth middleware was renamed. The team's testing convention changed. The deadline shifted.
+
+The discipline: **before recommending from memory, verify**. If the memory names a file path, check the file exists. If it names a flag, grep for it. If it summarises team state ("X is on PTO"), assume it's stale unless reasserted.
+
+When a memory turns out to be wrong, *update or remove it* in the same session. Don't leave it for next time — it'll mislead the next conversation just like it misled this one.
+
+## 05 — CLAUDE.md as static, auto-memory as dynamic
+
+A useful split:
+
+- `CLAUDE.md` is **stable**: things that are true about the codebase or team in a way that doesn't change weekly. Build commands, architecture overview, "we use Vitest, not Jest", "the API client lives in `src/api/client.ts`."
+- Auto-memory is **dynamic**: things that change with conversations and projects. Your current focus, recent feedback, current deadlines.
+
+The mistake is putting one in the other. CLAUDE.md with "we're freezing the mobile release Thursday" rots — Thursday passes, the freeze ends, the file is still warning about it. That's project memory. Conversely, "the API client is in `src/api/client.ts`" doesn't belong in auto-memory — it's true universally, put it in CLAUDE.md.
+
+## 06 — The MEMORY.md index
+
+Auto-memory entries are individual files; `MEMORY.md` is the index that gets loaded. Keep it short — 200 lines max — because it goes into every conversation.
+
+The pattern: one line per memory, under 150 chars, format `- [Title](file.md) — one-line hook`. The hook tells future-you (and the model) whether to fetch the full memory.
+
+If the index gets crowded, that's a signal: prune. A memory that hasn't been useful in two months is taking context budget that something current could use.
+
+## 07 — claude-md-improver: keep CLAUDE.md sharp
+
+The `claude-md-management:claude-md-improver` skill audits CLAUDE.md files and suggests improvements: removing stale entries, adding missing build/test commands, restructuring for clarity. Run it occasionally (every few months, or when the file's grown unwieldy).
+
+CLAUDE.md decay is real — engineers add to it without pruning. The improver is a forcing function for the prune.
+
+## 08 — Personal vs project memory
+
+Auto-memory is per-project. The harness keys it to the working directory (or git root). So: feedback you give in project A doesn't leak to project B. That's mostly the right default — your TS-codebase preferences don't apply to the Python project.
+
+But some feedback is universal: "be terse," "don't summarise at the end," "use tasks for multi-step work." Those *should* be cross-project. Two ways:
+
+- Save them in user-level memory (which auto-memory does for `user` type by default).
+- Repeat them in each project's CLAUDE.md if they're genuinely project-relevant.
+
+The auto-memory `user` type is the right home for "this is who I am and how I work."
+
+<Callout type="note" title="The biggest memory mistake: never pruning">
+Both systems decay. CLAUDE.md grows; MEMORY.md grows; old entries point at things that don't exist anymore. Once a quarter, do a hygiene pass: remove memories you haven't referenced, update facts you know have changed, run claude-md-improver. The cleanup is fast; the benefit is real.
+</Callout>
+
+<Recap>
+- Two systems: CLAUDE.md (static, you write, project-scoped) and auto-memory (dynamic, harness-managed, typed).
+- Auto-memory types: user, feedback, project, reference. Each has a specific purpose; don't smush.
+- Save corrections AND confirmations. Skip code patterns, git history, debugging recipes, activity summaries.
+- Verify before recommending from memory — names, paths, flags. Stale memory is worse than none.
+- Static facts → CLAUDE.md. Dynamic facts (deadlines, focus, feedback) → auto-memory.
+- Keep MEMORY.md (the index) under 200 lines. Prune quarterly.
+</Recap>

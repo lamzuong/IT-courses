@@ -1,0 +1,331 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+# Your Claude Workbench
+
+The workbench is a personal toolkit you check into your dotfiles and reuse on every project. Six artifacts, each with a rationale. The point isn't to copy mine — it's to build *yours*, tuned to the workflows you actually run, the codebases you actually touch, and the team you actually work with.
+
+This is a long project. Plan to spend a few hours over a week, not one sitting. The shape compounds with use; the first version is the seed for the next six months of iteration.
+
+## What you'll build
+
+Six artifacts, in this directory shape:
+
+```
+~/dotfiles/claude/
+  CLAUDE.md.template
+  README.md
+  settings.json
+  commands/
+    triage.md
+    release.md
+    explain.md
+  agents/
+    db-reviewer.md
+    security-checker.md
+  hooks/
+    format-on-write.sh
+    secret-scanner.sh
+  mcp/
+    notes-server/
+      package.json
+      src/index.ts
+```
+
+Three commands. Two agents. Two hooks. One MCP server. A `CLAUDE.md` template. A README documenting it all.
+
+## Step 1 — Inventory your friction (1 day)
+
+Don't pre-design the workbench. *Observe* yourself for one full working day. Take notes on:
+
+- Prompts you typed more than once.
+- Tool calls you approved repeatedly.
+- Workflows that were "first do A, then B, then C" three or more times.
+- Moments you thought "I wish Claude knew about X without me re-explaining."
+
+End-of-day, you'll have 5-10 candidate workflows. The workbench is the top three of those, codified.
+
+## Step 2 — Three slash commands (2 hours)
+
+Pick three from the inventory. The shape:
+
+```markdown
+<!-- ~/dotfiles/claude/commands/triage.md -->
+---
+description: Triage open PRs and issues using our team's labels and priorities.
+allowed-tools: Read, Glob, Grep, Bash(gh:*)
+---
+You are triaging open PRs and issues in this repo.
+
+Use `gh pr list` and `gh issue list` to enumerate.
+
+For each item:
+- Add a type label: `bug`, `feat`, `chore`, `docs`, `breaking`.
+- Add a priority: P0 (security/data loss), P1 (regression), P2 (feature), P3 (polish).
+- If the description is empty, draft a one-sentence summary from the diff/comments.
+- Flag stale items (no activity in 30+ days).
+
+Report a summary of what you triaged at the end.
+```
+
+Write your three. Test each one in a real project. Refine based on what they get wrong.
+
+**Rationale for each** (in the README): which workflow it codifies, which model it uses (default vs override), which tools it's allowed.
+
+## Step 3 — Two hooks (1 hour)
+
+One PreToolUse (a guard), one PostToolUse (a side-effect).
+
+A reasonable starter pair: format-on-write (PostToolUse) + secret-scanner (UserPromptSubmit).
+
+`format-on-write.sh`:
+
+```bash
+#!/usr/bin/env bash
+INPUT=$(cat)
+FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+[ -z "$FILE" ] && exit 0
+case "$FILE" in
+  *.ts|*.tsx|*.js|*.jsx) command -v prettier >/dev/null && prettier --write "$FILE" >/dev/null 2>&1 ;;
+  *.py)                  command -v ruff >/dev/null     && ruff format "$FILE" >/dev/null 2>&1 ;;
+  *.rs)                  command -v rustfmt >/dev/null  && rustfmt "$FILE" >/dev/null 2>&1 ;;
+esac
+```
+
+`secret-scanner.sh`:
+
+```bash
+#!/usr/bin/env bash
+INPUT=$(cat)
+PROMPT=$(echo "$INPUT" | jq -r '.prompt // empty')
+if echo "$PROMPT" | grep -E -qi '(api[_-]?key|secret|token|password|aws_access)' ; then
+  echo "Possible secret in prompt — review before sending." >&2
+  # don't block; just warn. Switch to exit 1 to enforce.
+fi
+```
+
+Wire them in `settings.json`:
+
+```jsonc
+{
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Edit|Write|MultiEdit",
+      "hooks": [{ "type": "command", "command": "~/dotfiles/claude/hooks/format-on-write.sh" }]
+    }],
+    "UserPromptSubmit": [{
+      "hooks": [{ "type": "command", "command": "~/dotfiles/claude/hooks/secret-scanner.sh" }]
+    }]
+  }
+}
+```
+
+**Rationale**: each hook removes a class of mistake (forgetting to format, accidentally pasting a key). PostToolUse for the unconditional, UserPromptSubmit for the warning-only.
+
+## Step 4 — Two subagents (2 hours)
+
+Pick two specialised review or audit roles. Examples:
+
+`db-reviewer.md`:
+
+```markdown
+---
+name: db-reviewer
+description: Review database migrations for safety on the production schema.
+tools: Read, Glob, Grep
+---
+You review database migrations for safety. For every migration:
+- Flag NOT NULL on existing columns without backfill.
+- Flag dropped indexes without a covering replacement.
+- Flag any operation that locks tables for >5 seconds (rough heuristic).
+- Compare to the latest schema dump for unexpected drift.
+
+Be blunt. Errors found > polish.
+```
+
+`security-checker.md`:
+
+```markdown
+---
+name: security-checker
+description: Pre-PR security review of the diff.
+tools: Read, Glob, Grep, Bash(git diff:*)
+---
+You review the current branch's diff for security issues.
+
+Specifically check:
+- Hardcoded secrets, API keys, credentials.
+- SQL string concatenation (vs parameterised queries).
+- User input flowing into shell, eval, or dynamic require/import.
+- Missing auth checks on new routes.
+- Logging of sensitive data.
+
+Report findings as: severity (HIGH/MEDIUM/LOW), file:line, issue, suggested fix.
+If nothing found, say "no issues found" and stop.
+```
+
+**Rationale**: the agents codify *team-specific* review heuristics. The system-wide agent (`code-reviewer`) is general; yours is opinionated.
+
+## Step 5 — One MCP server (1-2 hours)
+
+Pick a small system. A personal-notes server is a good first one:
+
+```ts
+// ~/dotfiles/claude/mcp/notes-server/src/index.ts
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+
+const NOTES_DIR = process.env.NOTES_DIR ?? `${process.env.HOME}/notes`;
+
+const server = new Server({ name: 'notes', version: '0.1.0' });
+
+server.setRequestHandler('tools/list', async () => ({
+  tools: [
+    {
+      name: 'search_notes',
+      description: 'Search across personal notes for a query string. Returns matching files and snippets.',
+      inputSchema: {
+        type: 'object',
+        properties: { query: { type: 'string' } },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'read_note',
+      description: 'Read the full contents of a note by relative path.',
+      inputSchema: {
+        type: 'object',
+        properties: { path: { type: 'string' } },
+        required: ['path'],
+      },
+    },
+  ],
+}));
+
+server.setRequestHandler('tools/call', async ({ params }) => {
+  if (params.name === 'search_notes') {
+    const q = params.arguments.query.toLowerCase();
+    const files = await fs.readdir(NOTES_DIR, { recursive: true });
+    const hits: string[] = [];
+    for (const f of files) {
+      if (typeof f !== 'string' || !f.endsWith('.md')) continue;
+      const text = await fs.readFile(path.join(NOTES_DIR, f), 'utf8');
+      if (text.toLowerCase().includes(q)) {
+        const snippet = text.slice(Math.max(0, text.toLowerCase().indexOf(q) - 80), text.toLowerCase().indexOf(q) + 200);
+        hits.push(`${f}: …${snippet}…`);
+      }
+    }
+    return { content: [{ type: 'text', text: hits.join('\n\n') || 'no matches' }] };
+  }
+  if (params.name === 'read_note') {
+    const text = await fs.readFile(path.join(NOTES_DIR, params.arguments.path), 'utf8');
+    return { content: [{ type: 'text', text }] };
+  }
+  throw new Error(`unknown tool: ${params.name}`);
+});
+
+await server.connect(new StdioServerTransport());
+```
+
+Add to user-level `~/.claude/.mcp.json` (or `claude mcp add`). Now Claude can search your notes from any session.
+
+**Rationale**: the server replaces "paste my notes into the prompt" with "search my notes when relevant." Lower context, more discoverable.
+
+## Step 6 — `CLAUDE.md` template (30 min)
+
+A starter you copy-paste into every new project:
+
+```markdown
+# <Project name>
+
+## Stack
+- Language: <ts/python/go/...>
+- Framework: <next/fastapi/...>
+- Database: <postgres/...>
+
+## Conventions
+- Tests: <vitest/pytest/...>; run with `<cmd>`.
+- Lint/format: <prettier/ruff/...>; run with `<cmd>`.
+- File layout: <one paragraph on the structure>.
+
+## Key files
+- `<path>` — <one-line description>
+- `<path>` — <one-line description>
+
+## Build / dev
+- `<cmd>` — start dev server.
+- `<cmd>` — run tests.
+- `<cmd>` — production build.
+
+## Things to know
+- <gotcha 1>
+- <gotcha 2>
+```
+
+When you start a new project, copy this, fill the brackets, commit. Done.
+
+## Step 7 — Settings.json (15 min)
+
+The shared dial-board:
+
+```jsonc
+{
+  "model": "claude-sonnet-4-6",
+  "permissions": {
+    "allow": [
+      "Read(*)", "Glob(*)", "Grep(*)",
+      "Bash(npm test:*)", "Bash(npm run lint:*)",
+      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)",
+      "Bash(gh pr view:*)", "Bash(gh issue view:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)", "Bash(npm install:*)", "Bash(gh pr create:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)", "Bash(git reset --hard:*)", "Bash(git push --force:*)"
+    ]
+  },
+  "hooks": { /* from step 3 */ }
+}
+```
+
+Tune the lists to your tools. Run `fewer-permission-prompts` after a week of using it; it'll tell you which approved commands belong on the allow list.
+
+## Step 8 — The README (30 min)
+
+The most important file. For each artifact, one paragraph: what it does, when it fires, what it makes safer or faster, what it deliberately doesn't do.
+
+Example:
+
+> **`commands/triage.md`** — runs the team's triage pass on open PRs and issues. Adds labels, sets priority, drafts summaries for empty descriptions, flags stale items. Fires manually (weekly cadence). Doesn't *close* anything; doesn't merge. Reasoning: triage policy is consistent enough to codify; the close/merge decision needs human judgment.
+
+Write one of these per artifact. Future-you reading the README in six months should be able to answer "is this still earning its place?"
+
+## What you've built
+
+A starter workbench. Six artifacts; ~200 lines of config and code; one paragraph of rationale per piece. Plan to iterate it monthly for the first year.
+
+By end of year you'll have:
+- 5-10 slash commands tuned to your work.
+- 3-5 specialised subagents.
+- A handful of hooks that prevent class-of-mistake errors.
+- 1-2 MCP servers wrapping systems you reach for daily.
+- A `CLAUDE.md` template that has been refined by every project you've onboarded.
+
+That's the version of Claude Code that's specifically yours.
+
+<Callout type="note" title="The workbench is alive — keep it that way">
+The workbench is a tool, not a monument. Add things; remove things; rewrite rationales as your work changes. The README is the audit trail of what you've decided is worth keeping. A workbench that's untouched for a year is one of two things: perfectly tuned (rare) or stale (common). Treat it like the rest of your tooling — versioned, reviewed, pruned.
+</Callout>
+
+<Recap>
+- The Workbench: 3 commands, 2 agents, 2 hooks, 1 MCP server, CLAUDE.md template, README.
+- Inventory friction first; codify the top three workflows.
+- Hooks: one guard (PreToolUse / UserPromptSubmit), one side-effect (PostToolUse).
+- Subagents: opinionated review/audit roles tuned to your codebase or domain.
+- MCP server: small, read-only, exposes a system you reach for daily.
+- README is what makes the bundle durable. One rationale per artifact.
+- Ship v0.1; iterate monthly. Six months in, this is *your* Claude Code.
+</Recap>

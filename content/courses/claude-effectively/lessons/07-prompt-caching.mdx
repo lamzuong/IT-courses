@@ -1,0 +1,114 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Prompt caching is the single highest-leverage thing you can do to a Claude integration. A long system prompt, a big code-context block, a sample-data preamble — anything that's stable across requests — gets sent once, stored at Anthropic's edge for a few minutes, and read back at a fraction of the cost on subsequent calls. Latency drops dramatically. Cost drops 90% on the cached portion. If you take one thing from this course, take this.
+
+## 01 — How it works
+
+You mark cache breakpoints in your message blocks. Every block at-and-before a breakpoint is hashed and stored on the server side. When the next call arrives with the same prefix, the server reuses the stored work and only re-processes what comes after the breakpoint.
+
+```ts
+const reply = await client.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  system: [
+    {
+      type: 'text',
+      text: BIG_INSTRUCTION_PROMPT,                 // reused across requests
+      cache_control: { type: 'ephemeral' },
+    },
+  ],
+  messages: [{ role: 'user', content: userQuery }], // varies per request
+});
+```
+
+`cache_control: { type: 'ephemeral' }` is the marker. The first call writes the cache (paid at slightly above normal input rate). Subsequent calls within the TTL read the cache (paid at ~10% of normal input rate).
+
+## 02 — Where to put the breakpoint
+
+Five canonical places, in order of payoff:
+
+- **The system block.** Long system prompts, persona definitions, instruction trees. Almost always worth caching — every call reads the same one.
+- **Long context blobs.** A schema dump, a code file you're answering questions about, retrieved documents. If the same blob shows up across multiple calls, cache it.
+- **Tool definitions.** Big tool schemas with detailed descriptions are pure repetition cost without caching.
+- **Few-shot examples.** Three input/output pairs that anchor every call. Cache.
+- **Prior conversation turns.** In a long chat, mark a breakpoint after the most-recent stable suffix so the conversation up to that point is cached.
+
+Cache from coarse to fine: cache the system, then cache the context, then cache examples. Most apps need only the first two.
+
+## 03 — The 5-minute TTL
+
+Caches live for ~5 minutes by default. Each cache hit refreshes the TTL. So:
+
+- A high-frequency endpoint (multiple calls per minute) has a perpetually warm cache.
+- A low-frequency endpoint (one call per hour) hits a cold cache every time. Caching there is *worse* than not caching, because the cache write is more expensive than a normal call.
+
+The math: cache writes cost ~25% extra; cache reads cost 90% less. The break-even is roughly 2–3 cached reads per cache write. Below that, don't cache.
+
+## 04 — Reading the usage report
+
+Cache hits show up in the `usage` field:
+
+```ts
+console.log(reply.usage);
+// {
+//   input_tokens: 30,                  // tokens NOT served from cache
+//   output_tokens: 240,
+//   cache_creation_input_tokens: 0,    // tokens written to cache (this call)
+//   cache_read_input_tokens: 4500,     // tokens served from cache
+// }
+```
+
+The numbers tell the story. After the first request, you should see `cache_read_input_tokens` be the bulk of input and `cache_creation_input_tokens` be zero (or small, for any new tail). If you don't, the cache isn't hitting — the prefix isn't byte-stable, your TTL elapsed, or you put the breakpoint in the wrong place.
+
+## 05 — Common mistakes that break the cache
+
+Three classic ways to silently lose your cache:
+
+- **Putting variable content above the breakpoint.** A timestamp in the system block, a per-user greeting, anything per-request — moves the cache prefix every call. Variable content goes *below* the breakpoint, in the user message.
+- **Stringifying with non-deterministic key order.** `JSON.stringify({a:1, b:2})` and `JSON.stringify({b:2, a:1})` produce different strings. If your big context object's keys aren't sorted, you'll get cache misses on logically-equivalent inputs.
+- **TTL elapsed.** Caches expire ~5 minutes after the last hit. Sporadic traffic + cache = cold cache every time. Either accept it, or use the *1-hour* variant: `cache_control: { type: 'ephemeral', ttl: '1h' }` (slightly higher write cost, much longer life).
+
+## 06 — When *not* to cache
+
+Three cases:
+
+- **Cold endpoints.** Calls less than once every 5 minutes. Caching costs more than it saves.
+- **Single-shot scripts.** A migration tool that runs once. No reuse, no cache benefit.
+- **Per-user tail.** When the *only* stable content is short (< 1024 tokens, the cacheable minimum). The minimum prefix size matters; below it, the cache silently no-ops.
+
+For the rest — chat backends, agent loops, anything with a system prompt over 1k tokens — cache by default.
+
+<Callout type="warning" title="Cache the right thing or pay extra">
+Cache writes cost more than uncached input on the same call. If your cache prefix changes every request, you're paying the *premium* every call and never getting the discount. The fastest way to verify caching works: send the same request twice and check `cache_read_input_tokens` on the second reply. If it's zero, your prefix isn't stable.
+</Callout>
+
+## 07 — Multiple breakpoints
+
+You can have up to four breakpoints per request. Useful for layered prefixes:
+
+```ts
+system: [
+  { type: 'text', text: BIG_INSTRUCTIONS, cache_control: { type: 'ephemeral' } }, // breakpoint 1
+],
+messages: [
+  {
+    role: 'user',
+    content: [
+      { type: 'text', text: ALL_DOCS, cache_control: { type: 'ephemeral' } },     // breakpoint 2
+      { type: 'text', text: userQuery },                                          // varies
+    ],
+  },
+],
+```
+
+Breakpoint 1: caches the instructions. Breakpoint 2: caches instructions + docs. The user query is per-call. Two cache layers means even if `ALL_DOCS` changes (different doc set per session), the instructions cache still hits. Composable caching.
+
+<Recap>
+- Add `cache_control: { type: 'ephemeral' }` to a content block. Stable prefix is cached for ~5 minutes; cache reads cost 10% of normal.
+- Cache the system block first, then big context, then tool definitions, then examples.
+- Need ~2-3 reads per write for caching to be a net win. Below that, don't cache.
+- Verify with `cache_read_input_tokens` in the response usage. If it's zero on the second call, the prefix isn't stable.
+- Variable content goes below the breakpoint, never above. Stringify with sorted keys.
+- For sporadic traffic, switch to `ttl: '1h'`. Slightly higher write cost, much longer life.
+</Recap>

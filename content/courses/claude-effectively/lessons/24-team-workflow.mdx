@@ -1,0 +1,128 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Solo, Claude is a productivity multiplier. On a team, Claude is a *coordination* multiplier — but only if the team agrees on where it fits. Without that agreement you get drift: one person's `CLAUDE.md` says "always run tests"; another's hooks block writes to that area; a third uses Opus on every PR. The result is a team that's *each* faster but *together* slower because the conventions don't compose. This lesson is the patterns for designing a Claude-native workflow that a team can actually share.
+
+## 01 — Standardise the project files
+
+The ones that ship in the repo:
+
+- **`CLAUDE.md`** — the team's static facts.
+- **`.claude/settings.json`** — shared permissions, hooks, model defaults.
+- **`.claude/commands/`** — runbooks (`/release`, `/triage`, `/incident`).
+- **`.claude/agents/`** — specialised reviewers (`db-reviewer`, `security-checker`).
+- **`.mcp.json`** — MCP servers required to work in this repo.
+
+A new contributor clones, runs `claude` in the repo, and gets the team's full setup. This is the single biggest team-level investment: a repo that onboards itself.
+
+## 02 — Where Claude fits in the SDLC
+
+Five places Claude pulls weight on a team:
+
+- **Planning.** `/plan` flow + brainstorming for non-trivial work. The plan is a PR-ready artifact — share it before writing code.
+- **Authoring.** The default. Plan mode → execute → commit. Most engineers run this loop.
+- **Review.** Local quick review (the `superpowers:code-reviewer` agent), CI-side ultrareview on substantive PRs (lesson 21).
+- **Triage.** A `/triage` command that labels and prioritises issues + PRs. Run weekly or on-demand.
+- **Incidents.** A pre-written `/incident` runbook that walks through the team's response: who to page, where to look first, how to file the post-mortem.
+
+Each one is a small workflow. Together they're "Claude is part of how we work," not "Claude is a tool I happen to use."
+
+## 03 — What to leave to humans
+
+Equally important: where Claude *isn't* the right answer.
+
+- **Architectural decisions with social weight.** "Should we split this service?" is partly a code question and partly a team question. The model can analyse; it can't decide.
+- **Performance reviews.** Don't draft them with the model; the social fabric of a team is human work.
+- **Customer conversations.** The model can draft replies; humans should own the relationship.
+- **Security incident communication.** The model can produce a timeline; the framing for stakeholders is yours.
+- **Hiring decisions.** The model is reading too narrow a slice of the candidate to weigh in usefully.
+
+The pattern: anything where *taste*, *politics*, or *relationship* is the load-bearing element, the model is a draft tool at most. Don't outsource the judgment.
+
+## 04 — PR review: the right shape
+
+A common pattern that works:
+
+1. Author runs `superpowers:code-reviewer` agent locally before opening the PR — catches the "obvious" stuff.
+2. PR opens; CI runs; ultrareview runs as part of CI on substantive PRs.
+3. Human reviewer reads the PR with the ultrareview report alongside.
+4. Author addresses comments; merge.
+
+Three things this gets right:
+- **Author-side review** before the PR is open. Doesn't waste reviewer time on lint-level issues.
+- **Multi-perspective review** before the human review. The human focuses on what AI missed.
+- **Human still in the loop.** The merge decision is human; the AI feedback is advisory.
+
+The wrong shape: AI auto-merges if review passes. The model isn't accountable; the team is. Don't blur that.
+
+## 05 — Triage as a Claude workflow
+
+Triage is high-volume, low-stakes-per-item, mechanical-but-judgment-flavoured — the sweet spot for AI. A team `/triage` command can:
+
+- Read open PRs and issues via the GitHub MCP server.
+- Apply the team's labels (severity, area, type).
+- Prioritise based on team-defined rules.
+- Add a one-line summary if the description is empty.
+- Flag stale items.
+
+Run weekly. The triage takes 15 minutes instead of two hours. The labels are consistent across the queue, which makes the queue itself more useful.
+
+## 06 — Incident response: the runbook pattern
+
+`.claude/commands/incident.md` codifies the team's incident response:
+
+```markdown
+---
+description: Run the team's incident-response sequence
+---
+A production incident is starting. Your job is to help me move quickly without skipping steps.
+
+1. Capture: what's the user-visible symptom? What's the suspected scope?
+2. Page: open Slack channel #inc-<short-name>, page the on-call rotation.
+3. Investigate: pull logs from grafana.internal/d/api-latency for the last 30 min. Check recent deploys with `gh deployment list`.
+4. Communicate: draft a status update for #status; I'll review and post.
+5. Mitigate: propose mitigations ranked by reversibility. Don't take action without my confirmation.
+6. Resolve / monitor: document the timeline as we go.
+7. Post-mortem: when stable, draft the post-mortem doc structure for me to fill in.
+
+Do not run any state-changing commands without explicit confirmation. Speed matters; correctness matters more.
+```
+
+The runbook makes the response *consistent across responders*. New on-callers run the same flow as the team lead. When something goes wrong (and incidents are the worst time to invent procedure), the procedure is already there.
+
+## 07 — Convention drift and how to manage it
+
+The risk: each engineer customises `~/.claude/` differently, and team-level conventions clash with personal ones.
+
+The discipline:
+
+- **Project-level files override personal preferences in this repo.** That's the contract.
+- **Personal customisation in user-level only.** Don't override project hooks personally.
+- **Review project-level config in PRs** like any other code. New hooks, new commands, new agents — they go through review.
+- **Run `claude-md-improver`** on `CLAUDE.md` quarterly. Keeps it from accreting cruft.
+
+If two engineers' setups produce different model behaviour on the same code, that's a team-level config drift. Bring it into project-level config and align.
+
+## 08 — Where to start
+
+If your team isn't using Claude consistently yet, the order:
+
+1. **A team `CLAUDE.md`.** One person drafts; team reviews. Captures the few facts that *every* conversation should have.
+2. **Permissions in `settings.json`.** Allow-list the safe commands; deny the destructive. Stop everyone from approving the same commands all day.
+3. **One slash command.** Pick the workflow your team does most that's currently a manual procedure (release, triage, deploy, incident). Codify it.
+4. **One project hook.** Formatter, lint, or test guard. Whichever fails most in CI.
+5. **Iterate.** Six months in you'll have five commands, three hooks, and two custom agents. The order matters; don't try to land all of it day one.
+
+<Callout type="note" title="Claude as a teammate, not as a tool">
+The framing shift: stop thinking of Claude as "the autocomplete on the side." Think of it as a collaborator that needs onboarding documentation, conventions, and review. CLAUDE.md is the onboarding doc. settings.json is the convention. PR review of project-level config is the discipline. Teams that make this shift get compounding returns; teams that don't get one-off productivity wins that don't add up.
+</Callout>
+
+<Recap>
+- Standardise the project files: CLAUDE.md, settings.json, commands, agents, .mcp.json. A repo that onboards itself.
+- Five places Claude earns its keep on teams: planning, authoring, review, triage, incident response.
+- Leave humans the load-bearing judgment: architecture, reviews, customer comms, hiring.
+- PR review pattern: author-side review → ultrareview → human reviewer → merge.
+- Triage and incidents: codify the workflow as a slash command. Same runbook across responders.
+- Manage convention drift via PR review of project config and a quarterly CLAUDE.md audit.
+- Start small: CLAUDE.md → permissions → one command → one hook → iterate.
+</Recap>

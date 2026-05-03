@@ -1,0 +1,101 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Extended thinking is the model spending tokens to *think* before it answers. You see the thinking, the model uses it, and the final reply is shorter and better than what the same model produces without it. It is not a magic upgrade. It costs tokens, adds latency, and is wrong for most calls. This lesson is when it earns its cost, when it doesn't, and how to wire it without breaking your prompt cache.
+
+## 01 — What it is
+
+A new content block type — `thinking` — that the model produces before its answer. Turn it on with `thinking: { type: 'enabled', budget_tokens: 4000 }`:
+
+```ts
+const reply = await client.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 8000,
+  thinking: { type: 'enabled', budget_tokens: 4000 },
+  messages: [{ role: 'user', content: 'Plan a multi-step refactor of the auth module.' }],
+});
+
+// reply.content
+// [
+//   { type: 'thinking', thinking: '<the chain of thought>' },
+//   { type: 'text', text: '<the final plan>' },
+// ]
+```
+
+`budget_tokens` caps the thinking length. `max_tokens` must be larger than `budget_tokens` (thinking + answer fit inside). The thinking *is* paid output — same per-token rate as regular output.
+
+## 02 — When it pays
+
+Three task shapes where extended thinking measurably improves output:
+
+- **Multi-step reasoning over fresh content.** A new architectural decision, an unfamiliar bug, code refactor planning. The model needs to weigh trade-offs, and the trace is where that weighing happens.
+- **Long-context synthesis.** Reading 50k tokens of code/docs and producing a 500-token recommendation. Thinking is where the model integrates; without it, you get summary, not synthesis.
+- **Math, logic puzzles, and constraint problems.** The classic "show your work" cases. Accuracy moves up several percentage points; for some benchmarks, dramatically.
+
+The pattern: input is rich, output is dense, the journey from one to the other is non-obvious. That's where the trace earns its tokens.
+
+## 03 — When it doesn't pay
+
+Most calls. Specifically:
+
+- **Classification, routing, extraction.** The right answer is in the input; thinking adds tokens without lifting accuracy.
+- **Tool-call decisions in a tight loop.** The agent loop needs short iterations. Thinking on every turn balloons latency.
+- **Generation tasks with clear shape.** Drafting a paragraph, formatting a table, rewriting prose. The model knows what to do; thinking is overhead.
+- **High-frequency endpoints.** A 4k-token thinking budget on every call is real money at scale. Reach for the smaller model first.
+
+If you can't articulate *why* the model would benefit from thinking on this call, it probably won't.
+
+## 04 — Read the trace, but don't show it
+
+Thinking blocks are for *you*. They're great for:
+
+- Debugging why the model produced a wrong final answer — the trace shows where the reasoning went wrong.
+- Logging in development; quietly dropping in production.
+- Learning what your prompts look like to the model, which often reveals confusion you didn't know was there.
+
+What they're *not* for: showing to end users. The trace contains intermediate reasoning, false starts, second-guesses. Showing it dilutes the answer and breaks the user's trust ("why is the AI uncertain?"). Render only the final `text` block.
+
+## 05 — Thinking and the cache
+
+This is the gotcha. Extended thinking content can be cached, but **the thinking block from one call must be passed back into multi-turn calls** to keep the model's context coherent. That means:
+
+- For single-shot calls (most cases), thinking is fine and caching works as usual.
+- For multi-turn agent loops, thinking blocks from prior turns must be included in the assistant message — and the cache breakpoint should be placed *before* the thinking, not after.
+
+In practice: read the [Anthropic docs on extended thinking caching](https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking) when you're wiring it into a stateful loop. The single-shot case is straightforward; the loop case has sharp edges.
+
+## 06 — Budget tuning
+
+`budget_tokens: 4000` is a sensible default for hard problems. Smaller budgets (1024) are useful for "think a little before you answer" prompts. Larger budgets (16000+) are for genuine deep work.
+
+The cost: thinking tokens are output tokens. A 4k budget at the Sonnet output price is ~$0.06 per call. At 100 calls/day, that's $6/day; at 10k calls/day, $600. Tune the budget to the task. Don't set 16000 because more sounds better — the model rarely uses the headroom on simpler tasks but you pay for what it does use.
+
+## 07 — The smaller-model alternative
+
+A real choice: Sonnet *with* thinking vs Opus *without*. For many tasks Opus-without-thinking is faster, simpler, and produces comparable quality at lower latency.
+
+Heuristic:
+- **Opus, no thinking** — when the task fits in one shot and the model "knows" the answer immediately.
+- **Sonnet, thinking enabled** — when the task is genuinely sequential and the trace is doing real work.
+- **Opus, thinking enabled** — only for the hardest cases. Pricey; reserve for the few calls per day that truly need it.
+
+You'll iterate on this. Run the same prompt through all three configurations, compare outputs and costs. The right choice often surprises you.
+
+<Callout type="warning" title="Don't think when you're routing">
+The temptation: turn thinking on globally because it improves accuracy on hard tasks. The reality: classification and routing get *worse* with thinking enabled, because the model second-guesses itself out of correct answers. Per-call configuration is the discipline. There is no globally-better setting.
+</Callout>
+
+## 08 — Disabling thinking summaries in the response
+
+By default the API may produce a *summary* of the thinking rather than the full trace, depending on model. If you want the raw trace, leave the default; if you only want the final answer (and not even the trace block), don't enable thinking — the assistant produces the same final without the trace block at lower cost.
+
+Also: you cannot use `tool_choice: { type: 'any' | 'tool' }` *and* `thinking` together for forced calls — the API requires `auto` when thinking is on. If you need both extended reasoning and forced structured output, structure the workflow as two calls instead.
+
+<Recap>
+- Extended thinking adds a `thinking` content block before the final answer. It's paid output.
+- Use it for multi-step reasoning, long-context synthesis, math/logic. Skip it for classification, routing, and tight loops.
+- Read the trace for debugging; don't render it to end users.
+- Budget tokens are real cost. Tune per task; don't max it "to be safe."
+- Compare Sonnet+thinking, Opus, Opus+thinking. The right choice surprises you.
+- Forced `tool_choice` is incompatible with thinking. Structure as two calls if you need both.
+</Recap>

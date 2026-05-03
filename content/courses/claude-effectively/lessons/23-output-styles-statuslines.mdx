@@ -1,0 +1,124 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+The last few knobs on Claude Code that nobody talks about — and that, once tuned, make the difference between a CLI that feels generic and one that feels like *yours*. Output styles change how the model speaks. Statuslines show what's happening at a glance. Keybindings turn workflows into one keystroke. None of these is a feature in the headline-grabbing sense; together they take the experience from "good" to "actually good."
+
+## 01 — Output styles
+
+Claude Code ships several output styles — different system-prompt-shaped personalities. The ones you'll see:
+
+- **Default** — balanced, full responses, formats results clearly.
+- **Concise** — terse, fewer headers, less framing. Reach for this when you know what you're doing and want signal-only.
+- **Explanatory** — more thorough, more "here's why" framing. Useful when learning a new codebase.
+
+Switch with `/output-style <name>` or in `settings.json`:
+
+```json
+{
+  "outputStyle": "concise"
+}
+```
+
+The model's underlying capability is unchanged; the *shape* of its replies is what shifts. For experienced users, "concise" reduces a lot of friction.
+
+## 02 — Custom output styles
+
+You can write your own:
+
+```markdown
+<!-- ~/.claude/output-styles/blunt.md -->
+---
+name: blunt
+description: No preamble, no emoji, no summary. Just answers.
+---
+You are responding to an experienced engineer.
+
+- Do not preface answers with restatement of the question.
+- Do not summarise what you just did unless asked.
+- Do not use emoji or decorative headers.
+- Code blocks are unannotated unless context requires the language.
+- When uncertain, say so in one line and continue.
+```
+
+Custom styles are how you encode "this is the *shape* I want responses in" once instead of repeating it in every conversation. They're system-prompt-level — the model can't override them mid-conversation.
+
+## 03 — Statusline: the mini-dashboard
+
+The statusline is the line at the bottom of the CLI. By default it shows minimal info; with a custom statusline command, it shows whatever you want:
+
+```jsonc
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node ~/.claude/statusline.js"
+  }
+}
+```
+
+The command receives session state on stdin and writes a single line of formatted text. Common things to surface:
+
+- Current git branch and dirty/clean state.
+- Cost so far in this session.
+- Active model.
+- Active worktree (if any).
+- Time since last interaction (catches "did I leave a session running?").
+
+The `statusline-setup` agent (built-in) walks you through configuring one. Worth doing once — the visibility into "what state am I in" pays back constantly.
+
+## 04 — Keybindings
+
+Keyboard shortcuts live in `~/.claude/keybindings.json`. The defaults are sensible; the customisations worth considering:
+
+- **Submit on Enter, newline on Shift+Enter** (or vice versa, depending on preference). The wrong default for chat ergonomics is the most-felt bad-default.
+- **Chord bindings** for slash commands you use often. `Ctrl+G, Ctrl+T` for `/triage`, etc.
+- **Mode toggles.** Plan mode, output style switching, fast mode.
+
+The `keybindings-help` skill is the right tool for "I want to rebind X" or "what are the available bindings?" — it knows the schema.
+
+## 05 — `/config`: the lazy path
+
+For most of these settings, `/config` opens an interactive UI. It's the right tool for:
+
+- Theme.
+- Default model.
+- Output style (the built-in ones).
+- A handful of toggle switches.
+
+Reach for the editor when you're managing things with structure (permissions, hooks, custom output styles, statusline commands). The menu can't represent richly-shaped settings cleanly.
+
+## 06 — Themes and visual
+
+Light/dark/auto themes work as expected. The thing worth knowing: **terminal compatibility**. Some terminals render Claude Code's color schemes better than others. If colors look off (low contrast, unreadable text), check your terminal's true-color support; iTerm2, Alacritty, Kitty, and Windows Terminal handle it cleanly. Older terminals fall back to 16-color and lose nuance.
+
+## 07 — Fast mode (Opus 4.6 only)
+
+`/fast` toggles fast mode on Opus 4.6 — same model, faster output. It's a streaming optimisation, not a model downgrade. When responses feel sluggish on Opus, try fast mode before switching to Sonnet.
+
+It's not available on every model; the `/fast` command tells you whether your current model supports it. The doc-level pitch: same quality, lower latency, opt-in.
+
+## 08 — Putting it together
+
+The end state for a tuned Claude Code:
+
+- **Output style** — `concise` or a custom blunt variant. Saves dozens of words per reply.
+- **Statusline** — branch, dirty state, cost, worktree. Glanceable session state.
+- **Keybindings** — submit-on-Enter, a couple of slash-command chords.
+- **Theme** — your preference.
+- **Permissions** — tuned via `fewer-permission-prompts` (lesson 15).
+- **Hooks** — formatter, lint guard (lesson 17).
+- **Memory** — pruned, MEMORY.md tight (lesson 22).
+
+Each layer is a small thing. Together they're the difference between using Claude Code with the defaults and using *your* Claude Code. New machine setup is then just `git clone dotfiles && ./install.sh`.
+
+<Callout type="note" title="Don't tune what you don't use yet">
+The trap: spending an afternoon tuning your statusline, output style, and keybindings before you know which workflows you actually run. Use the defaults for a week; notice what you keep doing manually; tune the friction points specifically. Speculative tuning is wasted effort; reactive tuning is high-leverage.
+</Callout>
+
+<Recap>
+- Output styles change response shape; built-in: default, concise, explanatory. Custom styles encode preferences once.
+- Statusline is a custom command that surfaces session state — branch, cost, worktree, model.
+- Keybindings live in `~/.claude/keybindings.json`; the keybindings-help skill knows the schema.
+- /config is the menu for simple settings; edit files directly for richer ones.
+- Fast mode (`/fast`) is a streaming optimisation on Opus 4.6 — same quality, lower latency.
+- Tune reactively. A week of using defaults reveals which knobs are actually worth turning.
+</Recap>

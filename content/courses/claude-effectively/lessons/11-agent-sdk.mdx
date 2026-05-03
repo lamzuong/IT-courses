@@ -1,0 +1,111 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+You can build an agent with a hand-written tool loop (lesson 8). It works. It also has the same five bugs every hand-written agent loop has: missing the no-progress signal, double-execution on retry, lifecycle leaks, no graceful timeout, no audit trail. The Agent SDK is Anthropic's loop-with-the-bugs-fixed — a runtime that takes your tools and your messages and runs the loop the right way. This lesson is when to reach for it, what it gives you that the bare SDK doesn't, and the few sharp edges that remain.
+
+## 01 — What it is
+
+A higher-level package (`@anthropic-ai/claude-agent-sdk` for TS, `claude-agent-sdk` for Python) that runs the message-tool-result loop for you. You provide:
+
+- A list of tools (same shape as the bare API).
+- The starting message.
+- Optional lifecycle hooks (on tool call, on tool result, on completion, on error).
+
+The SDK runs the loop, dispatches tools you've registered, handles the message bookkeeping, and returns the final result. Fewer moving parts in your code; same Claude underneath.
+
+## 02 — The minimal example
+
+```ts
+import { Agent } from '@anthropic-ai/claude-agent-sdk';
+
+const agent = new Agent({
+  model: 'claude-sonnet-4-6',
+  tools: {
+    get_weather: {
+      description: 'Get current weather for a city.',
+      input_schema: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] },
+      run: async ({ city }) => ({ temp: 28, conditions: 'humid' }),
+    },
+  },
+  system: 'You are a helpful weather assistant.',
+});
+
+const result = await agent.run('What is the weather in Hanoi?');
+console.log(result.text);
+```
+
+The tool isn't a JSON schema *and* a separate dispatcher anymore — the schema and the runner sit together. The SDK takes care of the message-passing.
+
+## 03 — What it gives you that the bare loop doesn't
+
+Five things, ranked by how often they bite hand-written loops:
+
+1. **Step-cap and timeout.** The SDK caps the loop at N steps by default and lets you set a wall-clock timeout. Bare loops without these can spin forever when the model's stuck on a recovery pattern.
+2. **Idempotency on retries.** If a tool call fails mid-flight (network drops), the SDK can retry without double-executing. Bare loops have to track this themselves.
+3. **Lifecycle hooks.** `onToolCall`, `onToolResult`, `onMessage` for logging, telemetry, or per-step intervention without rewriting the loop.
+4. **Structured errors.** Tool errors come back through the model with proper `is_error: true` envelopes; non-recoverable errors bubble out as typed exceptions. You don't decide where each one belongs.
+5. **Streaming the loop.** Subscribe to events as the agent thinks/calls/synthesizes — useful for agent UIs where the user wants to see progress.
+
+## 04 — When to use it
+
+- **Anything that does more than one tool call per user turn.** The bookkeeping cost gets real fast.
+- **Production agents** with retries, observability, and SLAs. The lifecycle hooks are how you wire the agent into your existing logging stack.
+- **Multi-tool agents with 5+ tools** where the message handling outweighs the model call itself. The SDK keeps your code about the *tools*, not the plumbing.
+
+## 05 — When the bare API is still right
+
+- Single-call structured-output tasks (lesson 9). No loop, no SDK needed.
+- Quick scripts and notebooks. Bare API is fewer dependencies and easier to inline.
+- When you need fine control of the message array — building a custom orchestration that doesn't fit the standard loop. (Rare.)
+- When you're learning. Build the bare loop once before reaching for the framework. The SDK abstracts what you should understand viscerally.
+
+## 06 — The Agent SDK vs LangChain/LangGraph
+
+Both wrap the same Claude API. The differences:
+
+- **Agent SDK** is Anthropic-native. Tighter integration with model-specific features (extended thinking blocks, citations, files). Smaller dependency surface. Good when "I'm building on Claude" is the explicit choice.
+- **LangChain / LangGraph** is provider-agnostic. The same code runs on Claude, GPT, Gemini, Ollama. Larger ecosystem of integrations (vector stores, document loaders, retrievers). Good when the model itself might change.
+
+For a Claude-only product, Agent SDK is the lower-friction default. For a multi-model platform, LangGraph wins. See the [LangChain course's agent loop lesson](/courses/langchain-langgraph-toolkit/lessons/13-react-agent) for the framework-agnostic version of the same pattern.
+
+## 07 — Lifecycle hooks: the real productivity unlock
+
+```ts
+const agent = new Agent({
+  model: 'claude-sonnet-4-6',
+  tools,
+  hooks: {
+    onToolCall: async (call) => {
+      console.log(`[${call.id}] ${call.name}`, call.input);
+      await metrics.increment('agent.tool_call', { tool: call.name });
+    },
+    onToolResult: async (result) => {
+      await metrics.timing('agent.tool_latency', result.durationMs, { tool: result.name });
+    },
+    onMessage: async (msg) => {
+      await db.agentEvents.insert({ runId, role: msg.role, content: msg.content });
+    },
+  },
+});
+```
+
+Three hooks, one tool, instant observability. This is what you'd build by hand in a bare loop in 100 lines of glue. The SDK turns it into one config object.
+
+## 08 — Sharp edges to remember
+
+- **Tool functions must be deterministic about errors.** Throwing inside `run` is treated as a non-recoverable error and bubbles out. If you want the model to recover, return `{ error: '...' }` (or set `is_error`) explicitly — don't throw.
+- **Step caps are kindness.** Set them. A runaway agent with no cap will happily burn $50 of tokens on a loop you're not watching.
+- **Costs scale per step.** Each loop iteration is a full API call. Caching the system + tools (lesson 7) is mandatory for any agent with more than two steps.
+
+<Callout type="note" title="The agent SDK doesn't fix bad tool design">
+The most common mistake: reaching for the Agent SDK when the real problem is overlapping/confusing tools. The SDK runs whatever loop your tools define; if your tools are vague or overlap, the model thrashes between them and the SDK happily runs the thrash. Tool clarity (lesson 8) comes first; SDK adoption comes second.
+</Callout>
+
+<Recap>
+- The Agent SDK is the bare tool loop with the five common bugs fixed.
+- Use it for production agents, multi-tool flows, anything with retries or observability requirements.
+- Lifecycle hooks (onToolCall, onToolResult, onMessage) are the productivity unlock — instant telemetry.
+- Stick with the bare API for single-call structured output, quick scripts, and learning.
+- LangChain/LangGraph beats it for multi-provider; Agent SDK beats it for Claude-only.
+- Cap steps and time out. Cache tools and system. Don't throw from tool runners — return errors as data.
+</Recap>

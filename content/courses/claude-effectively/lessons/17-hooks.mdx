@@ -1,0 +1,118 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+A hook is a shell command the harness runs at a defined moment — before a tool call, after a tool call, when a session starts, when the model stops. The model doesn't see the hook firing; the harness does. That's the point. Hooks are how you make *the harness, not the model,* enforce the rule. "Make sure the formatter runs after every edit" is unreliable when you tell it to the model and bulletproof when you wire it as a hook. This lesson is the events, the patterns, and the discipline of choosing hook-vs-prompt.
+
+## 01 — The events that matter
+
+The harness exposes several hook events. The five you'll use:
+
+- **PreToolUse** — fires before any tool call. Can block the call by exiting non-zero with a message.
+- **PostToolUse** — fires after a tool call completes. Cannot block (the call's already happened); great for side-effects.
+- **SessionStart** — fires when a session begins (or after `/clear`). Inject context, print a banner, set up env.
+- **Stop** — fires when the model finishes its turn and waits for input. Useful for notifications.
+- **UserPromptSubmit** — fires when you submit a prompt. Useful for redaction or audit.
+
+Configure them in `settings.json`:
+
+```jsonc
+{
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Edit|Write|MultiEdit",
+      "hooks": [{ "type": "command", "command": "npm run format -- --quick" }]
+    }]
+  }
+}
+```
+
+`matcher` is a regex against the tool name. The command runs with the tool's input/output piped to stdin as JSON.
+
+## 02 — The big idea: harness > prompt
+
+Two ways to enforce "run the formatter after every edit":
+
+- **Prompt.** Add to CLAUDE.md: "After editing files, always run `npm run format`." The model usually does it. Sometimes forgets. Sometimes formats the wrong files. You learn to live with it.
+- **Hook.** A PostToolUse hook on `Edit|Write|MultiEdit` runs the formatter every time. The model can't forget; the harness fires it.
+
+The hook is more reliable, more consistent, doesn't bloat the prompt, and is invisible to the model — which means the model focuses on the task, not the procedure.
+
+The general rule: **automated behaviour ("from now on, every time X, do Y") goes in a hook, not in CLAUDE.md.** The `update-config` skill (built into Claude Code) knows this and will suggest the right shape.
+
+## 03 — Patterns that are worth wiring
+
+A handful of hooks that pay for themselves quickly:
+
+- **Format-on-save** (PostToolUse on Edit/Write): formatter runs on changed files. No more "you forgot to format" review comments.
+- **Lint guard** (PreToolUse on Edit/Write): block writes that would fail lint, with the lint error returned to the model. Forces the fix on this turn, not the next review cycle.
+- **Test-on-commit** (PreToolUse on `Bash(git commit:*)`): run a fast subset of tests; block if they fail.
+- **Secret scanner** (UserPromptSubmit): grep your prompt for what looks like an API key; warn before sending.
+- **Push notifier** (Stop): native OS notification when the model hands control back. Useful for "let it run, walk away, come back when notified."
+
+Each one a few lines of shell or Node. Each one removes a class of "I keep making this mistake" or "I keep waiting for this to finish."
+
+## 04 — The hook contract
+
+Hooks read a JSON event from stdin and write JSON to stdout (or just text + exit code). The minimum viable hook:
+
+```bash
+#!/usr/bin/env bash
+# .claude/hooks/format-on-write.sh
+INPUT=$(cat)
+FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path')
+case "$FILE" in
+  *.ts|*.tsx|*.js|*.jsx) prettier --write "$FILE" >/dev/null ;;
+esac
+```
+
+For PreToolUse hooks that *block*, exit non-zero and write the reason to stderr (or use the structured JSON form to provide a richer block message back to the model). The model sees the block and adapts.
+
+## 05 — Don't over-hook
+
+Hooks are powerful and easy to overdo. Anti-patterns:
+
+- **A hook that prints noise on every tool call.** Fills your screen, hides the actual work. Print only on state change or block.
+- **A hook that takes more than a second.** Slows down every call. Either make it async (fire-and-forget where possible) or move the work elsewhere.
+- **Hooks that conflict.** Two PostToolUse hooks both modifying the file. Now you have a race. Coordinate, or fold into one hook.
+- **Project-shared hooks that require user-specific tools.** Don't ship a hook that calls `pbcopy` to a Linux teammate. Either guard it (skip if missing) or scope it user-level.
+
+The healthy state: a few well-chosen project hooks (formatter, lint guard, test guard), a few personal user hooks (notifier, secret scanner), all of them fast and quiet.
+
+## 06 — When PostToolUse vs PreToolUse
+
+- **PostToolUse** when the action should *always* happen and you don't need to block. Formatter, logger, metric counter.
+- **PreToolUse** when you need to *prevent* the action under certain conditions. Lint failure, missing secret, working directory state.
+
+If you find yourself trying to "block PostToolUse," that's a sign you wanted PreToolUse all along.
+
+## 07 — SessionStart for context injection
+
+The lesser-known killer use: SessionStart hooks can print to stdout, and the harness folds that text into the conversation context. So you can do:
+
+```bash
+# .claude/hooks/session-start.sh
+echo "## Today's standup notes"
+echo
+gh issue list --label "in-progress" --json title,url --jq '.[] | "- \(.title) (\(.url))"'
+```
+
+Now every new session begins with the team's open issues injected. No prompt-engineering required; the context is just *there*.
+
+Use this for: branch state, recent CI results, open issues, deployment status, repo-specific FYIs. Anything that's "true at session start, but not worth a static CLAUDE.md."
+
+## 08 — Cross-link to skills
+
+The `update-config` skill exists specifically for "I want this behaviour to happen automatically." Invoke it when you find yourself reaching for CLAUDE.md to enforce a procedural rule. It'll write the right hook in the right scope.
+
+<Callout type="warning" title="Hooks can lie about completion">
+A PostToolUse hook that fails (formatter crashes, lint fails) does *not* roll back the tool call. The Edit happened; the hook can yell about it but can't undo it. So: when you need to *prevent* a state, use PreToolUse with a non-zero exit. PostToolUse is for "do something *additionally*", not "make sure this didn't happen."
+</Callout>
+
+<Recap>
+- Hooks are shell commands the harness fires on events: Pre/PostToolUse, SessionStart, Stop, UserPromptSubmit.
+- The big idea: automated behaviour goes in hooks, not CLAUDE.md prose. The harness enforces, the model doesn't have to.
+- Wire formatters, lint guards, secret scanners, notifiers. A few hooks remove whole classes of mistake.
+- PostToolUse for unconditional side-effects. PreToolUse to actually block.
+- SessionStart can inject dynamic context into every conversation. Underused.
+- Don't over-hook. Keep them fast, quiet, and few.
+</Recap>

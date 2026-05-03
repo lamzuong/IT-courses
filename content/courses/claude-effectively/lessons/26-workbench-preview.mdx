@@ -1,0 +1,88 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+The course's final move is *yours*: build a personal Claude Workbench — a dotfiles bundle of slash commands, subagents, hooks, an MCP server, and a `CLAUDE.md` template — that you check in, version, and reuse on every project. The pieces are all things this course has covered. The work in the project is wiring them together with explicit rationales: what each piece fires on, what it makes safer or faster, what it deliberately doesn't do. This lesson is the preview: what you're about to build and the order to build it in.
+
+## 01 — What's in the Workbench
+
+Six artifacts:
+
+- **Three custom slash commands** — chosen from the workflows you actually run. Examples: `/triage`, `/release`, `/explain`, `/onboard`, `/incident`.
+- **Two subagents** — specialised reviewers or investigators tuned to your codebase. Examples: `db-reviewer`, `security-checker`, `migration-auditor`, `performance-investigator`.
+- **Two hooks** — one PreToolUse (a guard), one PostToolUse (a side-effect). Examples: lint guard + format-on-write, secret scanner + commit auditor.
+- **One MCP server** — a small one you author, exposing 1-3 tools from a system you actually use. Examples: a wrapper around an internal API, a typed query tool over a personal database, a search tool over your notes.
+- **A `CLAUDE.md` template** — the file you'd start every new project with. Sections for stack, conventions, commands, "things to know."
+- **A README** — for the workbench itself. What each piece does, when it fires, the rationale.
+
+That last one is the difference between a workbench and a junk drawer. Every artifact has a one-paragraph rationale. Future-you reads the README and knows whether each piece is still earning its place.
+
+## 02 — Why each piece, briefly
+
+Each tool covered in the course maps to a workbench artifact:
+
+- **Slash commands** (lesson 16) → workflows you run repeatedly. Codify three.
+- **Subagents** (lesson 18) → bounded specialised work. Define two for review/audit roles.
+- **Hooks** (lesson 17) → the harness enforcing rules. Two: one to block bad states, one to maintain good ones.
+- **MCP server** (lesson 12, 19) → a typed surface to a system you reach for often. One.
+- **`CLAUDE.md`** (lesson 22) → the static facts every project starts with. A template with the sections empty for the project to fill.
+- **`settings.json`** — also part of the bundle: shared permissions, hook wiring, model defaults.
+
+## 03 — The build order
+
+A suggested order. Not rigid; lift parts that don't fit.
+
+1. **Inventory** — for one week, take notes on the workflows you do repeatedly, the prompts you re-type, the things you wish were one keystroke. The workbench solves *your* friction; you don't know yours yet without observation.
+2. **Slash commands first** — pick three from your inventory. Smallest barrier to entry; biggest immediate payoff.
+3. **Permissions and hooks** — tune the allow-list, wire the formatter or lint guard. The hooks remove friction the slash commands don't.
+4. **Subagents** — the review/audit roles. These take longer to author because the prompt design is real work. Default to one good agent over two mediocre ones.
+5. **MCP server** — the highest barrier. Stand up the smallest server that exposes a useful tool. Start with read-only operations.
+6. **`CLAUDE.md` template** — assemble from the patterns you've learned. Sections: stack, conventions, key files, build commands, "things to know."
+7. **README and rationales** — write the why for each piece. This is what makes the workbench *durable* — six months later you'll thank the rationale.
+
+## 04 — The constraints that make it durable
+
+Three rules to keep the workbench from rotting:
+
+- **Every artifact has a rationale.** No "I added this once and forgot why."
+- **Personal lives in user-level config; team lives in project-level config.** Don't smush the two.
+- **Pruning is part of the practice.** Quarterly, remove what you haven't used. The workbench is a tool, not an attic.
+
+Workbenches that violate any of these become the thing they were trying to replace: a sprawling pile that everyone tiptoes around.
+
+## 05 — What the workbench is *not*
+
+- Not a complete dotfiles repo. Editor config, shell setup, git config — those are separate. The workbench is *Claude Code* dotfiles.
+- Not a magic productivity multiplier. It removes friction; it doesn't replace skill. The skills in this course matter regardless of whether you assemble a workbench.
+- Not finished after this course. It's a living artifact. The course gets you to v0.1; v1.0 is six months of iteration away.
+
+## 06 — How the project page lays it out
+
+The project itself walks through:
+
+- A worked example for each of the three slash commands.
+- A worked example for each of the two subagents.
+- A worked example for each of the two hooks.
+- A small MCP server you can build in 30 minutes.
+- A `CLAUDE.md` template with section-by-section guidance.
+- The README pattern for the workbench's own documentation.
+
+You don't have to copy any of it verbatim. The patterns are templates; the rationales are yours to write. Some of the worked examples will fit your context; others won't. The whole point is to *build your version* of the workbench, not to copy mine.
+
+## 07 — One last meta-skill
+
+If there's one thing to take from this course beyond any specific feature, it's this: **invest in the harness.** Most of the long-term value of working with Claude isn't in the model getting better — it's in the *configuration* you accrete around it. Slash commands, hooks, subagents, MCP servers, `CLAUDE.md`, settings. They compound. A year of investment in this layer means a Claude Code session that's specifically tuned to you, your team, your work.
+
+That's the spine the course was built on. Every part — the API features, the meta-skills, the daily moves, the power moves — is a tool that goes into the workbench. Now go build yours.
+
+<Callout type="note" title="Done > perfect">
+The most common workbench failure: a team plans the perfect workbench and never ships v0.1. Three commands, two subagents, two hooks, one MCP server, a template, a README. That's the deliverable. Iterate from there. The workbench you actually have at v0.1 is worth more than the perfect workbench you never ship.
+</Callout>
+
+<Recap>
+- The Workbench: 3 slash commands, 2 subagents, 2 hooks, 1 MCP server, CLAUDE.md template, README.
+- Build order: inventory friction → commands → permissions+hooks → subagents → MCP → CLAUDE.md → rationales.
+- Rules to keep it durable: rationale per artifact, personal vs team scoping, quarterly pruning.
+- It's Claude Code dotfiles, not a complete dotfiles repo. And it's a living artifact, not a finished one.
+- The meta-skill of the course: invest in the harness. The configuration compounds; that's where the long-term value sits.
+- Ship v0.1. Iterate.
+</Recap>

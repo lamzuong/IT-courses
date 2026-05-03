@@ -1,0 +1,127 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Two questions every team eventually asks: "what is this costing us?" and "is it actually worth it?" The second is hard. The first is solvable with a dozen lines of logging and a habit of looking at the numbers. This lesson is the per-call accounting that makes cost legible, the metrics that show whether Claude is helping, and the honest list of cases where Claude is the *wrong* tool.
+
+## 01 — Per-call accounting
+
+The minimum useful log on every API call:
+
+```ts
+{
+  ts: Date.now(),
+  runId: '...',
+  endpoint: 'classify-review',          // your label, not Anthropic's
+  model: 'claude-sonnet-4-6',
+  input_tokens: 4500,
+  output_tokens: 240,
+  cache_read_input_tokens: 4200,
+  cache_creation_input_tokens: 0,
+  latency_ms: 1820,
+  stop_reason: 'end_turn',
+  ok: true,
+}
+```
+
+Eight fields. With this you can answer:
+
+- "Which endpoint costs the most?" — group by `endpoint`, sum input + output.
+- "Where am I caching effectively?" — `cache_read_input_tokens / input_tokens` ratio.
+- "What's my P95 latency?" — percentile of `latency_ms`.
+- "Where do I hit `max_tokens`?" — count of `stop_reason === 'max_tokens'`.
+
+A two-line wrapper around `messages.create` writes this to your logger. Skipping this on day one is the most-regretted decision; you can't optimise what you can't see.
+
+## 02 — The cost equation in your head
+
+From lesson 14, the rough ratios:
+
+- **Haiku 4.5** input ≈ 1× unit; output ≈ 5× input.
+- **Sonnet 4.6** input ≈ 4× Haiku; output ≈ 5× input.
+- **Opus 4.7** input ≈ 20× Haiku; output ≈ 5× input.
+- **Cache reads** = 0.1× nominal input.
+- **Batch** = 0.5× nominal everything.
+
+So for an endpoint averaging 10k input, 500 output on Sonnet, with caching pulling 80% of input from cache:
+
+```
+input  = 0.2 × 10000 + 0.8 × 10000 × 0.1 = 2000 + 800 = 2800 effective input tokens
+output = 500 tokens × 5× = 2500 weighted units
+total  ≈ 5300 weighted Sonnet units per call
+```
+
+You don't need exact dollars; the ratios tell you which lever moves the bill. Switch model? 4× difference. Improve cache? ~30% difference. Tighten max_tokens? Maybe 10%.
+
+## 03 — Observability that matters
+
+Three dashboards a team building on Claude actually uses:
+
+- **Cost by endpoint, daily.** Shows where money is going. The Pareto here is usually 2-3 endpoints accounting for 80% of cost.
+- **Cache hit rate by endpoint.** Anything below 70% on a high-volume endpoint is a tuning opportunity.
+- **Quality proxy.** A small sampled eval — was the answer correct, was it parseable, did the user accept it. If quality drops while cost rises, something regressed.
+
+Beyond that, alerts:
+
+- **Cost spike** — a 2× day-over-day jump on any endpoint. Usually a cache miss or a hot loop.
+- **Error rate spike** — `ok: false` over some threshold. Often means the prompt or schema drifted.
+- **Latency degradation** — P95 latency creeping up. Usually not Anthropic's fault; usually your context grew.
+
+## 04 — Cost-shaping levers, ranked
+
+From "biggest impact" to "smallest":
+
+1. **Switch to a smaller model.** 4-20× depending on direction. Always evaluate Haiku first.
+2. **Cache the stable prefix.** 5-10× on input cost when applicable.
+3. **Pre-filter in code.** Skip 20-40% of calls that don't need the model.
+4. **Switch to batch.** 2× on async workloads.
+5. **Tighten `max_tokens`.** ~10-20% on output cost.
+6. **Shorter prompts.** Marginal — often actually negative if it costs accuracy.
+
+Lever 6 is where teams overinvest. "Make the prompt shorter" is the lowest-impact lever and often hurts quality. Spend energy on 1-4 first.
+
+## 05 — Where Claude is the *wrong* tool
+
+This is the section everyone skips. Be honest:
+
+- **Deterministic transforms.** Pretty-printing JSON, parsing CSV, running regex. The model is slower, more expensive, and less correct than the right library.
+- **High-volume routing with stable rules.** A switch statement is cheaper, faster, and identical in behaviour. Reach for the model when the rules are *fuzzy*; not when they're literally written down.
+- **Aggregation over structured data.** SQL, pandas, or a script reads the data faster and aggregates correctly. Don't ask the model to "count the users with X."
+- **Anything with a strict correctness requirement and a verifier.** If a deterministic verifier exists (compiler, type-checker, test runner), use the verifier. The model can suggest; the verifier decides.
+- **Latency-critical paths.** Even Haiku at 200ms is too slow for some hot paths. Cache the model's output once; serve the cache.
+
+The pattern: when you have a tool that's faster, cheaper, and more correct, *use that tool*. Claude is the right answer for fuzzy, multi-step, judgment-flavoured tasks. It's the wrong answer for everything else.
+
+## 06 — When the cost feels fine, watch the *quality* curve
+
+A thing that often goes unmeasured: model output quality on a fixed prompt drifts as you change other things — prompt edits, context bloat, model upgrades. Without an eval set, you don't notice. With even a tiny eval (50 examples scored by a known-good answer), you do.
+
+Run the eval on:
+- Every meaningful prompt change.
+- Every model swap.
+- Periodically (monthly), as a regression check.
+
+Flat scores → you can keep iterating. Falling scores → revert. Rising scores → ship and lock in.
+
+## 07 — The "is it worth it" question
+
+The team-level question, hardest to answer. Decent proxies:
+
+- **PRs per engineer per week.** Did it go up after Claude adoption?
+- **PR review cycle time.** Did review get faster (less back-and-forth)?
+- **Incident MTTR.** Did the runbooks help?
+- **Onboarding time.** Did new contributors ship sooner?
+
+None of these is rigorous. All are better than nothing. The honest answer is usually "yes, it's worth it, but not as much as the marketing implies and more than the skeptics claim." Track *something*; refine over time.
+
+<Callout type="warning" title="Per-call cost accounting starts paying immediately">
+The single most-skipped step. People build the integration, ship it, then six months later finance asks "why is the bill what it is?" and there's no per-endpoint breakdown. Add the eight-field log on day one. Even if you never look at it for a year, having the data when you need it is worth the two lines of code by an order of magnitude.
+</Callout>
+
+<Recap>
+- Log eight fields per call: ts, runId, endpoint, model, tokens (input/output/cache_read/cache_creation), latency, stop_reason, ok.
+- Cost levers ranked: model swap > caching > pre-filter > batch > max_tokens > prompt length.
+- Observability: cost-by-endpoint, cache-hit-rate, sampled quality. Alerts on cost spike, errors, latency.
+- Wrong tool when: deterministic transforms, stable-rule routing, structured aggregation, strict-correctness paths, latency-critical hot paths.
+- Run an eval on every prompt change and model swap. Catches drift before you ship it.
+- "Is it worth it" is hard; PR throughput, review cycle, MTTR, onboarding are decent proxies.
+</Recap>

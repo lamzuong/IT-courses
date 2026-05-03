@@ -1,0 +1,108 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Two power moves that share a theme: parallelism. Worktrees let you run multiple agents on the same repo at once without conflicts; ultrareview launches a multi-agent cloud review of your branch from inside the CLI. Together they're how a single developer goes from "one Claude at a time" to "three Claudes investigating, one synthesising, one reviewing." This lesson is the mechanics and the patterns that make parallel work actually pay off.
+
+## 01 — Worktrees: the basic move
+
+A git worktree is a separate working directory that shares the same repo. Different branch checked out, isolated file state, single `.git` underneath. Claude Code's worktree integration creates one on demand and runs an agent inside it:
+
+```
+EnterWorktree({
+  branch: "experiment/refactor-auth",
+  baseBranch: "main"
+})
+```
+
+The harness creates `.worktrees/experiment-refactor-auth/`, checks out the branch there, and points subsequent operations at it. When you're done: `ExitWorktree({ keep: true })` keeps the branch and removes the worktree directory; `keep: false` deletes both.
+
+## 02 — Why it matters
+
+Three patterns get unblocked:
+
+- **Parallel agents on the same repo.** Two agents in two worktrees can edit different code paths concurrently without stepping on each other. Effective wall-clock concurrency.
+- **Risky exploration.** Spike a refactor in a worktree. Don't like it? `ExitWorktree({ keep: false })` and the spike is gone — your main workspace is untouched.
+- **Reviewing a PR locally.** Check out the PR's branch in a worktree, run the agent against it ("explain this change," "are there issues"), close the worktree when done. No polluting your main checkout.
+
+The friction is low; the safety upside is high. Reach for worktrees more often than feels natural.
+
+## 03 — Subagents in worktrees
+
+The `Agent` tool accepts `isolation: "worktree"`:
+
+```
+Agent({
+  subagent_type: "general-purpose",
+  isolation: "worktree",
+  description: "Try the v2 schema migration",
+  prompt: "Implement the migration described in docs/migrations/2026-05-v2.md. Run the test suite. Report whether it works and any issues."
+})
+```
+
+The subagent gets its own worktree, makes changes there, returns the path and branch when done. You inspect the worktree, decide whether to merge into main, or discard it. *This* is the right shape for "go off and try this risky thing."
+
+## 04 — Ultrareview: the basic move
+
+Ultrareview is a multi-agent cloud review of a branch. Run `/ultrareview` (no args = current branch; `/ultrareview <PR#>` = a GitHub PR) and the harness:
+
+- Bundles the diff and relevant context.
+- Dispatches multiple cloud agents (each with a different review role: security, correctness, style, etc.).
+- Synthesises the findings into one report.
+- Returns it to you in the CLI.
+
+It's billed (cloud agents cost real money), and it's user-triggered (you can't auto-run it). Best for: PRs you'd otherwise spend an hour reviewing, branches before merge to main, anything where multi-perspective beats single-shot.
+
+## 05 — When ultrareview earns its cost
+
+- **Substantial PRs.** Anything with 200+ changed lines or 5+ files. The multi-agent breakdown surfaces issues a single read misses.
+- **Cross-cutting changes.** Migrations, auth changes, infra. The "many perspectives" framing matters most where one perspective is too narrow.
+- **Pre-merge gate** for risky branches. Catch issues before they hit CI; CI then catches what ultrareview missed.
+
+## 06 — When it's overkill
+
+- **Trivial PRs.** Typo fixes, single-line changes. A normal review is faster.
+- **Pre-PR exploration.** You're still iterating; defer ultrareview until the branch stabilises.
+- **Cost-sensitive workloads.** Each ultrareview costs a few dollars. At low frequency (a few per week), trivial; at high frequency (every PR), measurable.
+
+## 07 — The composition pattern
+
+The pattern that knits worktrees, subagents, and ultrareview:
+
+1. **Plan the change** (lesson 20).
+2. **Execute in a fresh session.** Possibly in a worktree if the change is risky.
+3. **Dispatch parallel subagents** for independent work (e.g., "implement the API," "implement the UI", "write tests"). Each in its own worktree.
+4. **Merge subagent results back** to a single branch. Synthesise; integrate.
+5. **Run ultrareview** on the integrated branch before opening the PR.
+6. **Open the PR.** CI runs; reviewers add what ultrareview missed.
+
+The whole thing is a single afternoon for changes that used to take a few days. Most of the speedup is from steps 3 and 5 — parallelism and pre-review feedback.
+
+## 08 — Worktree hygiene
+
+Worktrees accumulate. After a week you have ten in `.worktrees/`, half of them belonging to dead spikes. Hygiene patterns:
+
+- **Name them descriptively.** `experiment/auth-v2`, not `experiment/test`. Future-you needs to recognise them.
+- **Delete on success too.** Once the branch is merged (or the spike is abandoned), `ExitWorktree({ keep: false })`. Don't let dead worktrees pile up.
+- **`commit-commands:clean_gone`** — a slash command that removes all branches marked `[gone]` (deleted on remote) along with their worktrees. Run it weekly.
+
+## 09 — When worktrees go wrong
+
+Two common gotchas:
+
+- **Stash conflicts.** Stash applies to the current worktree. If you stash in worktree A and then `cd` to worktree B, the stash isn't there. Stashes are tied to the originating worktree.
+- **Submodules.** Multiple worktrees of a repo with submodules can fight over submodule state. Test once before relying on it; usually fine, sometimes weird.
+
+If something feels off, `git worktree list` shows you what exists; `git worktree prune` cleans up references to worktrees whose directories were deleted manually.
+
+<Callout type="note" title="The mental model: worktrees are sandboxes, ultrareview is a second pair of eyes">
+Worktrees give the agent room to fail safely. Ultrareview gives you a second perspective without paying for a teammate's hour. Each costs little; both compose with the rest of the workflow. The biggest mistake is not knowing they exist — most "I broke main while experimenting" or "the reviewer caught something I missed" stories have a worktree or ultrareview shape that would have prevented them.
+</Callout>
+
+<Recap>
+- Worktrees = isolated working directories on the same repo. Use for parallel agents, risky spikes, local PR review.
+- Subagents can run in worktrees via `isolation: "worktree"` — the right shape for "go off and try this."
+- Ultrareview = multi-agent cloud review of a branch or PR. User-triggered, billed, surfaces multi-perspective findings.
+- Use ultrareview on substantial / cross-cutting / pre-merge branches. Skip on trivial changes.
+- The composition: plan → execute → parallel subagents in worktrees → merge → ultrareview → PR.
+- Hygiene: descriptive names, delete on success, run clean_gone weekly.
+</Recap>

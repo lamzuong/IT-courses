@@ -1,0 +1,127 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+A subagent is a fresh model instance, with its own context, dispatched to do a bounded piece of work. The main agent stays focused on the conversation; the subagent burns through a search, an audit, or a parallel investigation; only the summary comes back. Subagents are the cure for "my context is full of grep results" and "I want three things investigated in parallel." This lesson is when to dispatch, what to put in the prompt, and the subagent types you'll actually use.
+
+## 01 — Why subagents
+
+Three problems they solve:
+
+- **Context bloat.** A 30-file grep dumps thousands of tokens into the main context. The subagent reads them, summarises, returns 200 tokens. The main context stays clean.
+- **Parallel work.** Three independent investigations run concurrently in three subagents instead of sequentially in the main loop. Wall-clock time roughly divides by three.
+- **Isolation.** A subagent can run with a different model, different permissions, different system prompt, even a different working tree. "Run this risky thing in a fresh context" is a one-tool-call away.
+
+The cost: each subagent is a full model run on the input you give it. Don't dispatch a subagent for "read this one file" — you'll spend more on the dispatch than the read.
+
+## 02 — The Agent tool
+
+In Claude Code, you (or the model) invoke a subagent via the `Agent` tool:
+
+```
+Agent({
+  subagent_type: "Explore",
+  description: "Find auth middleware",
+  prompt: "Locate the auth middleware in this repo. Report file paths, the function name, and which routes use it. Under 200 words."
+})
+```
+
+`subagent_type` picks the agent profile. `description` is a short label for the spinner. `prompt` is the brief — written like you'd brief a colleague (lesson 2): goal, context, constraints, output format.
+
+The result comes back as a single message — the subagent's final output. Everything in between (its tool calls, its scratch work) stays in its context, not yours.
+
+## 03 — Built-in subagent types
+
+Claude Code ships several profiles. The ones you'll use most:
+
+- **Explore** — read-only search. Glob, Grep, Read. No Edit, no Bash. Right for "where is X" and "find all Y."
+- **Plan** — design an implementation plan for a multi-step task. Returns a stepped plan with file paths and trade-offs. Right when you're about to start a non-trivial change.
+- **general-purpose** — full toolset, can write code, run commands. The default when the task is "go off and do this."
+- **code-reviewer** — review code against a plan or coding standards. Use after a major step.
+
+Plus skill-bound agents (claude-code-guide, vercel:* family, …) and any project-defined agents in `.claude/agents/`.
+
+## 04 — When to dispatch
+
+Default to dispatching when:
+
+- The work is *bounded* — clear input, clear output. Vague tasks ("improve the code") fail in subagents because the subagent can't ask follow-ups.
+- The work would *bloat your context* — search across many files, exploration of unfamiliar areas.
+- The work is *independent* — no need for back-and-forth with the main agent during execution.
+- Multiple things need to happen *in parallel*.
+
+Default to *not* dispatching when:
+
+- The task is one tool call (Read, Grep) — dispatch overhead exceeds the work.
+- The task requires deep awareness of the conversation context — synthesis, judgement calls, anything where "but earlier we decided…" matters.
+- You're going to immediately re-do the work yourself — sometimes happens with planning. Just plan inline.
+
+## 05 — Briefing a subagent
+
+The subagent has *zero* memory of your conversation. Brief it like you brief a colleague who walked into the room:
+
+- **What you're trying to accomplish, and why.** Not just the immediate task — the goal that frames "what makes this useful."
+- **What you've already learned or ruled out.** Saves them from re-treading.
+- **The exact output you want.** "List file paths and the function that calls them. Under 200 words." Concrete shape.
+
+The number-one mistake: writing terse subagent prompts ("find the auth middleware"). The subagent does shallow work, returns a generic answer, you have to re-dispatch with more context. Brief once, brief well.
+
+## 06 — Parallel dispatch
+
+Multiple Agent tool calls in one message run in parallel:
+
+```
+[
+  Agent({ subagent_type: "Explore", prompt: "Find all uses of X" }),
+  Agent({ subagent_type: "Explore", prompt: "Find all uses of Y" }),
+  Agent({ subagent_type: "Explore", prompt: "Find all uses of Z" }),
+]
+```
+
+Three concurrent searches. Three results return; the main agent synthesises. This is the biggest single productivity unlock for "explore the codebase before deciding" tasks.
+
+## 07 — Custom project subagents
+
+`.claude/agents/<name>.md` defines a subagent profile. Front-matter sets the model, allowed tools, and system prompt; the body is the agent's persona and rules:
+
+```markdown
+---
+name: db-reviewer
+description: Reviews migrations for safety on the production schema.
+tools: Read, Glob, Grep, Bash(psql:*)
+model: opus
+---
+You review database migrations against the production schema.
+
+For every migration:
+- Check for non-NULL on existing columns (needs backfill).
+- Check for index drops that aren't covered by replacement.
+- Flag anything that locks tables for >5 seconds.
+- Compare against `schema/production.sql` for unexpected divergence.
+
+Be blunt. Errors found > polish.
+```
+
+Custom agents are how a team encodes specialised review or audit logic. Anyone with the repo gets the agent on `Agent({ subagent_type: "db-reviewer", ... })`.
+
+## 08 — Worktree isolation
+
+Subagents can run in an isolated git worktree (`isolation: "worktree"`). The harness creates a temporary worktree, the agent works there, changes are reported back. Useful for:
+
+- Risky exploratory edits ("try this refactor; show me the diff").
+- Parallel agents that would otherwise step on each other.
+- Anything where "if this goes wrong, I want zero impact on my workspace."
+
+Lesson 21 covers worktrees in depth alongside ultrareview.
+
+<Callout type="note" title="The subagent is a separate model instance, not just a context split">
+Don't think of dispatching as "let me clear my context." Think of it as "let me ask a fresh expert." The subagent has its own personality, its own tendencies (a fresh agent is often more cautious than one mid-conversation), and its own quirks. For most tasks this is *good* — fresh eyes catch things stale context misses. But for synthesis or "given everything we just discussed, decide", the main agent is the right one. Don't outsource judgement.
+</Callout>
+
+<Recap>
+- Subagents are fresh model runs dispatched for bounded work. They keep your main context clean.
+- Use Explore for search, Plan for design, general-purpose for off-and-do, code-reviewer for review.
+- Dispatch when work is bounded, search-heavy, parallelisable, or independent.
+- Brief subagents like new colleagues — full goal, prior learnings, exact output.
+- Parallel dispatch (multiple Agent calls in one turn) is the big productivity unlock.
+- Custom project agents encode team-specific review logic. Worktree isolation for risky work.
+</Recap>

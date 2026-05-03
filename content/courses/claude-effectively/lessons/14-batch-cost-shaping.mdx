@@ -1,0 +1,126 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+If your workload is "process N items with the model" and N > 100, you're probably overpaying. The Batch API runs requests asynchronously with a 24-hour SLA and charges 50% less per token. Pair that with prompt caching, model selection, and a clear sense of what each call costs, and "AI is too expensive" stops being a real constraint for most workloads. This lesson is the cost math you can do in your head and the four levers that move the bill.
+
+## 01 — When batch wins
+
+Three criteria, all required:
+
+- **The work is async.** Nightly classification, weekly summarisation, periodic enrichment. If a user is waiting in real-time, batch isn't for you.
+- **The volume is large.** A handful of calls don't justify the integration cost; thousands do.
+- **24 hours is acceptable.** The SLA isn't "instant + 50% off" — it's a queue. Most batches complete in minutes, but design for the worst case.
+
+Common fits: backfilling labels on a historical dataset, generating descriptions for a product catalog, scoring user-generated content overnight, building synthetic training data.
+
+## 02 — The shape
+
+```ts
+const batch = await client.messages.batches.create({
+  requests: items.map((item, i) => ({
+    custom_id: `item-${i}`,
+    params: {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      messages: [{ role: 'user', content: `Classify: ${item.text}` }],
+    },
+  })),
+});
+
+// poll for completion
+let status = batch;
+while (status.processing_status !== 'ended') {
+  await new Promise(r => setTimeout(r, 30_000));
+  status = await client.messages.batches.retrieve(batch.id);
+}
+
+// stream results
+for await (const result of client.messages.batches.results(batch.id)) {
+  if (result.result.type === 'succeeded') {
+    save(result.custom_id, result.result.message);
+  }
+}
+```
+
+`custom_id` is your handle — use it to associate each result back to the source item. Results stream as JSONL; consume with a generator, not "load it all then iterate."
+
+## 03 — The cost math, in your head
+
+Three numbers per model. Memorise the ratios:
+
+- **Haiku 4.5** — cheapest. Roughly 1× the unit.
+- **Sonnet 4.6** — middle. Roughly 4× Haiku.
+- **Opus 4.7** — most capable. Roughly 20× Haiku.
+
+(Exact $/MTok varies; check the pricing page. The ratios are stable.)
+
+Two multipliers stack on top:
+
+- **Batch**: ÷2 (50% off everything).
+- **Cache reads**: ÷10 (90% off cached input).
+
+So: a Haiku batch with prompt caching on a stable system prefix costs roughly *0.05×* an uncached Sonnet call. That's not a typo. If your task fits Haiku, the savings are catastrophic — in a good way.
+
+## 04 — Lever 1: pick the smallest model that works
+
+The default mistake: Sonnet (or Opus) for everything. The discipline: try Haiku first, measure, only step up when you can show it doesn't work.
+
+A simple eval loop:
+- Sample 50 items from your dataset.
+- Run Haiku on them; have a human (or Claude with the gold answers) judge.
+- If Haiku is ≥95% as good as Sonnet on this task, ship Haiku. The 4× cost saving is real money.
+
+Many classification, extraction, and routing tasks land on Haiku. Most "explain why" or "decide between trade-offs" tasks need Sonnet. Opus is for the few cases that genuinely require its capability.
+
+## 05 — Lever 2: cache the stable prefix
+
+Already covered in lesson 7. For batch workloads, caching has an extra benefit: a batch with thousands of requests all hits the *same* cached prefix in rapid succession, so the cache stays warm for the whole batch run. The first request writes; the rest read. Effective per-request input cost drops to ~10% of nominal.
+
+For a 10k-item batch with a 4k-token system prompt: caching saves ~36M input tokens. At the Sonnet input rate, that's hundreds of dollars per run.
+
+## 06 — Lever 3: tighten max_tokens
+
+`max_tokens` is a cap. The model produces what it produces, and you pay for output tokens regardless of cap — but a tight cap forces the model to be brief, which lowers actual output tokens.
+
+For classification: `max_tokens: 50`. For one-paragraph answers: `200`. Don't default to 4096 for tasks that need 100. The model rises to the cap when there's slack; tighten the cap to remove the slack.
+
+## 07 — Lever 4: short-circuit with code
+
+The cheapest token is the one you don't send. Pre-filter aggressively:
+
+- Skip items already processed (idempotency keys).
+- Skip items where a regex/heuristic gives the answer with high confidence.
+- Skip items below a quality threshold (empty strings, garbage input, near-duplicates).
+
+A 30% pre-filter saves 30% of the bill, no model change required. Most pipelines I've seen leave 20-50% on the table here.
+
+## 08 — A worked example
+
+Hypothetical: classify 1M product reviews into sentiment + 5 topic tags.
+
+- **Naive**: Sonnet, no batch, no cache. Imagine ~$3,000.
+- **Add cache** for the (long, stable) system prompt: ~$1,200.
+- **Add batch**: ~$600.
+- **Switch to Haiku** (fits this task fine): ~$150.
+- **Pre-filter 20%** of duplicate or empty reviews: ~$120.
+
+That's a 25× reduction. None of these levers is exotic; all four are routine. The biggest single lever is usually model choice; the most often-skipped is pre-filtering.
+
+## 09 — Observability
+
+Log per-call: model, input tokens, output tokens, cache_read tokens, cache_create tokens, latency, custom_id (for batches), runId. A two-line wrapper does this for the entire codebase.
+
+Once you have the data, the cost question stops being "is AI expensive?" and starts being "which endpoint costs what, and which lever moves it most?" — which is a *much* easier conversation with a finance team.
+
+<Callout type="note" title="Batch isn't a magic bullet — it's a discount on patience">
+The 50% saving comes from giving up real-time. If your eval workflow is "submit, see result in 5 seconds, iterate," batch will feel awful. The right pattern: develop with the synchronous API, ship with batch when the workload moves to production. Don't try to develop *against* batch.
+</Callout>
+
+<Recap>
+- Batch API: 50% off, async, 24h SLA. Right for backfills, nightly jobs, large enrichment.
+- Cost ratios: Haiku 1×, Sonnet 4×, Opus 20×. Pick the smallest model that works.
+- Cache the stable prefix (system, tools, examples). Stays warm for a whole batch run.
+- Tighten `max_tokens`. The cap nudges the model to be brief.
+- Pre-filter in code. The cheapest token is the one you don't send.
+- Log usage per call. Cost questions become endpoint questions, which are tractable.
+</Recap>

@@ -1,0 +1,63 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Models have weather. Some days the prompt that worked yesterday gives you a worse reply today. The output starts going in circles, or hallucinating files, or padding with disclaimers, or refusing for no reason. The instinct is to fight — re-engineer the prompt, add more examples, threaten with capitals. Usually the right move is just to *change the conditions*: retry, switch model, change shape, start a new conversation. This lesson is the four moves and when to use each.
+
+## Move 1: Retry
+
+Same prompt, run it again. Models are stochastic. The exact same input can produce a wildly different output, especially at non-zero temperature. If you got a bad reply, the cheapest possible debugging step is to try once more. Sometimes that's the whole fix.
+
+The cost is negligible — one more API call. The signal you're looking for: did the *kind* of failure repeat, or was it idiosyncratic? Two failures of the same kind means it's the prompt or the model, not the dice.
+
+## Move 2: Change shape
+
+Before reaching for a different model, change the *output shape*. Models often fail at one shape and succeed at another:
+
+- **Free-form prose failing?** Switch to a numbered list.
+- **JSON malformed?** Switch to JSON-mode (Move 4) or to a tool call.
+- **Long reply meandering?** Cap it: "in under 100 words."
+- **Short reply too vague?** Ask for a structured breakdown: "first the conclusion, then three reasons, then one caveat."
+- **Code in markdown drifting?** Ask for "just the function body, no commentary."
+
+The shape change is a *prompt* change, but a small one — you're not adding content, just constraining the form. Often that alone fixes it.
+
+## Move 3: Start fresh
+
+When a conversation has been going long, the model accumulates context that isn't helping. Old turns, dead ends, half-corrected drafts. The signal: you've started repeating yourself, or the model has started repeating mistakes you already corrected.
+
+Open a new conversation. Re-brief from scratch with a clean summary of where you are. The new conversation has no baggage; the model's first reply is often better than the tenth reply of the old one.
+
+In Claude Code: `/clear` and re-brief. The harness's compaction tries to keep only what matters, but compaction is a heuristic. Trust your instinct that "this conversation has gone bad" — it almost always has.
+
+## Move 4: Switch model
+
+Last resort, not first. Two directions:
+
+- **Up** (Sonnet → Opus). When the task genuinely requires more reasoning. Long code refactors, multi-step planning, novel domain problems where surface pattern-matching isn't enough.
+- **Down** (Opus → Haiku). When the task is well-defined and you're paying for capability you don't need. Classification, simple extraction, repetitive transformations. Haiku is fast and cheap and surprisingly capable on bounded tasks.
+
+The mistake people make: defaulting to Opus for everything. Fast iteration with Sonnet (or Haiku, when applicable) usually produces better results than slow iteration with Opus, because you do more rounds.
+
+In Claude Code: `/model` switches the active model. Start at Sonnet 4.6; switch to Opus when you hit something Sonnet 4.6 can't crack; switch to Haiku 4.5 for high-volume routine work.
+
+## Move 5: Take a different approach entirely
+
+Sometimes none of the above is the answer. The task is wrong-shaped for an LLM. Three signs:
+
+- **You're three rounds in and the model keeps missing the same constraint.** It's not learning. The constraint either belongs in code (a validator) or the task isn't actually a model task.
+- **You're rephrasing the prompt and getting different but equally wrong answers.** Each rephrase produces a fresh hallucination. The model doesn't have the information; no prompt unlocks data that isn't in its training or context.
+- **The output is correct but you can't trust it without checking everything.** Then check it with code. The model is not the right verifier of its own work.
+
+When you hit this, stop. Write the code yourself, or break the problem into a piece the model is good at and a piece your code is good at. Forcing it usually wastes more time than restarting with the right tool split.
+
+<Callout type="warning" title="The temperature trap">
+A common misdiagnosis: "the model is wrong, let me lower temperature to 0." Temperature 0 makes the output *deterministic*, not *correct*. You'll get the same wrong answer every time. Lower temperature when you want reproducibility (tool calls, classification). Don't reach for it as a fix for "the model is hallucinating" — that's a context problem, not a sampling problem.
+</Callout>
+
+<Recap>
+- Retry first. Models are stochastic; re-rolling is the cheapest debugging step.
+- Change the output shape before changing the model. Numbered list, JSON, length cap, structured breakdown.
+- Start fresh when a conversation has accumulated dead ends. New context > stale context.
+- Model switch is a last resort. Default to Sonnet; reach for Opus on hard tasks; reach for Haiku on bounded high-volume tasks.
+- Sometimes the task is wrong-shaped for a model. Recognise it and switch tools instead of grinding.
+</Recap>

@@ -1,0 +1,160 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Free-form text is fine when a human reads it. Code reading text is a parsing problem waiting to happen. Structured output is how you turn the model's reply into typed data your code can rely on. There are two approaches on the Anthropic API — and one of them is meaningfully more reliable than the other. This lesson walks both, then sets up the Zod-validated tool-call pattern that handles every real case.
+
+## 01 — The two approaches
+
+- **JSON in prose** — ask the model to "reply with JSON," then `JSON.parse` it. Works ~95% of the time at temperature 0. The 5% of failures (markdown fences, leading apologies, trailing commas) is where production bugs come from.
+- **Tool-call coercion** — define a tool whose only job is to receive the structured output, and *force* the model to call it. The arguments are JSON by construction. No parsing. No fences.
+
+Tool-call coercion is the right default. Use prose-JSON only for one-off scripts or when you control the post-processing tightly.
+
+## 02 — JSON in prose: the minimum viable version
+
+```ts
+const reply = await client.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  system: 'Reply with valid JSON only. No prose, no fences.',
+  messages: [{ role: 'user', content: 'Extract: "Phuoc, 31, Vietnam"' }],
+});
+
+const text = reply.content.find(b => b.type === 'text')?.text ?? '';
+const data = JSON.parse(text); // ← throws if the model wrapped it in ```json
+```
+
+Three things make this fragile:
+- Triple-backtick fences (`` ```json ... ``` ``) are the model's default and they break `JSON.parse`. Strip them defensively.
+- Trailing commentary (`Here's your JSON: { ... } Hope this helps!`) breaks parsing.
+- Schema drift: keys typo'd, optional fields missing, types coerced (string instead of number).
+
+If you go this route, validate every reply with Zod afterwards. Don't trust the parse alone.
+
+## 03 — Tool-call coercion: the recommended pattern
+
+Define a tool, force the model to call it, read the input:
+
+```ts
+const tools = [{
+  name: 'extract_person',
+  description: 'Extract a person record from text.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      name:    { type: 'string' },
+      age:     { type: 'number' },
+      country: { type: 'string' },
+    },
+    required: ['name'],
+  },
+}];
+
+const reply = await client.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  tools,
+  tool_choice: { type: 'tool', name: 'extract_person' },
+  messages: [{ role: 'user', content: 'Phuoc, 31, Vietnam' }],
+});
+
+const block = reply.content.find(b => b.type === 'tool_use');
+const data = block.input; // already parsed JSON, shape-validated against input_schema
+```
+
+`tool_choice: { type: 'tool', name: ... }` *forces* the call. The model cannot reply in prose. The arguments are typed-and-validated before they reach your code.
+
+## 04 — Pair it with Zod
+
+JSON Schema is verbose. Zod is the lingua franca of TS validation. The trick is to author once in Zod and convert to JSON Schema for the API:
+
+```ts
+import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
+
+const PersonSchema = z.object({
+  name: z.string(),
+  age: z.number().nullable(),
+  country: z.string().nullable(),
+});
+
+const tools = [{
+  name: 'extract_person',
+  description: 'Extract a person record from text.',
+  input_schema: zodToJsonSchema(PersonSchema, { target: 'jsonSchema7' }),
+}];
+
+// after the call:
+const data = PersonSchema.parse(block.input);
+```
+
+One source of truth. The schema goes to the model; the validator runs on the way back. Type inference (`z.infer<typeof PersonSchema>`) propagates through your codebase.
+
+## 05 — Modeling "I don't know"
+
+Recall lesson 5: confident-wrong is the costly failure mode. Bake nullable + confidence into the schema:
+
+```ts
+const AnswerSchema = z.object({
+  answer: z.string().nullable(),
+  confidence: z.enum(['high', 'medium', 'low']),
+  reason: z.string(),
+});
+```
+
+The model can't be confident-wrong without explicitly setting `confidence: 'high'` — which the model rarely does without grounding. The schema's *shape* is doing safety work that no prompt instruction matches.
+
+## 06 — Enums for routing
+
+When the answer is "one of N," constrain via enum on the input schema:
+
+```ts
+const Router = z.object({
+  intent: z.enum(['SHIPPING', 'BILLING', 'PRODUCT', 'OTHER']),
+  confidence: z.enum(['high', 'medium', 'low']),
+});
+```
+
+The model effectively cannot return "Other" or "shipping" or "Product." The schema is a hard constraint, not an instruction. For high-volume routing this is the difference between 95% accuracy and ~100%.
+
+## 07 — Lists, nested objects, unions
+
+The schema can be as rich as Zod allows:
+
+```ts
+const TodoSchema = z.object({
+  items: z.array(z.object({
+    title: z.string(),
+    priority: z.enum(['high', 'medium', 'low']),
+    due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  })),
+  total: z.number(),
+});
+```
+
+Two practical tips:
+- Use string with regex for dates rather than `z.date()` — the schema converts more cleanly. Parse to `Date` after.
+- Discriminated unions work but inflate the schema. If you have a union of >3 variants, consider one schema per variant + a router call instead.
+
+## 08 — When to skip structured output entirely
+
+For human-readable replies — chat answers, drafts, explanations — don't force JSON. The model writes better prose without a schema strait-jacket.
+
+The decision rule from lesson 4: **who reads next?** If code, structure. If a human, prose. The mistake to avoid is "structured *and* prose in the same call" — you get worse versions of both.
+
+<Callout type="note" title="Why tool coercion beats prose-JSON, in one sentence">
+The model's training has tools as a first-class output type — every example in the training data with `tool_use` is well-formed. Prose-JSON is "regular text that happens to be JSON-shaped" — same model, weaker statistical prior. The tool path is more reliable because the model is producing the format the harness expects, not impersonating it.
+</Callout>
+
+## 09 — Same idea in LangChain
+
+The framework version is `withStructuredOutput(ZodSchema)` — under the hood it's the same forced-tool pattern. See the LangChain course's [structured-output lesson](/courses/langchain-langgraph-toolkit/lessons/08-structured-output) for the framework wrapper. The reason to know the raw shape: when something goes wrong (the schema doesn't fit, the model reroutes to prose), you debug at the API level, not the framework level.
+
+<Recap>
+- Two approaches: JSON-in-prose (fragile) and tool-call coercion (recommended).
+- Force a specific tool with `tool_choice: { type: 'tool', name: ... }`. The args are JSON by construction.
+- Pair the tool's `input_schema` with Zod via `zod-to-json-schema`. One source of truth.
+- Model "I don't know" structurally: nullable answer + required confidence + required reason.
+- Enums in the schema beat enums in the prompt for routing accuracy.
+- Don't structure prose. The shape decision is "who reads next" — pick once.
+</Recap>

@@ -1,0 +1,102 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Plan mode is Claude Code asking, before it touches anything: *"here's what I'm about to do — is this what you wanted?"* Most "the model went off the rails" stories end with "I should have planned first." Plan mode is the cure. This lesson is when to enter it, what makes a plan worth keeping, and the discipline of executing a plan in a fresh session.
+
+## 01 — What plan mode is
+
+A read-only mode. The model can use Read, Glob, Grep, and other read tools to investigate, but cannot Edit, Write, or run any state-changing command. At the end, it produces a plan; you approve it (or not); on approve the plan is acted on, often in a fresh session.
+
+Two ways in:
+
+- **`/plan`** — toggles plan mode on the current session.
+- **Brainstorming skill** — the `superpowers:brainstorming` skill runs an exploratory pass first, then enters plan mode with a structured brief.
+
+You stay in plan mode until you exit explicitly. The `EnterPlanMode` and `ExitPlanMode` tools handle this; you mostly don't see them.
+
+## 02 — When to plan
+
+Default to planning when:
+
+- The change touches **3+ files** or has **2+ logical steps**.
+- You're not 100% sure what the right approach is.
+- The change has **non-obvious blast radius** — touches shared code, migrations, build config.
+- The implementation will be in a **fresh session** (different developer, or just clearing context to reset).
+
+Skip the plan when:
+
+- The change is one file, one obvious diff. Planning costs more than the change.
+- You've already discussed the approach in prose. The plan would be the conversation transcript.
+- The work is exploratory ("try a few things and see"). Plan mode adds friction; the right tool is brainstorming followed by trial edits.
+
+The hard call is the middle: 2-file changes with one moderate-judgement decision. A plan there often catches a thing you'd miss; sometimes it's overhead. Lean toward planning if the consequence of getting it wrong is "redo a chunk of work."
+
+## 03 — What a good plan looks like
+
+A plan is:
+
+- **Steps with file paths.** "Edit `src/auth/middleware.ts`: add `requireRole` helper. Edit `src/routes/admin.ts`: wrap routes with `requireRole('admin')`." Concrete, in order, file by file.
+- **Decisions called out.** "Use a higher-order function rather than middleware composition because the existing middleware uses callback style; rewriting it is out of scope." The *why* of the design choice.
+- **What's *not* changing.** "Not modifying the session token shape; not adding a database migration." Scope fences.
+- **Test plan.** "Add unit test for `requireRole`. Run `npm test src/auth`." A way to know it worked.
+
+It's *not*:
+
+- A hypothesis ("this *might* work").
+- A research dump ("here are six options").
+- A summary of what you've already learned.
+
+If the plan reads more like notes than instructions, ask the model to tighten it before approving.
+
+## 04 — Approve, reject, refine
+
+Three exits:
+
+- **Approve.** The plan is right; execute it. The harness usually opens a fresh session (or at least a fresh "executing-plans" session) to run the plan with a clean context.
+- **Reject.** The plan is wrong-shaped; throw it out, restart with a different brief. Don't try to patch a fundamentally wrong plan.
+- **Refine.** The plan is mostly right; one or two specific changes. "Step 3 should use `auth/roles.ts`, not `auth/groups.ts`. Step 5 should be a separate PR." Refining is fine; it's the planning equivalent of a second draft.
+
+If you've refined three times, reject. The plan's premise is wrong; iterating polish on top won't fix it.
+
+## 05 — Executing a plan in a fresh session
+
+The `superpowers:executing-plans` skill is the right execution mode for substantive plans. The pattern:
+
+- Save the plan as a markdown file (the harness usually does this).
+- Open a fresh session (or worktree).
+- Tell that session: "Execute the plan in `<path-to-plan.md>`."
+- Step through; the agent runs each step, possibly with review checkpoints between phases.
+
+Why a fresh session: the planning conversation often has dead-ends, alternatives considered and rejected, exploratory findings that aren't part of the plan. Carrying that context into execution invites the model to second-guess the plan. A fresh session has only the plan and the codebase — much cleaner.
+
+## 06 — Checkpoints
+
+Long plans benefit from review checkpoints — pauses where the agent reports progress and you sanity-check before continuing:
+
+- **After each substantive step.** Not after each file; after each logical unit ("auth helper added, tested, building").
+- **After any deviation from the plan.** If the agent had to do something the plan didn't specify, that's the moment to confirm.
+- **Before any destructive operation.** Migrations, deletions, force-pushes — never auto-execute, always checkpoint.
+
+The model is good at proposing checkpoints; let it. A 10-step plan with no checkpoints is too coarse-grained.
+
+## 07 — Plan mode and brainstorming
+
+The two skills work together:
+
+- **`superpowers:brainstorming`** — the model asks clarifying questions, explores design alternatives, surfaces decisions. Used *before* you know what to plan.
+- **`superpowers:writing-plans`** — converts a clear spec into a concrete stepped plan. Used *after* the design is settled.
+
+Don't skip brainstorming for non-trivial work. The plan is only as good as the spec it implements; a spec the model produced from a half-articulated request has the same gaps the request did.
+
+<Callout type="note" title="Plan mode's biggest payoff is for the human, not the model">
+The model writes acceptable plans most of the time. The reason to plan is that *you* see the plan before any code is touched, and 30% of the time you go "oh, that's not what I meant." Plan mode is a forcing function for "do I actually know what I want here." The 30% you catch saves you the rework.
+</Callout>
+
+<Recap>
+- Plan mode: read-only investigation followed by a stepped plan, no edits until approved.
+- Plan when the change is 3+ files, 2+ steps, ambiguous approach, or hands off to a fresh session.
+- A good plan: concrete steps with file paths, decisions called out, scope fences, test plan.
+- Approve / reject / refine. Three refines = reject; the premise was wrong.
+- Execute substantive plans in a fresh session (often via the executing-plans skill).
+- Brainstorm before planning when the design itself is unclear; both skills compose.
+</Recap>

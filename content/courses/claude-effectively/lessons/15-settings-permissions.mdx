@@ -1,0 +1,116 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Claude Code is a *harness*, not just a model. The model decides what to do; the harness decides what's allowed, what to log, what to surface, and what to block. Most "Claude Code is annoying me" problems are actually harness configuration problems — the model would do the right thing if the harness let it. This lesson is the harness's anatomy: settings.json, permissions, project vs user scope, and the four files you'll touch most.
+
+## 01 — The four files
+
+```
+~/.claude/settings.json                # user — your defaults across all projects
+<repo>/.claude/settings.json           # project — committed, shared with the team
+<repo>/.claude/settings.local.json     # project — gitignored, your personal overrides
+~/.claude/keybindings.json             # user — keyboard shortcuts
+```
+
+Settings cascade: project local overrides project shared overrides user. The shared file is the one you commit; the local file is for "I want auto-allow on `npm install` but the team doesn't."
+
+Other config bits: `.mcp.json` (project-scoped MCP servers, lesson 19), `.claude/agents/` (project subagents, lesson 18), `.claude/commands/` (project slash commands, lesson 16), `.claude/hooks/` (project hooks, lesson 17), `CLAUDE.md` (project memory, woven into every conversation).
+
+## 02 — settings.json: the dial board
+
+A small, intentional file. The fields you actually touch:
+
+```jsonc
+{
+  "model": "claude-sonnet-4-6",
+  "permissions": {
+    "allow": ["Bash(npm test:*)", "Bash(npm run lint:*)", "Read(*)", "Glob(*)", "Grep(*)"],
+    "ask":   ["Bash(git push:*)"],
+    "deny":  ["Bash(rm -rf:*)", "Bash(curl:*)"]
+  },
+  "hooks": { /* see lesson 17 */ },
+  "env": { "NODE_OPTIONS": "--max-old-space-size=4096" }
+}
+```
+
+`model` sets the default. `permissions` is the auto-allow / always-ask / always-deny tri-state. `env` is environment overrides for tools the harness runs.
+
+There are more fields (statusline, output style, MCP scoping, …); reach for the docs when you need them. These four cover ~80% of real configuration.
+
+## 03 — Permission scopes that matter
+
+Three states for any tool call:
+
+- **allow** — runs without a prompt.
+- **ask** — pauses, shows you the call, waits for approval.
+- **deny** — blocks with an error that the model sees and adapts to.
+
+The right shape:
+- **allow** the read-only and idempotent things: `Read`, `Glob`, `Grep`, `Bash(git status:*)`, `Bash(npm test:*)`, your fast feedback commands.
+- **ask** the things with consequences but where you genuinely want a beat to think: `Bash(git push:*)`, `Bash(npm install:*)`, anything that mutates remote state.
+- **deny** the unrecoverable: `Bash(rm -rf:*)`, `Bash(git reset --hard:*)`, anything that can ruin your day.
+
+The mistake most people make: leaving the default permissions everywhere, then getting prompted dozens of times an hour. Spend 20 minutes tuning your allow list once and your daily UX changes.
+
+## 04 — User vs project: who decides what
+
+User-level (`~/.claude/settings.json`):
+- Your default model.
+- Personal allow-list for tools you trust universally.
+- Personal hooks (e.g., a Slack notification on stop).
+
+Project-level shared (`<repo>/.claude/settings.json`):
+- Team-wide hooks (formatter, linter, security checks).
+- Permissions specific to this codebase ("`Bash(deno test:*)` is fine here").
+- Pinned model when the project has a reason to use one specifically.
+
+Project-level local (`.settings.local.json`):
+- Your personal overrides on this project.
+- "Allow this CLI tool I use that the team doesn't."
+
+Commit the shared file, gitignore the local file. The shared file is part of the project's onboarding — same way `.editorconfig` or `.nvmrc` is.
+
+## 05 — The /config command
+
+Most settings have a `/config` UI: `/config` opens a menu, you change a value, the harness writes the appropriate settings file. Use it for theme, statusline, simple toggles. Reach for the editor when you're managing permissions or hooks (the structure is too rich for a menu).
+
+The `update-config` skill (built into Claude Code) is the right way to ask the model to make a settings change for you — it knows the schema and the file precedence rules.
+
+## 06 — fewer-permission-prompts: a one-shot tune-up
+
+The `fewer-permission-prompts` skill scans your transcripts for tool calls you've approved repeatedly and proposes adding them to the allow list. Run it occasionally; it converts "things you keep approving" into "things that just run."
+
+The general rule: if you've approved the same exact command 3+ times, it should be on the allow list. Otherwise you're paying a friction tax that compounds.
+
+## 07 — env and CLI flags
+
+The `env` block in settings is environment variables Claude Code sets for child processes (tool calls, hooks). Use it for:
+
+- Memory limits on Node tooling (`NODE_OPTIONS`).
+- API keys that *only* the harness's tooling needs (don't put production secrets here — see lesson 19 for credential handling).
+- Pinning versions (`PNPM_VERSION`, etc.).
+
+CLI flags (`claude --model`, `claude -p`) override settings on a per-invocation basis. Useful for one-off "run this with Opus" scripts.
+
+## 08 — When the harness gets in the way
+
+Three signs you're misconfigured:
+
+- **You're prompted constantly.** Your allow list is too tight. Run `fewer-permission-prompts` and tune.
+- **Hooks block work you want.** Either the hook's logic is wrong or the hook is in the wrong scope. Move project-level personal preferences to local settings.
+- **Tools you didn't install are firing.** An MCP server is exposing something. Audit `.mcp.json` and your user MCP scopes.
+
+The harness is yours to shape. Treat it like dotfiles — invest in it once, benefit forever.
+
+<Callout type="note" title="The settings file is also a teaching tool">
+A well-tuned `<repo>/.claude/settings.json` is documentation for new contributors. They run `claude` in the repo for the first time, the team's allow list applies, hooks fire that explain the conventions, and the experience matches everyone else's. Treat it as part of the contributor onboarding doc — because it is.
+</Callout>
+
+<Recap>
+- The four settings files: user, project shared, project local, keybindings.
+- settings.json fields you touch: model, permissions, hooks, env.
+- Permissions: allow read-only and idempotent; ask for consequence; deny the unrecoverable.
+- Commit the shared settings file; gitignore the local one. It's onboarding documentation.
+- /config opens a menu for simple settings; edit the file directly for permissions and hooks.
+- Run fewer-permission-prompts occasionally to convert repeated approvals into allow rules.
+</Recap>

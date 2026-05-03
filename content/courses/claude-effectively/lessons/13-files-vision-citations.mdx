@@ -1,0 +1,147 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Three Anthropic-native primitives that don't fit cleanly into "tools" or "structured output" but shape what's possible: **files** (upload PDFs and reuse them), **vision** (images as content blocks), and **citations** (retrieval-grounded answers with verifiable spans). They're not exotic features — they're the right primitive for "answer questions about this document," "describe what's in this image," and "what does the contract say about cancellation, with a quote." This lesson is when each is the right tool.
+
+## 01 — Files: PDFs without the glue code
+
+The Files API lets you upload a document once and reference it across calls. PDFs (the common case) are extracted into text + image blocks server-side and made available as content:
+
+```ts
+const upload = await client.beta.files.upload({
+  file: fs.createReadStream('contract.pdf'),
+  purpose: 'document',
+});
+
+const reply = await client.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  messages: [{
+    role: 'user',
+    content: [
+      { type: 'document', source: { type: 'file', file_id: upload.id } },
+      { type: 'text', text: 'Summarise the cancellation clause.' },
+    ],
+  }],
+});
+```
+
+The advantage over inlining the PDF every call: latency drops, and you can pair the file reference with prompt caching (lesson 7) for stable long-context workflows. The same `file_id` stays valid across calls until you delete it.
+
+When to use:
+- Long documents you ask multiple questions about.
+- Multi-modal docs (PDFs with diagrams) where you want both the text and the visual structure.
+- Any RAG-replacement workflow where "stick the doc in the prompt" was your prior approach.
+
+When not:
+- Single-shot one-off — inline the content; skip the upload.
+- Genuinely huge corpora — beyond a few documents, retrieval (RAG) over a vector store still wins. Files complement RAG; they don't replace it.
+
+## 02 — Vision: images as content blocks
+
+You can pass images inline (base64) or by URL:
+
+```ts
+const reply = await client.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  messages: [{
+    role: 'user',
+    content: [
+      { type: 'image', source: { type: 'base64', media_type: 'image/png', data: pngBase64 } },
+      { type: 'text', text: 'What\'s in this UI screenshot? Find the primary CTA.' },
+    ],
+  }],
+});
+```
+
+What it's actually good at:
+
+- **UI / screenshot inspection.** "Find the bug in this Figma export." Works.
+- **Chart and diagram reading.** "What does this graph claim?" Works well, especially for clear axis labels.
+- **Document images.** Photos of receipts, IDs, forms. Works; for production OCR-style accuracy, pair with the Files API on a PDF render of the same.
+- **General "describe what you see."** Solid baseline performance.
+
+What it's bad at:
+
+- **Counting many objects.** "How many cars?" — counting beyond a small N degrades.
+- **Pixel-precise spatial reasoning.** "Click 12px to the left of the icon" — the model doesn't have pixel coordinates.
+- **OCR on dense low-quality scans.** Use a real OCR pipeline; pass the extracted text.
+
+Always include a text prompt alongside the image. "Image alone, no instructions" leaves the model guessing what you want.
+
+## 03 — Citations: grounded answers with verifiable spans
+
+When you pass documents (or files), Claude can produce answers with explicit citations to the source:
+
+```ts
+const reply = await client.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  messages: [{
+    role: 'user',
+    content: [
+      {
+        type: 'document',
+        source: { type: 'text', media_type: 'text/plain', data: contractText },
+        citations: { enabled: true },
+      },
+      { type: 'text', text: 'What is the notice period for cancellation?' },
+    ],
+  }],
+});
+
+// reply.content
+// [{
+//   type: 'text',
+//   text: 'The notice period is 30 days.',
+//   citations: [{ type: 'char_location', cited_text: '...', start_char: 1234, end_char: 1289 }],
+// }]
+```
+
+Citations are *spans into the source*. Your UI renders them as inline markers; the user clicks and you scroll to the right place. This is the right primitive for any RAG-style or document-Q&A product.
+
+Three benefits over hand-rolled "ask for citations in the prompt":
+
+- The citations are *machine-verifiable* — same span, same source, deterministic.
+- The model is less likely to invent claims when it knows it has to cite them.
+- You don't need to parse markdown footnotes or numbered references out of the answer.
+
+## 04 — When to use each
+
+Decision matrix:
+
+| Need | Primitive |
+|---|---|
+| One-shot doc question | Inline document content |
+| Repeated questions on same doc | Files API |
+| Image content in input | Vision (image content block) |
+| Verifiable spans in answer | Citations (document with `citations: enabled`) |
+| Doc-grounded Q&A in production | Files + citations together |
+
+The combination — files + citations — is the canonical pattern for "document chat with sources." Less hand-rolling than RAG; more accurate than inlined-prompt-only.
+
+## 05 — Cost and caching
+
+- **Files** are stored on the server; the per-call cost is just the input tokens consumed when the file is referenced. With caching, the file's content can be served from cache after the first call (massive savings on multi-question workflows).
+- **Vision** charges by image — see the docs for the per-image token equivalent. Higher-res images cost more; downsample to the resolution you actually need.
+- **Citations** add no extra cost beyond the document tokens themselves. They're a free upgrade over un-cited equivalents.
+
+## 06 — Where these compose with extended thinking
+
+Long-document Q&A with thinking enabled is a sweet spot. The model has the document, it has citations available, and the trace reasons through which clauses apply. The final answer is short and grounded; the thinking is where the model integrates.
+
+Don't enable thinking for every doc question — see lesson 10 for the "when not." But for complex contractual or legal-style queries, the combination of files + citations + thinking is the strongest single-call pattern.
+
+<Callout type="note" title="One pattern that's worth memorising">
+The "doc-chat" pattern: upload PDFs via Files API → cache the system prompt + document reference → enable citations on the document → render citations as clickable spans in the UI. This pattern, end-to-end, replaces a meaningful chunk of what people used to build with vector stores. Not all of it; but the "chat with this contract" use case in particular.
+</Callout>
+
+<Recap>
+- Files API: upload once, reuse across calls. Pair with caching for long-doc workflows.
+- Vision: images as content blocks. Strong on UI / charts / general description; weak on counting and pixel-precise tasks.
+- Citations: machine-verifiable spans into source documents. The right primitive for grounded Q&A.
+- Files + citations is the canonical "doc chat" pattern — less hand-rolling than RAG.
+- Cost-wise: Files compose with caching; vision charges per image; citations are free upgrades.
+- For complex doc Q&A, combine files + citations + extended thinking.
+</Recap>

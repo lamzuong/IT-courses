@@ -1,0 +1,130 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+A slash command is a saved prompt with a name. You type `/foo` and the saved prompt fires — possibly with arguments, possibly with file context, possibly invoking a specific subagent. The point is the same as any tool: turn "the thing I do five times a day with the same prompt" into one keystroke. This lesson is when a command earns its keep, the two scopes, and the patterns that make the prompts inside them robust.
+
+## 01 — The shape
+
+A slash command is a markdown file in `.claude/commands/`:
+
+```markdown
+<!-- .claude/commands/triage.md -->
+---
+description: Triage open PRs by labeling and prioritizing
+---
+You are reviewing the GitHub PRs in this repo.
+
+For each open PR (use `gh pr list --json number,title,labels,createdAt`):
+- Read the PR.
+- Add labels: `bug`, `feat`, `chore`, or `breaking`.
+- Set priority: P0 (security/data loss), P1 (regression), P2 (feature), P3 (polish).
+- Add a comment summarising the change in 2 sentences if there isn't one.
+```
+
+The filename (minus `.md`) is the command name. The body is the prompt. Front-matter sets metadata (description, allowed tools, model override, …).
+
+User-level commands live in `~/.claude/commands/`. Project-level live in `<repo>/.claude/commands/` and ship with the repo.
+
+## 02 — When a command beats a CLAUDE.md instruction
+
+Three cases:
+
+- **The instruction is conditional.** "When triaging PRs, do X" — only relevant during triage. Putting it in CLAUDE.md weights every conversation by a context that's only used 1% of the time. A command keeps the conversation clean.
+- **The instruction is long.** A 200-line "best-practice" runbook for incident response doesn't belong in CLAUDE.md. As `/incident`, it loads only when needed.
+- **You repeat it.** If you've typed the same prompt three times in a week, save it.
+
+CLAUDE.md is for *always-true* facts. Slash commands are for *task-specific* invocations. The split keeps both files focused.
+
+## 03 — Arguments
+
+Commands accept arguments via `$ARGUMENTS`:
+
+```markdown
+<!-- .claude/commands/explain.md -->
+---
+description: Explain a function or file
+---
+Explain the function or file at: $ARGUMENTS
+
+Cover:
+- What it does
+- Where it's called from
+- Any non-obvious behaviour
+```
+
+You invoke as `/explain src/utils/parser.ts:42`. `$ARGUMENTS` is replaced inline. Two- or three-arg commands work; for richer args, accept JSON or use a question pattern instead ("What file? What aspect?").
+
+## 04 — Project commands ship with the repo
+
+The single most underused capability in Claude Code: a project's `.claude/commands/` is part of the codebase. Anyone with the repo gets the commands.
+
+Useful patterns:
+- `/triage` — repo-specific PR triage with the labels and priorities your team uses.
+- `/release` — the runbook for cutting a release branch, with all the magic-string env vars and gotchas.
+- `/debug-flake` — your team's preferred sequence for a flaky test (rerun, isolate, bisect, file).
+- `/onboard` — a tour of the repo for a new contributor.
+
+These commands document *how the team works* in executable form. New contributors don't read a wiki page; they run `/onboard` and walk through the repo with Claude as a guide.
+
+## 05 — Tool restrictions
+
+Front-matter can scope what tools the command may use:
+
+```yaml
+---
+description: Read-only repo audit. No writes.
+allowed-tools: Read, Glob, Grep, Bash(git log:*), Bash(git diff:*)
+---
+```
+
+Useful for "explore but don't touch" commands like a security review or a code-quality audit. The harness rejects any tool call outside the allow list.
+
+## 06 — Model override
+
+Front-matter `model: opus` (or `haiku`) runs the command on a specific model regardless of session default. Use sparingly:
+
+- **Opus override** — for commands that genuinely benefit from more capacity (deep refactors, architectural reviews).
+- **Haiku override** — for high-volume utility commands (formatting, simple summarisation) where Sonnet is overkill.
+
+Don't override defensively ("the command is important, use Opus"). Default is fine for most.
+
+## 07 — Combining with subagents
+
+A command can dispatch a subagent (lesson 18). Common pattern: a command that delegates the heavy lifting to a fresh-context agent and synthesises the result:
+
+```markdown
+---
+description: Audit branch readiness
+---
+Use the Plan subagent to audit this branch:
+1. List uncommitted changes.
+2. List commits ahead of main.
+3. Check whether tests exist for the new code.
+4. Report a punch list of done/missing.
+
+Once the subagent reports, summarise the top 3 items I should handle.
+```
+
+The command is the entry point; the subagent is the fresh context that does the work. Best of both: short main-context conversation, isolated detailed work.
+
+## 08 — Discoverability and naming
+
+Two practical tips:
+
+- **Names should be verbs.** `/triage`, `/release`, `/explain`. Not `/utility-fns` or `/things`.
+- **Description matters.** It's what shows in the slash-command picker. "Run the release runbook for this repo" beats "release stuff."
+
+`/help` lists all available commands; the descriptions there are your team's mini-docs. Write them like the user is going to read them, because they will.
+
+<Callout type="note" title="The hidden cost of slash commands: they go stale">
+Project commands are code; they need maintenance. A `/release` runbook from a year ago, in a project that's restructured twice, is worse than no runbook — it leads people astray. Add a "last verified" line to the body and review on each release. Treat them as documentation that runs, not files that exist forever.
+</Callout>
+
+<Recap>
+- Slash commands are saved prompts: filename = command name, body = prompt.
+- Project-level (`.claude/commands/`) ships with the repo and onboards contributors.
+- Use slash commands for task-specific runbooks. Use CLAUDE.md for always-true facts.
+- Front-matter: description (visible in picker), allowed-tools (scoped permissions), model (override).
+- Combine with subagents for heavy work in a fresh context.
+- Treat commands as documentation that executes — review and prune them.
+</Recap>

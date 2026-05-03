@@ -5,7 +5,7 @@ import { getCourseStats } from '@/lib/lesson-stats';
 import type { ReactNode } from 'react';
 
 type CardProps = {
-  variant: 'peach' | 'sage' | 'moss' | 'butter' | 'sky';
+  variant: 'peach' | 'sage' | 'moss' | 'clay' | 'butter' | 'sky';
   tag: string;
   title: string;
   summary: string;
@@ -189,6 +189,41 @@ function ArtLangGraph() {
   );
 }
 
+function ArtClaude() {
+  return (
+    <svg viewBox="0 0 140 140" width="140" height="140" fill="none">
+      <defs>
+        <linearGradient id="cl-term" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#fff" />
+          <stop offset="1" stopColor="#c5e8a8" />
+        </linearGradient>
+      </defs>
+      {/* terminal window */}
+      <rect x="20" y="34" width="100" height="64" rx="8" fill="url(#cl-term)" stroke="#091610" strokeWidth="2" />
+      {/* title bar */}
+      <rect x="20" y="34" width="100" height="14" rx="8" fill="#091610" />
+      <rect x="20" y="40" width="100" height="8" fill="#091610" />
+      <circle cx="29" cy="41" r="2" fill="#9ee04a" />
+      <circle cx="36" cy="41" r="2" fill="#fff" />
+      <circle cx="43" cy="41" r="2" fill="#fff" />
+      {/* prompt line 1: "claude" */}
+      <text x="28" y="62" fontFamily="ui-monospace" fontSize="8" fontWeight="700" fill="#0e6b3f">{'>'}</text>
+      <text x="38" y="62" fontFamily="ui-monospace" fontSize="8" fontWeight="600" fill="#091610">claude</text>
+      {/* output line: small dashes */}
+      <rect x="28" y="68" width="68" height="2" rx="1" fill="#091610" opacity="0.4" />
+      <rect x="28" y="74" width="48" height="2" rx="1" fill="#091610" opacity="0.4" />
+      {/* prompt line 2 with cursor */}
+      <text x="28" y="90" fontFamily="ui-monospace" fontSize="8" fontWeight="700" fill="#0e6b3f">{'>'}</text>
+      <rect x="38" y="84" width="6" height="8" fill="#091610" />
+      {/* speech-bubble accent in corner */}
+      <path d="M104 102 q 0 -10 10 -10 h 12 q 6 0 6 6 v 8 q 0 6 -6 6 h -10 l -6 6 v -6 q -6 0 -6 -10 z" fill="#9ee04a" stroke="#091610" strokeWidth="2" />
+      <circle cx="113" cy="106" r="1.5" fill="#091610" />
+      <circle cx="119" cy="106" r="1.5" fill="#091610" />
+      <circle cx="125" cy="106" r="1.5" fill="#091610" />
+    </svg>
+  );
+}
+
 // ─── page ──────────────────────────────────────────────────────────────────
 
 function formatHours(minutes: number): string {
@@ -201,16 +236,20 @@ export default async function Home() {
   const courses = getAllCourses();
   const aiCourse = courses.find((c) => c.slug === 'ai-in-your-project')!;
   const lcCourse = courses.find((c) => c.slug === 'langchain-langgraph-toolkit')!;
+  const ceCourse = courses.find((c) => c.slug === 'claude-effectively')!;
   const dndCourse = courses.find((c) => c.slug === 'drag-drop-react')!;
 
   const aiLessonCount = flattenLessons(aiCourse).length;
   const lcLessonCount = flattenLessons(lcCourse).length;
+  const ceLessonCount = flattenLessons(ceCourse).length;
   const dndLessonCount = flattenLessons(dndCourse).length;
   const aiStats = await getCourseStats(aiCourse.slug, aiCourse.parts);
   const lcStats = await getCourseStats(lcCourse.slug, lcCourse.parts);
+  const ceStats = await getCourseStats(ceCourse.slug, ceCourse.parts);
   const dndStats = await getCourseStats(dndCourse.slug, dndCourse.parts);
   const aiTotalRead = formatHours(aiStats.totalMinutes);
   const lcTotalRead = formatHours(lcStats.totalMinutes);
+  const ceTotalRead = formatHours(ceStats.totalMinutes);
   const dndTotalRead = formatHours(dndStats.totalMinutes);
 
   return (
@@ -263,6 +302,23 @@ export default async function Home() {
             footerLeft={`${lcLessonCount} lessons · ${lcTotalRead} read`}
             cta={{ label: 'Begin reading', href: `/courses/${lcCourse.slug}` }}
             illustration={<ArtLangGraph />}
+          />
+
+          <CourseCard
+            variant="clay"
+            tag="Complete"
+            title={ceCourse.title}
+            summary={ceCourse.summary}
+            stats={[
+              { label: 'lessons', value: String(ceLessonCount) },
+              { label: 'parts',   value: String(ceCourse.parts.length) },
+              { label: 'project', value: '1' },
+            ]}
+            pct={100}
+            pctLabel="Complete"
+            footerLeft={`${ceLessonCount} lessons · ${ceTotalRead} read`}
+            cta={{ label: 'Begin reading', href: `/courses/${ceCourse.slug}` }}
+            illustration={<ArtClaude />}
           />
 
           <CourseCard

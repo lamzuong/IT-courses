@@ -1,0 +1,112 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Every Claude call returns *something* — but the something has a shape, and picking the wrong shape makes downstream code miserable. Free-form prose is great when a human reads the output. It's a parsing nightmare when code does. JSON is great for code. It's a brick wall when the answer is genuinely a paragraph. This lesson is the decision rule and the four shapes you'll actually use.
+
+## The rule
+
+> **Who reads this output next?**
+
+If a human reads it: prose. Possibly with markdown for structure.
+
+If code reads it: structured. JSON, a tool call, an enum, a number — anything your parser can rely on.
+
+If both: produce the structured output, then format it for the human in your code. *Do not* ask the model to produce both at once — that combination is where format-juggling bugs come from.
+
+## Shape 1: Free-form prose
+
+The default. Use when the output is for a human, the answer is a paragraph or a list of explanations, and the variability of language is a feature.
+
+A prose call wants three things in the brief: what to focus on, how long, and the tone. "Three paragraphs, one per option, plain language, no marketing voice" beats "explain this nicely."
+
+Tools like `marked` or `react-markdown` render prose into pages. Don't try to "extract fields" from prose. If you find yourself writing regex against the model's output, you wanted Shape 2.
+
+## Shape 2: JSON / structured output
+
+Use when code reads the output. Claude has two ways to produce JSON:
+
+**JSON mode** (provider feature):
+
+```ts
+const reply = await client.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: 'Extract: "Phuoc, 31, Vietnam"' }],
+  // some providers expose a `response_format: { type: 'json_object' }` flag
+  // Anthropic recommends instructing JSON in the prompt + validating in code.
+});
+```
+
+**Tool-call coercion** (the recommended pattern):
+
+Define a tool whose only purpose is to receive the structured output. Force the model to call it. The "result" is the tool's arguments — already JSON, already typed, already validated against your schema if you used Zod.
+
+```ts
+const tools = [{
+  name: 'extract_person',
+  description: 'Extract a person record from text.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      name:   { type: 'string' },
+      age:    { type: 'number' },
+      country:{ type: 'string' },
+    },
+    required: ['name'],
+  },
+}];
+
+const reply = await client.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  tools,
+  tool_choice: { type: 'tool', name: 'extract_person' },
+  messages: [{ role: 'user', content: 'Phuoc, 31, Vietnam' }],
+});
+
+const args = (reply.content[0] as { input: unknown }).input;
+```
+
+`tool_choice: { type: 'tool', name: ... }` *forces* the model to call that tool. The result is the tool's arguments, parsed and shape-validated. This is what "structured output" means in practice — and it's covered in detail in lesson 9.
+
+## Shape 3: A single enum / classification
+
+When the answer is "one of these N values" — a routing decision, a category, an intent — model accuracy is measurably higher when you constrain to an enum than when you ask for free-form classification and parse out the answer.
+
+Constrain via tool input schema (recommended) or by explicit instruction:
+
+```
+Reply with exactly one of: SHIPPING, BILLING, PRODUCT, OTHER. No other words.
+```
+
+The instruction works ~95% of the time at temperature 0. The tool-input enum works closer to 100% because the schema rejects anything else. For high-volume classification, schema. For one-off, instruction.
+
+## Shape 4: Code
+
+A common mistake: asking for "code" without specifying the *delimiter*. The model defaults to triple-backticks-plus-language fences, which is fine for chat but trips up `JSON.parse` if the surrounding response is JSON.
+
+Two fixes:
+
+- **Direct extract** — accept that the response is markdown, run it through a code-fence extractor, treat the inside as the code. Standard for chat-style apps.
+- **Tool-call wrapping** — define a `submit_code` tool whose argument is the code as a string. Now there's no fence; you just read `args.code`. Standard for production code-gen pipelines.
+
+For Claude Code: code edits go through `Edit` and `Write` tools, which is shape-4 done right by the harness. You almost never need to think about code-extraction in the CLI; the tool is the shape.
+
+## Pick once, commit
+
+The cardinal sin: switching shape mid-loop. If your code is parsing JSON, never accept "here's the JSON, but with a paragraph of explanation before it." Either it's JSON-only or it's prose-with-embedded-data; both are fine, but the parser must know.
+
+Commit early, defend in code. Reject mid-shape responses and retry with a tighter constraint. A retry on "your last reply included prose; reply with JSON only" almost always succeeds.
+
+<Callout type="note" title="Anthropic's JSON happens via tools">
+On the Anthropic API specifically, the canonical way to produce reliable structured output is the forced-tool pattern. There's no `response_format: 'json'` flag; you don't need one. The tool's `input_schema` is your contract. Lesson 9 builds this end-to-end with Zod.
+</Callout>
+
+<Recap>
+- Decide who reads next: human → prose, code → structured. Don't do both in one call.
+- Free-form prose is the default for human-facing output. Specify length, focus, tone.
+- For machine-readable output, prefer tool-call coercion over "please return JSON."
+- Enums beat free-form classification. Use a tool with an enum schema for high-stakes routing.
+- For code generation, either extract from fences (chat) or wrap in a tool (pipeline). Claude Code's edit tools handle this for you.
+- Commit to one shape per call. Mid-shape responses are bugs; retry tighter.
+</Recap>

@@ -802,6 +802,8 @@
    card so the grid has rhythm without introducing any other hue. */
 .course-card--peach  { --card-wash: #d6f0a8; --card-bar: var(--color-accent); }   /* brightest lime */
 .course-card--sage   { --card-wash: #ccecaa; --card-bar: var(--color-pine);   }   /* lime          */
+.course-card--moss   { --card-wash: #c2e3a5; --card-bar: var(--color-pine);   }   /* deep moss     */
+.course-card--clay   { --card-wash: #b8d99b; --card-bar: var(--color-accent); }   /* deepest green */
 .course-card--butter { --card-wash: #dcedc4; --card-bar: var(--color-accent); }   /* mid mint      */
 .course-card--sky    { --card-wash: #cfe6c2; --card-bar: var(--color-pine);   }   /* soft mint     */
 
