@@ -1,0 +1,142 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+A test suite that calls real models is slow, expensive, and non-deterministic. A test suite that calls *no* models tests nothing useful. The right shape: deterministic fake models that return scripted replies, real chains and graphs that consume them, and assertions on what your code did with those replies. This lesson is the fake model API, snapshot tests for chain outputs, and the harder problem of testing tool calls without a model.
+
+The [testing lesson in the AI in Your Project course](/courses/ai-in-your-project/lessons/22-testing-evaluation) goes deeper into snapshot evaluation across model versions; this one focuses on the unit-test layer underneath.
+
+## 01 — `FakeListChatModel`
+
+A LangChain chat model that returns scripted replies in order:
+
+```ts
+import { FakeListChatModel } from '@langchain/core/utils/testing';
+
+const model = new FakeListChatModel({
+  responses: ['First reply', 'Second reply', 'Third reply'],
+});
+
+console.log((await model.invoke('any input')).content); // 'First reply'
+console.log((await model.invoke('any input')).content); // 'Second reply'
+console.log((await model.invoke('any input')).content); // 'Third reply'
+```
+
+`FakeListChatModel` implements the same `ChatModel` interface as `ChatOllama`, `ChatOpenAI`, etc. Drop it in wherever you'd drop a real one. Tests run instantly. Reproducible.
+
+For tests of chains, replace your real `makeModel()` with one that returns a `FakeListChatModel`:
+
+```ts
+// in a test
+import { vi } from 'vitest';
+import * as modelModule from './lib/model';
+
+vi.spyOn(modelModule, 'makeModel').mockReturnValue(
+  new FakeListChatModel({ responses: ['mocked'] }),
+);
+```
+
+The whole chain or graph runs against the fake. You assert on what the chain *did* — not on what the model said.
+
+## 02 — Snapshot tests for chain outputs
+
+```ts
+import { test, expect } from 'vitest';
+
+test('rag chain combines context and question', async () => {
+  const fake = new FakeListChatModel({ responses: ['The answer is mitochondria.'] });
+  const chain = prompt.pipe(fake).pipe(new StringOutputParser());
+  const reply = await chain.invoke({ context: 'Mitochondria are powerhouses.', question: 'What are powerhouses?' });
+  expect(reply).toMatchSnapshot();
+});
+```
+
+Snapshots are useful for prompt-template tests too:
+
+```ts
+test('prompt template includes the question', async () => {
+  const messages = await prompt.invoke({ context: 'X', question: 'Y' });
+  expect(messages).toMatchSnapshot();
+});
+```
+
+The snapshot fixates the rendered prompt. Change the template, the snapshot updates intentionally. This is how you catch accidental prompt drift — a typo, a removed instruction, a placeholder you forgot to populate.
+
+## 03 — Testing tool calls
+
+This is where `FakeListChatModel` falls short. It returns text. Real models in tool-calling mode return `AIMessage`s with `tool_calls`. To test the agent loop, you need a fake that emits structured tool calls:
+
+```ts
+import { FakeChatModel } from '@langchain/core/utils/testing';
+import { AIMessage } from '@langchain/core/messages';
+
+class ScriptedToolModel extends FakeChatModel {
+  private idx = 0;
+  constructor(private scripts: AIMessage[]) { super({}); }
+
+  async _generate() {
+    const msg = this.scripts[this.idx++];
+    return { generations: [{ text: msg.content as string, message: msg }] };
+  }
+
+  bindTools() { return this; }                  // pretend to support tool binding
+}
+
+const fake = new ScriptedToolModel([
+  new AIMessage({
+    content: '',
+    tool_calls: [{ name: 'get_weather', args: { city: 'Berlin' }, id: 'c1', type: 'tool_call' }],
+  }),
+  new AIMessage('It is sunny in Berlin.'),
+]);
+```
+
+The agent's first invoke produces a tool call (script index 0). The agent runs the tool. The agent invokes again; the fake produces the final answer (script index 1). Your test asserts that the tool was called with `city: 'Berlin'` — without ever calling a real model.
+
+This is the same pattern any production AI codebase eventually adopts. The first time you write it, factor it into a `scriptedAgent(...)` helper; you'll reuse it across dozens of tests.
+
+## 04 — Testing graphs
+
+Graphs are Runnables. They test like any other Runnable — substitute fake models, invoke, assert on the output state:
+
+```ts
+test('react graph calls weather tool then replies', async () => {
+  const fake = new ScriptedToolModel([
+    new AIMessage({ content: '', tool_calls: [{ name: 'get_weather', args: { city: 'Paris' }, id: 'a', type: 'tool_call' }] }),
+    new AIMessage('It is 18°C in Paris.'),
+  ]);
+  const graph = buildGraph(fake);
+
+  const result = await graph.invoke({ messages: [new HumanMessage('Weather in Paris?')] });
+
+  const toolCall = result.messages.find(m => 'tool_calls' in m && m.tool_calls?.length);
+  expect(toolCall).toBeDefined();
+  expect((toolCall as AIMessage).tool_calls![0].args).toEqual({ city: 'Paris' });
+
+  const final = result.messages.at(-1)!;
+  expect(final.content).toContain('Paris');
+});
+```
+
+Two assertions: the tool was called with the right args, the final answer mentions the city. Keep assertions on *behaviour* (the graph called the right tool with the right args) rather than on *exact strings* (the model's natural-language phrasing). Strings are brittle; behaviour is the contract.
+
+## 05 — When to escape the fake
+
+Three cases warrant real model calls in tests:
+
+- **Prompt evals.** Did this prompt produce a 1-out-of-5 score across 20 examples? You need the real model. Run weekly, not per-commit.
+- **Provider regressions.** New SDK version, new model — sanity-check that "hello" still streams without errors. Cheap, low-cardinality, can be in CI behind a flag.
+- **End-to-end smoke tests.** One test per critical path that exercises the real stack. Don't run it on every PR — run on merge and on schedule.
+
+Everything else stays on fakes. Real-model tests are an evals concern; unit tests are a fakes concern. Don't conflate them.
+
+<Callout type="note" title="Never test the model itself">
+"Did the model summarise this correctly?" is not a test. It's an eval. The model is a black box your code consumes; what you can test is whether *your code* correctly handles whatever the model returns. Hold this line and your test suite stays fast, deterministic, and meaningful.
+</Callout>
+
+<Recap>
+- `FakeListChatModel` returns scripted text replies. Drop it in anywhere a real chat model is used.
+- Snapshot test rendered prompts and chain outputs to catch drift.
+- For tool-calling agents, write a `ScriptedToolModel` that emits scripted `AIMessage`s with `tool_calls`. Reuse it across tests.
+- Graphs test like any Runnable — substitute fakes, invoke, assert on the final state's behaviour.
+- Real-model tests belong in evals, not unit tests. Run weekly or on merge, not per-commit.
+</Recap>

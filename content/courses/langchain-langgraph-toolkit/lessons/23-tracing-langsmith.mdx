@@ -1,0 +1,114 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+You can't ship an AI feature you can't observe. Print statements scale until they don't. The LangChain ecosystem gives you three layers of observability: callback handlers (in-process hooks for every Runnable lifecycle event), automatic tracing (the same data, sent to a backend), and LangSmith (the hosted backend that turns traces into navigable trees). This lesson is each layer, what it costs, and what it earns you.
+
+The [observability lesson in the AI in Your Project course](/courses/ai-in-your-project/lessons/23-observability-cost) covers cost specifically; this one focuses on traces and what they unlock.
+
+## 01 — Callback handlers
+
+Every Runnable emits lifecycle events. A `BaseCallbackHandler` lets you hook into them:
+
+```ts
+import { BaseCallbackHandler } from '@langchain/core/callbacks/base';
+
+class TimingHandler extends BaseCallbackHandler {
+  name = 'timing-handler';
+  private starts = new Map<string, number>();
+
+  handleChatModelStart(_llm: any, _prompts: any, runId: string) {
+    this.starts.set(runId, Date.now());
+  }
+  handleChatModelEnd(_output: any, runId: string) {
+    const t = Date.now() - (this.starts.get(runId) ?? 0);
+    console.log(`model call ${runId} took ${t}ms`);
+  }
+  handleToolStart(_tool: any, input: string, runId: string) {
+    console.log(`tool start ${runId} input=${input}`);
+  }
+}
+
+await model.invoke('Hi', { callbacks: [new TimingHandler()] });
+```
+
+You override the lifecycle methods you care about. The `runId` ties starts to ends. Common things to log: model latency, tool latency, retrieved Document IDs, error messages. Common things to *not* log: full prompts (often PII), full reads (volume), embeddings (giant arrays).
+
+Per-call callbacks (`{ callbacks: [...] }`) are scoped to one invocation. Process-wide callbacks (`process.env.LANGCHAIN_CALLBACKS_BACKGROUND`) apply to every Runnable globally — convenient, but be careful with PII.
+
+## 02 — Automatic tracing to LangSmith
+
+LangSmith is the hosted backend. Set two env vars and every call is traced automatically:
+
+```bash
+export LANGCHAIN_TRACING_V2=true
+export LANGCHAIN_API_KEY=ls__...
+export LANGCHAIN_PROJECT=langchain-toolkit-demo
+```
+
+Restart the app. Every chain, every chat model call, every tool, every graph step appears in the LangSmith UI as a tree. You see latency per node, prompts, replies, token counts, errors. No code change.
+
+LangSmith is free for individual use up to a quota and paid above it. Self-hosted is also available. The whole observability layer is opt-in — nothing leaves your machine until you set those env vars.
+
+## 03 — Reading a trace
+
+A useful trace has three layers visible:
+
+- **Top level** — the run as a whole. Total latency, total tokens, error or success.
+- **Step level** — each node, chain step, or tool. Same metrics per step.
+- **Token level** — for streaming model calls, the time between tokens (TBT). High TBT often points at a slow provider, not slow code.
+
+Three things you'll find by reading traces that print debugging never shows:
+- The retrieval node returning documents that don't actually mention the query keyword (RAG misalignment).
+- A tool call running 6× because of a retry loop you didn't know existed.
+- A surprising 3-second sleep before the first token, hidden inside the provider's queue.
+
+A weekly habit of reading 5 random production traces is the single highest-leverage thing you can do for AI feature quality. Print logs don't surface any of these — only the tree view does.
+
+## 04 — Custom run names and metadata
+
+Every run can carry metadata you can search on later:
+
+```ts
+await graph.invoke(input, {
+  configurable: { thread_id },
+  metadata: { user_id, plan: 'pro', feature: 'rag-summary' },
+  tags: ['rag', 'summary'],
+  runName: 'rag-summary-v3',
+});
+```
+
+In LangSmith you can filter "show me all runs with `feature=rag-summary` from `plan=pro` users that took >5s." That's the kind of question that's impossible without good metadata and trivial with it.
+
+Standardise the metadata you attach. A team that consistently tags `user_id`, `feature`, `plan`, `request_id` can slice and dice; a team that adds ad-hoc tags can't.
+
+## 05 — Tracing without LangSmith
+
+If you don't want a hosted backend, the `BaseCallbackHandler` plus your own log shipper does most of it. Send the lifecycle events to OpenTelemetry, Datadog, or stdout-as-JSON. You'll lose the tree visualisation but keep the data.
+
+```ts
+class JsonLogHandler extends BaseCallbackHandler {
+  name = 'json-log';
+  handleChatModelEnd(output: any, runId: string, parentRunId?: string) {
+    console.log(JSON.stringify({
+      kind: 'chat_model_end',
+      runId, parentRunId,
+      tokens: output.llmOutput?.tokenUsage,
+      ts: Date.now(),
+    }));
+  }
+}
+```
+
+Pipe stdout to your log aggregator. Build a Grafana panel from the data. It's more work than enabling LangSmith, but it works and avoids a vendor dependency.
+
+<Callout type="note" title="`streamEvents` exposes the same events as callbacks">
+Lesson 15 introduced `streamEvents({ version: 'v2' })`. Those events are exactly the same lifecycle events callback handlers receive. So: same data, two delivery modes — push (callbacks) or pull (streamEvents). Use callbacks for "always log," `streamEvents` for "send to this UI for this request only."
+</Callout>
+
+<Recap>
+- `BaseCallbackHandler` hooks into every Runnable's lifecycle. Override the events you care about; ignore the rest.
+- `LANGCHAIN_TRACING_V2=true` plus an API key sends every run to LangSmith automatically — no code change.
+- A useful trace has three layers visible: run, step, token. Reading traces surfaces issues print logs never will.
+- Attach `metadata`, `tags`, `runName` to every invoke. Consistent metadata is the difference between "search and find" and "search and despair."
+- For self-hosted observability, send callback events to JSON logs and visualise downstream. More work; same data.
+</Recap>

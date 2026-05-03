@@ -1,0 +1,99 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+The fastest way to learn LangChain is to run the snippets. The fastest way to run the snippets without a credit card is Ollama — a small local server that hosts open-source models on your laptop. Every lesson in this course works against an Ollama instance. The last part shows you how to swap to a hosted provider with a one-line edit.
+
+This lesson installs Ollama, scaffolds a tiny TypeScript project, runs the first model call, and lays down the **provider boundary** — a single file that imports from one provider in dev and another in prod. Get this right once and it stays right for the next twenty-four lessons.
+
+## 01 — Install Ollama
+
+Ollama runs as a daemon on your machine. Models are downloaded into `~/.ollama/models` and served on `http://localhost:11434`.
+
+```bash
+# macOS
+brew install ollama
+# Linux
+curl -fsSL https://ollama.com/install.sh | sh
+# Windows: download the installer from ollama.com
+
+ollama serve &           # start the daemon
+ollama pull llama3.2:3b  # pull a small model — ~2 GB
+ollama run llama3.2:3b "Say hello in one sentence"
+```
+
+The 3B model fits in ~3 GB of RAM and replies in under a second on a recent laptop. If you have 16 GB+ of RAM and want better outputs, pull `llama3.1:8b` and use it for tool-calling lessons — small models sometimes botch tool-call JSON, and 8B handles it cleanly.
+
+## 02 — Scaffold the project
+
+```bash
+mkdir langchain-toolkit && cd langchain-toolkit
+npm init -y
+npm install langchain @langchain/core @langchain/community @langchain/ollama @langchain/langgraph zod
+npm install -D typescript tsx @types/node
+npx tsc --init --target es2022 --module nodenext --moduleResolution nodenext --strict
+```
+
+Add `"type": "module"` to `package.json` so the imports just work. Make a `src/` directory; that's where every snippet in this course goes.
+
+## 03 — The first call
+
+Drop this in `src/hello.ts`:
+
+```ts
+import { ChatOllama } from '@langchain/ollama';
+
+const model = new ChatOllama({ model: 'llama3.2:3b', temperature: 0 });
+
+const reply = await model.invoke('Reply with one short sentence about LangChain.');
+console.log(reply.content);
+```
+
+Run it: `npx tsx src/hello.ts`. The model talks. That's the entire LangChain "hello world" — a `ChatOllama` instance and an `.invoke()` call. The same shape works for every provider; the constructor is the only thing that changes.
+
+## 04 — The provider boundary
+
+Here's the move that makes the rest of the course painless. Every snippet that needs a model imports from a single file you own:
+
+```ts
+// src/lib/model.ts
+import { ChatOllama } from '@langchain/ollama';
+// import { ChatAnthropic } from '@langchain/anthropic';
+// import { ChatOpenAI } from '@langchain/openai';
+
+export function makeModel() {
+  return new ChatOllama({ model: 'llama3.2:3b', temperature: 0 });
+  // return new ChatAnthropic({ model: 'claude-haiku-4-5-20251001', temperature: 0 });
+  // return new ChatOpenAI({ model: 'gpt-4o-mini', temperature: 0 });
+}
+```
+
+Then everywhere else:
+
+```ts
+import { makeModel } from './lib/model.js';
+
+const model = makeModel();
+```
+
+You change one file to swap providers — never twenty. This is the same pattern the [AI in Your Project setup lesson](/courses/ai-in-your-project/lessons/03-setup-ollama-skeleton) uses; reuse it here and you'll thank yourself by lesson 25.
+
+<Callout type="warning" title="`.env` and hosted providers">
+When you do swap to a hosted provider, the constructor reads `process.env.ANTHROPIC_API_KEY` (or the provider's equivalent) by default. Don't put keys in `model.ts`. Use a `.env` file plus `dotenv` (or a `.env.local` if you're inside a Next.js app) and let the SDK pick up the env var on its own.
+</Callout>
+
+## 05 — Pick your dev model
+
+Three rules of thumb that will save you debugging time:
+
+- **Stay below 8B** for code that doesn't need to be smart — chat, summarisation, classification with strong prompts. Bigger models add latency you don't need.
+- **Use `llama3.1:8b` or larger** when the lesson involves tools or structured output. Small models occasionally generate malformed tool-call JSON; 8B fixes most of it.
+- **Set `temperature: 0`** for everything that should be deterministic — tool calls, classification, structured output. Save creativity for the chat lessons.
+
+You can change the model in `model.ts` per-lesson if you want; the rest of your code never moves.
+
+<Recap>
+- Ollama is a local daemon at `localhost:11434`. `ollama pull llama3.2:3b` downloads a model; `ChatOllama` connects to the daemon.
+- One file — `src/lib/model.ts` — owns the provider choice. Every snippet imports `makeModel()` from there.
+- Hosted providers are a one-line constructor swap. The rest of the code does not change.
+- Use small models for chat, ≥8B for tool-calling, and temperature 0 for anything you want deterministic.
+</Recap>

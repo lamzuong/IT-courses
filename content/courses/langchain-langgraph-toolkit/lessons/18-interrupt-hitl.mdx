@@ -1,0 +1,118 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+`interrupt` is LangGraph's killer feature. It pauses the graph mid-run, surfaces a value to the caller, waits for an external answer, and resumes from the same node with the answer in hand. This is what turns "AI plans a sequence of writes" into "AI plans, user reviews each one, AI executes only the approved." Same pattern works for tool approval, edit-then-continue, expert handoff, captcha, and anything else where a human has to be in the loop. The [equivalent lesson in the AI in Your Project course](/courses/ai-in-your-project/lessons/19-interrupt-confirmation) wires this into the AI Operator's confirmation step; this one shows it standalone.
+
+## 01 — `interrupt(value)` inside a node
+
+```ts
+import { interrupt } from '@langchain/langgraph';
+
+async function approveWriteNode(state: typeof State.State) {
+  const proposal = state.pendingWrite;
+  const decision = interrupt({                 // pauses the graph here
+    kind: 'approval_required',
+    proposal,
+  });
+  if (decision === 'approve') {
+    await commitWrite(proposal);
+    return { auditLog: [{ ts: Date.now(), action: proposal }] };
+  } else {
+    return { auditLog: [{ ts: Date.now(), action: 'rejected', proposal }] };
+  }
+}
+```
+
+When the node runs, `interrupt(value)` does two things:
+- It surfaces `value` to whoever is consuming the graph's stream.
+- It pauses the graph. The node does not return.
+
+When the graph is *resumed* with a value, the call to `interrupt` *returns* that value, and the node continues from there. The node is re-entered from the top each time the graph resumes — anything before the `interrupt` runs again — so keep pre-`interrupt` work cheap or guard it with state.
+
+## 02 — Receiving the interrupt
+
+Streaming from a graph that interrupts:
+
+```ts
+const config = { configurable: { thread_id: 'tx-7' } };
+const stream = await graph.stream(initial, config);
+
+for await (const chunk of stream) {
+  if (chunk.__interrupt__) {                  // pseudo-key for surfaced interrupts
+    const value = chunk.__interrupt__[0].value;
+    console.log('Approval needed:', value);
+    break;
+  }
+}
+```
+
+Or with `getState` after `invoke`:
+
+```ts
+await graph.invoke(initial, config);
+const snapshot = await graph.getState(config);
+if (snapshot.next.length > 0) {
+  console.log('Graph paused at:', snapshot.next);
+  console.log('Surfaced value:',  snapshot.tasks[0].interrupts?.[0].value);
+}
+```
+
+Either way: the caller sees the interrupt's `value`, knows what's required, and presents it to the user. The graph's checkpointer (lesson 16) holds the rest of the state.
+
+## 03 — Resuming with a `Command`
+
+To resume, you `invoke` (or `stream`) again with a `Command` carrying the answer:
+
+```ts
+import { Command } from '@langchain/langgraph';
+
+await graph.invoke(new Command({ resume: 'approve' }), config);
+```
+
+`Command({ resume: <value> })` is the resume primitive. The graph rolls forward from the interrupted node; `interrupt(...)` returns `'approve'`; the node continues. Same `thread_id` config, no need to re-pass the original input.
+
+You can pass any JSON-serialisable value as `resume`. A boolean. An object with edited fields. The user's final form data. Whatever the interrupt asked for.
+
+## 04 — Pattern: approve / reject / edit
+
+The richest version of human-in-the-loop is "approve, reject, *or* edit." The graph proposes an action; the user can approve as-is, reject outright, or change the parameters and approve the modified version:
+
+```ts
+async function approvalNode(state: typeof State.State) {
+  const decision = interrupt({
+    kind: 'approval_required',
+    proposal: state.pendingWrite,
+  }) as { action: 'approve' | 'reject' | 'edit'; edited?: typeof state.pendingWrite };
+
+  if (decision.action === 'reject') return { phase: 'cancelled' };
+  const final = decision.action === 'edit' ? decision.edited! : state.pendingWrite;
+  await commitWrite(final);
+  return { phase: 'committed', committed: final };
+}
+```
+
+The router after this node branches on `phase`. The UI presents three buttons (Approve, Reject, Edit) and a form. Approve sends `{ action: 'approve' }`. Edit sends `{ action: 'edit', edited: {...} }`. Reject sends `{ action: 'reject' }`. The graph handles it in one node, two reducers, three branches.
+
+## 05 — The shape of every HITL workflow
+
+Every human-in-the-loop graph in production looks like this:
+
+1. The agent plans something.
+2. A node `interrupt`s with the plan, surfacing it to the UI.
+3. The UI renders the plan, gathers user input.
+4. The graph is resumed with `Command({ resume: <user input> })`.
+5. The node continues, executes (or doesn't), updates state, edges out.
+
+Variants change *what's interrupted on*: a single tool call (atomic confirmation), a multi-step plan (review-the-whole-plan-then-confirm-each), a free-form decision ("which of these three drafts?"), or an expert handoff ("escalate to a human agent — wait for their response"). The mechanic is the same. The differences are entirely in what `value` you surface and what `resume` you accept.
+
+<Callout type="warning" title="Pre-`interrupt` code runs every time the node re-enters">
+The `interrupt` call is *not* a yield point that resumes mid-statement. Each resume re-enters the node from its first line and re-runs everything until the `interrupt` is hit again — at which point it returns the resumed value and continues. Side effects before the interrupt happen on every resume. Two safe patterns: keep pre-interrupt code idempotent, or guard it with a state field that says "I've already done this prep work."
+</Callout>
+
+<Recap>
+- `interrupt(value)` pauses the graph and surfaces `value` to the caller. Resume with `Command({ resume: ... })`.
+- `getState(config).next` and `.tasks[].interrupts` tell you which node is paused and what it surfaced.
+- Approve / reject / edit is the canonical HITL pattern. One node, three branches, one reducer chain.
+- All HITL graphs share one shape: agent plans → interrupt → user decides → resume → execute or skip.
+- A node re-enters from the top on resume. Make pre-interrupt work idempotent or guard it with state.
+</Recap>

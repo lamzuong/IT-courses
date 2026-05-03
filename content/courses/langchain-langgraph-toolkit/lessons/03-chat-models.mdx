@@ -1,0 +1,87 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+A `ChatModel` exposes three call shapes: `invoke`, `stream`, and `batch`. They look almost identical and they cover almost every interaction you'll have with an LLM in a normal app. This lesson is what each one does, when to use it, and a peek under the hood at the runnable abstraction that makes them interchangeable.
+
+## 01 — `.invoke(input)` — one call, one reply
+
+```ts
+const reply = await model.invoke('Summarise the first paragraph of this article in one sentence.');
+console.log(reply.content);
+```
+
+`invoke` is the default. It blocks until the model is done, returns an `AIMessage`, and is what you reach for when there's no UI showing the reply mid-stream — background jobs, classification, extraction, anything where you only care about the final answer.
+
+The input is flexible. A bare string works (it gets wrapped as a single `HumanMessage`). An array of messages works. A `ChatPromptTemplate` output works. The next lesson is about that last one.
+
+## 02 — `.stream(input)` — token by token
+
+```ts
+const stream = await model.stream('Write a 200-word post about hobbits.');
+for await (const chunk of stream) {
+  process.stdout.write(chunk.content as string);
+}
+```
+
+`stream` returns an async iterator of `AIMessageChunk`s. Each chunk's `content` is a fragment of text. Use this whenever the user sees the reply appearing — chat UIs, generation panels, the "typing" effect that makes long answers feel fast. The total time is the same; the *time to first token* is dramatically lower, which is what the user actually feels.
+
+A small but important detail: every chunk is a `Message`, not a string. Chunks include token usage on the last chunk, sometimes `tool_call_chunks` mid-stream, and `additional_kwargs` for provider-specific data. Don't write code that assumes "stream of strings"; write code that assumes "stream of message fragments" and you'll handle every chunk shape correctly.
+
+## 03 — `.batch(inputs)` — many calls in parallel
+
+```ts
+const inputs = [
+  'Classify: "shipping is too slow"',
+  'Classify: "your support team was great"',
+  'Classify: "where is my order?"',
+];
+const replies = await model.batch(inputs, { maxConcurrency: 5 });
+replies.forEach((r, i) => console.log(inputs[i], '=>', r.content));
+```
+
+`batch` runs many invocations concurrently. The `maxConcurrency` option throttles parallelism — important on hosted providers with rate limits, less important on local Ollama where the daemon serialises anyway. If any one call fails, the whole batch rejects by default; pass `{ returnExceptions: true }` to receive errors per-input and handle them yourself.
+
+When you find yourself writing `await Promise.all(items.map(item => model.invoke(...)))`, replace it with `model.batch(items)`. Same shape, less code, real concurrency control.
+
+## 04 — Three calls, one abstraction
+
+`invoke`, `stream`, and `batch` aren't three different methods — they're three methods every **Runnable** in LangChain implements. `Runnable` is the interface, and `ChatModel`, `PromptTemplate`, `OutputParser`, and chains-of-them all conform to it. That's why this works:
+
+```ts
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+
+const prompt = ChatPromptTemplate.fromMessages([
+  ['system', 'You are a careful classifier. Reply with one word.'],
+  ['user', '{text}'],
+]);
+
+const chain = prompt.pipe(model);
+
+await chain.invoke({ text: 'shipping is slow' });
+await chain.batch([{ text: 'a' }, { text: 'b' }]);
+for await (const c of await chain.stream({ text: 'shipping is slow' })) { /* … */ }
+```
+
+`prompt.pipe(model)` returns a new Runnable. The new Runnable has `invoke`, `stream`, and `batch` for free. You never had to write a wrapper. This composability is the whole reason LangChain exists; everything later in this course leans on it.
+
+<Callout type="note" title="LCEL — LangChain Expression Language">
+The `.pipe()` chaining you'll see throughout this course is "LCEL" — LangChain Expression Language. It's just method chaining returning Runnables, but the marketing name is worth knowing because the docs use it. There's no special parser or DSL — `a.pipe(b).pipe(c)` is plain TypeScript composing functions that all implement the same interface.
+</Callout>
+
+## 05 — `temperature`, `maxTokens`, and the rest
+
+Every chat model takes a familiar set of options at construction time:
+
+- **`temperature`** — randomness. `0` for deterministic outputs (tool calling, classification, extraction). `0.7` for creative writing. Don't bother with anything above `1.0`.
+- **`maxTokens`** — cap on the *output* length. Useful when you want short replies and the model rambles.
+- **`topP`, `topK`** — alternative sampling controls. Touch only when temperature alone isn't getting the variety you want; otherwise leave them at defaults.
+
+Most provider-specific knobs (response format, system prompt position, stop sequences) are passed as constructor options. Let TypeScript autocomplete tell you what each provider supports — they diverge, and the type definitions are the most up-to-date documentation.
+
+<Recap>
+- `invoke` — single call, single reply. The default.
+- `stream` — token-by-token chunks. Use for any user-facing generation.
+- `batch` — parallel calls with concurrency control. Use instead of `Promise.all`.
+- All three are implemented by every Runnable. Chain them with `.pipe()` and the chain inherits all three for free.
+- Constructor options control temperature, max tokens, and provider-specific behaviour. Set `temperature: 0` for anything that should be deterministic.
+</Recap>

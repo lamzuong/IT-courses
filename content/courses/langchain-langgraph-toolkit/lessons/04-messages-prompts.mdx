@@ -1,0 +1,115 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+The model takes messages, not strings. A string-shaped call gets wrapped in a single `HumanMessage` and sent. The minute your interaction has any structure — a system role, a few-shot example pair, a placeholder for prior turns — you stop concatenating strings and start composing messages. This lesson is the message types, the prompt template that builds them, and the placeholder pattern that turns a static prompt into one that grows with the conversation.
+
+## 01 — Message types
+
+Five types you'll meet in practice:
+
+- **`SystemMessage`** — the role/instructions/persona. Position-sensitive; goes first.
+- **`HumanMessage`** — what the user typed.
+- **`AIMessage`** — what the model replied (also what you stash to feed the next turn).
+- **`ToolMessage`** — the result of a tool call, addressed back to the model with `tool_call_id`.
+- **`FunctionMessage`** — older, for legacy function-calling APIs. Use `ToolMessage`.
+
+You almost never construct these by hand. Prompt templates produce them; the model produces them; the framework hands them around. But knowing the *shape* matters because every primitive in the rest of the course consumes or produces them.
+
+## 02 — `ChatPromptTemplate`
+
+The 90% case for building messages:
+
+```ts
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+
+const prompt = ChatPromptTemplate.fromMessages([
+  ['system', 'You are a brevity coach. Reply in {style} style, no more than two sentences.'],
+  ['user',   'Critique: "{text}"'],
+]);
+
+const chain = prompt.pipe(model);
+await chain.invoke({ style: 'plainspoken', text: 'we are excited to inform you that...' });
+```
+
+Each tuple is `[role, template]`. The template is an f-string with `{name}` placeholders. Calling `.invoke({...})` substitutes them. Roles get mapped to message classes — `'system'` to `SystemMessage`, `'user'` (or `'human'`) to `HumanMessage`, `'assistant'` (or `'ai'`) to `AIMessage`.
+
+## 03 — `MessagesPlaceholder` for conversation history
+
+The whole point of a chat is the prior turns. You don't want to interpolate them as a string; you want them as actual `AIMessage`/`HumanMessage` instances so the model sees the structure. That's `MessagesPlaceholder`:
+
+```ts
+import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
+
+const prompt = ChatPromptTemplate.fromMessages([
+  ['system', 'You are a helpful assistant.'],
+  new MessagesPlaceholder('history'),
+  ['user', '{input}'],
+]);
+
+const history: BaseMessage[] = [
+  new HumanMessage('What is the capital of France?'),
+  new AIMessage('Paris.'),
+];
+
+await chain.invoke({ history, input: 'And of Spain?' });
+```
+
+The `history` array gets spliced in at exactly that position. The model sees five messages: system, human, AI, human, and produces an AI. This is the foundation for every multi-turn conversation. You'll see the same pattern in [the multi-turn lesson of the AI in Your Project course](/courses/ai-in-your-project/lessons/15-multi-turn-loop-limits).
+
+## 04 — `partial()` for shared values
+
+Some template variables are constant for a request — the user's name, the current locale, a feature flag. Pre-fill them once with `.partial()`:
+
+```ts
+const base = ChatPromptTemplate.fromMessages([
+  ['system', 'You are a helpful assistant for {tenant}. Reply in {locale}.'],
+  ['user', '{input}'],
+]);
+
+const tenantSpecific = await base.partial({ tenant: 'Acme', locale: 'en-GB' });
+const reply = await tenantSpecific.pipe(model).invoke({ input: 'Hello!' });
+```
+
+After `.partial({ tenant, locale })`, the only variable left is `input`. This is how you build per-request prompts on top of a per-app prompt without writing a new template every time. It also keeps the template literal short — a giant prompt with eight placeholders is unreadable; a small base + a partial is clean.
+
+## 05 — Few-shot prompting with `FewShotChatMessagePromptTemplate`
+
+When the task is hard for the model and you can list two or three input/output examples, embed them in the prompt:
+
+```ts
+import { FewShotChatMessagePromptTemplate, ChatPromptTemplate } from '@langchain/core/prompts';
+
+const examplePrompt = ChatPromptTemplate.fromMessages([
+  ['user', '{input}'],
+  ['ai', '{output}'],
+]);
+
+const fewShot = new FewShotChatMessagePromptTemplate({
+  examplePrompt,
+  examples: [
+    { input: 'shipping is slow',  output: 'shipping' },
+    { input: 'wrong size',        output: 'product' },
+    { input: 'where is my order', output: 'shipping' },
+  ],
+});
+
+const final = ChatPromptTemplate.fromMessages([
+  ['system', 'Classify the customer message into one category. Reply with the category only.'],
+  fewShot,
+  ['user', '{input}'],
+]);
+```
+
+Three examples lift small-model accuracy on classification tasks more than any system prompt rewrite. The cost is tokens — each example is sent every call. For high-volume routes, decide whether the accuracy gain is worth the per-call cost; for everything else, default to including 3–5 examples.
+
+<Callout type="note" title="Prompt versioning is your responsibility">
+LangChain doesn't version prompts for you. When you change a prompt, you've changed the contract — outputs may shift in subtle ways. Treat prompts like database migrations: name them, write them in code (not in a config file), and check them into git. The "evals" lesson covers how to catch unintended drift.
+</Callout>
+
+<Recap>
+- Five message types: System, Human, AI, Tool, Function. Templates produce them; you rarely build them by hand.
+- `ChatPromptTemplate.fromMessages([...])` is the 90% case for building messages from variables.
+- `MessagesPlaceholder` splices in conversation history as actual messages, not stringified text.
+- `.partial()` pre-fills shared variables. Compose a base template + partial instead of one giant template.
+- Few-shot examples lift small-model accuracy on classification more than prompt rewriting; budget the tokens.
+</Recap>

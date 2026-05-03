@@ -1,0 +1,106 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+The last lesson is the one nobody covers in a tutorial: what to do when things go wrong, when calls cost money, when timeouts happen. Production AI is mostly this — the model works; the infrastructure around it has to keep working when the model doesn't, when the network blips, when the user runs ten queries that should have been one. This lesson is `withRetry`, fallbacks, deadlines, and budget guards.
+
+## 01 — `withRetry`
+
+LangChain Runnables have built-in retries:
+
+```ts
+const robust = model.withRetry({
+  stopAfterAttempt: 3,
+  onFailedAttempt: (e, attempt) => console.log(`attempt ${attempt} failed:`, e.message),
+});
+
+const reply = await robust.invoke('Summarise this doc.');
+```
+
+Retries are *transparent* — the caller sees a successful result or the final error. They use exponential backoff by default, with jitter. Don't write a retry wrapper by hand; you'll get the timing wrong.
+
+What to retry:
+- **Network errors, 502/503/504, rate limit (429).** Always.
+- **Timeouts.** Yes, with a longer budget on the retry.
+- **Schema-validation failures from `withStructuredOutput`.** Once — second attempt with the parse error in the prompt usually fixes it.
+
+What NOT to retry:
+- **400 (bad request).** Your input is wrong. Retry won't fix it.
+- **401, 403.** Auth issue. Retry won't fix it.
+- **422 (validation).** Same — input shape is wrong.
+
+The default retry policy hits the right cases. Don't get clever unless you have a specific reason.
+
+## 02 — Fallbacks
+
+A retry helps when the same provider eventually succeeds. A *fallback* helps when the provider is down:
+
+```ts
+import { ChatAnthropic } from '@langchain/anthropic';
+import { ChatOpenAI } from '@langchain/openai';
+
+const primary = new ChatAnthropic({ model: 'claude-haiku-4-5-20251001' });
+const backup  = new ChatOpenAI({ model: 'gpt-4o-mini' });
+
+const robust = primary.withFallbacks([backup]);
+```
+
+If the primary fails, the call retries on the backup. Multi-provider fallbacks were rare three years ago and standard now — providers go down, models get deprecated, latency varies by region. A two-provider fallback chain costs you ten lines and a slightly higher dollar floor; it earns you uptime.
+
+## 03 — Deadlines
+
+A request that takes 90 seconds to fail is worse than one that fails in 5. Set deadlines:
+
+```ts
+const reply = await model.invoke(input, {
+  signal: AbortSignal.timeout(15_000),
+});
+```
+
+`AbortSignal.timeout(ms)` is built into Node 18+. Pass it via `signal` and the call aborts at the deadline. Critical for user-facing APIs where a hung call holds a request slot indefinitely.
+
+For graph runs, set deadlines per node — the same `signal` flows through unless you override. For background jobs, longer deadlines are fine; for chat UIs, 15–30 seconds is the right ceiling.
+
+## 04 — Budget guards
+
+Token cost adds up. The single highest-impact guard is a *per-call cap* on input + output tokens:
+
+```ts
+const replyOrThrow = (() => {
+  let tokensSeen = 0;
+  return async (input: BaseMessage[]) => {
+    const estimated = await model.getNumTokens(input.map(m => m.content as string).join('\n'));
+    if (estimated > 8_000) throw new Error('input too long for budget');
+    const reply = await model.invoke(input, { maxTokens: 1_000 });
+    tokensSeen += estimated + 1_000;
+    if (tokensSeen > 50_000) throw new Error('per-session budget exceeded');
+    return reply;
+  };
+})();
+```
+
+`maxTokens` caps the output. The check before invoke caps the input. The session-level counter caps the total. None of these are bullet-proof — token count estimation is approximate, retries can spike use — but they make budget incidents two-orders-of-magnitude rarer, and that's what matters.
+
+## 05 — Graceful degradation
+
+Production AI features fail gracefully:
+
+- **Retrieval miss?** Tell the user "no relevant info in the docs," don't guess.
+- **Model down even after fallback?** Surface a "AI is temporarily unavailable" banner; let the user proceed without it.
+- **Tool call timeout?** Return the partial response with a note that one tool was slow.
+- **Budget exceeded mid-conversation?** Cut the loop; warn the user; preserve the conversation for a future retry.
+
+Each failure mode has a UI shape that's not "infinite spinner." Design the spinners and the empty states first, then build the happy path. The order matters: a feature designed around the happy path almost always lacks decent failure UIs, and "decent failure UI" is most of what users remember about an AI feature six months in.
+
+<Callout type="note" title="Cost is a feature, not a footnote">
+The single biggest mistake teams make with AI features is treating cost as a billing problem instead of a feature problem. A user-facing dollar counter, an admin per-tenant budget cap, an explicit "this query will cost ~$0.03" preview — these are features, and the teams that ship them have AI products that don't surprise the CFO. The [observability lesson in the AI in Your Project course](/courses/ai-in-your-project/lessons/23-observability-cost) goes deeper on cost specifically; treat that as required reading once you ship something with real traffic.
+</Callout>
+
+<Recap>
+- `model.withRetry({ stopAfterAttempt: 3 })` — built-in exponential backoff. Don't write retry loops by hand.
+- `model.withFallbacks([backup])` — switch providers when the primary fails. Cheap insurance.
+- `signal: AbortSignal.timeout(ms)` — set deadlines. User-facing APIs need them; background jobs benefit from them.
+- Budget guards: cap output with `maxTokens`, check input length before invoke, track session totals.
+- Design failure UIs first. "AI temporarily unavailable" is a feature. Infinite spinners are not.
+
+That's the course. Next up: the project — the Patterns Playground, where every pattern from these 25 lessons becomes a runnable demo on the same page. Click each one, copy the snippet, ship it in your own work.
+</Recap>

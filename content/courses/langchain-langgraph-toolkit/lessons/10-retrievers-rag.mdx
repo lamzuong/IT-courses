@@ -1,0 +1,104 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+A retriever is anything that produces relevant Documents for a query. The vector store from last lesson is one. Hybrid search, BM25 keyword search, a remote search API, a custom function — all retrievers, all interchangeable, all chainable. This lesson wires retrieval into the prompt and shows you the four-line RAG chain that's the foundation of every "ask my docs" feature you've ever used.
+
+## 01 — `asRetriever()`
+
+Every vector store can become a retriever:
+
+```ts
+const retriever = store.asRetriever({ k: 4 });
+const docs = await retriever.invoke('How does photosynthesis work?');
+```
+
+`retriever.invoke(query)` returns the top `k` Documents. The retriever is a Runnable — it has `invoke`, `batch`, and `stream` (though streaming a retriever is rarely useful). Because it's a Runnable, you can `.pipe()` it into a chain.
+
+## 02 — The RAG four-liner
+
+```ts
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { RunnablePassthrough, RunnableSequence } from '@langchain/core/runnables';
+import { StringOutputParser } from '@langchain/core/output_parsers';
+
+const prompt = ChatPromptTemplate.fromMessages([
+  ['system', 'Answer the question using only the context. If the context does not answer it, say so.\n\nContext:\n{context}'],
+  ['user', '{question}'],
+]);
+
+const ragChain = RunnableSequence.from([
+  {
+    context:  retriever.pipe(docs => docs.map(d => d.pageContent).join('\n\n')),
+    question: new RunnablePassthrough(),
+  },
+  prompt,
+  model,
+  new StringOutputParser(),
+]);
+
+console.log(await ragChain.invoke('How does photosynthesis work?'));
+```
+
+Walk it: the input string fans out into two slots — `context` runs through the retriever and joins the top hits' text; `question` passes through unchanged. Both feed the prompt template. The prompt feeds the model. The model's reply feeds the output parser, which extracts a string. Four steps. Each one a Runnable. The whole thing supports `invoke`, `batch`, and `stream`.
+
+## 03 — Why "answer using only the context"
+
+The system prompt explicitly tells the model not to use prior knowledge. This matters because the whole point of RAG is *grounding* — answers tied to your documents, not to whatever the model memorised in training. Without that instruction, the model will happily blend retrieved context with hallucinated lore and you'll never know which sentence came from which.
+
+A second instruction worth adding for serious RAG: "If the context is insufficient, say 'I don't know.'" Refusal is a feature. Better the user reads "no answer in the docs" than reads a confident wrong answer.
+
+## 04 — Cite your sources
+
+Hallucination is one failure mode. Fabricated citations is another. Build the chain so the user can verify:
+
+```ts
+const docsBlock = (docs: Document[]) =>
+  docs.map((d, i) => `[${i + 1}] (${d.metadata.source})\n${d.pageContent}`).join('\n\n');
+
+const ragWithCites = RunnableSequence.from([
+  {
+    context: retriever.pipe(docsBlock),
+    docs:    retriever,                         // pass through to surface alongside the answer
+    question: new RunnablePassthrough(),
+  },
+  async ({ context, docs, question }) => {
+    const answer = await prompt.pipe(model).pipe(new StringOutputParser()).invoke({ context, question });
+    return { answer, docs };
+  },
+]);
+
+const { answer, docs } = await ragWithCites.invoke('What does Article 5 require?');
+```
+
+The chain returns the answer alongside the source Documents. Render them as clickable references in the UI. If a user spots the answer is wrong, they can verify against the source — and that single feature is the difference between a RAG prototype and a RAG product.
+
+## 05 — When to add a re-ranker
+
+Vector search is recall-oriented — it finds 20 plausibly-relevant chunks. A re-ranker re-scores those 20 with a stronger signal (a small model trained on relevance) and keeps the top 4–6. The hit on latency is small; the precision lift is large.
+
+```ts
+import { CohereRerank } from '@langchain/cohere';
+
+const reranker = new CohereRerank({ topN: 4 });
+
+async function retrieveAndRerank(query: string) {
+  const candidates = await store.similaritySearch(query, 20);
+  const ranked = await reranker.compress(candidates, query);
+  return ranked;
+}
+```
+
+Reach for a re-ranker when you observe that "the right answer is in the top-20 but not the top-4." If your top-4 is already accurate, save the API call.
+
+<Callout type="note" title="RAG isn't always the right answer">
+A surprising number of "AI for docs" features work better as classic search with an LLM summary on top, or as a small handful of hard-coded retrievers (one per known section), or as no retrieval at all if the docs fit in the model's context. Try the simplest thing that's plausibly enough first. RAG's failure modes — chunk-boundary information loss, retrieval-irrelevant matches, ambiguity between similar-sounding sources — are real and chase you forever.
+</Callout>
+
+<Recap>
+- `store.asRetriever({ k })` makes any vector store a Runnable.
+- The RAG four-liner: context-retrieve in parallel with passthrough question, into prompt, into model, into parser.
+- Always tell the model to answer "only from the context" and to refuse when it can't. Refusal is a feature.
+- Return the source Documents alongside the answer. Citation is the difference between a prototype and a product.
+- Add a re-ranker when top-20 contains the answer but top-4 doesn't. Skip it if top-k is already tight.
+- Try simpler retrieval shapes before reaching for full RAG. Sometimes search + summary is enough.
+</Recap>

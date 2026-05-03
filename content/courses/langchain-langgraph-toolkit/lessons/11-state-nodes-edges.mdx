@@ -1,0 +1,96 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+LangGraph is a state machine library. You define a *state* — the shared blackboard that every step reads from and writes to. You define *nodes* — functions that take the state and return updates to it. You define *edges* — the rules that say which node runs next. The graph is compiled and runs until it hits a terminal edge. Everything else in LangGraph — checkpointers, interrupts, subgraphs, multi-agent supervision — is built on these three pieces.
+
+This lesson is the mental model. The next builds your first compiling graph.
+
+## 01 — State as an annotated object
+
+State in LangGraph is just an object, but with a critical extra: each field declares a *reducer* — the function that combines the previous value with the update a node returns. That sounds abstract; it's mechanical:
+
+```ts
+import { Annotation, START, END, StateGraph } from '@langchain/langgraph';
+import type { BaseMessage } from '@langchain/core/messages';
+
+const State = Annotation.Root({
+  messages:    Annotation<BaseMessage[]>({ reducer: (prev, next) => [...prev, ...next], default: () => [] }),
+  retryCount:  Annotation<number>({ reducer: (_, next) => next, default: () => 0 }),
+  answer:      Annotation<string | null>({ reducer: (_, next) => next, default: () => null }),
+});
+```
+
+Three fields:
+- **`messages`** — append-only chat log. Reducer concatenates.
+- **`retryCount`** — overwritten on each update. Reducer takes the new value.
+- **`answer`** — same; nullable until set.
+
+When a node returns `{ messages: [newMessage] }`, LangGraph runs `messages` reducer with `prev = currentMessages` and `next = [newMessage]` and stores the result. The reducer is the mental load you take on once and never think about again.
+
+## 02 — Why reducers matter
+
+In a normal function-call style, a node would return the *new* whole-state — and you'd have to remember to spread the previous state every time. Reducers invert it: a node returns *only what it changed*, and the framework merges. This is what makes nodes composable. You can move them between graphs, embed them as subgraphs, run them in parallel, and the merge logic is in one declarative place.
+
+The most common reducer is "append" (for message lists). The second most common is "overwrite" (for fields like `currentStep`, `retryCount`, `phase`). When you find yourself wanting "add to a set" or "union of dicts," write the reducer once and reuse the field shape across graphs.
+
+## 03 — Nodes are functions
+
+A node is a function from state to *partial* state:
+
+```ts
+async function planNode(state: typeof State.State) {
+  const reply = await model.invoke([
+    new SystemMessage('Plan the next step. Respond in 1-2 sentences.'),
+    ...state.messages,
+  ]);
+  return { messages: [reply] };
+}
+```
+
+Two things to notice:
+- It reads from the full state.
+- It returns *only the keys it wants to update*. Everything else is left alone.
+
+That's the whole API for a node. Async or sync. Throws? The graph rejects. Returns nothing? The graph leaves state unchanged. There's no decorator, no class, no inheritance. Just a function.
+
+## 04 — Edges describe what happens next
+
+After a node runs, what runs next? Edges. Two kinds:
+
+- **Static edges** — `addEdge('plan', 'execute')`. Always go from one node to another.
+- **Conditional edges** — a function from state to the next node's name. Lets you branch.
+
+The graph also has two pseudo-nodes: `START` (the entry point) and `END` (the terminal). An edge from `START` to your first node is mandatory. An edge to `END` is how you say "we're done."
+
+Lesson 13 is dedicated to conditional edges. For now, all you need to know is: edges are *named transitions*, and at any point you can decide statically or dynamically where the graph goes next.
+
+## 05 — Compile, then invoke
+
+You build the graph, then `.compile()` it. Compilation is when LangGraph wires the nodes and edges, attaches the checkpointer (lesson 16), and returns a Runnable:
+
+```ts
+const graph = new StateGraph(State)
+  .addNode('plan',    planNode)
+  .addNode('execute', executeNode)
+  .addEdge(START, 'plan')
+  .addEdge('plan', 'execute')
+  .addEdge('execute', END)
+  .compile();
+
+const result = await graph.invoke({ messages: [new HumanMessage('Hi')] });
+console.log(result);
+```
+
+The compiled graph is a Runnable. It has `invoke`, `stream`, and `batch`. It plays in chains. You can `.pipe()` it. It is, structurally, the same primitive as a chat model and a prompt template — and that uniformity is why everything in LangChain composes with everything in LangGraph without adapter code.
+
+<Callout type="note" title="Mental model: state is the blackboard, nodes are workers, edges are the foreman">
+Every node reads the blackboard, writes its updates, and returns. The foreman (edges) decides who picks up next based on what's on the blackboard. The whole graph runs until the foreman points at END. If you're ever stuck on a graph design, draw it like this: one box per state field, one circle per node, arrows for edges. The right shape often jumps off the paper.
+</Callout>
+
+<Recap>
+- State is an annotated object with a reducer per field. Append for message lists, overwrite for scalar fields.
+- A node is a function from state to partial state. It returns only what it wants to update; the reducer merges.
+- Edges describe transitions: static (always go to X) or conditional (function from state to next node name).
+- `START` and `END` are pseudo-nodes for entry and exit.
+- `.compile()` produces a Runnable. From the outside, your graph is just another step in any chain.
+</Recap>

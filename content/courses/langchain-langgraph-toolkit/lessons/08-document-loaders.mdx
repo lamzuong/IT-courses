@@ -1,0 +1,94 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Retrieval-augmented generation has two halves. The retrieval half — getting the right text in front of the model — starts with *loaders* (turn a source into Documents) and *splitters* (cut Documents into chunks small enough to be useful). This lesson is just those two; the next two lessons embed and search them. Get loading and splitting right and the rest of RAG is straightforward. Get them wrong and no amount of model upgrading will save you.
+
+## 01 — `Document`
+
+The unit of retrieval is `Document`:
+
+```ts
+import { Document } from '@langchain/core/documents';
+
+const doc = new Document({
+  pageContent: 'The mitochondria is the powerhouse of the cell.',
+  metadata: { source: 'biology-101.txt', page: 12 },
+});
+```
+
+Two fields: `pageContent` (the text) and `metadata` (anything you want to keep alongside it — source path, URL, page number, last-modified date, tenant ID). Metadata travels with the chunk through embedding, retrieval, and back into the prompt, which means you can filter at retrieval time and cite at generation time. *Always* populate `source`. Future-you wants it.
+
+## 02 — Loaders
+
+A loader produces an array of Documents from a source. The community package ships dozens; in practice you'll use four or five:
+
+```ts
+import { TextLoader } from 'langchain/document_loaders/fs/text';
+import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf';
+import { CheerioWebBaseLoader } from '@langchain/community/document_loaders/web/cheerio';
+import { GithubRepoLoader } from '@langchain/community/document_loaders/web/github';
+
+const docs1 = await new TextLoader('./docs/intro.txt').load();
+const docs2 = await new PDFLoader('./manuals/install.pdf', { splitPages: false }).load();
+const docs3 = await new CheerioWebBaseLoader('https://example.com/blog/post').load();
+const docs4 = await new GithubRepoLoader('https://github.com/foo/bar', { recursive: true }).load();
+```
+
+Each loader does the boring work — opening files, parsing PDFs, fetching HTML, walking a repo — and gives you Documents with sensible metadata. Most loaders accept a config object with options that matter: PDF page splitting, web loader CSS selectors, Github file filters. Read the loader's source if you need anything non-default; the docs lag.
+
+## 03 — Why splitting matters
+
+A single Document might be a 50-page PDF or a 10-MB transcript. You can't embed that as one vector — embeddings are bounded (~8K tokens), models are bounded (varies), and even when both fit, you lose precision when one vector represents too many ideas. The fix is splitting into chunks of a few hundred tokens each.
+
+Two parameters drive a splitter: **chunk size** and **chunk overlap**.
+
+- **Chunk size** is how much text fits in one chunk. Too small and each chunk lacks context; too large and embeddings blur. Start at 500–1000 characters.
+- **Chunk overlap** is how much each chunk shares with the previous. Overlap prevents an idea from being cut in half between two chunks neither of which contains the whole. Start at 100–200 characters.
+
+There is no universal best. The right values depend on the corpus structure (paragraph-heavy text loves bigger chunks; reference docs with short entries want small chunks) and on what users typically ask. When recall is bad, try smaller chunks first.
+
+## 04 — `RecursiveCharacterTextSplitter`
+
+The default splitter for prose:
+
+```ts
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+
+const splitter = new RecursiveCharacterTextSplitter({
+  chunkSize: 800,
+  chunkOverlap: 150,
+});
+
+const docs = await new TextLoader('./docs/intro.txt').load();
+const chunks = await splitter.splitDocuments(docs);
+```
+
+It tries to split on `\n\n`, then `\n`, then `". "`, then `" "`, then characters — each step preserves more semantic structure than the last. The result is chunks that *almost always* break at paragraph or sentence boundaries, which is what you want.
+
+Other splitters worth knowing:
+- **`MarkdownTextSplitter`** — same algorithm, but with markdown-aware separators. Use for docs with `#` headings.
+- **`RecursiveCharacterTextSplitter.fromLanguage('typescript', {...})`** — language-aware splitting for code. Splits on function and class boundaries. Use for code search.
+- **`TokenTextSplitter`** — split by token count instead of characters. Use when you need *exact* token bounds (rarely).
+
+## 05 — Carry metadata through
+
+Splitting copies the parent Document's metadata to each chunk. Use it. Add a `chunkIndex` if you want to reconstruct the original or display surrounding context on retrieval:
+
+```ts
+const chunks = await splitter.splitDocuments(docs);
+chunks.forEach((c, i) => { c.metadata.chunkIndex = i; });
+```
+
+Down the line you'll want to filter retrieval ("only chunks from this tenant," "only chunks newer than X"), and the only reason that's possible is that your loader populated metadata before splitting.
+
+<Callout type="warning" title="HTML and PDF loaders are wildly variable">
+The web loader you pick matters. Cheerio is fast and clean for static HTML; Playwright is slow but renders JS-heavy pages. PDF parsers vary in how well they extract tables, headings, and column flow. *Always* eyeball the loader output for your real corpus before you build retrieval on top of it. If chunks contain nav menus and "Cookie banner" boilerplate, retrieval will surface that boilerplate.
+</Callout>
+
+<Recap>
+- `Document = { pageContent, metadata }`. Always populate `source`. Add fields you'll want to filter on later.
+- Loaders turn sources into Documents. Five families cover most needs: text, PDF, HTML, Markdown, code.
+- Splitters cut Documents into retrievable chunks. Tune `chunkSize` and `chunkOverlap`; defaults of 800/150 are a fine starting point.
+- `RecursiveCharacterTextSplitter` is the prose default; markdown- and language-aware variants exist for those formats.
+- Eyeball loader output. Boilerplate in equals boilerplate retrieved.
+</Recap>

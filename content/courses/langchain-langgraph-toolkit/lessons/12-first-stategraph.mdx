@@ -1,0 +1,115 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Let's build the smallest non-trivial graph that actually runs. Two nodes, three edges, one piece of state. Once you've felt the "compile, invoke, see state thread through" cycle, every harder graph in this course is the same shape with more nodes. The [first-graph lesson in the AI in Your Project course](/courses/ai-in-your-project/lessons/17-first-graph) builds the equivalent agent graph; this one keeps the example pure to focus on graph mechanics.
+
+## 01 — The graph
+
+A two-node "research → summarise" pipeline. Node 1 calls the model to research a topic; node 2 calls it again to write a one-sentence summary of the research:
+
+```ts
+import { Annotation, START, END, StateGraph } from '@langchain/langgraph';
+import { HumanMessage, type BaseMessage } from '@langchain/core/messages';
+import { makeModel } from './lib/model.js';
+
+const State = Annotation.Root({
+  topic:    Annotation<string>({ reducer: (_, n) => n }),
+  research: Annotation<string>({ reducer: (_, n) => n, default: () => '' }),
+  summary:  Annotation<string>({ reducer: (_, n) => n, default: () => '' }),
+});
+
+const model = makeModel();
+
+async function researchNode(state: typeof State.State) {
+  const reply = await model.invoke([
+    new HumanMessage(`Write 3 short bullet points about: ${state.topic}`),
+  ]);
+  return { research: reply.content as string };
+}
+
+async function summariseNode(state: typeof State.State) {
+  const reply = await model.invoke([
+    new HumanMessage(`Summarise these notes in one sentence:\n\n${state.research}`),
+  ]);
+  return { summary: reply.content as string };
+}
+
+const graph = new StateGraph(State)
+  .addNode('research',  researchNode)
+  .addNode('summarise', summariseNode)
+  .addEdge(START,        'research')
+  .addEdge('research',   'summarise')
+  .addEdge('summarise',  END)
+  .compile();
+
+const result = await graph.invoke({ topic: 'mitochondria' });
+console.log(result.summary);
+```
+
+That's it. Runnable, end-to-end. Three things to notice:
+
+- The entry call sets `topic` and nothing else. Defaults supply the rest.
+- `researchNode` reads `topic`, writes `research`. It never sees `summary`.
+- `summariseNode` reads `research`, writes `summary`. It never sees `topic`.
+
+Each node is independent. The graph is the orchestrator.
+
+## 02 — `invoke` returns the final state
+
+`graph.invoke(initial)` runs the graph from `START` to `END` and returns the final merged state. You can read every field on the way out — `result.topic`, `result.research`, `result.summary`. Convenient for tests; convenient for "give me everything that happened" use cases.
+
+If you want only the answer, do the projection in the caller. Don't try to make the graph "return only the summary" by deleting fields — that breaks reducers and surprises debugging tools.
+
+## 03 — Type safety end to end
+
+`Annotation.Root({...})` produces a type you can reach in two places:
+
+```ts
+typeof State.State          // the merged state type
+typeof State.Update         // the partial update type a node returns
+```
+
+Type your nodes against `State.State`. TypeScript will yell if you read a field you didn't declare or return a key that doesn't exist. This catches more bugs than you'd expect — typos in field names are the most common LangGraph error in a fresh codebase, and they all become compile-time errors with this typing.
+
+```ts
+async function researchNode(state: typeof State.State): Promise<typeof State.Update> { /* … */ }
+```
+
+## 04 — Defaults vs initial state
+
+You set defaults on each field. You also pass an *initial state* to `invoke`. Two layers:
+
+- **Defaults** — applied when a field is missing from the initial state. Use for fields that always start empty (`messages: []`, `retryCount: 0`).
+- **Initial state** — what the caller provides. Use for inputs (`topic`, `userId`, `threadId`).
+
+If you don't define a default and the field is missing on the initial state, the field is `undefined` until a node writes to it. That's usually fine for "outputs" but a bug-magnet for "intermediate state" — give intermediate fields defaults you can rely on inside nodes without `?? 0`.
+
+## 05 — Read your first trace
+
+Two ways to see what happened during execution:
+
+```ts
+// 1) values mode — emit each intermediate state
+for await (const value of await graph.stream({ topic: 'mitochondria' }, { streamMode: 'values' })) {
+  console.log(value); // logs state after each node
+}
+
+// 2) updates mode — emit only what each node updated
+for await (const update of await graph.stream({ topic: 'mitochondria' }, { streamMode: 'updates' })) {
+  console.log(update); // { research: '...' } then { summary: '...' }
+}
+```
+
+Streaming is covered in lesson 15. Knowing it exists matters now because debugging "what did the graph do?" is two extra characters in `streamMode`. When something goes wrong, switch from `invoke` to `stream` with updates mode and you'll see exactly where state diverged from your expectation.
+
+<Callout type="note" title="A graph is a Runnable; treat it like one">
+You can `.pipe(parser)` the graph's output. You can put a graph in another graph as a subgraph. You can `.batch([{topic:'a'},{topic:'b'}])` for parallel runs. You can swap a chain for a graph anywhere a Runnable is accepted. The boundary between LangChain and LangGraph is mostly cosmetic — the same Runnable interface, different complexity ceilings.
+</Callout>
+
+<Recap>
+- A two-node graph with three edges runs end to end. That shape generalises to twenty nodes without changing the mechanics.
+- `graph.invoke(initial)` returns the final merged state. Project to the caller's needs, don't reshape the graph's outputs.
+- `typeof State.State` and `typeof State.Update` give you full type safety on nodes. Use them.
+- Defaults supply missing fields; initial state supplies inputs. Define defaults for everything that's "intermediate."
+- Switch `invoke` to `stream({ streamMode: 'updates' })` for ad-hoc debugging. Lesson 15 is the deep dive.
+</Recap>

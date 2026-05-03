@@ -1,0 +1,143 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+The Patterns Playground is the project version of this course's table of contents. A small Next.js app with a sidebar listing every pattern from the 25 lessons — RAG, ReAct, supervisor, handoff, map-reduce, interrupt, streaming, structured output, fallback chains, scripted-tool tests. Pick one. The right pane runs it against sample data, streams the trace, and shows the snippet. Copy the snippet straight into your own project and you're done.
+
+Treat this as your reference implementation. Treat the source as code you'll cannibalise next time you need any one pattern.
+
+## What it does
+
+- **20 runnable patterns**, each behind a sidebar link. Each one is a single graph or chain that you can run and observe.
+- **Sample data per pattern** — three customer-support tickets for classification, ten markdown docs for RAG, a mock orders API for tools, fake reviews for map-reduce. No external setup; everything is in-repo seeds.
+- **Two run modes**: against local Ollama (free, default), or against a hosted provider with your own API key. The provider-boundary lesson 2 introduced is what makes this swap one click.
+- **Live trace tree** — every node, every model call, every tool. The tree updates as the graph runs. Click any node to see its inputs and outputs.
+- **Copy snippet** — every pattern's graph or chain code is shown alongside the demo. One button copies it to clipboard, ready to paste into your own codebase.
+
+## App shape
+
+```
+app/
+  layout.tsx                 # sidebar + main pane
+  page.tsx                   # default landing — explains what the app is
+  patterns/
+    [slug]/page.tsx          # the runner page for any one pattern
+api/
+  run/route.ts               # POST /api/run { slug, input } — streams SSE
+patterns/                    # one file per pattern, each exporting a graph
+  rag.ts
+  react.ts
+  supervisor.ts
+  handoff.ts
+  map-reduce.ts
+  interrupt.ts
+  structured-output.ts
+  ...
+seeds/
+  tickets.json
+  docs/*.md
+  orders.json
+lib/
+  model.ts                   # the provider boundary
+  registry.ts                # slug → { graph, sample, snippet }
+```
+
+The sidebar is generated from `registry.ts`. To add a new pattern: write a graph file, register it, write a one-line description and a sample input. The route `/patterns/<slug>` picks it up automatically.
+
+## State of one pattern page
+
+Every pattern page is the same React component with three regions:
+
+```tsx
+type RunState =
+  | { kind: 'idle' }
+  | { kind: 'running'; events: TraceEvent[] }
+  | { kind: 'done'; events: TraceEvent[]; result: unknown }
+  | { kind: 'error'; events: TraceEvent[]; error: string };
+
+const [state, setState] = useState<RunState>({ kind: 'idle' });
+```
+
+A discriminated union keeps the UI honest — the run button is disabled when `kind === 'running'`, the trace renders only when `events` exist, the copy button shows the result on `done`. No flag bookkeeping; every region narrows on `state.kind`.
+
+## The streaming endpoint
+
+```ts
+// app/api/run/route.ts
+import { registry } from '@/patterns/registry';
+
+export async function POST(req: Request) {
+  const { slug, input } = await req.json();
+  const entry = registry[slug];
+  if (!entry) return new Response('not found', { status: 404 });
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (line: object) => controller.enqueue(`data: ${JSON.stringify(line)}\n\n`);
+      try {
+        for await (const ev of await entry.graph.streamEvents(input, { version: 'v2' })) {
+          send({ kind: 'event', event: ev });
+        }
+        send({ kind: 'done' });
+      } catch (e) {
+        send({ kind: 'error', error: (e as Error).message });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, { headers: { 'Content-Type': 'text/event-stream' } });
+}
+```
+
+Server-sent events. One handler. Every pattern flows through it because every pattern is a Runnable and every Runnable supports `streamEvents`. Lesson 23's tracing lesson is what makes this the correct stream — `streamEvents` exposes the lifecycle moments the trace tree wants to render.
+
+## The trace tree
+
+```tsx
+function TraceTree({ events }: { events: TraceEvent[] }) {
+  const tree = useMemo(() => buildTree(events), [events]);
+  return <TreeNode node={tree.root} />;
+}
+
+function TreeNode({ node }: { node: TraceNode }) {
+  return (
+    <details open className="trace-node" data-kind={node.kind}>
+      <summary>
+        <span className="trace-name">{node.name}</span>
+        <span className="trace-meta">{node.elapsedMs}ms</span>
+      </summary>
+      <pre className="trace-io">{JSON.stringify({ input: node.input, output: node.output }, null, 2)}</pre>
+      {node.children.map(c => <TreeNode key={c.id} node={c} />)}
+    </details>
+  );
+}
+```
+
+A nested `<details>` per node. Inputs and outputs as JSON. Latency badge on every row. The whole tree renders incrementally as events stream in — newly-arrived nodes mount, in-progress nodes stay open, completed nodes get the `done` data attribute and a green left-border in CSS. Watching the tree fill is the closest thing to a debugger this stack has.
+
+## Build sequence
+
+1. Scaffold the Next.js app and `lib/model.ts` (lesson 2's provider boundary, copied verbatim).
+2. Write `registry.ts` with two patterns to start: `rag` and `react`. Get the sidebar rendering both, with one demo working end to end.
+3. Build `/api/run/route.ts` and the trace tree. Iterate on the trace UX before adding more patterns — bad trace UI compounds.
+4. Add the remaining patterns one at a time. Each one is a graph file and a registry entry. Most are 30–60 lines.
+5. Add the snippet view. The simplest implementation is a `code.ts` per pattern that the page reads with `fs.readFileSync` at request time and renders inside a `<pre>`.
+6. Wire the model swap in the header — a dropdown that updates a localStorage flag, read by `lib/model.ts` at construction time.
+7. Add LangSmith tracing (lesson 23) behind an env var. With it on, every run shows a "View in LangSmith" link in addition to the local trace tree.
+
+## What you should *feel* by the end
+
+You should be able to start a new project, open the Patterns Playground source side-by-side, and ship a feature using any pattern from the course in well under an hour. That's the whole pitch. The course taught the primitives; the project is the canonical reference; your next AI feature is now copy-paste-and-edit, not blank-page-and-pray.
+
+<Callout type="note" title="The Playground is also your evals harness">
+The same registry that powers the demos is what an evals job iterates over. For each pattern, run the sample input N times, compute pass-rate against expected outputs, post a summary to a dashboard. The lesson 24 testing pattern (ScriptedToolModel) tests *your code* in isolation; the evals pattern tests *your prompt and pattern* against real models. Both are needed; both fit naturally on top of the registry.
+</Callout>
+
+<Recap>
+- The project is a Next.js sidebar app with one runnable pattern per route, generated from a single registry.
+- Every pattern is a Runnable. The streaming endpoint flows `streamEvents` to SSE. The trace tree renders incrementally.
+- The provider-boundary lesson lets you flip between local Ollama and any hosted provider with a header dropdown.
+- Adding a new pattern = a graph file, a registry entry, a one-line description, and a sample input. The page is generic.
+- Once shipped, the Playground is both your reference implementation and your evals harness — same registry, two consumers.
+</Recap>

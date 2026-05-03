@@ -1,0 +1,143 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+A single agent with twenty tools is almost always worse than three specialists with five tools each. The specialists have tighter prompts, smaller tool surfaces, and clearer responsibilities. The price is coordination — *who* should handle this user message? *Which* specialist gets the next sub-task? The supervisor pattern is the answer: one coordinator agent decides, the specialists execute, and the conversation stays coherent.
+
+## 01 — The shape
+
+Three pieces in supervisor:
+- **The supervisor** — looks at state, picks a specialist (or `END`).
+- **The specialists** — each is its own agent (often with its own tools).
+- **The handoff edge** — every specialist routes back to the supervisor when done.
+
+```ts
+function supervisorNode(state: typeof State.State) {
+  // a model call or rule that returns the name of the next specialist or 'done'
+  return { next: '<one of the specialists, or "done">' };
+}
+
+function routeFromSupervisor(state: typeof State.State) {
+  return state.next === 'done' ? END : state.next;
+}
+
+const graph = new StateGraph(State)
+  .addNode('supervisor',     supervisorNode)
+  .addNode('shipping_agent', shippingAgent)
+  .addNode('billing_agent',  billingAgent)
+  .addNode('product_agent',  productAgent)
+  .addEdge(START, 'supervisor')
+  .addConditionalEdges('supervisor', routeFromSupervisor, ['shipping_agent', 'billing_agent', 'product_agent', END])
+  .addEdge('shipping_agent', 'supervisor')
+  .addEdge('billing_agent',  'supervisor')
+  .addEdge('product_agent',  'supervisor')
+  .compile();
+```
+
+The shape: `START → supervisor`, supervisor branches to a specialist, specialist completes and returns to the supervisor, the supervisor decides again. Eventually the supervisor returns `'done'` and the graph ends.
+
+## 02 — A real supervisor node
+
+The supervisor's "decision" is usually a model call with structured output:
+
+```ts
+const SupervisorChoice = z.object({
+  next: z.enum(['shipping_agent', 'billing_agent', 'product_agent', 'done']),
+  reasoning: z.string(),
+});
+
+async function supervisorNode(state: typeof State.State) {
+  const reply = await model.withStructuredOutput(SupervisorChoice).invoke([
+    new SystemMessage(`You are a coordinator. Read the conversation and pick which specialist should handle the next step. Reply 'done' when the user's request is fully addressed.
+
+Specialists:
+- shipping_agent: tracks orders, updates addresses, handles delivery questions.
+- billing_agent: refunds, charges, subscription changes.
+- product_agent: product info, recommendations, availability.`),
+    ...state.messages,
+  ]);
+  return { next: reply.next, supervisorTrace: [...state.supervisorTrace, reply.reasoning] };
+}
+```
+
+The supervisor's job is *routing*, not *answering*. It doesn't generate user-facing content. It picks who's next. Constrain its output with an enum so it can't hallucinate a fourth specialist that doesn't exist.
+
+## 03 — A specialist is just an agent
+
+Each specialist is a normal ReAct-style agent — its own tools, its own prompt — that takes the shared `messages` state, does its work, and returns updates:
+
+```ts
+async function shippingAgent(state: typeof State.State) {
+  const localTools = [getOrderStatus, updateShippingAddress];
+  const localModel = makeModel().bindTools(localTools);
+  const reply = await localModel.invoke([
+    new SystemMessage('You handle shipping. Use the tools available. Reply concisely.'),
+    ...state.messages,
+  ]);
+  // (real version handles tool calls in a small inner loop or via createReactAgent)
+  return { messages: [reply] };
+}
+```
+
+Note the localised tools and prompt. The shipping agent doesn't know billing exists. Its prompt is short because its scope is small. Its tool descriptions can be specific. This is the *whole point* of supervisor — each agent gets sharp focus.
+
+In production, build each specialist with `createReactAgent` (lesson 14) and call it directly:
+
+```ts
+const shippingAgent = createReactAgent({
+  llm: makeModel(),
+  tools: [getOrderStatus, updateShippingAddress],
+  prompt: 'You handle shipping. ...',
+});
+```
+
+Then the supervisor's "specialist" node is `(state) => shippingAgent.invoke({ messages: state.messages })` — one line.
+
+## 04 — Avoiding ping-pong
+
+The most common supervisor failure mode: the supervisor routes to A, A returns, the supervisor routes to A again, A returns the same thing, and the loop continues until the iteration cap. Two fixes:
+
+**Track who ran**:
+
+```ts
+const State = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({ reducer: (p, n) => [...p, ...n], default: () => [] }),
+  ranAgents: Annotation<string[]>({ reducer: (p, n) => [...p, ...n], default: () => [] }),
+});
+
+async function supervisorNode(state: typeof State.State) {
+  const last = state.ranAgents.at(-1);
+  // tell the supervisor "don't pick this one again"
+  // …
+}
+```
+
+**Cap rounds**:
+
+```ts
+function routeFromSupervisor(state) {
+  if (state.ranAgents.length >= 6) return END;
+  // …
+}
+```
+
+A supervisor with both — "don't repeat" and "don't loop forever" — is robust. Ship one without either at your peril.
+
+## 05 — When supervisor is the wrong answer
+
+Three signs you're forcing supervisor where you shouldn't:
+
+- **The supervisor's "decision" is a one-line rule.** If you can write `if (intent === 'shipping')` you don't need a supervisor — use a classify-and-route conditional edge (lesson 13).
+- **The specialists need to talk to each other.** Pure supervisor enforces "everything goes through me." If A needs B's result, you want the *handoff* pattern (lesson 21), not supervisor.
+- **There's no real coordination.** If each user message hits exactly one specialist and the conversation never leaves that lane, you have parallel lanes, not a supervised hierarchy. A simple intent-routed graph will be cheaper and faster.
+
+<Callout type="note" title="Supervisor + LangGraph prebuilt">
+LangGraph ships a `createSupervisor` helper that builds the graph from a list of specialists and a coordinator prompt. It's a fine starting point for prototypes. Production supervisors almost always grow custom routing logic, custom state, and per-specialist guardrails — at which point the hand-built graph above is the floor you'll iterate from.
+</Callout>
+
+<Recap>
+- Supervisor pattern: one coordinator picks the next specialist; each specialist returns to the coordinator; the coordinator ends the run.
+- The supervisor uses structured output with an enum to pick — no free-form answers, no hallucinated agent names.
+- Each specialist is a small focused agent (often `createReactAgent`) with its own tools and prompt.
+- Track which agents have run and cap total rounds. Without both guards the supervisor will eventually ping-pong.
+- Use a simple intent router (lesson 13) for trivial cases and the handoff pattern (lesson 21) when peers need to coordinate. Reach for supervisor when there's real coordination work.
+</Recap>

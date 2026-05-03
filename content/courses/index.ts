@@ -1,8 +1,9 @@
 import { course as dragDropReact } from './drag-drop-react/course';
 import { course as aiInYourProject } from './ai-in-your-project/course';
+import { course as langchainLanggraphToolkit } from './langchain-langgraph-toolkit/course';
 import type { Course } from './types';
 
-export const allCourses: Course[] = [aiInYourProject, dragDropReact];
+export const allCourses: Course[] = [aiInYourProject, langchainLanggraphToolkit, dragDropReact];
 
 export type PlaceholderCourse = {
   title: string;

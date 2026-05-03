@@ -1,0 +1,139 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Static edges run linearly. The minute your graph has to *decide* — call a tool or reply, branch on user role, retry on error, route by intent — you need conditional edges. They turn a graph from a pipeline into an actual state machine. This lesson is the API, three patterns that cover 95% of branching needs, and the one antipattern to avoid.
+
+## 01 — `addConditionalEdges`
+
+```ts
+.addConditionalEdges(
+  'agent',                                    // from this node…
+  (state) => state.messages.at(-1)?.tool_calls?.length ? 'tools' : END,
+  ['tools', END],                             // possible targets (used by the visualiser)
+)
+```
+
+Three pieces:
+- The source node.
+- A *router function* — receives the current state, returns the name of the next node (or `END`).
+- An array of all possible target names. Optional but recommended; LangGraph uses it to render the graph and to validate transitions.
+
+The router function runs after the source node has updated state. Its return value is just the next node's name — a string (or the `END` symbol). It's allowed to be async and to read the state to decide.
+
+## 02 — Pattern 1: tools or done
+
+The classic agent loop:
+
+```ts
+function shouldContinue(state: typeof State.State) {
+  const lastMessage = state.messages.at(-1);
+  if (lastMessage && 'tool_calls' in lastMessage && lastMessage.tool_calls?.length) {
+    return 'tools';
+  }
+  return END;
+}
+
+new StateGraph(State)
+  .addNode('agent', agentNode)
+  .addNode('tools', toolsNode)
+  .addEdge(START, 'agent')
+  .addConditionalEdges('agent', shouldContinue, ['tools', END])
+  .addEdge('tools', 'agent')                  // after tools, back to agent
+  .compile();
+```
+
+The shape: `agent` either ends (no tool calls) or routes to `tools`. After `tools`, *unconditionally* back to `agent`. The conditional edge is the only branching point; the rest of the graph is linear. This is the ReAct pattern (lesson 14) in three lines.
+
+## 03 — Pattern 2: classify and route
+
+When the first node decides which specialist to run:
+
+```ts
+async function classify(state: typeof State.State) {
+  const reply = await model.withStructuredOutput(z.object({
+    intent: z.enum(['shipping', 'billing', 'product', 'other']),
+  })).invoke(state.messages);
+  return { intent: reply.intent };
+}
+
+function routeByIntent(state: typeof State.State) {
+  switch (state.intent) {
+    case 'shipping': return 'shipping_agent';
+    case 'billing':  return 'billing_agent';
+    case 'product':  return 'product_agent';
+    default:         return 'general_agent';
+  }
+}
+
+new StateGraph(State)
+  .addNode('classify',         classify)
+  .addNode('shipping_agent',   shippingAgent)
+  .addNode('billing_agent',    billingAgent)
+  .addNode('product_agent',    productAgent)
+  .addNode('general_agent',    generalAgent)
+  .addEdge(START, 'classify')
+  .addConditionalEdges('classify', routeByIntent,
+    ['shipping_agent', 'billing_agent', 'product_agent', 'general_agent'])
+  .addEdge('shipping_agent', END)
+  .addEdge('billing_agent',  END)
+  .addEdge('product_agent',  END)
+  .addEdge('general_agent',  END)
+  .compile();
+```
+
+A classifier writes `intent` to state; the router reads `intent` and picks. Each branch terminates. This is the supervisor pattern's simplest cousin, and it scales — add new intents by adding a node and a switch case.
+
+## 04 — Pattern 3: retry-on-error
+
+When a node can fail and you want bounded retries:
+
+```ts
+async function callTool(state: typeof State.State) {
+  try {
+    const result = await someToolThatMightFail(state.input);
+    return { result, retryCount: 0 };
+  } catch (e) {
+    return { error: (e as Error).message, retryCount: state.retryCount + 1 };
+  }
+}
+
+function shouldRetry(state: typeof State.State) {
+  if (!state.error) return 'done';
+  if (state.retryCount >= 3) return 'give_up';
+  return 'call_tool';                         // back to the same node
+}
+
+new StateGraph(State)
+  .addNode('call_tool', callTool)
+  .addNode('done',      doneNode)
+  .addNode('give_up',   giveUpNode)
+  .addEdge(START, 'call_tool')
+  .addConditionalEdges('call_tool', shouldRetry, ['call_tool', 'done', 'give_up'])
+  .addEdge('done',    END)
+  .addEdge('give_up', END)
+  .compile();
+```
+
+A node can route back to itself. The state's `retryCount` bounds the loop. This is the cleanest way to express "try again, but not forever" — and far better than the same logic squashed inside a single node, because every retry is a checkpoint (lesson 16).
+
+## 05 — The antipattern: business logic in router functions
+
+Routers are decisions, not work. Don't call models, hit the database, or run async logic in a router unless you have to. State is supposed to *already contain* the information the router needs — write a node that produces it, then route off the resulting state.
+
+The two reasons:
+- Router functions are not nodes. They aren't checkpointed. If the router throws, the graph rolls back to the previous node, not to "before the router."
+- Routers run synchronously inside the graph runner. Long async work inside a router blocks the whole graph.
+
+If you need a model call to decide where to go, that's a node. Update state with the decision; route off the state.
+
+<Callout type="note" title="Conditional edges and `Send`">
+For map-reduce and dynamic fan-out, conditional edges have an advanced feature called `Send` that lets you spawn multiple parallel runs of a node with different state. We cover it in lesson 22 — for now, treat conditional edges as "pick one of these targets" and you'll be on solid ground.
+</Callout>
+
+<Recap>
+- `addConditionalEdges(from, router, targets[])` is the branching primitive. Router is a function from state to next-node-name.
+- Three patterns cover 95%: tool-or-done (ReAct), classify-and-route (supervisor lite), retry-on-error (bounded loop).
+- Nodes can route back to themselves to retry; the state's counter bounds the loop.
+- Routers are decisions, not work. Put async logic in a node, write the result to state, route off it.
+- The `targets[]` array is for the visualiser and validation. Always pass it; type errors save debugging time.
+</Recap>

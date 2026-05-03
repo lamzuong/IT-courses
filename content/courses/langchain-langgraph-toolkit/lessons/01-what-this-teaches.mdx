@@ -1,0 +1,44 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+This course teaches LangChain and LangGraph as a toolkit. Not as the scaffolding for one specific app — as a set of primitives you understand on their own and combine into whatever shape your project needs. Every lesson is a building block: a chat model, a tool, a graph node, a checkpointer. By the end you have a personal patterns library you can copy into any TypeScript codebase.
+
+This is a deliberate counterpart to the [AI in Your Project](/courses/ai-in-your-project) course. That one took a single CMS-style app and walked you all the way from "no AI code" to "AI Operator console with confirmation gating." It taught the *shape* of a real AI feature. This course teaches the *vocabulary* — every primitive that course used, plus several it didn't, in isolation and in depth.
+
+## How this course is different
+
+If you've already done the AI in Your Project course, you'll see ten or so familiar topics here — `withStructuredOutput`, `tool()`, the agent loop, `interrupt`, checkpointers. We re-teach them on purpose. Familiarity from one context is not the same as fluency across contexts. The goal is to peel each primitive away from the lapsed-customer demo so you can drop it into a help-desk bot, a code-review agent, a research assistant, a workflow runner, or whatever else you happen to be building.
+
+If you haven't done that course, you don't need to. This one starts from `import { ChatOllama } from '@langchain/ollama'` and assumes nothing else.
+
+## The mental model
+
+LangChain and LangGraph are doing two different jobs that people sometimes confuse:
+
+- **LangChain** is the abstraction over models, prompts, tools, retrievers, parsers. It gives you one API across every provider. Ten lines of code doesn't change when you swap from Ollama to Anthropic to OpenAI.
+- **LangGraph** is the abstraction over *control flow*. Once your AI has to do more than one thing — call a tool, then another, then ask the user, then call a third — you need a state machine. LangGraph is that state machine, with persistence, streaming, and human-in-the-loop already wired in.
+
+You can use LangChain without LangGraph (any single-call use case). You can't really use LangGraph without LangChain (the nodes call models, and those models are LangChain). The first half of this course is LangChain. The second half is LangGraph layered on top.
+
+## What you'll build
+
+Every lesson has a runnable snippet. The final project is a **Patterns Playground**: a Next.js app with a sidebar listing every pattern from the course — RAG, ReAct, supervisor, handoff, map-reduce, interrupt, streaming graph state. Click a pattern, run it against sample data, watch the trace, copy the snippet. Treat it as your reference implementation; treat the source as something you'll cannibalise next time you need any one of those patterns.
+
+<Callout type="note" title="What this course is not">
+This is not a course on prompt engineering, on LLM evaluation theory, on the math of embeddings, or on training your own model. It's a course on the *infrastructure* you put around a model — the part that's the same whether the model is GPT-4o or a 7B local one. The model is a black box; everything around it is the curriculum.
+</Callout>
+
+## What you need
+
+- TypeScript and React familiarity. Node 20+.
+- A laptop that can run a local model — anything modern with 16 GB of RAM.
+- About 6–8 hours total if you read through. Twice that if you build the project alongside.
+
+The next lesson sets up Ollama and the provider-swap pattern that lets you do every lesson for free, then run the same code against a hosted provider when you ship.
+
+<Recap>
+- LangChain is the abstraction over models and primitives; LangGraph is the abstraction over control flow. Two layers, both worth knowing.
+- This course teaches each primitive in isolation. The companion AI in Your Project course teaches them composed into one app. They're complementary, not redundant.
+- The final project is a Patterns Playground — a sidebar of every pattern from the course, runnable against sample data, copyable into your own work.
+- Everything works on a local Ollama install. Hosted providers are a one-line swap, covered in lesson 2 and revisited at the end.
+</Recap>

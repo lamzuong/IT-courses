@@ -1,0 +1,126 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+The agent loop is the smallest non-trivial thing you can do with a chat model: ask, run tools, feed the result back, repeat until the model stops asking for tools. We'll build it by hand in this lesson. It's about thirty lines of TypeScript, and writing them is the price of understanding why LangGraph exists. By lesson 14 we'll throw the hand-rolled version away — but only after you've felt where it gets uncomfortable.
+
+## 01 — The loop
+
+```ts
+import { HumanMessage, ToolMessage, type BaseMessage, type AIMessage } from '@langchain/core/messages';
+import { tool } from '@langchain/core/tools';
+import { z } from 'zod';
+import { makeModel } from './lib/model.js';
+
+const getWeather = tool(
+  async ({ city }) => `It is 21°C and sunny in ${city}.`,
+  {
+    name: 'get_weather',
+    description: 'Get current weather for a city.',
+    schema: z.object({ city: z.string() }),
+  },
+);
+
+const tools = [getWeather];
+const toolByName = new Map(tools.map(t => [t.name, t]));
+
+const model = makeModel().bindTools(tools);
+
+async function run(prompt: string) {
+  const messages: BaseMessage[] = [new HumanMessage(prompt)];
+  for (let step = 0; step < 8; step++) {
+    const reply = (await model.invoke(messages)) as AIMessage;
+    messages.push(reply);
+
+    if (!reply.tool_calls?.length) {
+      return reply.content as string;
+    }
+
+    for (const call of reply.tool_calls) {
+      const t = toolByName.get(call.name);
+      if (!t) throw new Error(`Unknown tool: ${call.name}`);
+      const result = await t.invoke(call.args);
+      messages.push(new ToolMessage({
+        content: typeof result === 'string' ? result : JSON.stringify(result),
+        tool_call_id: call.id!,
+      }));
+    }
+  }
+  throw new Error('Max steps exceeded');
+}
+
+console.log(await run('What is the weather in Berlin and Paris?'));
+```
+
+Read it once. The loop says: invoke the model, push the reply, if there are no tool calls we're done, otherwise run each tool and push a `ToolMessage` with the matching `tool_call_id`. That's it. Everything LangGraph does later is "this loop, plus persistence, plus pause-resume, plus conditional routing, plus testing hooks."
+
+## 02 — Why `tool_call_id` matters
+
+When a model emits multiple tool calls in one turn (the Berlin and Paris example above), the order of your `ToolMessage`s doesn't have to match the order of the calls — but each `ToolMessage` *must* carry the `tool_call_id` of the call it answers. The model uses those IDs to associate each result with the call it made.
+
+Forget the ID and you'll get errors like "tool_use blocks must have a matching tool_result block" (Anthropic) or "messages.X: tool_calls must be followed by tool messages" (OpenAI). Different wording, same root cause: the conversation is not coherent.
+
+## 03 — Why a step cap
+
+Models occasionally enter loops — they call a tool, ignore the result, call the same tool again. A small temperature helps. A retry inside the tool helps. But at some point you need a hard bound, because a runaway agent calling tools for ten minutes is worse than a thrown error.
+
+Eight is a fine default for most workflows. A research-style agent might need 15–20. A simple "look up, reply" agent should rarely need more than three. Whatever you pick, the cap is *not* optional — production agents get stuck and you want a thrown error, not a billing surprise.
+
+## 04 — What the bare loop is missing
+
+Read your agent loop again. List what it doesn't do:
+
+- It loses everything if the process restarts mid-run.
+- It can't pause for user approval before running a write tool.
+- It can't stream intermediate updates to a UI.
+- It can't be tested without a real model unless you mock the model itself.
+- It runs all tool calls sequentially even when they're independent.
+- The "max steps" check has nowhere to put per-step logic — observability, retries per tool, conditional routing.
+
+Each item is a feature LangGraph gives you for free. The next lessons of this course build up to the LangGraph version of this same loop ([the AI in Your Project course rebuilds the loop step-by-step](/courses/ai-in-your-project/lessons/17-first-graph) too). When you arrive there with the bare loop in your head, every LangGraph concept lands as "oh, *that's* what they fixed."
+
+## 05 — Two quality-of-life helpers
+
+Before we leave the bare loop, two patterns worth keeping in your toolkit:
+
+**Per-tool error handling.** Wrap the tool invocation; return an error envelope so the model can recover:
+
+```ts
+let resultText: string;
+try {
+  const result = await t.invoke(call.args);
+  resultText = typeof result === 'string' ? result : JSON.stringify(result);
+} catch (e) {
+  resultText = JSON.stringify({ ok: false, error: (e as Error).message });
+}
+messages.push(new ToolMessage({ content: resultText, tool_call_id: call.id! }));
+```
+
+The model reads the error and either retries with different args or reports it to the user. The [errors and retries lesson in the AI in Your Project course](/courses/ai-in-your-project/lessons/14-errors-retries) goes deep on the envelope shape.
+
+**Concurrent tool calls.** Independent calls in the same turn? Run them in parallel:
+
+```ts
+const results = await Promise.all(reply.tool_calls.map(async call => {
+  const t = toolByName.get(call.name)!;
+  const out = await t.invoke(call.args);
+  return new ToolMessage({
+    content: typeof out === 'string' ? out : JSON.stringify(out),
+    tool_call_id: call.id!,
+  });
+}));
+messages.push(...results);
+```
+
+Halves the latency on multi-call turns. Don't do this if your tools share state or if order matters; we'll see how LangGraph models concurrency cleanly later.
+
+<Callout type="note" title="Why we're learning the throwaway version">
+By lesson 14 we replace this whole file with a six-line StateGraph. The point isn't the implementation; it's the mental model. You'll never debug a LangGraph node correctly if you don't have this loop in your head — because every node is a step in a generalised version of it.
+</Callout>
+
+<Recap>
+- The agent loop: invoke, push reply, run tools if present, push `ToolMessage` per call, repeat.
+- `tool_call_id` glues each `ToolMessage` to the `tool_call` it answers. Drop it and the conversation breaks.
+- Always cap iterations. Eight is a fine default.
+- The bare loop has no persistence, no pause, no streaming, no test seam, no conditional routing. LangGraph fills each gap.
+- Quality wins for the bare version: per-tool error envelopes and parallel `Promise.all` over independent calls in the same turn.
+</Recap>

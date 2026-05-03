@@ -1,0 +1,107 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Once one graph fits in your head, the next move is composing several. A subgraph is a graph used *inside* another graph as a node. It compiles independently, has its own state and nodes and edges, and from the parent's perspective it's just a black box that takes some state in and returns some state out. This is how you build big workflows without writing one giant graph file.
+
+## 01 — A subgraph is a node
+
+```ts
+const innerGraph = new StateGraph(InnerState)
+  .addNode('a', nodeA)
+  .addNode('b', nodeB)
+  .addEdge(START, 'a')
+  .addEdge('a', 'b')
+  .addEdge('b', END)
+  .compile();
+
+const outerGraph = new StateGraph(OuterState)
+  .addNode('preprocess', preprocess)
+  .addNode('inner',      innerGraph)             // ← compiled subgraph as a node
+  .addNode('postprocess', postprocess)
+  .addEdge(START, 'preprocess')
+  .addEdge('preprocess', 'inner')
+  .addEdge('inner', 'postprocess')
+  .addEdge('postprocess', END)
+  .compile();
+```
+
+The subgraph is added with `.addNode('inner', innerGraph)` — passing the compiled graph instead of a function. When the outer graph reaches `'inner'`, the subgraph runs end-to-end with the current state, and its result is merged back as that node's update.
+
+## 02 — State sharing — the two paths
+
+How does outer state become inner state? Two patterns:
+
+**Shared field names** — when outer and inner state share a field, that field flows through:
+
+```ts
+const Outer = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({ /* … */ }),
+  outer_extra: Annotation<string>({ /* … */ }),
+});
+const Inner = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({ /* … */ }),
+});
+// Outer's `messages` flows in, gets updated by inner nodes, flows back out.
+// `outer_extra` is invisible to inner.
+```
+
+The inner graph sees `messages` (because it declared the same field). It doesn't see `outer_extra`. Updates to `messages` propagate back. Subgraphs work like this by default.
+
+**Explicit transformation** — when the field names don't match, wrap the subgraph as a function:
+
+```ts
+async function callInner(state: typeof Outer.State) {
+  const innerInput = { messages: state.history };
+  const innerResult = await innerGraph.invoke(innerInput);
+  return { history: innerResult.messages };
+}
+
+outerGraph.addNode('inner', callInner);
+```
+
+Now you've made the boundary explicit. Use this when subgraph and parent come from different teams, different concerns, or different stability surfaces.
+
+## 03 — When subgraphs are worth it
+
+Three cases:
+
+- **Reusable workflow.** A "extract → validate → enrich → store" pipeline used by three different parents. Define once as a subgraph; call it from each.
+- **Encapsulation.** A 12-node decision tree clutters the parent. Pull it out as a subgraph; the parent's diagram drops to four nodes.
+- **Independent ownership.** One team owns the "verify" subgraph, another owns the "fulfil" subgraph. Each ships their compile target; the parent composes them.
+
+Three cases where they're not worth it:
+
+- One-off, single-call internal logic. Just write a node.
+- Sharing only one field between layers. The transformation overhead exceeds the benefit.
+- A subgraph that's actually a state machine on a *different state* and is forced into the same shape. Use a transformation node.
+
+## 04 — `interrupt`s propagate
+
+A subgraph can `interrupt`. When it does, the *outer* graph pauses. The caller sees the interrupt the same way it would see a top-level interrupt. Resuming with `Command` flows down through the outer graph into the inner. There's no extra wiring.
+
+This is what makes subgraphs serious. You can build a "human review" subgraph once, with its three branches and its state transitions, and reuse it across every workflow that needs review — and every parent's pause-resume contract is automatic.
+
+## 05 — Streaming subgraphs
+
+Streaming a parent that contains a subgraph emits chunks tagged with the subgraph's namespace:
+
+```ts
+for await (const chunk of await outer.stream(input, { streamMode: 'updates', subgraphs: true })) {
+  // chunk is shape: [(parentNamespace, parentNodeName), { 'inner_node': {...} }]
+}
+```
+
+Set `subgraphs: true` to descend into them. Without that flag, the parent stream emits one update for the whole subgraph (the merged result). With it, you see every inner node tick in real time. Use the flag for deep observability and for UIs that show a progress tree; turn it off when the parent's coarser log is what users actually care about.
+
+<Callout type="note" title="Subgraphs are not microservices">
+A subgraph runs in the same process. There's no network hop, no serialisation cost, no independent deployment. Don't use subgraphs to "split a monolith" — use them to *compose logic*. If you need separate deployment, separate the workflows entirely and call them via a tool or an API; the subgraph abstraction is for in-process composition, full stop.
+</Callout>
+
+<Recap>
+- A compiled graph can be used as a node in another graph. Same `addNode`, just pass the graph instead of a function.
+- State flows by shared field names; if names differ, wrap the subgraph in a function that transforms in/out.
+- Use subgraphs for reuse, encapsulation, or split ownership. Skip them for one-off internal logic.
+- `interrupt`s in subgraphs propagate to the outer graph. Resume from the top; the framework routes the resume.
+- Pass `subgraphs: true` to `stream` to see inner nodes tick in real time.
+- Subgraphs are in-process composition. Cross-deployment boundaries belong in tools and APIs, not subgraphs.
+</Recap>

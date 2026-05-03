@@ -1,0 +1,101 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+A tool is a typed function the model can ask to call. You write the function. You declare its inputs as a Zod schema. The model decides when to call it and with what arguments. The framework matches the model's request to your function and returns the result back into the conversation. That round trip is what turns a chat model into something that can do things.
+
+This lesson is the call envelope, the shape of `tool()`, and what's actually flying over the wire when a model calls one.
+
+## 01 — `tool()`
+
+```ts
+import { tool } from '@langchain/core/tools';
+import { z } from 'zod';
+
+const getWeather = tool(
+  async ({ city }) => {
+    // this is your function — call an API, query a DB, do anything
+    return `It is 21°C and sunny in ${city}.`;
+  },
+  {
+    name: 'get_weather',
+    description: 'Get the current weather for a city by name. Use only when the user asks about weather.',
+    schema: z.object({
+      city: z.string().describe('The city to look up — full English name, e.g. "Berlin".'),
+    }),
+  },
+);
+```
+
+Three pieces:
+- The async function. Returns a string or a JSON-serialisable object.
+- The metadata: `name`, `description`, `schema`. The model sees these — they are how it decides to call your tool and how to fill the arguments.
+- The schema. Each `.describe()` becomes a field-level hint the model sees. Use them generously.
+
+The same `tool()` API is what the [first-tool lesson in the AI in Your Project course](/courses/ai-in-your-project/lessons/09-first-tool) introduces; the difference is that course wired it into a database adapter immediately. Here we'll keep it pure for one lesson before the agent loop in lesson 7 connects it to a model.
+
+## 02 — Inspecting a tool call
+
+Bind the tool to the model and ask for something the model thinks the tool can answer:
+
+```ts
+const modelWithTools = model.bindTools([getWeather]);
+const reply = await modelWithTools.invoke('What is the weather in Berlin?');
+
+console.log(reply.tool_calls);
+// [{
+//   name: 'get_weather',
+//   args: { city: 'Berlin' },
+//   id: 'call_abc123',
+//   type: 'tool_call'
+// }]
+```
+
+What you get back is an `AIMessage` with `tool_calls` populated and `content` empty (or a brief preamble, depending on the provider). The model didn't *run* the tool. It *requested* a tool call, addressed by `id`, and now it's your job to run the function and feed the result back. Lesson 7 closes that loop.
+
+## 03 — `name`, `description`, `schema` — what each does
+
+Three slots, three jobs:
+
+- **`name`** is the function's identifier in the model's "namespace." The model picks tools by name. Use snake_case. Be specific: `search_customers` not `find`.
+- **`description`** is the model's how/when manual. Two sentences max. Lead with what the tool does, then any constraints. *"Search the customer table by free-text query. Use only when the user mentions a customer by name or attribute, not for product searches."*
+- **`schema`** is the contract. Each Zod field's `.describe()` shows up on the model side and is the most underrated lever for accuracy. *"city — the city to look up — full English name, e.g. 'Berlin'"* prevents the model from sending `"Berlin, Germany"` or `"BER"`.
+
+A small model with a vague description will call the tool when it shouldn't and miss when it should. A small model with a sharp description, well-named arguments, and one example in `.describe()` is shockingly good.
+
+## 04 — Synchronous vs async tools
+
+The function you pass is awaited. Sync function? Wrap it in `async () => { ... }` so the type matches and the framework doesn't surprise you. Long-running tool? Just `await` the work — the agent loop handles latency.
+
+```ts
+const slowTool = tool(async ({ id }) => {
+  const result = await fetch(`https://api.example.com/items/${id}`).then(r => r.json());
+  return JSON.stringify(result);
+}, { name: 'get_item', description: '...', schema: z.object({ id: z.string() }) });
+```
+
+Return a string when the model only needs to read it. Return an object when you want the agent loop to potentially feed structured data back to the model — JSON.stringify on the way out works fine, but plain objects are passed through correctly.
+
+## 05 — The call envelope, end to end
+
+A complete picture for one round trip:
+
+1. You bind tools to the model: `model.bindTools([t1, t2])`.
+2. You invoke with a user message.
+3. The model's reply contains `tool_calls: [{ name, args, id }]`. No content yet.
+4. You match each `tool_call.name` to your tool, run `await tool.invoke(tool_call.args)`, capture the result.
+5. You wrap the result in a `ToolMessage` with the matching `tool_call_id`.
+6. You invoke the model again with the augmented history. The model now writes the user-facing reply.
+
+Step 4 plus step 5 plus the loop is the *agent loop*. Lesson 7 builds it by hand. Lessons 11–14 rebuild it as a LangGraph state machine — and once you've seen both, you'll never write the bare loop again.
+
+<Callout type="warning" title="Tool descriptions are part of the cost">
+Every tool's `name`, `description`, and `schema` is sent on every call. Ten verbose tools = a noticeable token tax. Keep descriptions tight. Cut tools the agent doesn't need for a given route — pass a smaller `bindTools([…])` array per route, not your whole inventory.
+</Callout>
+
+<Recap>
+- `tool(fn, { name, description, schema })` is the whole API. Schema is Zod; `.describe()` on each field is the highest-leverage accuracy knob.
+- `model.bindTools([...])` returns a new model. Calling it gives you `tool_calls` on the reply, not direct execution.
+- `name` identifies; `description` decides when; `schema` decides how. Treat all three as part of the model's prompt.
+- The agent loop runs the requested tool, wraps the result in a `ToolMessage`, and re-invokes the model. Lesson 7 builds it.
+- Tool definitions count toward token cost. Bind only the tools the route needs.
+</Recap>

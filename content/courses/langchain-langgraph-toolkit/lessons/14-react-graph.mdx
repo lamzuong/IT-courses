@@ -1,0 +1,117 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+The bare agent loop from lesson 7 — invoke, run tools, push tool messages, repeat — is what we'll now rebuild as a LangGraph state graph. The new version is shorter, has persistence baked in for free (next part), streams intermediate updates, and is testable without a real model. This lesson is the build-by-hand version; lesson 18 layers human-in-the-loop on top.
+
+The [equivalent walkthrough in the AI in Your Project course](/courses/ai-in-your-project/lessons/17-first-graph) does this against the inventory schema. Here we keep the tools generic so the focus stays on the graph shape.
+
+## 01 — The graph
+
+```ts
+import { Annotation, START, END, StateGraph } from '@langchain/langgraph';
+import { type BaseMessage, AIMessage, ToolMessage } from '@langchain/core/messages';
+import { ToolNode } from '@langchain/langgraph/prebuilt';
+import { tool } from '@langchain/core/tools';
+import { z } from 'zod';
+import { makeModel } from './lib/model.js';
+
+const getWeather = tool(
+  async ({ city }) => `It is 21°C and sunny in ${city}.`,
+  { name: 'get_weather', description: 'Get current weather for a city.', schema: z.object({ city: z.string() }) },
+);
+
+const tools = [getWeather];
+
+const State = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: (prev, next) => [...prev, ...next],
+    default: () => [],
+  }),
+});
+
+const model = makeModel().bindTools(tools);
+
+async function agentNode(state: typeof State.State) {
+  const reply = await model.invoke(state.messages);
+  return { messages: [reply] };
+}
+
+const toolsNode = new ToolNode(tools);
+
+function shouldContinue(state: typeof State.State) {
+  const last = state.messages.at(-1) as AIMessage | undefined;
+  return last?.tool_calls?.length ? 'tools' : END;
+}
+
+const graph = new StateGraph(State)
+  .addNode('agent', agentNode)
+  .addNode('tools', toolsNode)
+  .addEdge(START, 'agent')
+  .addConditionalEdges('agent', shouldContinue, ['tools', END])
+  .addEdge('tools', 'agent')
+  .compile();
+```
+
+Six nodes-and-edges of declaration. That's the entire ReAct pattern. The agent runs, decides whether to call a tool, and either returns to the agent (after running the tool) or ends.
+
+## 02 — `ToolNode`
+
+`new ToolNode(tools)` is the prebuilt that replaces the manual "match tool name → run → wrap in `ToolMessage`" loop from lesson 7. It looks at the last message's `tool_calls`, runs each in parallel, returns an array of `ToolMessage`s with the right `tool_call_id`s. Dozens of edge cases handled: tool not found, tool throws, schema validation fails. Read its source once and you'll appreciate the abstraction.
+
+You can write your own tools-node if you need exotic behaviour — auth scoping per tool, observability hooks, custom error envelopes — but for 95% of cases `ToolNode` is the answer.
+
+## 03 — `messages` reducer is the hidden hero
+
+The state has *one* field: `messages`. Every node returns `{ messages: [...] }`. The reducer concatenates. `agentNode` appends the AI's reply (which may have `tool_calls`). `toolsNode` appends the `ToolMessage` results. The router reads the last message and decides.
+
+There's no `currentStep`, no `phase` flag, no `lastToolName`. The conversation log *is* the state. That's the elegance of the ReAct shape — and it's why every multi-turn agent in LangGraph starts here, even when the rest of the state grows.
+
+## 04 — Calling it
+
+```ts
+import { HumanMessage } from '@langchain/core/messages';
+
+const result = await graph.invoke({
+  messages: [new HumanMessage('What is the weather in Berlin?')],
+});
+
+console.log((result.messages.at(-1) as AIMessage).content);
+```
+
+The result is the full final message list — user message, AI reply with tool calls, tool message with the weather, AI's final answer. Render whichever subset your UI needs. The list is your audit log for free; lesson 23 wires LangSmith to it for richer tracing.
+
+## 05 — `createReactAgent` — the prebuilt
+
+LangGraph ships an even shorter form for exactly this pattern:
+
+```ts
+import { createReactAgent } from '@langchain/langgraph/prebuilt';
+
+const agent = createReactAgent({
+  llm: makeModel(),
+  tools,
+});
+
+const result = await agent.invoke({
+  messages: [new HumanMessage('What is the weather in Berlin?')],
+});
+```
+
+Two lines. Same behaviour. Use this when you want a stock ReAct agent with no customisation. Switch back to the hand-built version the moment you need:
+- Custom routing (more than "tool or done").
+- Extra state fields (`retryCount`, `tenantId`, `traceId`).
+- Custom nodes between agent and tools (validation, intent classification, observability).
+
+Most production agents outgrow `createReactAgent` within a week. The hand-built shape is what you'll iterate on.
+
+<Callout type="note" title="The shape generalises">
+This same agent + tools + conditional-edge pattern is the spine of every other graph in this course. The supervisor (lesson 20) routes between *agents* instead of between agent and tools. The handoff pattern (lesson 21) routes between peer agents. Map-reduce (lesson 22) fans out from one node into many. All of them are variations of "node → conditional edge → node." Once this graph compiles in your head, the rest is bookkeeping.
+</Callout>
+
+<Recap>
+- `agent` node calls the bound model. `tools` node is `ToolNode(tools)`. Conditional edge after `agent` decides "tools or end."
+- `messages` is the only state field most ReAct graphs need. Reducer is concatenation.
+- `ToolNode` runs requested tool calls in parallel and produces correctly-addressed `ToolMessage`s.
+- `createReactAgent({ llm, tools })` is the two-line prebuilt. Use it for stock; build by hand for anything custom.
+- This pattern is the spine of every other graph in this course. Internalise it now.
+</Recap>

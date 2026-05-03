@@ -1,0 +1,100 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+An embedding is a fixed-length vector of floats that summarises a chunk of text. Two pieces of text that mean similar things produce vectors that point similar directions; a *vector store* is a database that, given a query vector, returns the chunks whose vectors are most similar. That's the entire mechanism behind retrieval. This lesson is about choosing an embedding model, picking a vector store, and getting both wired up well enough to do real RAG in lesson 10.
+
+## 01 — `Embeddings`
+
+Embedding models are interchangeable in LangChain. `OllamaEmbeddings` for local, `OpenAIEmbeddings` and `CohereEmbeddings` and `MistralAIEmbeddings` for hosted:
+
+```ts
+import { OllamaEmbeddings } from '@langchain/ollama';
+
+const embeddings = new OllamaEmbeddings({ model: 'nomic-embed-text' });
+
+const v = await embeddings.embedQuery('What is mitochondria?');
+console.log(v.length); // e.g., 768
+```
+
+`embedQuery(text)` for one string. `embedDocuments(strings[])` for many in one batch — always prefer this over a loop because providers (and Ollama) batch embeddings on the wire.
+
+Pull the embedding model first: `ollama pull nomic-embed-text`. It's small (~270 MB) and excellent for general English. If your corpus is multilingual, consider `mxbai-embed-large` or a hosted multilingual embedding.
+
+## 02 — Vector store: `MemoryVectorStore`
+
+The simplest store, useful for prototypes and tests:
+
+```ts
+import { MemoryVectorStore } from 'langchain/vectorstores/memory';
+
+const store = await MemoryVectorStore.fromDocuments(chunks, embeddings);
+
+const hits = await store.similaritySearch('How does photosynthesis work?', 4);
+hits.forEach(h => console.log(h.metadata.source, ':', h.pageContent.slice(0, 80)));
+```
+
+`fromDocuments` embeds every chunk, stores the vectors with the original Documents, and returns a queryable store. `similaritySearch(query, k)` embeds the query and returns the top-k Documents by cosine similarity. That's the complete retrieval pipeline in two calls.
+
+In-memory stores die with your process. Fine for the lessons; not fine for production. The next lesson swaps in a persistent store with the same API.
+
+## 03 — Persistent stores
+
+The store interface is uniform: build with vectors, query with text. Swapping is constructor-deep:
+
+```ts
+// Postgres + pgvector — managed databases or self-hosted
+import { PGVectorStore } from '@langchain/community/vectorstores/pgvector';
+
+const store = await PGVectorStore.fromDocuments(chunks, embeddings, {
+  postgresConnectionOptions: { connectionString: process.env.DATABASE_URL },
+  tableName: 'docs',
+});
+
+// Pinecone — hosted vector DB
+import { PineconeStore } from '@langchain/pinecone';
+import { Pinecone } from '@pinecone-database/pinecone';
+
+const pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY! });
+const store = await PineconeStore.fromExistingIndex(embeddings, {
+  pineconeIndex: pc.index('my-index'),
+});
+```
+
+The same `similaritySearch` works on every store. You'll see four or five popular options: pgvector (already-have-postgres), Pinecone (managed), Chroma (self-hosted), Weaviate (self-hosted), Qdrant (self-hosted or managed). Default to pgvector if you already run Postgres; default to Pinecone or Qdrant Cloud otherwise. Don't agonise over the choice — they're swappable.
+
+## 04 — `similaritySearchWithScore` and filtering
+
+Two upgrades you'll want as soon as the prototype is real:
+
+```ts
+// scores
+const scoredHits = await store.similaritySearchWithScore('photosynthesis', 4);
+scoredHits.forEach(([doc, score]) => console.log(score, doc.pageContent.slice(0, 60)));
+
+// metadata filtering (syntax depends on store)
+const filtered = await store.similaritySearch('photosynthesis', 4, { tenant: 'acme', section: 'biology' });
+```
+
+Scores let you set a threshold — drop hits below 0.4 cosine similarity or whatever you observe is the line between "relevant" and "model is fishing." Metadata filters let you scope retrieval to a tenant, document type, language, or recency. The exact filter syntax varies per store; check the constructor's typings.
+
+## 05 — What "similar" actually means
+
+Two practical things to know about cosine similarity:
+
+- **Magnitude doesn't matter.** Cosine similarity ignores vector length. This is why "king is to queen as man is to woman" works — direction is meaning, magnitude is just normalisation.
+- **Synonyms ≠ topical similarity ≠ paraphrase.** Embeddings group text by *what it talks about*, not by surface synonyms or by entailment. A query "what is the population of France?" will match "France's demographics" cleanly, but "France is in Europe" might also score high — same topic, wrong fact. This is why a re-ranker (next lesson) lifts precision.
+
+A mental model: imagine each chunk is a tiny manifesto on a topic. Embedding finds chunks whose manifestos sound like the question's manifesto. The model still has to read them and decide which one *answers* the question.
+
+<Callout type="note" title="Embedding model and corpus must match in language and domain">
+A general-purpose English embedding will surface low-quality matches on French legal text or on Python source code. For multilingual data use a multilingual model. For code, use a code-aware embedding (`microsoft/codebert-base`-class models, or hosted code-embedding APIs). Mismatch shows up as bad recall on the prototype and an irrecoverable mess once you've embedded the whole corpus.
+</Callout>
+
+<Recap>
+- Embeddings produce vectors. Similar text → similar vectors. The vector store finds the closest ones.
+- `OllamaEmbeddings({ model: 'nomic-embed-text' })` is a fine local default. `embedDocuments` is faster than a loop.
+- `MemoryVectorStore` for prototypes; pgvector/Pinecone/Qdrant for production. Same API, swap the constructor.
+- `similaritySearchWithScore` exposes the cosine score. Use a threshold to cut low-quality hits.
+- Metadata filtering scopes retrieval to a tenant/section/recency window. Always populate metadata at load time.
+- Embeddings find topical matches, not entailment. A re-ranker (next lesson) tightens precision.
+</Recap>

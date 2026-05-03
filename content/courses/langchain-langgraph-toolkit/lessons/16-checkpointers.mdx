@@ -1,0 +1,103 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+A graph without a checkpointer is amnesiac. Every `invoke` starts from scratch; nothing carries between calls. Attach a checkpointer and three things happen: the graph remembers its last state, you can resume from any point, and `thread_id` becomes the unit of "this conversation." Lesson 18's `interrupt` and lesson 17's memory both depend on what we set up here.
+
+## 01 — `MemorySaver` — the prototype checkpointer
+
+```ts
+import { MemorySaver } from '@langchain/langgraph';
+
+const checkpointer = new MemorySaver();
+
+const graph = new StateGraph(State)
+  .addNode('agent', agentNode)
+  // …
+  .compile({ checkpointer });
+```
+
+`MemorySaver` keeps state in process memory. It dies with the process, so it's only good for development and tests, but the API is identical to the persistent variants — write your code against it, swap the constructor when you go to production.
+
+## 02 — `thread_id` and `configurable`
+
+A checkpointer keeps separate state per `thread_id`. You pass `thread_id` on every invoke:
+
+```ts
+const config = { configurable: { thread_id: 'user-42' } };
+
+await graph.invoke({ messages: [new HumanMessage('Hi')] }, config);
+await graph.invoke({ messages: [new HumanMessage('What did I just say?')] }, config);
+```
+
+The second invoke sees the messages from the first. The state was saved at the end of run 1, and resumed at the start of run 2 — the second's input `messages` is *concatenated to* the persisted state's `messages` (because of the reducer), not a replacement.
+
+Use the user's session ID, the chat thread ID, the workflow run ID — whatever uniquely identifies "this conversation" in your app. A new `thread_id` is a new blank state.
+
+## 03 — `getState` and time travel
+
+```ts
+const snapshot = await graph.getState(config);
+console.log(snapshot.values);                  // current state
+console.log(snapshot.next);                    // nodes about to run, if interrupted
+console.log(snapshot.config.configurable.checkpoint_id); // immutable id of this snapshot
+```
+
+Each checkpoint has an immutable ID. You can resume from a *specific* snapshot by passing its `checkpoint_id` instead of the latest one:
+
+```ts
+await graph.invoke(input, {
+  configurable: { thread_id: 'user-42', checkpoint_id: 'abc123' },
+});
+```
+
+This is "time travel": rewind to a specific moment, change the input or the state, fork from there. Useful for debugging ("what if the user had answered differently?"), for retries, and for branching workflows. The [interrupt-confirmation lesson in the AI in Your Project course](/courses/ai-in-your-project/lessons/19-interrupt-confirmation) leans on this for the approve/reject flow.
+
+## 04 — Persistent checkpointers
+
+For production, swap `MemorySaver` for a persistent variant. Three popular options:
+
+```ts
+// SQLite — single-machine, file-backed
+import { SqliteSaver } from '@langchain/langgraph-checkpoint-sqlite';
+const checkpointer = SqliteSaver.fromConnString('checkpoints.db');
+
+// Postgres — multi-machine, scales out
+import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
+const checkpointer = PostgresSaver.fromConnString(process.env.DATABASE_URL!);
+await checkpointer.setup();                    // creates the schema once
+
+// Redis — distributed, in-memory persistence
+import { RedisSaver } from '@langchain/langgraph-checkpoint-redis';
+const checkpointer = RedisSaver.fromUrl('redis://localhost:6379');
+```
+
+The same `compile({ checkpointer })` call. The same `thread_id`. Same `getState`, same `invoke`, same `stream`. Postgres is the default for any team already running it; SQLite is fine for single-server deployments and tests.
+
+## 05 — `updateState` — modify state without running a node
+
+You can also write state directly:
+
+```ts
+await graph.updateState(config, { customNote: 'inserted by support agent' });
+```
+
+This produces a new checkpoint with the merged update applied. The graph hasn't run any node — but next time you `invoke` from this thread, the new state is what you'll see.
+
+Two real uses:
+- **Operator override.** A support agent edits a stuck workflow's state and resumes it.
+- **Recovery.** A bug corrupted state; patch it programmatically and resume.
+
+Don't use `updateState` for normal flow — that's what nodes are for. Use it for the edge cases where running a node is the wrong shape.
+
+<Callout type="note" title="Checkpointing has a cost">
+Every node transition writes a checkpoint. For tiny states, it's negligible. For graphs with large fields (long retrieved-document arrays, big embeddings, base64 images), the writes add up. Keep big artifacts out of state when you can — store them externally and reference by ID. The [observability lesson in the AI in Your Project course](/courses/ai-in-your-project/lessons/23-observability-cost) shows this pattern.
+</Callout>
+
+<Recap>
+- A checkpointer turns the graph into a stateful, resumable workflow. Without one, every invoke starts blank.
+- `thread_id` is the unit of conversation. Same thread = continued state. New thread = fresh state.
+- `MemorySaver` for dev; `SqliteSaver`, `PostgresSaver`, `RedisSaver` for production. Same API.
+- `getState(config)` reads the current snapshot; `checkpoint_id` lets you resume from a specific past moment.
+- `updateState` writes state without running a node. Use for operator override and recovery, not normal flow.
+- Checkpoint writes have a cost. Keep heavy artifacts (vectors, images) out of state.
+</Recap>

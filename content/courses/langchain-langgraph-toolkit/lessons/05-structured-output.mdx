@@ -1,0 +1,92 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Structured output is the difference between "the model returned text I parse with regex" and "the model returned a typed object I use directly." LangChain hides every provider's mechanism — function calling, JSON mode, response schema — behind one method. You hand it a Zod schema; you get back a typed value or a thrown error. Nothing in between.
+
+This lesson is the API, why Zod is the right boundary, and the strictness gotchas that bite once a day if you don't know about them.
+
+## 01 — `withStructuredOutput`
+
+```ts
+import { z } from 'zod';
+
+const schema = z.object({
+  category: z.enum(['shipping', 'product', 'billing', 'other']),
+  urgency: z.number().int().min(1).max(5),
+  reason:  z.string(),
+});
+
+const structured = model.withStructuredOutput(schema);
+const result = await structured.invoke('Classify: "my package never arrived and i need it tomorrow"');
+//    ^? { category: 'shipping' | 'product' | 'billing' | 'other'; urgency: number; reason: string }
+```
+
+Three lines: define a schema, wrap the model, invoke. The wrapped model is still a Runnable — same `invoke`, `stream` (limited), `batch` API. The return is a parsed, validated, typed object. If the model produces malformed JSON or violates the schema, the call throws.
+
+The [structured output lesson in the AI in Your Project course](/courses/ai-in-your-project/lessons/08-structured-output) goes deeper into the *why*; this one focuses on the API surface and the lever each schema option gives you.
+
+## 02 — Zod as the source of truth
+
+A Zod schema does four jobs at once:
+
+- Validates LLM output (`withStructuredOutput`).
+- Validates HTTP/API input (`schema.parse(req.body)`).
+- Generates the TypeScript type (`z.infer<typeof schema>`).
+- Generates a JSON Schema (`zodToJsonSchema(schema)`).
+
+One file, four jobs. Change a field once and every consumer — the prompt, the API, the database adapter, the React props — gets a type or runtime error in the right spot. The alternative is duplicating the shape across a TS type, a manual validator, and a "return JSON like this" sentence in a prompt; the prompt always lags behind.
+
+## 03 — Naming the schema
+
+`withStructuredOutput` accepts a second arg that meaningfully changes provider behaviour:
+
+```ts
+const structured = model.withStructuredOutput(schema, {
+  name: 'classify_ticket',                  // becomes the tool name on most providers
+  description: 'Classify a support ticket', // helps the model "want" to use this shape
+});
+```
+
+On providers that implement structured output via tool calling, the schema is registered as a single forced tool. The `name` and `description` are what the model "sees." Naming them like a function the model would naturally want to call lifts accuracy on small models. `extract_invoice_fields` beats `output`. `summarise_meeting_minutes` beats `result`.
+
+## 04 — Strictness gotchas
+
+A handful of corners worth knowing:
+
+- **`.nullable()` vs `.optional()`** are not the same. `nullable` produces `T | null` (field present, value possibly null). `optional` produces `T | undefined` (field maybe missing). Models handle `null` more reliably than absence — prefer `nullable`.
+- **`z.enum([...])`** is strictly enforced. The model cannot invent a new category. Use it for any small fixed set.
+- **`.refine(fn, { message })`** runs after parsing. A failing refinement throws. Cheap for safety, expensive on the happy path.
+- **Nested objects** work but degrade quality. Each level of nesting is harder for the model to fill correctly. Flatten when you can.
+- **Discriminated unions** (`z.discriminatedUnion('kind', [...])`) work and are a great fit for "the model picks one of these shapes." They map cleanly to provider-side oneOf JSON Schema.
+
+A rule that's saved me weeks: **design schemas tight on day one**. Loosening a schema costs nothing. Tightening one after a thousand records have been stored without the constraint costs everything.
+
+## 05 — Streaming structured output
+
+Most providers don't stream structured output meaningfully — the partial JSON isn't useful until it parses. Some support partial parsing with `streamMode: 'debug'` or provider-specific flags, but treat it as advanced. For 99% of structured-output use cases, `invoke` is correct and `stream` is a footgun.
+
+If you need progressive UI for an extraction task — "show fields filling in" — implement it client-side with placeholders, run `invoke` server-side, and animate the result on arrival. Real partial structured streaming is a research-grade feature; don't lean on it.
+
+<Callout type="note" title="When the schema fails to parse">
+Tight schemas + small models = occasional throws. Wrap critical structured calls with a single retry that adds the parse error back into the prompt:
+
+```ts
+async function extract<T>(schema: z.ZodType<T>, input: string) {
+  const structured = model.withStructuredOutput(schema);
+  try { return await structured.invoke(input); }
+  catch (e) {
+    return await structured.invoke(`${input}\n\nThe previous attempt failed validation: ${(e as Error).message}. Try again.`);
+  }
+}
+```
+
+Two attempts, one of two outcomes: a typed object or a thrown error you trust. Don't loop forever — small models that fail twice will fail twenty times.
+</Callout>
+
+<Recap>
+- `model.withStructuredOutput(schema)` returns a typed Runnable. Invoke gives you a parsed object or a throw.
+- Zod is one source of truth for AI output, API input, TypeScript types, and JSON Schema export.
+- Name the schema (`{ name, description }`) — small models behave better when the implicit "tool" looks like a real function.
+- Tight schemas on day one. `nullable` over `optional`. Enums over strings. Flat over nested. Refinements only when you need them.
+- Streaming structured output is mostly a trap. Use `invoke` and animate client-side if you want progressive UI.
+</Recap>

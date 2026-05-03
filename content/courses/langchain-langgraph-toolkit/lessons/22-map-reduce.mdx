@@ -1,0 +1,107 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Sequential graphs are great until you need to do the same work N times in parallel. "Summarise these 12 documents." "Score these 50 candidates." "Extract structured data from each of these 200 reviews." A sequential loop is slow; a `Promise.all` inside one node loses checkpointing per item; what you want is *fan-out into parallel sub-runs of a single node*. That's what `Send` is for.
+
+## 01 — `Send`, the fan-out primitive
+
+A conditional edge usually returns a node name. It can also return one or more `Send` objects, each spawning a parallel run of a node with a custom state slice:
+
+```ts
+import { Send, Annotation, START, END, StateGraph } from '@langchain/langgraph';
+
+const State = Annotation.Root({
+  inputs:    Annotation<string[]>({ reducer: (_, n) => n, default: () => [] }),
+  outputs:   Annotation<string[]>({ reducer: (p, n) => [...p, ...n], default: () => [] }),
+});
+
+async function processItem(state: { item: string }) {
+  // each parallel call sees only its assigned `item`
+  const reply = await model.invoke(`Summarise: ${state.item}`);
+  return { outputs: [reply.content as string] };
+}
+
+function fanOut(state: typeof State.State) {
+  return state.inputs.map(item => new Send('process', { item }));
+}
+
+const graph = new StateGraph(State)
+  .addNode('process', processItem)
+  .addNode('done',    () => ({}))
+  .addConditionalEdges(START, fanOut, ['process'])
+  .addEdge('process', 'done')
+  .addEdge('done',    END)
+  .compile();
+```
+
+The conditional edge from `START` returns an array of `Send`s. Each `Send` runs the `process` node with its own state slice. The framework runs them in parallel. Each writes to `outputs` (concatenation reducer); the merged result lands in the parent state when fan-in completes.
+
+## 02 — How fan-in works
+
+When all the parallel `Send`s complete, their updates are reduced into the parent state field by field. Because `outputs` uses an "append" reducer, the final state's `outputs` array contains every parallel run's contribution. That's fan-in for free — no synchronisation barrier you have to write.
+
+If you wanted a *map* (preserve order with input → output mapping), include the index in each `Send`'s state and have the node write `[{ index, value }]` into a list. Sort at the end. This is twenty lines and it's dead reliable.
+
+## 03 — Fan-out plus a reduce node
+
+A complete map-reduce shape:
+
+```ts
+const graph = new StateGraph(State)
+  .addNode('process',  processItem)
+  .addNode('aggregate', aggregateNode)
+  .addConditionalEdges(START,    fanOut,            ['process'])
+  .addEdge('process',  'aggregate')
+  .addEdge('aggregate', END)
+  .compile();
+```
+
+`aggregate` runs *once* after all parallel `process` nodes finish. It sees the final state with every output appended. This is your reduce step — combine outputs into a single answer, write a final summary, dedupe, sort.
+
+```ts
+async function aggregateNode(state: typeof State.State) {
+  const combined = state.outputs.join('\n\n');
+  const summary = await model.invoke(`Combine these summaries into one paragraph:\n\n${combined}`);
+  return { finalSummary: summary.content };
+}
+```
+
+## 04 — Concurrency control
+
+Fan-out is unbounded by default. Twenty `Send`s = twenty parallel model calls. That's fine for local Ollama (which serialises anyway) but expensive on hosted providers and brutal on rate limits. Two fixes:
+
+**Cap concurrency at the model**: `makeModel()` calls take an `httpOptions: { maxConcurrent: 5 }` on most providers. Or use the `RunnablePassthrough.assign` patterns in LangChain to enforce a semaphore.
+
+**Chunk the inputs and run multiple sequential fan-outs**: Split the input array into chunks of 5; fan out each chunk; fan in; fan out the next chunk. Adds an outer loop, gains control.
+
+```ts
+function fanOutChunked(state: typeof State.State) {
+  const next = state.inputs.slice(state.cursor, state.cursor + 5);
+  return next.map(item => new Send('process', { item }));
+}
+```
+
+For most production workloads, chunking is what you want. It's deterministic, throttles cleanly, and gives you natural retry boundaries.
+
+## 05 — When map-reduce is the right pattern
+
+Three signs `Send` is the answer:
+
+- **Independent work per item.** No item depends on another's result. Parallel is safe.
+- **Identical processing.** Each item runs through the same node with different state. Different shapes per item is a sign you want different *graphs*, not one graph fanned out.
+- **Aggregation is real.** You want to combine results — count, sort, summarise, pick best. Otherwise fan-out without a reduce is just "do N things in parallel," which is fine but doesn't need a graph.
+
+If you're doing 200 of the same operation and feeding all 200 results to a final aggregate, that's exactly the shape. If you're doing one operation with 200 *steps*, that's a sequential graph. Don't reach for `Send` when a loop is what you need.
+
+<Callout type="warning" title="`Send` and checkpointing interact subtly">
+Each parallel `Send` becomes its own checkpoint task. Resuming a partially-completed fan-out from a checkpoint will only re-run the tasks that hadn't completed — finished `Send`s aren't re-run. This is what you want, but it means a `Send` node *must* be deterministic and idempotent if you ever expect resumption. A node that, say, writes to a database without a unique key on resume will double-write.
+</Callout>
+
+<Recap>
+- `Send(nodeName, state)` from a conditional edge spawns a parallel run of the node with its own state.
+- Append reducers fan-in for free — every parallel run's contribution lands in the same field.
+- Add an aggregate node after the fan-out for true map-reduce. Fan-out gives parallelism; aggregate gives the answer.
+- Cap concurrency. Either model-level (provider settings) or graph-level (chunked fan-out). Twenty parallel calls hits rate limits fast.
+- Use `Send` when work is independent, identical, and ends in real aggregation. Use a loop when steps are sequential.
+- Each `Send` checkpoints independently. Make the node idempotent if resumption is on the table.
+</Recap>

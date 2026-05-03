@@ -1,0 +1,112 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+The handoff pattern is the peer-to-peer alternative to supervisor. Each agent can transfer control to another agent directly, without going through a coordinator. Useful when specialists need to escalate, collaborate, or pass partial work between themselves — and there's no single supervisor that should bottleneck every transition.
+
+The mechanic that makes it clean is `Command` — a return value that says "update the state *and* go to this specific node next."
+
+## 01 — `Command` from a node
+
+A node usually returns `{ field: value }`. With `Command`, it can also pick the next node:
+
+```ts
+import { Command } from '@langchain/langgraph';
+
+async function intakeAgent(state: typeof State.State) {
+  const reply = await model.invoke(state.messages);
+  // decide where to hand off
+  if (reply.content.toString().toLowerCase().includes('refund')) {
+    return new Command({
+      update: { messages: [reply] },
+      goto: 'refund_specialist',
+    });
+  }
+  return new Command({
+    update: { messages: [reply] },
+    goto: 'general_specialist',
+  });
+}
+```
+
+`update` is the state update. `goto` is the next node to run. The graph reads the `Command`, applies the update, and jumps. No conditional edge needed — the routing decision *lives in the agent*.
+
+This is the difference from supervisor: the agent itself chose. There's no separate routing node.
+
+## 02 — Wiring a handoff graph
+
+```ts
+const graph = new StateGraph(State)
+  .addNode('intake',             intakeAgent,            { ends: ['refund_specialist', 'general_specialist'] })
+  .addNode('refund_specialist',  refundAgent,            { ends: ['general_specialist', END] })
+  .addNode('general_specialist', generalAgent,           { ends: ['refund_specialist', END] })
+  .addEdge(START, 'intake')
+  .compile();
+```
+
+The `ends` option on `addNode` declares the possible `goto` targets for visualisation and validation. Static edges aren't required — the agents handle their own transitions via `Command`.
+
+## 03 — Handoff *as a tool*
+
+A common variant: expose the handoff as a *tool* the agent can call. The agent says "I want to hand this off to refund_specialist," the framework intercepts the tool call and routes accordingly:
+
+```ts
+const handoff = (target: string) =>
+  tool(async ({ reason }) => `Transferring to ${target}: ${reason}`, {
+    name: `transfer_to_${target}`,
+    description: `Transfer the conversation to the ${target} agent. Use when the user's request is outside your scope.`,
+    schema: z.object({ reason: z.string() }),
+  });
+
+const intakeAgent = createReactAgent({
+  llm: makeModel(),
+  tools: [handoff('refund_specialist'), handoff('general_specialist')],
+  prompt: 'You triage. Use a transfer tool when the request is outside your scope.',
+});
+```
+
+The agent calls `transfer_to_refund_specialist` like any other tool. The graph node wrapping this agent looks at the tool call, sees it's a transfer, and emits a `Command({ goto: 'refund_specialist' })` instead of invoking a handler. This is how production handoff graphs are usually built — the model is *told* about handoff via the tool list, which keeps prompts uniform.
+
+## 04 — Sharing context across handoffs
+
+The most common bug in handoff graphs: the receiving agent doesn't know what just happened. Fix it at state level. The `messages` field already does most of the work — the receiving agent sees the whole conversation. But if you want explicit context, add a structured field:
+
+```ts
+const State = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({ reducer: (p, n) => [...p, ...n], default: () => [] }),
+  handoffNote: Annotation<string | null>({ reducer: (_, n) => n, default: () => null }),
+});
+
+async function intakeAgent(state) {
+  // …
+  return new Command({
+    update: {
+      messages: [reply],
+      handoffNote: 'Customer wants a refund for order #1234. Already verified identity.',
+    },
+    goto: 'refund_specialist',
+  });
+}
+```
+
+The receiving agent reads `handoffNote` first thing. This is your in-band escalation — what an L1 support agent would tell an L2 agent in the corner of the chat. Keep it concise; the conversation history is the long form.
+
+## 05 — Handoff vs supervisor — a decision rule
+
+When peers know who to hand to → handoff. When a coordinator needs to decide → supervisor. Concretely:
+
+- **Handoff** for systems where each agent has a clear sense of "what's mine vs what's not." Triage → specialist transfers. Specialist → expert escalation. Drafting → review handoff.
+- **Supervisor** for systems where the routing logic is itself complex, central, or stateful. "Pick the right agent based on the customer's tier, the agent's load, and the conversation length so far" — that's a supervisor decision.
+
+Mixed graphs are common: a supervisor for the top-level routing, handoffs between specialists once the lane is chosen. Don't pick one religion. Pick the structure that puts the routing logic where it makes the most sense.
+
+<Callout type="note" title="Handoff and `interrupt` compose">
+A receiving agent can `interrupt` (lesson 18) before acting. Most powerful HITL workflows look like: handoff to a specialist, specialist proposes an action, `interrupt` for user approval, resume on approval, execute. Three patterns from this course in one graph — and that's a normal production shape, not a contrived example.
+</Callout>
+
+<Recap>
+- Handoff = peer-to-peer. Each agent can `Command({ update, goto })` to route to another agent directly.
+- Static edges aren't needed for handoff transitions — the agents drive routing. Declare `ends` on each node for the visualiser.
+- Expose handoff *as tools* (`transfer_to_X`) so the agent picks via its normal tool-calling reasoning.
+- Always pass context — either implicitly via `messages`, or explicitly via a `handoffNote` state field.
+- Handoff for clear peer transitions. Supervisor for centralised, stateful routing. Mix when the workflow demands both.
+</Recap>

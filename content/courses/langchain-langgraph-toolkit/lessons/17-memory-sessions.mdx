@@ -1,0 +1,143 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Checkpointing keeps a thread's state alive between invocations within one conversation. *Memory* — the topic of this lesson — is the broader concern of "what does the agent know across conversations and over time." There are two kinds, they require different tools, and conflating them causes most of the "why doesn't the agent remember me?" bugs you'll hit. This lesson is the distinction, the patterns, and the practical limits.
+
+## 01 — Short-term vs long-term memory
+
+- **Short-term memory** = the messages list in the current thread. Bounded by context window. Persisted by the checkpointer. Vanishes when you start a new thread.
+- **Long-term memory** = facts that survive across threads — user preferences, prior interactions, summaries. Persisted to your own store (Postgres, key-value, vector). Loaded into state at the start of each thread.
+
+If your bug is "the agent forgets within a conversation," it's a short-term memory issue. If it's "the agent forgets between conversations," it's long-term. The fix differs.
+
+## 02 — Sliding-window short-term memory
+
+Naive append-everything works until the messages list overflows the model's context. Two strategies, in order of complexity:
+
+**Trim oldest messages**:
+
+```ts
+import { trimMessages } from '@langchain/core/messages';
+
+async function agentNode(state: typeof State.State) {
+  const trimmed = await trimMessages(state.messages, {
+    maxTokens: 4000,
+    strategy: 'last',                          // keep the most recent
+    includeSystem: true,                       // never drop the system message
+    tokenCounter: model,
+  });
+  const reply = await model.invoke(trimmed);
+  return { messages: [reply] };
+}
+```
+
+`trimMessages` keeps the most recent messages that fit a token budget, optionally always preserving the system message. The model sees a coherent suffix of the conversation; old context is dropped. Cheap, simple, often enough.
+
+**Summarise older turns**:
+
+For long conversations where the early context still matters, periodically replace the oldest N messages with a one-paragraph summary:
+
+```ts
+async function summariseNode(state: typeof State.State) {
+  if (state.messages.length < 20) return {};   // not yet
+  const old = state.messages.slice(0, 10);
+  const summary = await model.invoke([
+    new SystemMessage('Summarise the following conversation in one paragraph for context.'),
+    ...old,
+  ]);
+  return {
+    messages: [
+      new SystemMessage(`Summary of earlier conversation: ${summary.content}`),
+      ...state.messages.slice(10),
+    ],
+  };
+}
+```
+
+Note: this *replaces* the messages list, which clashes with the append-only reducer. You either change the reducer to "use update directly when length differs" (advanced) or keep summarisation in a separate field and inject it at prompt time. We'll see the cleaner pattern in the project.
+
+## 03 — Long-term memory in your own store
+
+LangGraph doesn't ship a long-term memory primitive. You roll your own — and that's fine because it's a few dozen lines:
+
+```ts
+import { Pool } from 'pg';
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+async function loadMemory(userId: string) {
+  const r = await pool.query(`SELECT facts FROM agent_memory WHERE user_id=$1`, [userId]);
+  return r.rows[0]?.facts ?? [];
+}
+
+async function saveMemory(userId: string, fact: string) {
+  await pool.query(`
+    INSERT INTO agent_memory (user_id, facts) VALUES ($1, ARRAY[$2])
+    ON CONFLICT (user_id) DO UPDATE SET facts = agent_memory.facts || $2
+  `, [userId, fact]);
+}
+```
+
+Two functions: load the user's memories at the start of a thread, save new ones from inside the agent. Wire them into your graph:
+
+```ts
+const config = { configurable: { thread_id: sessionId, user_id: 'phuoc' } };
+
+async function preludeNode(state: typeof State.State, config: any) {
+  const memories = await loadMemory(config.configurable.user_id);
+  return {
+    messages: [
+      new SystemMessage(`Known facts about the user:\n${memories.join('\n')}`),
+      ...state.messages,
+    ],
+  };
+}
+```
+
+This is a deliberate choice: long-term memory is *your data*, with your auth, your retention policies, your encryption. Don't treat it as framework concern.
+
+## 04 — Episodic memory with vectors
+
+When the long-term memory grows past a few dozen facts, plain SQL retrieval becomes "stuff every fact into the prompt," which is wasteful and hits context limits. Switch to vector retrieval:
+
+```ts
+const memoryStore = await PGVectorStore.initialize(embeddings, {
+  postgresConnectionOptions: { connectionString: process.env.DATABASE_URL },
+  tableName: 'agent_memory',
+});
+
+async function recall(userId: string, query: string) {
+  return await memoryStore.similaritySearch(query, 4, { user_id: userId });
+}
+
+async function remember(userId: string, fact: string) {
+  await memoryStore.addDocuments([new Document({
+    pageContent: fact,
+    metadata: { user_id: userId, ts: Date.now() },
+  })]);
+}
+```
+
+The agent calls `recall` at the start of each thread (or as a tool when it suspects relevant memory exists) and `remember` when it learns something new. The pattern is structurally identical to RAG (lesson 10) — same retrieval mechanics, different corpus.
+
+## 05 — When *not* to give the agent memory
+
+Memory is a feature; it's also a liability. Five questions worth asking:
+
+- **Do users expect it?** Anonymous chat with random visitors usually doesn't need memory; account-bound assistants do.
+- **Is it personal data?** GDPR, deletion-on-request, encryption-at-rest — long-term memory inherits all your normal compliance work.
+- **Can wrong memory hurt?** A bad fact ("user is allergic to peanuts" stored as a wrong negation) cascades through every future conversation. Plan for correction.
+- **Is the budget there?** Embedding every conversation's facts costs real money on hosted providers. Local Ollama embeddings are free; hosted are not.
+- **Will it be visible?** Users who can't see what the agent "knows about them" eventually become users who don't trust the agent. Build a "what does it remember about me" UI before you ship long-term memory.
+
+<Callout type="note" title="LangGraph 0.2's BaseStore">
+LangGraph 0.2+ ships a `BaseStore` abstraction with an in-memory implementation (`InMemoryStore`) and Postgres backing (`PostgresStore`). It's a key-value store with namespaces and metadata filtering, designed exactly for long-term memory. Worth a look if you want a pre-built primitive instead of rolling your own. The patterns above still apply — `BaseStore` is the storage layer; the *what to remember* logic is yours.
+</Callout>
+
+<Recap>
+- Short-term memory = current thread's messages, bounded by context. Long-term = facts across threads, in your store.
+- Trim or summarise the messages list when it gets long. Trimming is simpler; summarisation preserves older context.
+- Long-term memory is your data — Postgres, vector store, key-value. Wire it into a prelude node that injects facts into state.
+- Vector-backed episodic memory uses the RAG pattern with a per-user filter. Same mechanics; different corpus.
+- Memory is a feature with a cost. Ship it deliberately: visible to users, deletable, scoped, and auditable.
+</Recap>

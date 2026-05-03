@@ -1,0 +1,87 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+A graph that completes in three seconds is a black box from the user's perspective. Streaming opens it up: every state update, every model token, every node entry and exit can be observed live. This lesson is the three streaming modes, what they emit, and how to wire each to the right kind of UI.
+
+## 01 — The three modes of `graph.stream()`
+
+```ts
+for await (const chunk of await graph.stream(input, { streamMode: 'values' })) { /* … */ }
+for await (const chunk of await graph.stream(input, { streamMode: 'updates' })) { /* … */ }
+for await (const chunk of await graph.stream(input, { streamMode: 'messages' })) { /* … */ }
+```
+
+- **`values`** — the *complete state* after each node finishes. One emission per node. Use for UI that re-renders on each state change.
+- **`updates`** — only the *delta* each node produced. One emission per node. Use for incremental UIs and for logs.
+- **`messages`** — token-level streaming of the model's output, plus node-level metadata. Use for chat UIs where the user sees the AI typing.
+
+You can subscribe to multiple modes by passing an array: `streamMode: ['updates', 'messages']`. The stream then emits tagged chunks — handy when you want both "step happened" and "token arrived" in one pipe.
+
+## 02 — `values` mode in practice
+
+```ts
+for await (const state of await graph.stream({ messages: [new HumanMessage('Hi')] }, { streamMode: 'values' })) {
+  console.log('after a node, state.messages.length =', state.messages.length);
+}
+```
+
+You receive the *entire* state after each node. That means the messages list (in our ReAct example) grows: 1, then 2, then 3, then 4. Useful for re-running the same render loop on each emission — pass the state to your React tree, render the agent, render the tool calls, render the answer, all idempotent.
+
+The cost: you're shipping the whole state on every step. For a tiny `messages`-only state it's negligible. For a large RAG state with hundreds of retrieved chunks, prefer `updates`.
+
+## 03 — `updates` mode in practice
+
+```ts
+for await (const update of await graph.stream(input, { streamMode: 'updates' })) {
+  // update is shaped like: { 'agent': { messages: [...] } }
+  for (const [nodeName, delta] of Object.entries(update)) {
+    console.log(`[${nodeName}]`, delta);
+  }
+}
+```
+
+Each emission is `{ <nodeName>: <partial-state> }`. A node that returned `{ messages: [aiReply] }` shows up as `{ agent: { messages: [aiReply] } }`. Build a UI around node names: a step list that fills in as `[agent]`, `[tools]`, `[agent]` arrive. You also get a clean log line for free.
+
+This is the mode you'll use most often during development. Console-log it for any new graph you build; the shape of the trace will tell you immediately whether your nodes and edges are doing what you think.
+
+## 04 — `messages` mode in practice
+
+For real chat UIs you want token-by-token streaming. `messages` mode delivers it:
+
+```ts
+for await (const [chunk, metadata] of await graph.stream(input, { streamMode: 'messages' })) {
+  if (metadata.langgraph_node === 'agent') {
+    process.stdout.write(chunk.content as string);
+  }
+}
+```
+
+The stream emits tuples: `[messageChunk, metadata]`. `metadata.langgraph_node` tells you which node produced the token; `chunk.content` is the fragment. Filter by node so a "thinking out loud" tool node doesn't spam your chat surface.
+
+For Server-Sent Events to a browser, this is the loop that produces the SSE payloads. Wrap each chunk's `content` in a JSON line, write to the response, flush. The "AI typing" effect users expect is exactly this stream piped through the network.
+
+## 05 — `streamEvents` for richer hooks
+
+`stream()` is enough for 90% of UIs. For deep observability — every model call's start/end, every chain step, every parser run — there's `streamEvents`:
+
+```ts
+for await (const ev of await graph.streamEvents(input, { version: 'v2' })) {
+  if (ev.event === 'on_chat_model_start') console.log('model start', ev.metadata);
+  if (ev.event === 'on_tool_end')          console.log('tool ended', ev.data.output);
+}
+```
+
+`streamEvents` emits one event per Runnable lifecycle hook — `on_chat_model_start`, `on_chat_model_stream`, `on_chat_model_end`, `on_tool_start`, `on_tool_end`, `on_chain_start`, etc. Use it when you're building an audit log, when you're piping events into a tracing service, or when you need to react to specific lifecycle moments in your UI. For most app code, stick with `stream({ streamMode: ... })`.
+
+<Callout type="note" title="Stream and persist together">
+Streaming and checkpointing (lesson 16) compose. A streamed run is also a *resumable* run: every state emission is also a state checkpoint. If the client disconnects, the work is on disk; reconnect with the same `thread_id`, replay the stream from the next pending node. The [going-to-production lesson in the AI in Your Project course](/courses/ai-in-your-project/lessons/24-going-to-production) shows the full pattern; once you've internalised both halves, "real-time AI" stops being scary and becomes a one-page setup.
+</Callout>
+
+<Recap>
+- `streamMode: 'values'` — full state per node. Easy to render; verbose for big states.
+- `streamMode: 'updates'` — partial state per node. Best default for development and for incremental UIs.
+- `streamMode: 'messages'` — model tokens with node metadata. Use for chat UIs.
+- Pass an array — `streamMode: ['updates', 'messages']` — to subscribe to multiple modes at once.
+- `streamEvents({ version: 'v2' })` exposes Runnable lifecycle hooks for tracing and audit logs.
+- Streaming + checkpointing = resumable workflows. Same code, just attach a checkpointer.
+</Recap>
