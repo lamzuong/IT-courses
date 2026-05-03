@@ -5,7 +5,7 @@ import { getCourseStats } from '@/lib/lesson-stats';
 import type { ReactNode } from 'react';
 
 type CardProps = {
-  variant: 'peach' | 'sage' | 'butter' | 'sky';
+  variant: 'peach' | 'sage' | 'moss' | 'butter' | 'sky';
   tag: string;
   title: string;
   summary: string;
@@ -153,6 +153,42 @@ function ArtAIOperator() {
   );
 }
 
+function ArtLangGraph() {
+  return (
+    <svg viewBox="0 0 140 140" width="140" height="140" fill="none">
+      <defs>
+        <linearGradient id="lg-node" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#fff" />
+          <stop offset="1" stopColor="#c5e8a8" />
+        </linearGradient>
+      </defs>
+      {/* state graph: agent ↔ tools loop with end node */}
+      <rect x="20" y="48" width="34" height="22" rx="6" fill="url(#lg-node)" stroke="#091610" strokeWidth="2" />
+      <text x="37" y="62" textAnchor="middle" fontFamily="ui-monospace" fontSize="8" fontWeight="600" fill="#091610">agent</text>
+
+      <rect x="74" y="22" width="34" height="22" rx="6" fill="#fff" stroke="#091610" strokeWidth="2" />
+      <text x="91" y="36" textAnchor="middle" fontFamily="ui-monospace" fontSize="8" fontWeight="600" fill="#091610">tools</text>
+
+      <rect x="74" y="74" width="34" height="22" rx="6" fill="#9ee04a" stroke="#091610" strokeWidth="2" />
+      <text x="91" y="88" textAnchor="middle" fontFamily="ui-monospace" fontSize="8" fontWeight="600" fill="#091610">end</text>
+
+      {/* agent → tools */}
+      <path d="M54 52 Q 64 42, 74 36" stroke="#0e6b3f" strokeWidth="2" fill="none" strokeLinecap="round" />
+      <path d="M73 35 l 4 -1 l 0 5" stroke="#0e6b3f" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {/* tools → agent (loop back) */}
+      <path d="M74 44 Q 60 46, 54 56" stroke="#0e6b3f" strokeWidth="2" fill="none" strokeLinecap="round" strokeDasharray="3 3" />
+      <path d="M55 56 l -4 1 l 0 -5" stroke="#0e6b3f" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {/* agent → end */}
+      <path d="M54 66 Q 64 76, 74 84" stroke="#0e6b3f" strokeWidth="2" fill="none" strokeLinecap="round" />
+      <path d="M73 83 l 4 1 l 0 -5" stroke="#0e6b3f" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+
+      {/* small "checkpoint" disk */}
+      <circle cx="118" cy="118" r="9" fill="#fff" stroke="#091610" strokeWidth="2" />
+      <circle cx="118" cy="118" r="3" fill="#0e6b3f" />
+    </svg>
+  );
+}
+
 // ─── page ──────────────────────────────────────────────────────────────────
 
 function formatHours(minutes: number): string {
@@ -164,13 +200,17 @@ function formatHours(minutes: number): string {
 export default async function Home() {
   const courses = getAllCourses();
   const aiCourse = courses.find((c) => c.slug === 'ai-in-your-project')!;
+  const lcCourse = courses.find((c) => c.slug === 'langchain-langgraph-toolkit')!;
   const dndCourse = courses.find((c) => c.slug === 'drag-drop-react')!;
 
   const aiLessonCount = flattenLessons(aiCourse).length;
+  const lcLessonCount = flattenLessons(lcCourse).length;
   const dndLessonCount = flattenLessons(dndCourse).length;
   const aiStats = await getCourseStats(aiCourse.slug, aiCourse.parts);
+  const lcStats = await getCourseStats(lcCourse.slug, lcCourse.parts);
   const dndStats = await getCourseStats(dndCourse.slug, dndCourse.parts);
   const aiTotalRead = formatHours(aiStats.totalMinutes);
+  const lcTotalRead = formatHours(lcStats.totalMinutes);
   const dndTotalRead = formatHours(dndStats.totalMinutes);
 
   return (
@@ -206,6 +246,23 @@ export default async function Home() {
             footerLeft={`${aiLessonCount} lessons · ${aiTotalRead} read`}
             cta={{ label: 'Begin reading', href: `/courses/${aiCourse.slug}` }}
             illustration={<ArtAIOperator />}
+          />
+
+          <CourseCard
+            variant="moss"
+            tag="Complete"
+            title={lcCourse.title}
+            summary={lcCourse.summary}
+            stats={[
+              { label: 'lessons', value: String(lcLessonCount) },
+              { label: 'parts',   value: String(lcCourse.parts.length) },
+              { label: 'project', value: '1' },
+            ]}
+            pct={100}
+            pctLabel="Complete"
+            footerLeft={`${lcLessonCount} lessons · ${lcTotalRead} read`}
+            cta={{ label: 'Begin reading', href: `/courses/${lcCourse.slug}` }}
+            illustration={<ArtLangGraph />}
           />
 
           <CourseCard
