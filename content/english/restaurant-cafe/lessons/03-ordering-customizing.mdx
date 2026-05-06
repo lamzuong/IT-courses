@@ -1,0 +1,159 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Bạn đã quyết định xong — thực đơn gấp lại, server đang nhìn bạn với quyển sổ trên tay. Đây là khoảnh khắc gọi món thực sự, và nó thường diễn ra nhanh hơn bạn nghĩ. Bài này đi vào chính xác cái bạn cần: cách đặt món rõ ràng, cách yêu cầu thay đổi nguyên liệu hoặc món kèm, cách gọi chung khi ăn theo nhóm, và cái *sắc thái register* thú vị mà người học tiếng Anh thường bỏ qua — giữa "I want X" và "I'll go with X" là cả một khoảng cách văn hoá.
+
+## 01 — Bối cảnh
+
+Thực đơn đã được đọc, câu hỏi về thành phần đã được giải đáp (xem Bài 02), và server vừa quay lại với câu quen thuộc: *"Are you ready to order?"*. Lúc này bạn có thể gọi một món đơn giản, hoặc đặt nhiều phần theo thứ tự (khai vị rồi món chính), hoặc phối hợp với người cùng bàn để gọi chung một món khai vị trong khi mỗi người có món chính riêng. Thêm vào đó là các yêu cầu tuỳ chỉnh — đổi món phụ, bỏ một thành phần, chọn mức chín của steak — tất cả đều cần ngôn ngữ lịch sự và cụ thể để server hiểu đúng ngay lần đầu.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "to order", ipa: "ˈɔːrdər", vi: "gọi món", example: "Are you ready to order?" },
+  { en: "for me / for him / for her", vi: "cho tôi / cho anh ấy / cho cô ấy — dùng khi chỉ định món cho từng người trong nhóm", example: "The steak for me, and the pasta for her." },
+  { en: "to start with… and then…", vi: "khai vị… rồi sau đó… — cấu trúc đặt món nhiều phần", example: "To start with the soup, and then the salmon." },
+  { en: "to share", vi: "gọi chung / chia — một món cho cả bàn cùng ăn", example: "We'll share the bruschetta to start." },
+  { en: "instead of", ipa: "ɪnˈsted əv", vi: "thay vì — dùng khi yêu cầu đổi thành phần hoặc món kèm", example: "Could I get the salad instead of fries?" },
+  { en: "extra (cheese, sauce)", vi: "thêm — yêu cầu thêm một thành phần cụ thể", example: "Could I get extra cheese on that?" },
+  { en: "on the side", vi: "để riêng bên cạnh — thường dùng cho nước sốt hoặc dressing (xem thêm Bài 02)", example: "Can I have the dressing on the side?" },
+  { en: "dressing", ipa: "ˈdrɛsɪŋ", vi: "sốt salad — nước sốt rưới lên salad", example: "What dressing comes with the Caesar?" },
+  { en: "cooked / done", vi: "chín — trạng thái chín của thịt, đặc biệt steak", example: "How would you like that cooked?" },
+  { en: "rare / medium-rare / medium / medium-well / well done", vi: "tái / chín tái / chín vừa / gần chín kỹ / chín kỹ — toàn bộ các mức độ chín của steak", example: "I'll have mine medium-rare, please." },
+  { en: "I'll go with", vi: "tôi chọn — cách nói tự nhiên, thân mật khi quyết định món", example: "I'll go with the grilled chicken." },
+  { en: "to skip (X)", vi: "bỏ X — yêu cầu không cho thành phần cụ thể vào món", example: "Could I skip the onions?" },
+]} />
+
+## 03 — Mẫu câu
+
+Sáu mẫu câu dưới đây phủ từ lúc bạn mở miệng gọi món đến khi server ghi xong đơn. Học thuộc cả mẫu *và* các biến thể — chúng nghe tự nhiên hơn nhiều so với "I want this."
+
+<Pattern
+  en="I'll have the salmon, please."
+  vi="Cho tôi món cá hồi nhé."
+  variations={[
+    "I'll go with the steak, please.",
+    "Could I get the mushroom pasta?",
+    "The Caesar salad for me, please.",
+    "I'll take the soup of the day.",
+  ]}
+  note={`"I'll have the…" là cách mở đầu gọi món phổ biến nhất và tự nhiên nhất ở Mỹ và Anh — không quá trang trọng, không quá thân mật. "I want the…" nghe thẳng và ít lịch sự hơn; tránh dùng trong cảnh nhà hàng.`}
+/>
+
+<Pattern
+  en="To start, I'll go with the French onion soup, and then the grilled chicken."
+  vi="Khai vị tôi chọn súp hành Pháp, rồi sau đó là gà nướng."
+  variations={[
+    "To start with the bruschetta, and then the risotto for my main.",
+    "I'd like the Caesar salad to start, followed by the sirloin.",
+    "Could I do a starter and then a main — the soup first, then the pasta?",
+  ]}
+  note={`Cấu trúc "To start… and then…" báo rõ cho server thứ tự món — giúp họ ra đúng lúc và không mang khai vị và món chính ra cùng một lúc. Thêm "for my main" hoặc "for a main" để xác nhận đó là món chính.`}
+/>
+
+<Pattern
+  en="Could I get the Caesar salad without the croutons?"
+  vi="Cho tôi salad Caesar bỏ bánh mì nướng được không?"
+  variations={[
+    "Could I have the pasta without mushrooms?",
+    "Is it possible to skip the onions?",
+    "I'd like the burger without the pickles, please.",
+    "Could I get that without the sauce?",
+  ]}
+  note={`"Could I get the [dish] without [ingredient]?" là cấu trúc lịch sự chuẩn để loại bỏ thành phần. Tránh dùng dạng mệnh lệnh như "No croutons" hoặc "Remove the mushrooms" — nghe thô lỗ và không rõ ràng bằng.`}
+/>
+
+<Pattern
+  en="Can I substitute the fries for a salad, please?"
+  vi="Tôi có thể đổi khoai tây chiên bằng salad được không?"
+  variations={[
+    "Could I swap the rice for extra vegetables?",
+    "Would it be possible to get mashed potatoes instead of fries?",
+    "Could I have a side salad instead of the coleslaw?",
+  ]}
+  note={`Cấu trúc "substitute X for Y" và "swap X for Y" đều dùng được — "substitute" trang trọng hơn một chút. Xem thêm Bài 02 về cách hỏi nếu có phí đổi món thêm ("Is there an extra charge for that?").`}
+/>
+
+<Pattern
+  en="How would you like that cooked?"
+  vi="Bạn muốn món đó chín như thế nào?"
+  variations={[
+    "How do you want your steak done?",
+    "What temperature would you like for the beef?",
+  ]}
+  note={`Đây là *câu của server* — nhưng bạn cần biết để trả lời đúng. Câu trả lời là một tính từ: "medium-rare", "medium", "well done" — không phải một động từ hay mệnh đề. Sai phổ biến: "I want it to be cooked medium" → Đúng hơn: "Medium-rare, please." hoặc "I'll go with medium-rare."`}
+/>
+
+<Pattern
+  en="We'll share the calamari, and then the sirloin for me, the pasta for her."
+  vi="Chúng tôi sẽ gọi chung calamari, rồi thịt bò sirloin cho tôi, pasta cho cô ấy."
+  variations={[
+    "We'll start with a shared appetizer — the bruschetta — and then individual mains.",
+    "Could we get the cheese plate to share? And then the salmon for me and the chicken for him.",
+    "We'll share the garlic bread to start. I'll have the steak and he'll have the fish.",
+  ]}
+  note={`Khi gọi chung khai vị, nói rõ "to share" hoặc "shared" để server không mang hai phần. Sau đó chuyển sang món chính của từng người bằng "for me / for him / for her" — server sẽ ghi và xác nhận lại với bạn.`}
+/>
+
+## 04 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "Server", en: "Great — are you folks ready to order?", vi: "Tốt — các bạn đã sẵn sàng gọi món chưa?" },
+  { speaker: "You", en: "Yes, we are. We'll share the bruschetta to start, please.", vi: "Rồi. Chúng tôi muốn gọi chung bruschetta làm khai vị nhé." },
+  { speaker: "Server", en: "Perfect. And for your mains?", vi: "Tuyệt. Còn món chính?" },
+  { speaker: "You", en: "I'll go with the ribeye steak, please — medium-rare. And could I substitute the fries for a side salad?", vi: "Cho tôi bít tết ribeye — chín tái vừa. Và tôi có thể đổi khoai tây chiên bằng salad bên không?" },
+  { speaker: "Server", en: "Of course. And the dressing for the salad?", vi: "Được thôi. Nước sốt salad bạn dùng loại nào?" },
+  { speaker: "You", en: "Could I have the balsamic on the side, please?", vi: "Cho sốt balsamic để riêng bên được không?" },
+  { speaker: "Friend", en: "I'll have the tagliatelle, please — could I skip the mushrooms? I'm not a fan.", vi: "Cho tôi tagliatelle — bỏ nấm nhé? Tôi không thích lắm." },
+  { speaker: "Server", en: "No problem. So that's one shared bruschetta, one ribeye medium-rare with a side salad and balsamic on the side, and one tagliatelle without mushrooms — is that right?", vi: "Không vấn đề. Vậy là một phần bruschetta gọi chung, một ribeye chín tái với salad và sốt balsamic để riêng, và một tagliatelle không nấm — đúng không ạ?" },
+  { speaker: "You", en: "Yes, that's exactly right — thank you!", vi: "Đúng rồi, chính xác — cảm ơn bạn!" },
+]} />
+
+## 05 — Lỗi thường gặp
+
+<Mistake
+  wrong="I want this and this."
+  right="I'll have the salmon, please — and the Caesar salad to start."
+  why={`Chỉ tay vào thực đơn mà không nói tên món khiến server phải đoán — đặc biệt khi đứng xa bàn hoặc bàn đông người. Gọi đúng tên món giúp tránh nhầm lẫn, và câu "I'll have the [tên món]" nghe chuyên nghiệp và lịch sự hơn rất nhiều so với "I want this." Server không thể đọc ngón tay của bạn.`}
+/>
+
+<Mistake
+  wrong="Make it without onion."
+  right="Could I have the pasta without onion, please?"
+  why={`"Make it without onion" dùng dạng mệnh lệnh — nghe như lệnh, không phải yêu cầu lịch sự. Trong tiếng Anh dịch vụ, dạng "Could I have…?" hoặc "Is it possible to…?" là chuẩn mực. Ngoài ra, câu đúng nên nhắc tên món ("the pasta") để server chắc chắn bạn đang nói về món nào — đặc biệt khi gọi nhiều món cùng lúc.`}
+/>
+
+## 06 — Văn hoá & sắc thái
+
+Ở Mỹ, yêu cầu tuỳ chỉnh món ăn là điều **hoàn toàn bình thường và được chào đón** — không ít nhà hàng còn tự hào vì sự linh hoạt đó. Bạn hoàn toàn có thể đổi món phụ, bỏ một thành phần, hoặc yêu cầu thêm sốt mà không cảm thấy ngại ngùng.
+
+Tuy nhiên, ở một số nhà hàng fine-dining châu Âu — đặc biệt Pháp và Ý — yêu cầu thay đổi công thức gốc của bếp trưởng đôi khi bị xem là thiếu tôn trọng. Trong những bối cảnh đó, tốt nhất là hỏi nhẹ nhàng trước: *"Is it possible to…?"* thay vì khẳng định. Riêng mức độ chín của steak thì được hỏi **ở mọi nơi** — đây là thông tin bếp cần, không phải yêu cầu tuỳ chỉnh đặc biệt.
+
+Một kỹ năng nhỏ nhưng quan trọng: khi server **xác nhận lại đơn**, hãy lắng nghe kỹ. Nếu đúng, nói `Yes, that's right` hoặc `Perfect, thank you`. Nếu có sai sót, sửa nhẹ nhàng: `Actually, I said medium-well, not well done` — không cần xin lỗi hay to tiếng, chỉ cần rõ ràng và bình tĩnh.
+
+<Callout type="note" title="Confirming the order back — đừng bỏ qua bước này">
+Khi server đọc lại đơn của bạn, đây không phải formalité — đây là cơ hội cuối cùng để sửa trước khi đồ ăn ra bếp. Hãy chủ động lắng nghe và phản hồi, dù chỉ bằng một câu `Yes, that's right`.
+</Callout>
+
+## 07 — Idiom & cụm tự nhiên
+
+- **`to go for [the steak]`** — chọn món gì, quyết định món cụ thể. *"I think I'm going to go for the ribeye tonight."*
+- **`make it two`** — cho hai phần như nhau, dùng khi người cùng bàn muốn gọi món giống bạn. *"I'll have the burger." / "Make it two — same for me."*
+- **`the works`** — mọi topping hoặc nguyên liệu đi kèm, không bỏ gì. *"I'll take a hot dog with the works."* — ngược lại với "skip the toppings".
+- **`well done`** — (1) mức chín kỹ của steak: *"I'll have mine well done."*; (2) lời khen ngợi thành tích: *"Well done on finishing the course!"* — cùng một cụm, hai nghĩa hoàn toàn khác nhau tuỳ ngữ cảnh.
+- **`pricey but worth it`** — đắt nhưng đáng. *"The tasting menu is pricey but worth it — every dish was incredible."*
+
+## 08 — Tự luyện
+
+1. **Speak:** Nói to một bữa ăn hai món: dùng cấu trúc "To start, I'll go with the [khai vị], and then the [món chính]." Sau đó thêm ít nhất một yêu cầu tuỳ chỉnh (bỏ thành phần, đổi món kèm, hoặc chọn mức chín).
+2. **Viết:** Bạn bị dị ứng với gluten (dù thực tế không phải vậy). Viết một đoạn 4–5 câu gọi món và tuỳ chỉnh — dùng ít nhất ba cấu trúc khác nhau từ bài này.
+3. **Đổi vai:** Bạn *là* server. Một khách vừa gọi xong: steak medium-rare với salad thay khoai tây, sốt để riêng, và một phần súp gọi chung với bạn cùng bàn. Đọc lại đơn hoàn chỉnh cho khách xác nhận — bằng giọng tự nhiên, không đọc như robot.
+
+<Recap>
+- "I'll have the…", "I'll go with the…", "Could I get the…" — ba cách mở đầu gọi món lịch sự và tự nhiên; tránh "I want the…".
+- Cấu trúc "To start… and then…" giúp server biết thứ tự phục vụ món đúng lúc.
+- "Could I get the [dish] without [ingredient]?" và "Can I substitute X for Y?" là hai cấu trúc tuỳ chỉnh cốt lõi.
+- Mức chín của steak: rare → medium-rare → medium → medium-well → well done — trả lời bằng tính từ, không cần câu dài.
+- Khi gọi chung, nói "to share" rõ ràng; khi gọi theo người, dùng "for me / for him / for her".
+- Khi server xác nhận lại đơn, lắng nghe kỹ và phản hồi: "Yes, that's right" hoặc sửa ngay nếu có sai sót.
+</Recap>
