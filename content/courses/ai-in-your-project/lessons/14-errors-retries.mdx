@@ -12,6 +12,19 @@ Zod is doing a lot of work for you here. When the model sends `discountValue: 15
 
 This is the most common error class in practice and the cheapest to handle. Every tool in your system gets the same treatment: tight Zod schemas, clear violation messages, no manual error parsing. *"Field X must be Y, you sent Z"* is the template. The model can read that.
 
+A full round-trip on a validation slip:
+
+```
+turn 1 → model emits:  createPromo({ code: "save15", discountValue: 150 })
+         Zod rejects:  ["code: must match /^[A-Z0-9_-]+$/, you sent 'save15'",
+                        "discountValue: must be ≤ 100, you sent 150"]
+
+turn 2 → model retries: createPromo({ code: "SAVE15", discountValue: 15 })
+         Zod accepts;   tool runs; returns the new row.
+```
+
+You wrote zero retry logic. The model read the violation message and fixed both fields on its own.
+
 ## Business-rule errors — recoverable with a hint
 
 Some failures are not type violations — the args parse fine, but the operation can't proceed. *"Promo code WELCOME10 already exists."* *"Customer 999 has been deleted."* *"That email address has unsubscribed."* These are business rules; Zod can't catch them, and the database can't either until the actual write fires.
@@ -39,6 +52,31 @@ The third category is failures the model *cannot* fix by retrying with different
 The right response is to mark the error as transient and let the orchestrator (not the model) decide the retry policy. A standard shape: `{ ok: false, error: 'TransientError: upstream timeout. Retry safe.', retriable: true }`. The model sees the message but doesn't change its args; the orchestrator catches the `retriable: true` flag and retries with exponential backoff. After three failures, the orchestrator gives up and surfaces the failure to the user — *"I couldn't reach the database, please try again in a minute."*
 
 The principle: **the model handles arg-level errors, the orchestrator handles infrastructure errors, and the user handles the rest.** Never push infrastructure decisions into the model's context — it doesn't know your retry budget and shouldn't have to.
+
+A full handler with the three categories side by side:
+
+```ts
+async function createPromoTool(args) {
+  try {
+    const parsed = promoSchema.parse(args);              // category 1: validation
+    const row = await db.insert(promotions).values(parsed).returning();
+    return { ok: true, data: row };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { ok: false, error: zodToHint(e) };          // model retries with fix
+    }
+    if (isUniqueConstraint(e, 'code')) {                   // category 2: business rule
+      return { ok: false, error: `code "${args.code}" exists. Try "${args.code}-V2".` };
+    }
+    if (isTimeoutOr5xx(e)) {                               // category 3: infra
+      return { ok: false, error: 'TransientError: DB timeout. Retry safe.', retriable: true };
+    }
+    throw e;                                               // unknown — bubble up
+  }
+}
+```
+
+One function, one envelope, three failure modes — each routed to whoever can actually fix it.
 
 <Callout type="tip" title="Wrap every tool function in try/catch and return a result envelope">
 Throw inside a LangChain tool and the error becomes a noisy, framework-mediated string the model has to parse around — *"Error: ZodError: ..."* with a stack trace appended. Wrap your function body in `try/catch` and return `{ ok: true, data }` or `{ ok: false, error }`. The model can read either branch. Your tests can read either branch. Your traces can read either branch. The single envelope shape pays for itself the first day.

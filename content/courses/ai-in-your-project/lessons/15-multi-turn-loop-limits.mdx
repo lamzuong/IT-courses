@@ -24,6 +24,38 @@ If you decided to fix this without help, you'd reach for the same tools every fr
 
 By the time you've got all of that working — really working, with timeouts and retries and resumption tokens — you'll have spent a couple of weeks reinventing a state-machine library, badly. There's nothing wrong with that learning trajectory. There's also no reason to do it twice when someone has done it well already.
 
+The trajectory in pseudocode, just so the inevitability is concrete:
+
+```ts
+// Day 1 — the lesson 14 loop
+while (lastMessage.tool_calls?.length) {
+  const results = await runToolCalls(lastMessage.tool_calls);
+  messages.push(...results);
+  lastMessage = await model.invoke(messages);
+}
+
+// Day 7 — "we need to ask before writes"
+while (lastMessage.tool_calls?.length) {
+  const writes = lastMessage.tool_calls.filter(isWrite);
+  if (writes.length) {
+    const decision = await askUser(writes);   // ← but how do you save state if the user closes the tab?
+    if (!decision.approve) break;
+  }
+  // ...
+
+// Day 21 — pausable, with state, branching, retries, persistence
+type State = { messages: BaseMessage[]; pending?: ToolCall[]; phase: 'plan' | 'confirm' | 'execute' };
+const checkpoint = await loadCheckpoint(threadId);
+let state = checkpoint ?? { messages: [], phase: 'plan' };
+while (state.phase !== 'done') {
+  state = await STEP_FUNCTIONS[state.phase](state);
+  await saveCheckpoint(threadId, state);
+  if (state.phase === 'confirm') return { interrupt: state.pending };
+}
+```
+
+By the end you've written nodes (`STEP_FUNCTIONS`), edges (the `phase` transitions), state, and checkpointing — the four primitives the next lesson introduces with names and tests.
+
 ## The pivot
 
 LangGraph is, very precisely, the state machine you'd otherwise write yourself, well-engineered, with the API conventions LangChain users already know. State + nodes + edges; conditional routing; pauses, resumption, persistence; streaming; first-class checkpointing. It looks at the bare loop the same way you do — *"this is fine for one-shot Q&A and not enough for anything else"* — and gives you the next layer up without throwing away what you already know.

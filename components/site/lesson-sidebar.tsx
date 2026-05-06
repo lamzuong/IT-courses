@@ -2,6 +2,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { Course } from '@/content/courses/types';
+import { lessonNumberFromSlug } from '@/lib/courses';
 
 const STORAGE_KEY = 'lesson-toc-scroll';
 
@@ -75,7 +76,7 @@ export function LessonSidebar({
             {part.lessons.map((lesson) => {
               lessonCounter += 1;
               const active = lesson.slug === currentLessonSlug;
-              const num = lessonCounter;
+              const num = lessonNumberFromSlug(lesson.slug, lessonCounter);
               return (
                 <li key={lesson.slug} className="toc-item-wrap">
                   <Link
@@ -84,7 +85,7 @@ export function LessonSidebar({
                     aria-current={active ? 'page' : undefined}
                     className={`toc-item ${active ? 'is-active' : ''}`}
                   >
-                    <span className="toc-num">{String(num).padStart(2, '0')}</span>
+                    <span className="toc-num">{num}</span>
                     <span className="toc-title">{lesson.title}</span>
                   </Link>
                 </li>

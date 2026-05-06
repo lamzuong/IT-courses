@@ -19,6 +19,7 @@ export const course: Course = {
     {
       title: 'Before you touch AI',
       lessons: [
+        { slug: '00-technical-terms',       title: 'Technical terms — a glossary',              summary: 'Skim once, keep open: every LLM, LangChain and LangGraph term used in the course.' },
         { slug: '01-what-this-teaches',     title: 'What this course teaches',                  summary: 'Agents vs chat, tool calling, why human-in-the-loop matters.' },
         { slug: '02-inventory-domain',      title: 'Inventory your domain',                     summary: 'What\'s AI-callable in your app — schema, intents, actions.' },
         { slug: '03-setup-ollama-skeleton', title: 'Setup: Ollama + project skeleton',          summary: 'Install Ollama, pull a model, scaffold the route handler.' },

@@ -18,6 +18,38 @@ That's roughly the whole list. Anything that isn't schema, samples, or definitio
 
 The key property is *reusability*: this stuff doesn't change between conversations. You pay the tokens once at design time and amortize them over every turn. Compare that to per-request data (the customer's actual order history, last week's revenue) which we'll feed via tools instead — see lesson 9.
 
+Concretely, the "data" block of the AI Operator's system prompt looks like this:
+
+```md
+## Schema (cached)
+
+CREATE TABLE customers (
+  id TEXT PRIMARY KEY,
+  name TEXT, email TEXT, last_order_at TIMESTAMP,
+  tags JSONB
+);
+CREATE TABLE promotions (
+  id TEXT PRIMARY KEY, code TEXT UNIQUE,
+  discount_type TEXT CHECK (discount_type IN ('percent','fixed')),
+  discount_value INT, ends_at TIMESTAMP, active BOOLEAN
+);
+
+## Sample rows
+
+customers: { id:"c_001", name:"Phuoc Luu", email:"phuoc@…",
+             last_order_at:"2026-02-14", tags:["vip","newsletter"] }
+promotions: { id:"p_007", code:"LAPSED15", discount_type:"percent",
+              discount_value:15, ends_at:"2026-05-31", active:true }
+
+## Definitions
+
+- "Lapsed" customer = last_order_at older than 60 days.
+- "VIP" customer = has tag "vip" OR lifetime_spend > $1000.
+- All promo codes are UPPERCASE, alphanumeric, no spaces.
+```
+
+About 200 tokens. Once. The model now knows your column names, your data shapes, and the two business terms it would otherwise guess at.
+
 ## 02 — What NOT to put in context
 
 The mirror image. Things that look helpful and aren't:
@@ -53,6 +85,23 @@ Every character in the system prompt is paid for on every turn. Some quick math 
 That number is small enough to ignore at a hobby project, large enough to matter at scale. The fix isn't to make the schema smaller — it's to use prompt caching. Most providers will cache an unchanged prefix and bill it at a fraction of the live rate (sometimes 10%). Put your schema and definitions at the *top* of the system prompt, in a fixed order, and you can keep them in the cache for hours.
 
 We'll wire prompt caching properly in Part V. The point for now: design your context as if you'll cache it. Stable bits at the top, per-turn bits at the bottom.
+
+The layout, concretely:
+
+```md
+[CACHED — never changes between turns]
+1. Role + constraints (lesson 5 template)
+2. Schema CREATE TABLE blocks
+3. Sample rows
+4. Business definitions
+
+[NOT CACHED — changes per turn]
+5. Today's date: 2026-05-07
+6. Operator's name: Phuoc
+7. Recent conversation history
+```
+
+Even one variable token (today's date) at the top of the prompt invalidates the entire cache for the rest of it. Push the volatile bits to the very end and the first ~2,000 tokens stay warm all day.
 
 <Callout type="warning" title="Don't paste your users table into the prompt">
 A common mistake: copying a SELECT result into the system prompt so "the model has the data." Don't. Pass the user's *id* in the prompt, then call a `get_customer(id)` tool to fetch the row server-side. Sensitive fields stay on the server; tokens stay small; the schema is the same as production.

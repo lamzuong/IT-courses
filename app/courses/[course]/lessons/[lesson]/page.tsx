@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { getAllCourses, getLesson, flattenLessons } from '@/lib/courses';
+import { getAllCourses, getLesson, flattenLessons, lessonNumberFromSlug } from '@/lib/courses';
 import { getLessonStats, partOfLesson } from '@/lib/lesson-stats';
 import { LessonSidebar } from '@/components/site/lesson-sidebar';
 import { Breadcrumb } from '@/components/site/breadcrumb';
@@ -41,7 +41,7 @@ export default async function LessonPage({ params }: { params: Promise<Params> }
 
   const stats = await getLessonStats(courseSlug, lessonSlug);
   const part = partOfLesson(ctx.course.parts, lessonSlug);
-  const lessonNum = String(ctx.index + 1).padStart(2, '0');
+  const lessonNum = lessonNumberFromSlug(lessonSlug, ctx.index + 1);
   const totalNum = String(ctx.total).padStart(2, '0');
 
   return (

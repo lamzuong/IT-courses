@@ -12,6 +12,25 @@ When you call `model.bindTools([searchCustomers, createPromo, sendEmail])`, the 
 
 The framework's default is permissive. The system you build on top of it has to be restrictive. There is no setting in `bindTools` for *"ask the user first"* — that gate is something you add in your application logic, between the model's tool call and the actual mutation. Until lesson 19 introduces LangGraph's `interrupt` primitive we'll build it by hand, but the principle is the same: a write tool call is a *proposal*, not an instruction.
 
+What "permissive default" looks like in code:
+
+```ts
+// All three tools live at the same trust level. The model picks freely.
+const model = chat.bindTools([searchCustomers, createPromo, sendEmail]);
+
+await model.invoke([
+  { role: 'user', content: 'Email LAPSED15 to everyone who hasn\'t ordered in 60d.' },
+]);
+
+// What just happened, in order:
+//   1. searchCustomers({ lapsedDays: 60 })   ← read, fine
+//   2. createPromo({ code: 'LAPSED15', discount: 15 })  ← live in DB
+//   3. sendEmail({ to: [...47 addresses] })  ← already in 47 inboxes
+// You are now writing the apology post.
+```
+
+Same code reorganised with a gate is the rest of this lesson.
+
 ## Two bad patterns and one good one
 
 The first bad pattern is *"I'll just trust the model."* This is what every AI demo on the internet looks like and what no production system should. The model is right most of the time. Most-of-the-time is the failure mode.
@@ -19,6 +38,27 @@ The first bad pattern is *"I'll just trust the model."* This is what every AI de
 The second bad pattern is *"I'll add a manual review queue."* Workable, but slow and expensive. The model proposes the write, the proposal lands in a queue, a human reviews it later, the write fires asynchronously. For low-frequency, high-stakes operations this is fine. For *"create this promo and email these seven people right now"* it's a UX disaster — the user is sitting at their screen waiting.
 
 The third pattern, the one we'll build, is the **per-call confirmation gate.** Every time the model proposes a write, your app intercepts the call, shows the user a card describing the proposed mutation, and only fires the actual database call after they click Approve. The gate is structural — it lives in the orchestrator, not in the prompt — so it cannot be talked away by clever input.
+
+The three patterns side by side:
+
+```
+❌ Trust:    user prompt → model → write tool fires → DB changed
+                                                     (you find out from a Slack ping)
+
+⚠️  Queue:   user prompt → model → write tool → queue
+                                                  ↓ (hours later)
+                                              human reviews
+                                                  ↓
+                                              DB changed
+                                              (user has long since closed the tab)
+
+✅ Gate:    user prompt → model → write proposal → confirmation card
+                                                       ↓ Approve
+                                                  write tool fires → DB changed
+                                                  (user is still there, audit logged)
+```
+
+The gate keeps the interactive feel of "trust" while having the safety of "queue" — the user is in the loop, but the loop is one click long.
 
 ## What confirmation looks like
 

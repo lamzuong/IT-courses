@@ -44,6 +44,28 @@ Models trip on free-form open requests but lock onto explicit shapes. Specifying
 
 A subtle bonus: format pinning makes downstream parsing reliable. If you say "JSON with these three keys," every response you get back can be `JSON.parse`d without defensive code. Without the constraint you'll write a parser that handles bullet lists, paragraphs, and numbered lists, and it will still break.
 
+Same task, two prompts, two very different downstream problems:
+
+```md
+Prompt A (loose):  Tell me about customer 42's recent activity.
+
+→ "Customer 42, Phuoc Luu, has been quite active lately! He placed
+   an order on Tuesday for $89, and another last Friday. His most
+   recent purchase was the linen apron — a popular item this season."
+   (now go write a regex that finds the order count)
+```
+
+```md
+Prompt B (pinned): Tell me about customer 42's recent activity.
+                   Reply as JSON: { "name": string, "order_count": number,
+                   "last_order_at": ISO8601 }.
+
+→ {"name":"Phuoc Luu","order_count":2,"last_order_at":"2026-04-30"}
+   (JSON.parse and you're done)
+```
+
+Twelve extra words in the prompt; an entire layer of fragile parsing code deleted.
+
 ## 03 — Toggle the lift
 
 Same user input. The only thing that changes is whether three examples sit above it.
@@ -71,6 +93,21 @@ A short list of techniques that have either negligible effect or negative effect
 The reliable lift is in *what the model sees* (examples, format, schema), not *how you address it*. Save your characters for the part that actually changes the output.
 
 A quick heuristic: when you're tempted to add another adjective, add another example instead. Adjectives are cheap and the model usually ignores them. Examples are slightly more expensive and the model almost always copies them.
+
+To make the contrast concrete:
+
+```md
+❌ Worse:  "You are a WORLD-CLASS expert customer service AI with 20 years
+           of experience. PLEASE classify this feedback CORRECTLY!!!
+           I REALLY need this to work. Input: 'Wrong color sent.'"
+
+✅ Better: "Classify customer feedback.
+           Input: 'Too small.'   Output: {category:'sizing', severity:'low'}
+           Input: 'Never arrived.' Output: {category:'shipping', severity:'high'}
+           Input: 'Wrong color sent.' Output:"
+```
+
+The first prompt spends ~50 tokens on theatre. The second spends ~40 tokens on demonstration and produces JSON the model will actually copy.
 
 <Recap>
 - Two techniques produce a real lift: few-shot examples and format pinning. Most everything else is folklore.

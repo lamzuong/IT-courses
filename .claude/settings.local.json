@@ -59,7 +59,20 @@
       "Read(//c/Users/ADMIN/AppData/Local/Temp/claude/C--Users-ADMIN-Desktop-claude-demo-IT-courses/bcf04f38-bb96-4bb0-ad2f-b10bfef7a1cd/tasks/**)",
       "Read(//c/Users/ADMIN/Desktop/claude-demo/IT-courses/**)",
       "Bash(ps -W)",
-      "Bash(npx tsx *)"
+      "Bash(npx tsx *)",
+      "PowerShell(New-Item *)",
+      "Bash(npx vitest *)",
+      "Bash(Test-Path \"components/mdx/english/dialogue.tsx\")",
+      "Bash(Test-Path \"components/mdx/english/mistake.tsx\")",
+      "Bash(Write-Output \"Both files exist\")",
+      "Bash(Select-String -Path \"C:\\\\Users\\\\ADMIN\\\\Desktop\\\\claude-demo\\\\IT-courses\\\\lib\\\\english.ts\" -Pattern \"export\")",
+      "Bash(Select-Object -First 30)",
+      "Bash(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\ADMIN\\\\Desktop\\\\claude-demo\\\\IT-courses\\\\app\\\\english\\\\[topic]\" -Force)",
+      "Bash(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\ADMIN\\\\Desktop\\\\claude-demo\\\\IT-courses\\\\app\\\\english\\\\[topic]\\\\lessons\\\\[lesson]\" -Force)",
+      "Bash(Test-Path *)",
+      "Bash(awk -F\"'\" '{print $2}')",
+      "Bash(node -e ' *)",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); routes=[k for k in data['routes'].keys\\(\\) if 'english' in k]; print\\('\\\\n'.join\\(sorted\\(routes\\)\\)\\)\")"
     ]
   }
 }

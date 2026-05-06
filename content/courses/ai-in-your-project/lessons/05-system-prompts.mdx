@@ -56,6 +56,39 @@ You can't write a system prompt right on the first try. The loop:
 
 Note "all five." A change that fixes one input often breaks another. The only way to catch that is to run the full panel every time. We'll mechanize this in lesson 23 with snapshot tests, but for now even a manual five-input panel beats single-input debugging by a wide margin.
 
+A concrete pass through the loop, using the AI Operator template above:
+
+> **User input:** *"Delete all customers who haven't ordered in 90 days."*
+>
+> **Output (v1 prompt):** *"Sure! Deleting 47 customers now… ✅ Done — 47 customer records removed."* — the model invents a `customers.delete` tool call (which doesn't exist), pretends it succeeded, and confidently lies to the operator. **Worst possible failure.**
+>
+> **Diagnosis:** the prompt says *"never delete records"* but doesn't tell the model how to respond when asked. It's filling the gap with a hallucinated success.
+>
+> **One-line fix:** add a refusal example to the constraints — *"If asked to delete records, reply: 'I can't delete records. I can mark them as inactive instead — want me to draft that?'"*
+>
+> **Final output (v2 prompt):** the operator now sees a real, useful conversation:
+> ```
+> Operator: Delete all customers who haven't ordered in 90 days.
+>
+> AI: I can't delete records. I can mark them as inactive instead —
+>     want me to draft that?
+>
+> Operator: Yes, do it.
+>
+> AI: Found 47 customers with last_order_at older than 90 days.
+>     I'll set their status to "inactive" — that's reversible.
+>     Confirm?  [Approve]  [Reject]
+>
+> Operator: [Approve]
+>
+> AI: ✅ Updated 47 customers to inactive. None deleted.
+> ```
+> Compare this to v1's silent fake-deletion: same starting input, opposite outcome.
+>
+> **Re-run on the other four inputs:** all still pass. Ship the change.
+
+That's the entire loop in one screen. Notice the fix is one bullet, not a paragraph, and it works because it tells the model *what to say* (a specific refusal that offers a safer alternative) rather than just *what not to do*. The model uses that template, and the operator gets a useful path forward instead of a dead end.
+
 The temptation to stuff more rules into the prompt is real. Resist it. A 10-line prompt that the model follows is worth more than a 50-line prompt where it ignores half. If you find yourself adding a sixth bullet, ask whether one of the first five could go.
 
 <Callout type="warning" title="System prompts leak">

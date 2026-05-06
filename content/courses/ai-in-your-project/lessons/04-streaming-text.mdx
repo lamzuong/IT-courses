@@ -14,6 +14,18 @@ The reading speed of a typical adult is roughly 250 words per minute, or about f
 
 Streaming also gives you a free progress signal. If tokens stop arriving you know something is wrong; if they're trickling in, the system is alive. You don't need a separate "is it still working?" indicator.
 
+A concrete side-by-side, asking the same question — *"Summarise this customer's last three orders"* — that produces ~200 tokens:
+
+| | Non-streaming | Streaming |
+|---|---|---|
+| t = 0.0s | spinner | spinner |
+| t = 0.05s | spinner | *"Phuoc has placed…"* |
+| t = 1.5s | spinner | *"Phuoc has placed three orders in the last 6 weeks. The most recent…"* |
+| t = 7.0s | full reply appears | *"…and totalled $312."* (reply ends) |
+| Felt as | seven seconds of nothing | half a second of nothing, then reading |
+
+Same model, same answer, same wall-clock cost. Only the user's experience changed.
+
 ## 02 — `model.stream()` on the server
 
 You wrote this handler in lesson 3. Read it again with streaming in mind:

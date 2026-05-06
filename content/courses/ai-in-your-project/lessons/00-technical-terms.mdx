@@ -1,0 +1,70 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+This course leans on a small vocabulary that comes from three different worlds — model providers, the LangChain ecosystem, and general backend engineering — and it's easy to feel lost when a lesson casually drops *"bind the tool to the model and stream the deltas back through the graph."* That sentence is five terms in a trench coat. This page exists so you can skim it once now, and flip back any time a word stops you.
+
+It's organised by cluster, not alphabetically — terms that show up together in real code are grouped together here.
+
+<Callout type="tip" title="You don't need to memorise this">
+Read it once, then keep this tab open while you go through the lessons. Most terms make far more sense the second time you see them, in context.
+</Callout>
+
+## Models & inference
+
+- **LLM (Large Language Model)** — the AI itself. Takes text in, produces text out. Examples: GPT-4, Claude, Llama, Mistral. In this course we run a small one locally via Ollama.
+- **Token** — the unit a model reads and writes in. Roughly ¾ of an English word. *"Hello, world"* is about 3 tokens. Pricing, context limits, and speed are all measured in tokens.
+- **Context window** — the maximum number of tokens the model can "see" at once (your prompt + its reply). When you exceed it, older messages get cut. Bigger windows aren't free — they cost more and slow down.
+- **Inference** — one round-trip to the model: send tokens in, get tokens out. *"Slow inference"* means the model is taking a long time to reply.
+- **Temperature** — a knob from 0 to ~2 that controls randomness. `0` = same answer every time (good for tools and structured output). `0.7` = creative (good for drafting copy).
+- **Streaming** — receiving the reply token-by-token as the model produces it, instead of waiting for the whole thing. Lesson 4 wires this up.
+- **Provider** — the service that hosts the model. **Ollama** runs models on your laptop. **OpenAI**, **Anthropic**, **Google** host them in the cloud. LangChain lets you swap providers without rewriting your app (lesson 24).
+
+## Prompts & messages
+
+- **Prompt** — the text you send to the model. Casual usage; in code it's usually structured as messages.
+- **System prompt** — a special "instructions to the AI" message at the top. Defines role, tone, hard rules. *"You are a helpful CMS assistant. Never invent customer IDs."* Lesson 5.
+- **User message / assistant message** — the back-and-forth turns of a conversation. The chat history is just an array of these.
+- **Few-shot examples** — including 1–5 worked examples in the prompt to show the model the pattern you want. *"Here's how I'd phrase a re-engagement email; now do one for this customer."*
+- **Prompt engineering** — the skill of writing prompts that get reliable output. Less black-magic than the internet implies. Lesson 6.
+- **Hallucination** — when the model confidently makes up a fact. The standard failure mode. Tools and structured output reduce it; they don't eliminate it.
+
+## Tools & agents
+
+- **Tool** (a.k.a. **function call**) — a TypeScript function the model is allowed to call, with a typed schema describing its arguments. The model says *"I want to call `searchCustomers({ tag: 'lapsed' })`"*; your code runs it; you hand the result back. Lesson 9.
+- **Tool call** — one specific request from the model to invoke a tool, including the arguments it chose.
+- **Read tool / write tool** — our own naming. Read tools fetch data (safe to auto-run). Write tools change the database or send messages (need confirmation).
+- **Agent** — an LLM in a loop with tools. It reads, decides, calls a tool, reads the result, decides again, eventually replies.
+- **ReAct loop** — *Reason + Act*. The classic agent pattern: model thinks → calls a tool → reads result → thinks again → repeat until done. Lessons 15 and 17.
+- **Schema** (Zod) — a TypeScript-first way to declare *"this tool takes an object with `customerId: string` and `discount: number between 0 and 100"*. Both validates input and tells the model what's expected. Lessons 8 and 9.
+- **Structured output** — forcing the model to reply with JSON that matches a schema, instead of free text. Lesson 8.
+- **Idempotent** — calling the same operation twice has the same effect as calling it once. *"Mark order #42 as cancelled"* is idempotent; *"Send an email"* is not. Lesson 13.
+
+## LangChain & LangGraph
+
+- **LangChain** — a library that gives you one common interface across every model provider, plus helpers for prompts, tools, parsing, etc.
+- **LangGraph** — built on top of LangChain. Lets you express your agent as a *graph* of steps with state, branching, and pauses. The reason this course gets human-in-the-loop without writing a state machine by hand. Lesson 16+.
+- **Node** — one step in the graph. Usually a function: *"call the model"*, *"run a tool"*, *"ask the user for confirmation"*.
+- **Edge** — the connection from one node to the next. Plain edges always go to the same place; **conditional edges** branch based on state (*"if the next tool is a write, route to the confirmation node; otherwise auto-run"*).
+- **State** — a typed object that flows through every node in the graph. Each node reads it and returns updates. This is where messages, pending tool calls, and confirmation status live.
+- **StateGraph** — the LangGraph class you use to wire nodes and edges together.
+- **Interrupt** — LangGraph's killer feature. A node calls `interrupt(...)`, the graph pauses and persists, your UI shows the user what's pending, the user clicks Approve, the graph resumes. Lesson 19.
+- **Checkpointer** — the storage backend (in-memory, SQLite, Postgres) that lets a paused graph survive a server restart so the user can confirm later.
+
+## Production & safety
+
+- **Prompt injection** — an attack where the model reads attacker-controlled text (a customer note, a scraped page) and treats it as instructions. Mitigated with input sanitisation, output validation, and never giving the AI ambient authority. Lesson 21.
+- **Guardrails** — checks around the model: input filters, output validators, rate limits. Belt-and-braces.
+- **Eval** (evaluation) — a regression test for an AI. Run a fixed set of inputs, check the outputs against expected behaviour. Lesson 22.
+- **Trace / observability** — logging every model call, tool call, and graph step so you can debug *"why did the agent do that?"* days later. Lesson 23.
+- **Token budget / cost cap** — a per-request or per-day ceiling on token usage so a runaway loop can't drain your credit card.
+- **Rate limit** — provider-imposed cap on requests per minute. You'll hit it eventually; lesson 14 covers retries with backoff.
+- **HITL (Human-in-the-loop)** — the design pattern where the AI proposes and the human approves before any irreversible action. The whole point of Part IV.
+
+<Recap>
+- Inference vocabulary: LLM, token, context window, streaming, temperature, provider.
+- Prompt vocabulary: system prompt, messages, few-shot, hallucination.
+- Tool vocabulary: tool, tool call, schema, structured output, idempotent, agent, ReAct loop.
+- LangGraph vocabulary: node, edge, state, StateGraph, interrupt, checkpointer.
+- Production vocabulary: prompt injection, guardrails, eval, trace, rate limit, HITL.
+- Don't memorise — bookmark and skim back as needed.
+</Recap>

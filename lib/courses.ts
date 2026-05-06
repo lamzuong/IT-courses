@@ -13,6 +13,14 @@ export function flattenLessons(course: Course): LessonMeta[] {
   return course.parts.flatMap((part) => part.lessons);
 }
 
+// Lesson slugs are prefixed with their canonical number (e.g. '00-technical-terms',
+// '01-what-this-teaches'). Use that prefix as the displayed lesson number so a
+// glossary at slug '00-…' renders as "00", not as a sequential "01".
+export function lessonNumberFromSlug(slug: string, fallback: number): string {
+  const m = slug.match(/^(\d+)/);
+  return (m ? m[1] : String(fallback)).padStart(2, '0');
+}
+
 export type LessonContext = {
   course: Course;
   lesson: LessonMeta;

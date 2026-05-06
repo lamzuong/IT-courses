@@ -23,6 +23,16 @@ The fix isn't "be more careful with prompts." It's structural: every write tool 
 
 LangGraph — which we'll meet in Part IV — turns this into a one-line primitive. The first three parts of the course get you to where that primitive is the obvious next move.
 
+The blast radius difference, made concrete:
+
+| The model gets it wrong on… | What happens | Fix |
+|---|---|---|
+| `searchCustomers({ tag: 'lapesd' })` (typo) | returns 0 rows; user sees "no customers found", retries | re-ask in plain English, 3 seconds lost |
+| `createPromo({ discount: 95 })` (auto-fired) | a 95%-off code is now live; sales chat lights up | refund every order, manual hotfix, post-mortem |
+| `sendEmail(50_000_recipients)` (auto-fired) | 50k inboxes already received it; deliverability tanks | apology email, ESP investigation, possibly a contract review |
+
+The first row is *"oops, try again."* The bottom two are incidents. A confirmation gate turns rows 2 and 3 into row 1.
+
 ## The shape of the course
 
 - **Part I** — preparation. What can you AI-call in the app you already have?

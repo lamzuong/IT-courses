@@ -41,6 +41,42 @@ One file, four jobs. The schema becomes the single place where the shape of `Cus
 
 Compare to the alternative: a TypeScript `type` declaration plus a hand-written validator plus a separate prompt that says "return JSON with these fields." Three places to change, three opportunities for them to drift apart, and the AI prompt was always the one that lagged behind.
 
+A concrete drift story you've probably lived. Day 1, three files agree:
+
+```ts
+// types.ts — what the rest of the app sees
+type Customer = { name: string; email: string; segment: 'active' | 'lapsed' };
+
+// validator.ts — what your API trusts
+function isCustomer(x: any): x is Customer {
+  return typeof x.name === 'string' && typeof x.email === 'string';
+}
+
+// prompt.ts — what you ask the AI
+const SYSTEM = 'Return JSON with keys: name, email, segment.';
+```
+
+Day 30, product asks to add a `vip` segment and a phone number. You patch `types.ts` and `validator.ts`, ship, get paged at midnight: the AI is still returning the old three segments and no phone. The prompt file got missed — it always does, because it doesn't fail to compile.
+
+The Zod version collapses all three into one declaration:
+
+```ts
+// customer.ts — the only file
+export const Customer = z.object({
+  name: z.string(),
+  email: z.string().email(),
+  phone: z.string().nullable(),
+  segment: z.enum(['active', 'lapsed', 'vip']),
+});
+export type Customer = z.infer<typeof Customer>;
+
+// usage
+model.withStructuredOutput(Customer);   // AI bound to schema
+Customer.parse(req.body);               // API bound to schema
+```
+
+Add `'vip'` to the enum and the AI, the API, and every TypeScript caller move in lockstep. The midnight page never happens.
+
 ## 03 — Watch the object build
 
 Run the extractor and watch the typed object fill in.

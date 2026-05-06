@@ -21,6 +21,28 @@ The fix is the same fix you'd apply to a webhook handler: an idempotency key sup
 
 For read tools this is almost free, because reads are naturally idempotent. The discipline matters most for the write tools we get to in lesson 12, but instilling it now means you don't have to retrofit it later.
 
+A concrete sketch of the difference (full treatment in lesson 13):
+
+```ts
+// ❌ Not idempotent — every retry charges again
+async function chargeOrder({ orderId, amountCents }) {
+  return await stripe.charges.create({ amount: amountCents, ... });
+}
+
+// ✅ Idempotent — second call returns the first call's result
+async function chargeOrder({ orderId, amountCents, requestKey }) {
+  const existing = await db.charges.findUnique({ where: { requestKey } });
+  if (existing) return existing;
+  const charge = await stripe.charges.create({
+    amount: amountCents,
+    idempotency_key: requestKey,
+  });
+  return await db.charges.create({ data: { ...charge, requestKey } });
+}
+```
+
+Same signature plus one `requestKey` argument; the customer is no longer at risk of being double-charged when the model retries.
+
 ## 03 — The description IS the prompt
 
 The single highest-leverage thing you'll write in your AI codebase is the description string on each tool. It is sent to the model on every turn. It is what the model uses to decide *whether* to call the tool, *when* to call it, and *what arguments* to send. A vague description guarantees a confused model.
