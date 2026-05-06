@@ -1,8 +1,13 @@
+// mdx-components.tsx
 import type { MDXComponents } from 'mdx/types';
 import { CodeBlock } from '@/components/mdx/code-block';
 import { Callout } from '@/components/mdx/callout';
 import { Demo } from '@/components/mdx/demo';
 import { Recap } from '@/components/mdx/recap';
+import { Pattern } from '@/components/mdx/english/pattern';
+import { Vocab } from '@/components/mdx/english/vocab';
+import { Dialogue } from '@/components/mdx/english/dialogue';
+import { Mistake } from '@/components/mdx/english/mistake';
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
@@ -11,5 +16,9 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     Callout,
     Demo,
     Recap,
+    Pattern,
+    Vocab,
+    Dialogue,
+    Mistake,
   };
 }
