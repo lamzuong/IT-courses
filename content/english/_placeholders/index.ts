@@ -2,17 +2,6 @@ import type { EnglishTopic } from '../types';
 
 export const placeholderTopics: EnglishTopic[] = [
   {
-    slug: 'greetings-introductions',
-    title: 'Chào hỏi & giới thiệu',
-    englishTitle: 'Greetings & introductions',
-    summary: 'Mở đầu cuộc trò chuyện, giới thiệu bản thân và người khác trong các bối cảnh khác nhau.',
-    level: 'B1+',
-    variant: 'daily-life',
-    lessons: [],
-    placeholder: true,
-    plannedLessonCount: 5,
-  },
-  {
     slug: 'small-talk',
     title: 'Trò chuyện xã giao',
     englishTitle: 'Small talk',
