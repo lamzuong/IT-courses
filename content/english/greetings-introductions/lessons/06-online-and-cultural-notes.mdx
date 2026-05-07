@@ -1,0 +1,225 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Giới thiệu bản thân online không phải là giới thiệu mặt đối mặt được gõ lại — mỗi kênh mang một mặc định về mức độ trang trọng, nhịp độ, và kỳ vọng hoàn toàn khác nhau. LinkedIn không phải Slack, email lạnh không phải video call, và một câu "Hi, John" hoạt động tốt ở California có thể đọc là quá thân mật ở Tokyo hoặc quá lạnh lùng ở São Paulo. Bài tổng kết này kết hợp hai lớp: kỹ năng thực hành cho từng kênh cụ thể, và bức tranh văn hoá rộng hơn để bạn tự hiệu chỉnh khi không có bài học nào nói trước cho bạn.
+
+## 01 — Bối cảnh
+
+Không phải mọi kênh online đều sinh ra bình đẳng — chúng có *formality default* khác nhau, tức là mức độ trang trọng mà người dùng kênh đó kỳ vọng *trước khi bạn nói gì*. Hiểu formality default là bước đầu tiên để calibrate (hiệu chỉnh) giọng điệu đúng.
+
+**Cold email gửi người lạ** — formality default cao nhất. Người nhận không biết bạn là ai, chưa đồng ý nhận email này, và đang đọc trong môi trường "công việc nghiêm túc". Email cần đủ bốn phần: subject line rõ ràng, câu mở bối cảnh (tôi là ai, tại sao tôi biết bạn), why you're reaching out (mục đích cụ thể), và một ask rõ ràng kèm sign-off. Thiếu bất kỳ phần nào và email sẽ đọc như spam hoặc thư chào hàng.
+
+**LinkedIn DM** — medium-high. Kênh này ở giữa email trang trọng và tin nhắn thân mật. Người nhận đã đồng ý "kết nối", nên rào cản ban đầu thấp hơn — nhưng họ nhận hàng chục DM mỗi tuần. Công thức hiệu quả: brief context (gặp ở đâu / thấy bài viết gì) + concrete ask cụ thể. Không dùng "Dear" — nghe như thư xin việc từ năm 2005.
+
+**Slack first message trong workspace mới** — medium-low. Đây là môi trường cộng đồng, thường đã có văn hoá riêng của nhóm. Tin nhắn đầu tiên khi join nên warm (ấm áp) + minimal (ngắn gọn). Một emoji là hoàn toàn phù hợp — thực ra nó là tín hiệu "tôi đã đọc văn hoá của kênh này". Viết một đoạn dài như CV là lỗi phổ biến nhất.
+
+**Video call hello** — casual nhưng cần một dòng context. Khi bạn là người mới trong call, một câu tự giới thiệu nhanh giúp mọi người biết bạn là ai mà không mất thời gian. Khi bạn vào trễ, một câu xin lỗi ngắn rồi "go ahead" là đủ — không cần giải thích dài.
+
+**Group chat (WhatsApp/Zalo quốc tế)** — casual nhất. "Hi all" hoặc thậm chí không có câu chào mở đầu là hoàn toàn bình thường. Đây là kênh có nhịp độ nhanh nhất và expectation thấp nhất về hình thức.
+
+Lỗi phổ biến nhất khi giao tiếp online không phải là sai ngữ pháp — mà là **mismatch giữa kênh và mức độ trang trọng**: gửi email trang trọng kiểu "Dear Sir/Madam" lên LinkedIn, hoặc viết tin nhắn Slack dài như email ra mắt sản phẩm. Người nhận không nói gì nhưng ấn tượng đã bị ảnh hưởng.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "to reach out", vi: "chủ động liên lạc, tiếp cận — dùng cho cả email, DM, hay bất kỳ kênh nào; trung tính và chuyên nghiệp", example: "I wanted to reach out because I saw your recent post on onboarding." },
+  { en: "I came across...", vi: "tôi tình cờ gặp / thấy... — dùng để giải thích nguồn gốc bạn biết đến họ (bài viết, hồ sơ, sự kiện)", example: "I came across your profile while researching B2B design leads in Vietnam." },
+  { en: "I'm reaching out because...", vi: "tôi liên hệ vì... — câu mở mục đích, đặc biệt quan trọng trong cold email; rõ ràng và tôn trọng thời gian người đọc", example: "I'm reaching out because we're working on something very similar at Savyu." },
+  { en: "I hope this finds you well", vi: "hy vọng bạn đang ổn — câu mở email kinh điển; chuyên nghiệp nhưng có thể đọc như form letter nếu không theo sau bằng nội dung cụ thể", example: "Hi Anna — I hope this finds you well. I came across your talk at ProductFest..." },
+  { en: "to follow up", vi: "liên lạc lại / tiếp nối sau lần trước — dùng khi email/tin nhắn đầu tiên chưa có phản hồi", example: "I'm just following up on my message from last week." },
+  { en: "to drop a line", vi: "gửi một tin nhắn ngắn — dùng thân mật khi mời ai đó liên lạc lại với bạn", example: "If you ever want to chat, feel free to drop me a line." },
+  { en: "to ping someone", vi: "nhắn tin nhanh cho ai đó — đặc trưng của môi trường Slack/chat; thân mật, tốc độ cao", example: "Just ping me on Slack when you're ready." },
+  { en: "to circle back", vi: "quay lại một chủ đề hoặc liên lạc lại sau — thường dùng trong follow-up email sau khoảng thời gian im lặng", example: "Circling back on this in case it slipped through the cracks." },
+  { en: "to loop someone in", vi: "thêm ai đó vào cuộc trò chuyện / email thread — dùng khi bạn CC hoặc forward cho người liên quan", example: "I'll loop in our design lead so she has context." },
+  { en: "happy to chat", vi: "sẵn sàng nói chuyện — cụm kết thúc thân thiện, thể hiện sự cởi mở mà không tạo áp lực", example: "Happy to chat more about this whenever works for you." },
+  { en: "looking forward to hearing from you", vi: "mong nhận được hồi âm — câu kết email chuẩn; trung tính và tích cực", example: "Looking forward to hearing from you — no rush at all." },
+  { en: "sign off / sign-off", vi: "lời kết thúc email (noun/verb) — phần tên + chức danh ở cuối email; cũng dùng theo nghĩa 'kết thúc cuộc họp' (to sign off)", example: "A professional sign-off includes your name, title, and one contact detail." },
+  { en: "to spell out (your role)", vi: "nói rõ, giải thích đầy đủ — dùng khi bạn cần clarify chức danh hoặc vai trò không self-explanatory", example: "Let me spell out what I do — I lead product design for our B2C app." },
+  { en: "to introduce myself", vi: "tự giới thiệu bản thân — cụm chuẩn trong email đầu hoặc video call khi là người mới", example: "I wanted to reach out and introduce myself — I just joined as design lead." },
+]} />
+
+## 03 — Mẫu câu
+
+Năm mẫu câu dưới đây mỗi cái đại diện cho một kênh và một lựa chọn hiệu chỉnh khác nhau. Đọc từng `note` để hiểu *tại sao* cách diễn đạt đó hoạt động — không phải chỉ học thuộc câu.
+
+<Pattern
+  en="Hi Anna, I came across your work on the X project and wanted to reach out — I'm a design lead at Savyu, and we're working on something quite related to what you're building."
+  vi="Chào Anna, tôi tình cờ thấy công việc của bạn trên dự án X và muốn liên hệ — tôi là design lead tại Savyu, và chúng tôi đang làm gì đó khá liên quan đến những gì bạn đang xây dựng."
+  variations={[
+    "Hi Anna — I came across your article on onboarding flows and it really resonated. I'm Linh, product designer at Savyu, and we're tackling the exact same problem.",
+    "Hi Anna, I found your name through [mutual contact] who thought we should connect. I lead design at Savyu — we're working on B2B onboarding and your work kept coming up.",
+    "Hi Anna — quick intro: I'm Linh, design lead at Savyu. I came across your post on B2B activation rates and wanted to ask one specific question if you have a moment.",
+  ]}
+  note={`Cold email phải làm được ba việc trong hai câu đầu: (1) giải thích nguồn gốc bạn biết đến họ ("came across your work on..."), (2) giới thiệu bản thân rõ ràng (role + company), (3) cho thấy relevance (tại sao bạn, tại sao họ, tại sao bây giờ). "Something quite related to what you're building" là cách nói tạo curiosity mà không spoil toàn bộ nội dung — khuyến khích người đọc tiếp tục. Tránh mở đầu bằng "I hope this finds you well" nếu không có gì theo sau — câu đó một mình nghe như form letter.`}
+/>
+
+<Pattern
+  en="Hi Mark — saw your recent post on B2B onboarding and it really resonated. I lead design at Savyu and we're tackling similar problems. Would love to connect."
+  vi="Chào Mark — thấy bài đăng gần đây của bạn về B2B onboarding và thấy rất đúng. Tôi dẫn dắt design tại Savyu và chúng tôi đang giải quyết những vấn đề tương tự. Rất muốn kết nối."
+  variations={[
+    "Hi Mark — your comment on the activation thread was spot on. I'm Linh at Savyu, same space. Would love to be connected.",
+    "Hi Mark, saw you speaking at ProductFest last week — the part about onboarding drop-off really stuck with me. I'm in a similar role at Savyu. Happy to connect.",
+    "Hi Mark — mutual friend Anna Chen suggested I reach out. We're both working on B2B retention, apparently. Would love to connect and swap notes sometime.",
+  ]}
+  note={`LinkedIn DM có một bất lợi lớn: người nhận biết bạn muốn gì (kết nối / bán hàng / xin việc) trước khi đọc xong câu đầu. Câu mở tốt nhất là một điểm tham chiếu cụ thể — bài viết, comment, sự kiện — vì nó chứng minh bạn thực sự chú ý, không phải gửi template hàng loạt. Không dùng "Dear Mark" — nghe như thư xin việc chính thức. Ngắn gọn là ưu điểm: 3 câu với một ask rõ ràng hoạt động tốt hơn 8 câu giải thích.`}
+/>
+
+<Pattern
+  en="Hey team! 👋 Linh here — just joined the design team today. Excited to be working with you all. Feel free to grab time on my calendar anytime."
+  vi="Chào mọi người! 👋 Linh đây — vừa join team design hôm nay. Rất vui được làm việc cùng các bạn. Cứ thoải mái đặt lịch với mình bất cứ lúc nào nhé."
+  variations={[
+    "Hey all — I'm Linh, new on the design side. Still finding my feet but really excited to be here. Say hi anytime! 👋",
+    "Hi everyone! Linh here — joining as design lead. Looking forward to getting to know the team. Happy to jump on a quick call with anyone who wants to connect.",
+    "Hello design team 👋 — Linh joining today. Three things about me: design nerd, obsessed with onboarding flows, and always up for a coffee chat. Excited!",
+  ]}
+  note={`Slack first message trong một workspace mới là tín hiệu về văn hoá: bạn đã đọc cách mọi người communicate ở đây chưa? Emoji 👋 không phải vì cute — nó signaling "tôi hiểu đây là môi trường thân mật". Giữ trong 2–3 câu: tên + vai trò + một câu ấm áp + một lời mời thoải mái. "Feel free to grab time on my calendar" là bước tiếp theo cụ thể mà không tạo áp lực. Tuyệt đối không viết bio dài như LinkedIn — sai kênh, sai nhịp.`}
+/>
+
+<Pattern
+  en="Hi everyone — for those I haven't met yet, I'm Linh, design lead at Savyu. Happy to be here."
+  vi="Chào mọi người — với những ai chưa gặp tôi, tôi là Linh, design lead tại Savyu. Vui được tham gia."
+  variations={[
+    "Hi all — quick intro for anyone new to me: I'm Linh from the design team. Looking forward to this.",
+    "Hey everyone — I'm Linh, design side. First time joining this call so just wanted to put a face to the name.",
+    "Hi — Linh here, design lead. For anyone I haven't connected with yet, great to meet you all.",
+  ]}
+  note={`Video call hello khi bạn là người mới cần làm đủ ba việc trong một câu: xác nhận bạn là người mới ("for those I haven't met"), nói tên + vai trò, và đóng bằng một câu warm ngắn. "Happy to be here" làm nhiều hơn vẻ bề ngoài — nó signaling enthusiasm mà không cần lời giải thích. Tránh giới thiệu dài hơn hai câu trong video call — bạn đang cướp thời gian của cả nhóm. Nếu call đã bắt đầu và bạn mới vào, nói một câu rồi im — đừng lặp lại toàn bộ context.`}
+/>
+
+<Pattern
+  en="Hi Anna — circling back on this in case it slipped through. No rush at all — happy to grab time whenever works."
+  vi="Chào Anna — nhắc lại tin nhắn này phòng trường hợp nó bị trôi qua. Không vội gì cả — sẵn sàng nói chuyện bất cứ khi nào thuận tiện cho bạn."
+  variations={[
+    "Hi Anna — just a gentle nudge on this. Totally understand if the timing isn't right — happy to circle back later.",
+    "Hi Anna — following up in case this got buried. No pressure at all — just want to make sure you saw it.",
+    "Hi Anna — one more nudge, then I'll leave you alone! If the timing isn't right, no worries at all.",
+  ]}
+  note={`Follow-up sau im lặng là một trong những tình huống nhạy cảm nhất khi giao tiếp bằng tiếng Anh — nguy cơ nghe như đang thúc ép rất cao. Ba yếu tố giảm áp lực: (1) "circling back" / "gentle nudge" — nhẹ hơn "following up"; (2) "in case it slipped through" — giả định lỗi là do kỹ thuật, không phải do người nhận bỏ qua; (3) "no rush at all" / "happy to grab time whenever works" — trao quyền kiểm soát lại cho họ. Một follow-up là bình thường và được chấp nhận. Hai là giới hạn. Ba trở lên nghe như bán hàng qua điện thoại.`}
+/>
+
+## 04 — Hội thoại mẫu
+
+*Lựa chọn: Slack thread — một người mới join workspace design team, 2–3 đồng nghiệp phản hồi. Đây là kênh minh hoạ tốt nhất cho calibration concept vì bạn thấy được cả tin nhắn gốc lẫn cách văn hoá nhóm phản hồi.*
+
+<Dialogue lines={[
+  { speaker: "Linh (new joiner)", en: "Hey design team! 👋 Linh here — just joined today as design lead. Really excited to be part of this group. Still finding my way around the tools, but feel free to ping me anytime. Looking forward to working with everyone!", vi: "Chào team design! 👋 Linh đây — vừa join hôm nay với vai trò design lead. Rất vui khi được vào nhóm này. Vẫn đang làm quen với các công cụ, nhưng cứ ping mình bất cứ lúc nào nhé. Mong được làm việc cùng mọi người!" },
+  { speaker: "Minh", en: "Welcome Linh! 🎉 Great to have you here. I'm Minh — I handle product on the B2B side. Let me know if you need a walkthrough of our Figma structure, happy to jump on a quick call.", vi: "Chào mừng Linh! 🎉 Vui khi có bạn ở đây. Mình là Minh — mình phụ trách product phía B2B. Nói mình biết nếu bạn cần ai giới thiệu cấu trúc Figma của tụi mình nhé, sẵn sàng nhảy vào một call nhanh." },
+  { speaker: "Thu", en: "Hey Linh! Welcome aboard 🙌 I'm Thu, frontend. We've been needing a strong design voice — really glad you're here. Also — forewarning: we move fast in this channel, don't let the notifications overwhelm you at first 😄", vi: "Chào Linh! Chào mừng bạn 🙌 Mình là Thu, frontend. Tụi mình cần một tiếng nói design mạnh — thật sự vui khi bạn ở đây. Cũng cảnh báo trước: kênh này di chuyển nhanh lắm, đừng để thông báo làm bạn choáng lúc đầu nhé 😄" },
+  { speaker: "Linh (new joiner)", en: "Ha — good to know, thanks Thu! And Minh, I'd love that Figma walkthrough — I'll drop you a DM to find a time. Quick question for everyone: is there a channel I should know about for async design reviews, or does that happen here?", vi: "Ha — hay quá, cảm ơn Thu! Và Minh, mình rất muốn được giới thiệu Figma đó — mình sẽ DM bạn để tìm giờ nhé. Câu hỏi nhanh cho mọi người: có kênh nào mình nên biết cho việc review design async không, hay cái đó xảy ra ở đây?" },
+  { speaker: "Kai", en: "Hey Linh! Welcome 👋 I'm Kai, research. Design reviews go in #design-feedback — you'll want to join that one. Looking forward to collaborating!", vi: "Chào Linh! Chào mừng 👋 Mình là Kai, research. Review design đi vào #design-feedback — bạn sẽ muốn join cái đó. Mong được cộng tác!" },
+  { speaker: "Linh (new joiner)", en: "Perfect — joining #design-feedback now. Thanks everyone, this is already making day one much easier 🙏", vi: "Tuyệt — join #design-feedback ngay. Cảm ơn mọi người, cái này đã giúp ngày đầu dễ hơn nhiều rồi 🙏" },
+]} />
+
+*Lưu ý về calibration trong thread này: Linh mở đầu warm + brief (3 câu), không phải bio đầy đủ. Minh và Thu phản hồi với warmth phù hợp văn hoá Slack — emoji, tên, offer cụ thể. Linh sau đó loop Minh vào action cụ thể ("I'll drop you a DM") và đặt câu hỏi thực tế — điều này cho thấy sự hiệu chỉnh tốt: không chỉ social, còn purposeful.*
+
+## 05 — Lỗi thường gặp
+
+<Mistake
+  wrong="Dear Sir/Madam, I am writing to introduce myself and explore potential collaboration opportunities between our organisations..."
+  right="Hi Mark — saw your post on B2B onboarding and it really resonated. I lead design at Savyu and we're tackling similar challenges. Would love to connect."
+  why={`"Dear Sir/Madam" trên LinkedIn đọc như thư xin việc gửi HR năm 2003 — nó không chỉ quá trang trọng, nó còn tín hiệu "tôi không biết tên bạn" hoặc "đây là template tôi gửi cho 50 người". LinkedIn DM có tên ngay trên đầu màn hình — không có lý do gì không dùng. "Dear" trong DM nói chung không sai, nhưng kết hợp với "Sir/Madam" nó đóng băng giọng điệu hoàn toàn. Phiên bản đúng bắt đầu bằng tên, kèm một điểm tham chiếu cụ thể — đây là tín hiệu mạnh nhất rằng bạn thực sự viết cho *họ*, không phải cho ai trong danh sách.`}
+/>
+
+<Mistake
+  wrong="Hey team! I'm Linh. I have 8 years of experience in product design, worked at three startups and one enterprise company, hold a degree in Visual Communication from RMIT, and specialize in B2B SaaS onboarding flows. Looking forward to contributing to the team's success!"
+  right="Hey team! 👋 Linh here — just joined the design team. Excited to be here. Feel free to ping me anytime."
+  why={`Slack first message không phải LinkedIn profile. Tin nhắn gốc vi phạm ba nguyên tắc cơ bản của Slack etiquette: (1) quá dài cho kênh nhịp nhanh — không ai đọc hết một đoạn như vậy trong Slack; (2) liệt kê thành tích nghe như đang justify sự hiện diện, không phải chào hỏi; (3) câu kết "contributing to the team's success" nghe như copy từ email ứng tuyển. Phiên bản đúng có ba yếu tố: tên + vai trò, một câu ấm áp ngắn, và một lời mời thoải mái. Mọi thứ chi tiết hơn có thể đi vào profile hoặc nói trong 1-1.`}
+/>
+
+<Mistake
+  wrong="Subject: Hello"
+  right="Subject: Quick question about your B2B onboarding post — Linh from Savyu"
+  why={`Subject line "Hello" là lỗi cold email phổ biến nhất và có hại nhất. Trong inbox của người nhận được hàng chục email mỗi ngày, "Hello" không cho bất kỳ thông tin nào: không biết đây là ai, không biết liên quan đến gì, không có lý do để mở. Subject line tốt làm được hai việc: xác định bạn là ai (tên + công ty) và tại sao email này liên quan đến *họ* (bài viết, vấn đề, context cụ thể). "Quick question about..." + context cụ thể là công thức đơn giản nhất và hiệu quả nhất — nó tôn trọng thời gian của người nhận bằng cách cho họ đủ thông tin để quyết định có mở không.`}
+/>
+
+## 06 — Văn hoá & sắc thái
+
+Đây là phần trọng tâm của bài tổng kết này — không phải mẫu câu mới, mà là bức tranh văn hoá giúp bạn tự hiệu chỉnh trong mọi tình huống chưa gặp trước.
+
+**1. Anglosphere casual default và bẫy của nó.**
+
+Môi trường chuyên nghiệp ở Mỹ, Anh, và Úc có một đặc điểm khiến người học tiếng Anh hay nhầm: *họ trở nên thân mật rất nhanh*. Sau một email hoặc một cuộc meeting, người Mỹ đã gọi nhau bằng tên đầu, dùng "Hey" trong Slack, và thả emoji vào thread công việc. Điều này không có nghĩa là mối quan hệ đã sâu — đó chỉ là cách giao tiếp mặc định của kênh.
+
+Bẫy nằm ở đây: nhiều người học Việt quan sát casual default này và rút ra một trong hai kết luận sai. Kết luận thứ nhất: "tiếng Anh kinh doanh không cần trang trọng" → dẫn đến cold email viết như nhắn tin bạn bè, hoặc DM LinkedIn không có greeting. Kết luận thứ hai: "tôi phải thật trang trọng vì đây là kinh doanh" → dẫn đến "Dear Sir/Madam" trong Slack, hoặc email lạnh với ngôn ngữ kiểu pháp lý.
+
+Thực tế là: *formality default khác nhau theo kênh, không theo cảm xúc của bạn*. Email đầu tiên gửi người lạ cần trang trọng hơn Slack DM trong cùng công ty — không phải vì email là kênh trang trọng về mặt bản chất, mà vì người nhận chưa cho phép bạn tiếp cận và chưa có bối cảnh chung.
+
+**2. Cross-cultural calibration — không có một quy tắc chung.**
+
+Khi bạn email đối tác từ các nền văn hoá khác nhau, "tiếng Anh chuẩn" không đủ — bạn cần điều chỉnh thêm một lớp nữa:
+
+*Nhật Bản và Hàn Quốc:* Giữ "Dear [Last name]" lâu hơn bạn nghĩ là cần thiết — đừng chuyển sang first-name basis cho đến khi họ chủ động làm vậy. Các cụm tôn trọng như "I hope you are keeping well" và "Thank you for your continued support" nghe như cliché với người Mỹ, nhưng với đối tác Đông Á họ là tín hiệu cố ý về sự tôn trọng và không nên bỏ qua.
+
+*Đức và các nước Bắc Âu:* Ưu tiên cấu trúc rõ ràng và mục đích cụ thể. Email đầu tiên không cần small talk — thực ra quá nhiều small talk đọc như bạn đang lãng phí thời gian của họ. Đi thẳng vào vấn đề sau một câu greeting là hoàn toàn phù hợp và được đánh giá cao.
+
+*Brazil và Mexico:* Một câu ấm áp cá nhân ở đầu — đề cập gì đó về người họ hoặc một kết nối chung — đọc rất tự nhiên và giúp xây dựng rapport trước khi vào business. Bỏ qua phần này và email nghe khô khan và quá transactional.
+
+*Singapore và Malaysia:* Đây là môi trường thú vị nhất để calibrate — chịu ảnh hưởng cả từ British formal lẫn regional casual. First-name basis đến nhanh (như Mỹ), nhưng câu đầy đủ và ngữ pháp chuẩn được kỳ vọng cao hơn Slack Mỹ. Sự pha trộn này đôi khi làm người học nhầm — quan sát cách đối tác cụ thể viết email trả lời và mirror lại.
+
+**3. Async tone signals — lớp tín hiệu mà không ai dạy.**
+
+Văn bản async (email, Slack, chat) thiếu giọng nói và nét mặt — nên người đọc dùng *punctuation và capitalization* như tín hiệu cảm xúc. Đây là một trong những thứ gây hiểu nhầm nhiều nhất cho người học Việt:
+
+Dấu chấm ở cuối tin nhắn Slack có thể đọc lạnh. "Ok." trong Slack nghe khác "Ok!" hoặc "Ok 👍" — không sai về ngữ pháp, nhưng người nhận trong văn hoá async nhanh sẽ đọc dấu chấm như thể bạn đang không vui. "Sure." và "Sure!" là hai tin nhắn rất khác nhau về cảm xúc dù về nội dung là một.
+
+Toàn bộ chữ hoa không phải nhấn mạnh — đó là shouting. "THIS IS NOT URGENT" đọc như đang la hét ngay cả khi ý định của bạn là ngược lại. Để nhấn mạnh, dùng bold (**text**) hoặc italic (*text*) trong kênh hỗ trợ formatting.
+
+Người học Việt đôi khi dịch nghĩa văn bản mà không dịch *tone layer* — kết quả là một tin nhắn đúng về nội dung nhưng đọc lạnh hoặc bức xúc hơn ý định. Giải pháp đơn giản nhất: quan sát cách đồng nghiệp bản ngữ viết trong cùng kênh đó và mirror cấp độ punctuation và emoji của họ.
+
+**4. Video call entry move — ít hơn là nhiều hơn.**
+
+Khi bạn join một video call đang diễn ra và bạn là người mới trong nhóm đó, native speaker thường làm một trong hai:
+
+*Bạn đúng giờ hoặc là người đầu tiên:* Một câu hello ngắn, tên, role. "Hi everyone — Linh here, design lead at Savyu. Good to be here." Xong.
+
+*Bạn vào trễ:* "Hey everyone, sorry I'm a couple minutes late — go ahead." Rồi im. Không giải thích lý do vào trễ, không tự giới thiệu lại toàn bộ bối cảnh. Ngắt dòng rồi nói "go ahead" là tín hiệu bạn không muốn cướp thêm thời gian của cả nhóm — và đó là hành động lịch sự nhất.
+
+Người học Việt hay over-apologize khi vào trễ — hai ba câu giải thích lý do, rồi tự giới thiệu đầy đủ. Điều này có ý tốt nhưng thực ra làm gián đoạn cuộc họp lâu hơn. Nguyên tắc video call: mỗi giây bạn dùng để giới thiệu bản thân là một giây không ai khác nói được điều quan trọng hơn.
+
+<Callout type="note" title="Time-zone awareness là tín hiệu chuyên nghiệp cao">
+Khi email đối tác ở múi giờ cách bạn 6–12 tiếng, một câu nhỏ thể hiện bạn biết điều đó tạo ra ấn tượng lớn: "I know you're 12 hours ahead — absolutely no rush on a reply." Hoặc: "Sending this ahead of your Monday morning in case it's useful." Câu này làm hai việc cùng lúc: thể hiện sự tôn trọng thực sự (không phải lịch sự hình thức), và giảm áp lực reply ngay — điều đó nghịch lý lại thường khiến người nhận muốn reply sớm hơn.
+</Callout>
+
+<Callout type="warning" title="Bẫy auto-translate và câu mở generic">
+"I hope this message finds you well" được kéo ra từ hàng triệu email template — người nhận đọc nó như wallpaper, mắt họ lướt qua mà không nhận ra. Nếu bạn dùng translation tool để soạn cold email hoặc DM và câu mở là một cụm generic, đó là dấu hiệu cần viết lại. Câu mở tốt nhất luôn là một điểm tham chiếu cụ thể: bài viết họ vừa publish, talk họ vừa deliver, project họ đang làm. "I came across your post on activation drop-off from last week" mất thêm 10 giây để viết và hiệu quả hơn "I hope you're well" gấp nhiều lần.
+</Callout>
+
+## 07 — Idiom & cụm tự nhiên
+
+- **`to drop a line`** — gửi một tin nhắn ngắn, không trang trọng. *"If you ever want to chat, just drop me a line."* Thân mật hơn "reach out", dùng tốt trong follow-up hoặc lời mời mở.
+
+- **`to ping someone`** — nhắn tin nhanh qua chat/Slack. *"Just ping me when you're ready — I'll be online."* Đặc trưng của môi trường async; không dùng trong email trang trọng.
+
+- **`to loop in`** — thêm ai đó vào email thread hoặc cuộc trò chuyện. *"I'll loop in our PM so she has context."* Rất thông dụng trong công việc nhóm — đồng nghĩa với CC nhưng chủ động hơn.
+
+- **`to circle back`** — quay lại một chủ đề sau, hoặc follow up sau một khoảng thời gian. *"Let me circle back with you after I've checked with the team."*
+
+- **`to touch base`** — liên lạc ngắn để cập nhật hoặc check in. *"I'll touch base with you before the deadline."* Trung tính, chuyên nghiệp — phổ biến hơn "circle back" trong email.
+
+- **`long time no see`** — idiom cố định, không thêm từ. *"Hey! Long time no see — are you still at Klara?"* Dùng khi gặp lại qua video call hoặc chat sau thời gian dài.
+
+- **`to bump into`** — tình cờ gặp, kể cả online ("I bumped into your profile"). *"I bumped into your post while researching the space."* Hữu ích để giải thích nguồn gốc bạn biết đến họ.
+
+- **`small world`** — thế giới nhỏ — dùng khi phát hiện kết nối chung không ngờ tới. *"You know Linh from Klara? Small world — we worked together for two years."*
+
+- **`to hit it off`** — hợp nhau ngay từ đầu, kết nối tốt ngay lần đầu gặp. *"We hit it off immediately — I think this will be a great collaboration."*
+
+- **`to keep in touch`** — giữ liên lạc — câu kết thúc cuộc trò chuyện chuẩn, nhưng chỉ có nghĩa thực sự nếu kèm theo hành động cụ thể. *"Let's keep in touch — I'll connect with you on LinkedIn."*
+
+## 08 — Tự luyện
+
+1. **Nói:** Ghi âm một video-call hello 30 giây cho một buổi kickoff với client mới mà bạn chưa từng gặp. Bạn là người mới nhất trong cuộc họp. Video phải có: tên, vai trò, tên công ty, một câu thể hiện bạn biết bối cảnh của cuộc họp này, và một câu kết warm. Nghe lại và chú ý xem giọng bạn có nghe tự nhiên và confident không — hay đang đọc từng từ.
+
+2. **Viết:** Chọn một chủ đề bạn thực sự làm hoặc quan tâm (ví dụ: UX research, B2B sales, data analytics). Viết ba tin nhắn đầu tiên cho *cùng một người*, calibrated cho ba kênh khác nhau: (a) cold email — đầy đủ cấu trúc bốn phần, (b) LinkedIn DM — tối đa 4 câu, có điểm tham chiếu cụ thể, (c) Slack message nếu bạn vừa join workspace của họ — 2–3 câu, informal, kèm emoji nếu phù hợp. Sau khi viết xong, đọc lại và kiểm tra: subject line có đủ thông tin không? LinkedIn DM có "Dear" không? Slack message có dài quá không?
+
+3. **Đổi vai:** Bạn nhận được cold email sau đây: *"Dear Sir/Madam, My name is John and I am reaching out to you today because I believe there may be a mutually beneficial synergy between our respective organisations. I have 10 years of experience in the digital marketing space and would be interested in scheduling a call at your earliest convenience to discuss further. I hope this email finds you well. Best regards, John."* Email này có ít nhất năm vấn đề về calibration. Viết một reply lịch sự và hữu ích (3–4 câu) cho John — không từ chối thẳng, nhưng có thể kèm một feedback nhẹ nếu bạn muốn. Sau đó, viết lại email của John theo cách bạn nghĩ sẽ hiệu quả hơn.
+
+<Recap>
+- Mỗi kênh online có formality default riêng: cold email → cao nhất (cần subject line + 4 phần); LinkedIn DM → medium-high (ngắn + điểm tham chiếu cụ thể); Slack → medium-low (warm + minimal + emoji phù hợp); video call → casual với một dòng context; group chat → casual nhất.
+- Lỗi phổ biến nhất khi giao tiếp online không phải sai ngữ pháp — mà là mismatch kênh và mức độ trang trọng: "Dear Sir/Madam" trong LinkedIn DM, bio dài trong Slack first message, subject line "Hello" trong cold email.
+- Cross-cultural calibration: với đối tác Nhật/Hàn giữ formality lâu hơn; với Đức/Bắc Âu đi thẳng vào vấn đề; với Brazil/Mexico thêm một câu ấm áp cá nhân; với Singapore/Malaysia mirror cách họ viết.
+- Async tone signals quan trọng: dấu chấm ở cuối Slack message có thể đọc lạnh; toàn chữ hoa = shouting; quan sát punctuation và emoji của đồng nghiệp bản ngữ và mirror lại.
+- Video call entry: nếu đúng giờ — tên + role + một câu warm. Nếu vào trễ — "sorry, go ahead" rồi im. Không over-apologize, không giới thiệu lại toàn bộ.
+- Follow-up email sau im lặng: dùng "circling back" / "gentle nudge" + "in case it slipped through" + "no rush at all" để giảm áp lực. Một follow-up là bình thường; ba là ranh giới.
+- Toàn bộ topic Greetings & Introductions đã cover: gặp lần đầu trang trọng → lần đầu thân mật → ngữ cảnh xã hội → nhóm và team → gặp lại và quên tên → online và văn hoá. Từ đây, bạn có đủ công cụ để xử lý gần như mọi tình huống chào hỏi và giới thiệu trong tiếng Anh thực tế.
+</Recap>
