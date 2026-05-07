@@ -1,0 +1,179 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Video call có một nền văn hoá nhỏ riêng: biết khi nào mute, khi nào unmute, khi nào giơ tay thay vì lên tiếng thẳng, cách xin lỗi vì sự cố kết nối mà không làm chậm cả cuộc họp, nên nói gì khi vào muộn, khi nào tắt camera (đang ăn, chỉ gật đầu) và khi nào bật (tự giới thiệu lần đầu). Nắm được những điều này, bạn sẽ hoà nhập ngay trong bất kỳ cuộc họp Zoom, Google Meet hay Teams nào.
+
+## 01 — Bối cảnh
+
+Một cuộc họp video điển hình trải qua các giai đoạn khá cố định. Đầu tiên là **joining** — bạn click link, chờ host admit, rồi xuất hiện trong phòng. Ngay sau đó thường là vài câu chào nhanh ("Hi everyone", "Morning!") — đây là *verbal hello* ngắn trước khi bắt đầu chính thức.
+
+Tiếp theo là **mute/unmute discipline** — kỷ luật mic là kỹ năng số một trong video call. Quy tắc ngầm: mute khi không nói, unmute khi muốn lên tiếng. Nhưng ai cũng đã ít nhất một lần bị "you're on mute" — nói cả đoạn rồi mới biết không ai nghe. Phục hồi đúng cách khỏi tình huống này là một trong những mẫu câu quan trọng nhất bài này dạy.
+
+Khi **contributing** — phát biểu, chia sẻ ý kiến — bạn cần biết cách chen vào lịch sự khi người khác đang nói (đặc biệt do độ trễ đường truyền), cách dùng raise-hand ảo, và cách dùng chat panel để hỏi nhanh mà không cắt ngang lời ai.
+
+**Screen sharing** có quy trình riêng: xin phép ("Can I share my screen?"), kiểm tra người kia thấy gì ("Can you see my screen?"), rồi kết thúc sharing gọn gàng. Cuối cùng là **exiting** — không chỉ im lặng rời đi, mà nói một câu kết thúc ngắn để không bị coi là thô.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "to be on mute", vi: "đang trong trạng thái tắt mic (người khác không nghe thấy bạn)", example: "Sorry — I was on mute the whole time." },
+  { en: "to mute oneself", vi: "tự tắt mic", example: "Please mute yourself if you're in a noisy place." },
+  { en: "to unmute oneself", vi: "tự bật mic lại", example: "You can unmute yourself when you're ready to speak." },
+  { en: "to raise (a virtual) hand", vi: "giơ tay ảo — nút Raise Hand trong Zoom/Teams để xin phát biểu", example: "If you have a question, please raise your hand." },
+  { en: "to share one's screen", vi: "chia sẻ màn hình", example: "Let me share my screen so you can see the slides." },
+  { en: "Can you see my screen?", vi: "Bạn thấy màn hình của tôi chưa? (hỏi sau khi bắt đầu screen share)" },
+  { en: "Can you hear me okay?", vi: "Bạn có nghe tôi rõ không? (kiểm tra âm thanh)" },
+  { en: "to take it offline", vi: "chuyển sang trao đổi riêng (qua DM hoặc sau cuộc họp), không bàn trước mọi người", example: "Let's take this offline — I'll ping you after." },
+  { en: "breakout room", vi: "phòng nhỏ tách ra từ cuộc họp chính để làm việc theo nhóm (tính năng của Zoom/Teams)" },
+  { en: "to drop off the call", vi: "rời khỏi cuộc gọi (thường dùng khi phải đi sớm)", example: "I need to drop off at 3 — I have another call." },
+  { en: "to step away", vi: "rời chỗ một lúc (nói khi cần ra khỏi màn hình ngắn)", example: "I need to step away for two minutes." },
+  { en: "recording", vi: "ghi lại cuộc họp — nút Record; luôn hỏi trước khi bật" },
+  { en: "I'll keep my camera off", vi: "Tôi sẽ tắt camera (thông báo trước để không ai nghĩ bạn vắng mặt)", example: "I'll keep my camera off — I'm in a noisy café." },
+  { en: "I'm in a noisy place", vi: "Tôi đang ở chỗ ồn (giải thích lý do mute hoặc tắt camera)" },
+]} />
+
+## 03 — Mẫu câu
+
+Năm mẫu câu phủ các tình huống bạn gặp nhiều nhất trong một cuộc họp video.
+
+<Pattern
+  en="Sorry I'm late — go ahead, I'll catch up."
+  vi="Xin lỗi tôi vào muộn — cứ tiếp tục, tôi sẽ theo kịp."
+  variations={[
+    "Sorry for being late — please don't stop on my account.",
+    "Hi everyone, sorry — just catching up.",
+    "My apologies for the late join — carry on.",
+  ]}
+  note={`"Go ahead" và "carry on" đều có nghĩa "cứ tiếp tục" — câu này quan trọng vì nó chủ động báo cho cả phòng biết bạn không cần được tóm tắt lại.`}
+/>
+
+<Pattern
+  en="Can everyone hear me okay?"
+  vi="Mọi người có nghe tôi rõ không?"
+  variations={[
+    "Can you hear me all right?",
+    "Is my audio coming through okay?",
+    "Just checking — can everyone hear me?",
+  ]}
+  note={`Luôn dùng câu này ngay sau khi vào phòng hoặc sau khi share screen. Ngắn, rõ, không dài dòng.`}
+/>
+
+<Pattern
+  en="Sorry — I was on mute. What I was saying was…"
+  vi="Xin lỗi — tôi đang tắt mic. Tôi vừa nói là…"
+  variations={[
+    "Oops — I was muted. Anyway, my point was…",
+    "Sorry about that — on mute. So, what I meant was…",
+    "Ha, sorry — muted. Let me start again: …",
+  ]}
+  note={`Không cần xin lỗi dài. Một "sorry" ngắn + tiếp tục ngay là đủ. Cả phòng đều đã từng bị vậy.`}
+/>
+
+<Pattern
+  en="Sorry to jump in — quick question on that point?"
+  vi="Xin lỗi chen ngang — có câu hỏi nhanh về điểm đó?"
+  variations={[
+    "Can I jump in here for a second?",
+    "Sorry to interrupt — just one quick thing.",
+    "Before we move on, could I ask something quickly?",
+  ]}
+  note={`"Jump in" là cụm chuẩn khi bạn muốn chen vào lịch sự. Luôn kèm "sorry" hoặc "quick" để báo hiệu bạn không định chiếm lời lâu.`}
+/>
+
+<Pattern
+  en="I have to drop off for another meeting — thanks everyone, talk soon."
+  vi="Tôi phải rời để vào họp khác — cảm ơn mọi người, nói chuyện sau nhé."
+  variations={[
+    "I need to jump off — thanks all!",
+    "I have a hard stop at the hour — thanks, bye everyone.",
+    "I'll have to leave early — great meeting, everyone.",
+  ]}
+  note={`"Hard stop" = phải kết thúc đúng giờ vì có lịch tiếp theo. Rất phổ biến trong môi trường công sở phương Tây.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`Câu hỏi yes/no rút gọn cho video call + apology phrases`}
+  structure={`Can everyone + [hear / see / etc.] + [me / my screen] + okay? / Sorry — I + [was on mute / froze / lost connection].`}
+  examples={[
+    { en: "Can everyone hear me okay?", vi: "Mọi người có nghe tôi rõ không?" },
+    { en: "Can you see my screen?", vi: "Bạn có thấy màn hình của tôi không?" },
+    { en: "Sorry — I was on mute.", vi: "Xin lỗi — tôi đang tắt mic." },
+    { en: "Sorry, I think I froze for a second.", vi: "Xin lỗi, tôi nghĩ màn hình tôi bị đứng một giây." },
+    { en: "Could you share that link in chat?", vi: "Bạn có thể thả link đó vào chat không?" },
+  ]}
+  contrast={`Câu dài như "I would like to ask whether everybody can clearly hear my voice through the audio" nghe không tự nhiên trong môi trường video call. Thay vào đó, "Can everyone hear me okay?" là đủ — ngắn, rõ, và đúng tone. Video meeting đặt phần thưởng cho sự ngắn gọn: chậm trễ kết nối + nhiều người cùng nghe có nghĩa là câu ngắn luôn hiệu quả hơn câu dài.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "Host (Linh)", en: "Okay, I think we're all here. Morning everyone — this is our weekly standup. Alex, you just joined?", vi: "Được rồi, tôi nghĩ mọi người đã vào đủ. Chào buổi sáng mọi người — đây là standup tuần này. Alex, bạn vừa vào à?" },
+  { speaker: "Alex", en: "Yeah, sorry I'm late — go ahead, I'll catch up.", vi: "Vâng, xin lỗi tôi vào muộn — cứ tiếp tục, tôi sẽ theo kịp." },
+  { speaker: "Host (Linh)", en: "No worries. Can everyone hear me okay? Marcus, you look frozen.", vi: "Không sao. Mọi người có nghe tôi rõ không? Marcus, bạn trông như bị đứng màn hình." },
+  { speaker: "Marcus", en: "Sorry — I was on mute. I can hear you fine. What I was saying was — my connection's a bit slow today.", vi: "Xin lỗi — tôi đang tắt mic. Tôi nghe rõ. Tôi vừa nói là — kết nối của tôi hôm nay hơi chậm." },
+  { speaker: "Host (Linh)", en: "Got it. Okay, quick updates — who wants to go first?", vi: "Hiểu rồi. Được, cập nhật nhanh — ai muốn đi trước?" },
+  { speaker: "Alex", en: "I'll go. We shipped the new dashboard yesterday — I can share my screen if it helps.", vi: "Tôi đi trước nhé. Chúng tôi đã deploy dashboard mới hôm qua — tôi có thể share màn hình nếu cần." },
+  { speaker: "Host (Linh)", en: "Please do.", vi: "Bật lên đi." },
+  { speaker: "Alex", en: "Okay — can you see my screen now?", vi: "Được rồi — mọi người thấy màn hình của tôi chưa?" },
+  { speaker: "Marcus", en: "Sorry to jump in — quick question on that point? The blue chart on the left — is that real-time data?", vi: "Xin lỗi chen ngang — có câu hỏi nhanh về điểm đó? Biểu đồ xanh bên trái — đó là dữ liệu thời gian thực à?" },
+  { speaker: "Alex", en: "Good catch — let's take that offline, I'll ping you after. Anyway, I have to drop off at the half hour — thanks everyone, talk soon.", vi: "Câu hỏi hay — mình bàn riêng sau nhé, tôi sẽ nhắn bạn. Nhân tiện, tôi phải rời lúc 30 phút — cảm ơn mọi người, nói chuyện sau nhé." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`(Không mute khi không nói — cả phòng nghe tiếng gõ phím, xe cộ, tiếng TV)`}
+  right={`Mute ngay khi bạn không phát biểu. Unmute chỉ khi sắp nói. Đây là kỷ luật cơ bản nhất của video call.`}
+  why={`Background noise không chỉ gây khó chịu mà còn khiến người nói khó nghe. Hầu hết các platform đều có phím tắt unmute tạm thời (giữ Space bar trong Zoom) — dùng thói quen này.`}
+/>
+
+<Mistake
+  wrong={`"Oh my gosh, I'm so sorry, I was completely on mute, I didn't realize, I've been talking this whole time and nobody could hear me, I'm so embarrassed…"`}
+  right={`"Sorry — I was on mute. What I was saying was…"`}
+  why={`Xin lỗi quá dài làm chậm cả cuộc họp và khiến mọi người chú ý vào sự cố hơn là nội dung. Một "sorry" ngắn gọn rồi tiếp tục ngay là chuẩn mực trong môi trường chuyên nghiệp.`}
+/>
+
+<Mistake
+  wrong={`(Nói đè lên người khác — tranh mic vì độ trễ đường truyền — rồi im lặng xử lý)`}
+  right={`"You go ahead — sorry." (rồi chờ họ xong) hoặc "Go ahead, I'll wait."`}
+  why={`Độ trễ khiến hai người vô tình nói cùng lúc — đây là chuyện bình thường, không ai lỗi. Người nhường mic trước luôn được đánh giá cao hơn về kỹ năng giao tiếp.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+Ba điểm cần biết trước khi vào bất kỳ cuộc họp video nào:
+
+1. **Văn hoá bật camera khác nhau theo team.** Một số team kỳ vọng camera luôn bật; nhiều team khác coi camera là tuỳ chọn sau khi đã quen nhau. Nguyên tắc an toàn: **bật camera trong buổi họp đầu tiên** và khi tự giới thiệu — rồi quan sát và làm theo chuẩn của team. Nếu cần tắt, thông báo ngắn: *"I'll keep my camera off — I'm in a café."*
+
+2. **"Let's take it offline"** không có nghĩa là "bỏ qua chủ đề này." Nó có nghĩa: *"Chủ đề này hợp hơn để bàn trong nhóm nhỏ hơn (DM, call riêng, sau cuộc họp), không phải trước cả phòng."* Đây là cách lịch sự để tránh làm mất thời gian chung vì một chủ đề chỉ liên quan đến vài người.
+
+3. **Etiquette ghi âm.** Luôn hỏi hoặc thông báo trước khi bật Record: *"I'm going to start recording — is that okay with everyone?"* Ở nhiều platform (Zoom, Teams), một dấu chấm đỏ hiển thị trên màn hình mọi người được coi là đủ thông báo — nhưng hỏi trước vẫn lịch sự hơn, đặc biệt khi có người ngoài công ty trong phòng.
+
+<Callout type="note" title="Chat panel là người bạn tốt nhất của bạn">
+Đừng bỏ qua hộp chat trong Zoom/Meet/Teams. Dùng chat để: thả link mà không cắt ngang lời ai, hỏi câu hỏi nhanh trong lúc người khác đang trình bày, và phản ứng với điểm ai đó vừa nói (một emoji 👍 trong chat thay thế hoàn toàn cho việc unmute và nói "agreed" — nhanh hơn và không làm đứt mạch). Chat cũng là nơi tốt để hỏi lại tên người vừa nói mà không cần làm phiền cả phòng.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to be on mute`** — đang trong trạng thái tắt mic, không ai nghe được. *"You're on mute — can you unmute?"*
+- **`to drop off (a call)`** — rời cuộc gọi, thường dùng khi phải đi trước giờ kết thúc. *"I'll have to drop off at 3."*
+- **`to take it offline`** — chuyển chủ đề ra ngoài cuộc họp chính, bàn riêng sau. *"Good point — let's take it offline."*
+- **`to ping someone in chat`** — nhắn tin nhanh cho ai đó qua chat panel hoặc DM. *"I'll ping you the doc after the call."*
+- **`breakout room`** — phòng nhỏ được tách ra từ cuộc họp lớn để làm việc theo nhóm nhỏ. *"We'll split into breakout rooms for 10 minutes."*
+
+## 09 — Tự luyện
+
+1. **Nói to:** Tưởng tượng bạn vừa vào một cuộc họp Zoom và phát hiện mình đã nói cả đoạn nhưng đang bị mute. Nói to (thật sự nói ra miệng) câu xin lỗi ngắn và tiếp tục điểm bạn muốn nói. Lặp lại 3 lần với nội dung khác nhau.
+2. **Viết:** Soạn một đoạn hội thoại 6–8 lượt: bạn vào muộn một cuộc họp Teams, giải thích ngắn, xin phép share screen, bị ai đó hỏi chen ngang, rồi kết thúc lịch sự vì phải đi họp khác.
+3. **Thực hành ngữ cảnh:** Liệt kê 5 tình huống thực tế trong công việc hoặc học tập của bạn mà bạn có thể gặp trong video call (ví dụ: vào muộn, kết nối kém, cần share màn hình). Với mỗi tình huống, viết một câu tiếng Anh bạn sẽ dùng.
+
+<Recap>
+- Kỷ luật mic là kỹ năng số một: mute khi không nói, unmute khi sắp nói.
+- Câu hỏi kiểm tra ngắn là chuẩn mực: "Can everyone hear me okay?" / "Can you see my screen?"
+- Xin lỗi khi bị mute không cần dài — "Sorry, was on mute" rồi tiếp tục ngay.
+- "Sorry to jump in" + "you go ahead" là hai cụm phục hồi quan trọng khi cắt lời hoặc bị cắt lời.
+- "Take it offline" = bàn riêng sau, không phải bỏ qua.
+- Bật camera trong buổi đầu tiên; hỏi trước khi ghi âm; dùng chat panel thay vì unmute cho những phản ứng ngắn.
+</Recap>

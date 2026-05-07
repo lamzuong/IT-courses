@@ -4,6 +4,7 @@ import { topic as smallTalk } from './small-talk/topic';
 import { topic as restaurantCafe } from './restaurant-cafe/topic';
 import { topic as shoppingMoney } from './shopping-money/topic';
 import { topic as directionsGettingAround } from './directions-getting-around/topic';
+import { topic as phoneVideoCalls } from './phone-video-calls/topic';
 import { placeholderTopics } from './_placeholders';
 
 export const allEnglishTopics: EnglishTopic[] = [
@@ -17,7 +18,8 @@ export const allEnglishTopics: EnglishTopic[] = [
   shoppingMoney,
   // Topic 5 (real)
   directionsGettingAround,
-  placeholderTopics.find((t) => t.slug === 'phone-video-calls')!,
+  // Topic 6 (real)
+  phoneVideoCalls,
   placeholderTopics.find((t) => t.slug === 'travel-airport')!,
   placeholderTopics.find((t) => t.slug === 'hotel')!,
   placeholderTopics.find((t) => t.slug === 'doctor-health')!,

@@ -2,17 +2,6 @@ import type { EnglishTopic } from '../types';
 
 export const placeholderTopics: EnglishTopic[] = [
   {
-    slug: 'phone-video-calls',
-    title: 'Gọi điện & gọi video',
-    englishTitle: 'Phone & video calls',
-    summary: 'Mở/kết thúc cuộc gọi, để lại tin nhắn, xử lý kết nối kém, video call etiquette.',
-    level: 'B1+',
-    variant: 'daily-life',
-    lessons: [],
-    placeholder: true,
-    plannedLessonCount: 6,
-  },
-  {
     slug: 'travel-airport',
     title: 'Du lịch & sân bay',
     englishTitle: 'Travel & airport',
