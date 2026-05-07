@@ -1,13 +1,14 @@
 import type { EnglishTopic } from './types';
 import { topic as greetingsIntroductions } from './greetings-introductions/topic';
+import { topic as smallTalk } from './small-talk/topic';
 import { topic as restaurantCafe } from './restaurant-cafe/topic';
 import { placeholderTopics } from './_placeholders';
 
 export const allEnglishTopics: EnglishTopic[] = [
   // Topic 1 (real)
   greetingsIntroductions,
-  // Topic 2 (placeholder)
-  placeholderTopics.find((t) => t.slug === 'small-talk')!,
+  // Topic 2 (real)
+  smallTalk,
   // Topic 3 (real — pilot)
   restaurantCafe,
   // Topics 4–11 (placeholders, daily-life)
