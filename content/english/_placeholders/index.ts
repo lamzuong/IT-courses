@@ -2,17 +2,6 @@ import type { EnglishTopic } from '../types';
 
 export const placeholderTopics: EnglishTopic[] = [
   {
-    slug: 'directions-getting-around',
-    title: 'Hỏi đường & di chuyển',
-    englishTitle: 'Directions & getting around',
-    summary: 'Hỏi đường, hiểu chỉ dẫn, dùng phương tiện công cộng, taxi & ridesharing.',
-    level: 'B1+',
-    variant: 'daily-life',
-    lessons: [],
-    placeholder: true,
-    plannedLessonCount: 6,
-  },
-  {
     slug: 'phone-video-calls',
     title: 'Gọi điện & gọi video',
     englishTitle: 'Phone & video calls',

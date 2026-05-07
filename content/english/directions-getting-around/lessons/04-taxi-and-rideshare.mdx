@@ -1,0 +1,178 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Tiếng Anh trong taxi và rideshare có mức độ rủi ro khác hẳn so với hỏi đường thông thường — bạn đang cam kết với một điểm đến *và* đôi khi với một mức giá, và một câu nói nhầm có thể dẫn đến đi sai chỗ hoặc mất tiền thật. Kỹ năng cần thiết là truyền đạt địa chỉ rõ ràng, điều chỉnh lộ trình khi cần, và xử lý phần thanh toán mà không gây nhầm lẫn. Với rideshare hiện đại (Uber, Grab, Lyft), còn thêm một lớp nữa: xác nhận tài xế và xe trước khi lên — đây là vấn đề an toàn, không chỉ là thủ tục.
+
+## 01 — Bối cảnh
+
+Ba tình huống cần nắm trong bài này:
+
+**Tình huống 1 — Đặt xe / vẫy taxi:** Bạn cần truyền đạt điểm đến ngay từ đầu, rõ ràng và không nhập nhằng. Tài xế không muốn hỏi lại nhiều lần. Với rideshare app, địa chỉ đã nhập sẵn — nhưng bạn vẫn cần nói chuyện khi lên xe.
+
+**Tình huống 2 — Trên đường đi:** Có thể bạn muốn thay đổi nhỏ — xuống sớm hơn một góc, đổi lộ trình vì kẹt xe, nhờ tài xế bật điều hoà. Những điều chỉnh này cần câu ngắn, rõ, lịch sự.
+
+**Tình huống 3 — Đến nơi và thanh toán:** Cảm ơn tài xế, xử lý tiền tip, xin hoá đơn nếu cần. Với rideshare, phần này gần như tự động qua app — nhưng tip bằng tiền mặt và rating là hai điểm bạn cần biết rõ.
+
+**Lớp rideshare đặc biệt — Xác nhận tài xế khi đón xe:** Trước khi lên xe Grab/Uber, bạn phải kiểm tra tên tài xế và biển số. Đây không phải câu chuyện nghi lễ — đây là an toàn cá nhân. Câu hỏi `"Hi — are you [Minh]? I'm the Uber pickup."` là chuẩn mực toàn cầu.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "to hail a cab / to flag down a taxi", ipa: "heɪl", vi: "vẫy taxi trên phố (giơ tay, gọi to)", example: "I tried to hail a cab for twenty minutes." },
+  { en: "to take an Uber / Grab / Lyft", vi: "đặt xe qua app — 'take' tự nhiên hơn 'order' trong khẩu ngữ", example: "Let's just take a Grab, it's faster." },
+  { en: "Could you take me to…?", vi: "cách lịch sự và rõ ràng nhất để nói điểm đến", example: "Could you take me to 45 Nguyễn Huệ?" },
+  { en: "Drop me off at…", ipa: "drɒp", vi: "thả tôi xuống ở... (dùng khi biết điểm cụ thể)", example: "Could you drop me off at the main entrance?" },
+  { en: "Pull over here, please.", vi: "dừng xe ở đây (yêu cầu tài xế ghé vào lề đường)", example: "Could you pull over here, please? I'll walk the rest." },
+  { en: "right at the corner", vi: "ngay tại góc đường — 'right' nhấn mạnh vị trí chính xác", example: "Just drop me right at the corner, thanks." },
+  { en: "fare", ipa: "fɛː", vi: "giá cước chuyến xe", example: "What's the fare to the airport roughly?" },
+  { en: "meter", ipa: "ˈmiːtə", vi: "đồng hồ tính tiền — luôn yêu cầu bật khi lên taxi truyền thống", example: "Could you put on the meter, please?" },
+  { en: "Could you keep the change?", vi: "tiền thừa anh/chị giữ lại — cách tip tự nhiên khi trả tiền mặt", example: "Here's fifty — could you keep the change?" },
+  { en: "Could I get a receipt?", vi: "xin hoá đơn — cần khi thanh toán bằng công ty hoặc reimbursement", example: "Could I get a receipt before I go?" },
+  { en: "Could you put on the meter?", vi: "yêu cầu bật đồng hồ — câu quan trọng để tránh bị chặt chém", example: "Could you put on the meter, please?" },
+  { en: "surge pricing", ipa: "sɜːdʒ", vi: "giá tăng đột biến lúc cao điểm — thấy trong app Uber/Grab", example: "There's surge pricing right now — 2.1x the normal fare." },
+  { en: "ETA", vi: "estimated time of arrival — thời gian dự kiến đến nơi, thấy trong app", example: "The ETA says eight minutes." },
+]} />
+
+## 03 — Mẫu câu
+
+<Pattern
+  en="Could you take me to 123 Lê Lợi, please?"
+  vi="Anh/chị đưa tôi đến 123 Lê Lợi được không?"
+  variations={[
+    "Could you take me to the airport — Terminal 2?",
+    "I need to get to the central train station.",
+    "Could you drop me at the Marriott on Dong Khoi?",
+  ]}
+  note={`Luôn dùng verb "take me to" hoặc "drop me at" — đừng chỉ nói tên đường không thôi. "Lê Lợi!" không rõ bạn muốn đến số mấy, góc nào.`}
+/>
+
+<Pattern
+  en="Could you take the highway? It's faster this time of day."
+  vi="Anh/chị đi đường cao tốc được không? Giờ này đi đó nhanh hơn."
+  variations={[
+    "Could you avoid the city centre? There's usually a jam.",
+    "The back road on the left is quicker — could you go that way?",
+    "Either route is fine with me.",
+  ]}
+  note={`Thêm lý do ngắn gọn ("It's faster", "There's a jam") giúp tài xế hiểu và đồng ý nhanh hơn. Đừng chỉ ra lệnh lộ trình mà không giải thích.`}
+/>
+
+<Pattern
+  en="Actually, could you drop me off at the next corner instead?"
+  vi="À thật ra, anh/chị cho tôi xuống ở góc tiếp theo được không?"
+  variations={[
+    "Could you stop just past the traffic lights?",
+    "Here is fine, actually — right here.",
+    "Could you pull over anywhere along here?",
+  ]}
+  note={`"Actually" ở đầu câu báo hiệu thay đổi nhỏ so với kế hoạch ban đầu — rất phổ biến và hoàn toàn tự nhiên. Không cần xin lỗi dài dòng.`}
+/>
+
+<Pattern
+  en="Hi — are you Minh? I'm the Uber pickup."
+  vi="Xin chào — bạn có phải là Minh không? Tôi là người đặt Uber."
+  variations={[
+    "Hi, is this the Grab for [your name]?",
+    "Hi — what name is the trip under?",
+    "Are you going to [destination]? Just checking.",
+  ]}
+  note={`Đây là câu xác nhận danh tính — bạn hỏi tài xế trước, không phải để tài xế hỏi bạn. Một tài xế thật sẽ trả lời ngay; người không phải tài xế của bạn thường do dự.`}
+/>
+
+<Pattern
+  en="Thanks so much — could I get a receipt? / Keep the change."
+  vi="Cảm ơn nhiều — cho tôi xin hoá đơn nhé? / Tiền thừa anh/chị giữ lại."
+  variations={[
+    "Could you email me the receipt? I think it's in the app.",
+    "Here's the exact amount — thank you.",
+    "I'll tip through the app — have a good one!",
+  ]}
+  note={`"Keep the change" là câu tip bằng tiền mặt chuẩn. Với rideshare, tip qua app ngày càng phổ biến — nói "I'll tip through the app" là lịch sự và rõ ràng.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`"Could you" + base verb cho yêu cầu lịch sự với tài xế`}
+  structure={`Could you + [base verb] + [object/place]? — e.g., "Could you drop me off at the corner?" / "Could you take Lê Lợi?"`}
+  examples={[
+    { en: "Could you take me to the airport?", vi: "Anh/chị đưa tôi ra sân bay được không?" },
+    { en: "Could you drop me off at the corner?", vi: "Anh/chị cho tôi xuống ở góc đường được không?" },
+    { en: "Could you take the highway?", vi: "Anh/chị đi đường cao tốc được không?" },
+    { en: "Could you turn on the AC?", vi: "Anh/chị bật điều hoà được không?" },
+    { en: "Could you wait here for a sec?", vi: "Anh/chị đợi tôi ở đây một chút được không?" },
+  ]}
+  contrast={`Mệnh lệnh thức ("Drop me at the corner!") nghe thô và ra lệnh — có thể gây phản ứng không tốt, đặc biệt trong các tình huống du lịch xa nhà. "Could you drop me off at the corner, please?" truyền đạt đúng nội dung, lịch sự hơn, và tài xế thường phản hồi tích cực hơn. "Could you" là lựa chọn an toàn nhất trong mọi ngữ cảnh giao thông.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "You", en: "Hi — are you Minh? I'm the Grab pickup — the booking for Alex.", vi: "Xin chào — bạn có phải là Minh không? Tôi đặt Grab đây — tên Alex." },
+  { speaker: "Driver", en: "Yes! Alex? Going to the Bitexco building downtown?", vi: "Đúng rồi! Anh Alex? Đến toà Bitexco trung tâm phải không?" },
+  { speaker: "You", en: "That's right. Could you confirm the plate — I just want to check against the app.", vi: "Đúng vậy. Anh có thể đọc biển số giúp tôi không — tôi muốn kiểm tra với app." },
+  { speaker: "Driver", en: "Sure — it's 51F-888.32. Check away!", vi: "Được thôi — 51F-888.32. Anh kiểm tra đi!" },
+  { speaker: "You", en: "Perfect, matches. Thanks. Could you take the riverside road? It might be faster than the tunnel at this hour.", vi: "Khớp rồi. Cảm ơn. Anh có thể đi đường ven sông không? Giờ này có thể nhanh hơn đi hầm." },
+  { speaker: "Driver", en: "Good call — tunnel's a nightmare after five. Riverside it is.", vi: "Đúng đó — hầm kẹt kinh khủng sau 5 giờ. Đi đường sông nhé." },
+  { speaker: "You", en: "Great. Oh — actually, could you drop me off at the side entrance on Hai Trieu instead of the main door? It's closer to the lifts.", vi: "Tốt. À — thật ra, anh có thể thả tôi ở cửa bên đường Hai Triều thay vì cửa chính không? Gần thang máy hơn." },
+  { speaker: "Driver", en: "No problem — I know the spot.", vi: "Được thôi — tôi biết chỗ đó." },
+  { speaker: "You", en: "Thank you so much. Could I get a receipt? I need it for expenses.", vi: "Cảm ơn anh nhiều. Cho tôi xin hoá đơn nhé? Tôi cần để thanh toán chi phí công ty." },
+  { speaker: "Driver", en: "It'll come through the app — check your email in a minute. Have a good meeting!", vi: "Hoá đơn sẽ gửi qua app — kiểm tra email trong vài phút. Chúc anh cuộc họp thuận lợi!" },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"Lê Lợi!" (chỉ nói tên đường không)`}
+  right={`"Could you take me to 123 Lê Lợi?" hoặc "Drop me at the corner of Lê Lợi and Pasteur."`}
+  why={`Chỉ nói tên đường mà không có động từ và số nhà khiến tài xế không biết bạn muốn đến đâu cụ thể. Một con đường có thể dài vài km. Luôn dùng "Could you take me to [địa chỉ đầy đủ]?" để tránh nhầm lẫn tốn tiền.`}
+/>
+
+<Mistake
+  wrong={`Lên xe rideshare mà không xác nhận tên tài xế và biển số`}
+  right={`"Hi — are you [tên tài xế]? What name is the trip under?" rồi đối chiếu với app trước khi lên.`}
+  why={`Bỏ qua bước xác nhận là lỗi an toàn nghiêm trọng, không chỉ là thủ tục xã giao. App Uber/Grab đều hiển thị tên tài xế, ảnh, và biển số — dùng thông tin đó. Một tài xế thật luôn sẵn lòng xác nhận; người giả mạo thường do dự hoặc trả lời vòng vo.`}
+/>
+
+<Mistake
+  wrong={`"How much do you want for this trip?" (mặc cả sau khi đi taxi có đồng hồ)`}
+  right={`"Could you put on the meter, please?" — hỏi trước khi xe chạy.`}
+  why={`Mặc cả giá với taxi có đồng hồ là bất thường và thường gây khó chịu. Nếu tài xế không bật đồng hồ, hãy yêu cầu lịch sự trước khi xe chạy: "Could you put on the meter, please?" Mặc cả giá chỉ phù hợp với taxi không đồng hồ hoặc xe thuê thoả thuận — và nên làm trước chuyến đi, không phải sau.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+Ba điểm dễ trượt:
+
+1. **Tip cho taxi thay đổi theo quốc gia.** Ở Mỹ, chuẩn là 15–20% — bỏ qua tip hoàn toàn là bất lịch sự. Với Uber/Lyft tại Mỹ, tip qua app là phổ biến và được đánh giá cao. Ở Anh và Úc, thông thường là làm tròn lên hoặc để lại một ít tiền lẻ. Nhiều quốc gia Đông Nam Á (bao gồm Việt Nam, Thái Lan) không kỳ vọng tip với taxi/Grab — nhưng tip vẫn được chào đón. Khi không chắc, quan sát xem app có phần tip không, hoặc hỏi người địa phương trước.
+
+2. **"Taxi du lịch" không đồng hồ vẫn còn phổ biến ở một số thành phố.** Tại một số điểm du lịch và sân bay, tài xế có thể cố ý không bật đồng hồ và báo giá trên trời sau chuyến đi. Cách phòng ngừa tốt nhất: sử dụng rideshare app (giá cố định trước), hoặc yêu cầu rõ ràng ngay khi lên: `"Could you put on the meter, please?"` Nếu họ từ chối, hãy xuống xe và chọn chuyến khác.
+
+3. **Chia sẻ lộ trình với người thân là bình thường, không phải nghi ngờ.** Hầu hết các app rideshare đều có tính năng "chia sẻ chuyến đi" — gửi link lộ trình real-time cho bạn bè hoặc gia đình. Đặc biệt nên làm vào ban đêm hoặc khi đi một mình đến nơi lạ. Đây là thói quen an toàn được khuyến khích toàn cầu, không có gì bất lịch sự với tài xế cả.
+
+<Callout type="warning" title={`Luôn xác nhận tài xế TRƯỚC khi lên xe`}>
+Trước khi mở cửa bất kỳ chiếc xe nào, hãy kiểm tra: tên tài xế, ảnh đại diện, và biển số — đối chiếu với app. Câu `"Hi — what name is the trip under?"` là cách kiểm tra thông minh: một tài xế thật sẽ trả lời ngay tên của bạn; người giả mạo sẽ hỏi lại hoặc do dự. Đừng bao giờ nói tên của bạn trước — để tài xế nói tên người đặt xe trước, bạn xác nhận sau.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to flag down a cab`** — vẫy tắt taxi trên phố bằng tay. *"I flagged down a cab outside the hotel."*
+- **`to hail a taxi`** — vẫy taxi (formal hơn "flag down" nhưng cùng nghĩa). *"It's hard to hail a taxi in the rain."*
+- **`to call it an Uber`** / **`just Uber it`** — đặt Uber thay vì đi cách khác. *"Forget the bus — let's just call an Uber."*
+- **`Keep the change.`** — tiền thừa giữ lại, đây là cách tip bằng tiền mặt tự nhiên nhất. *"Here's twenty — keep the change."*
+- **`to be stuck in traffic`** — kẹt xe. *"Sorry I'm late — we were stuck in traffic for half an hour."*
+
+## 09 — Tự luyện
+
+1. **Nói thành tiếng:** Tưởng tượng bạn vừa tìm thấy xe Grab của mình. Nói to 3 câu liên tiếp: xác nhận tên tài xế, nói điểm đến với số nhà cụ thể, và yêu cầu đi theo một tuyến đường cụ thể.
+2. **Viết:** Soạn một đoạn hội thoại 6 lượt — bạn đang trên taxi và muốn: (a) thay đổi điểm xuống xe sang một góc khác, (b) hỏi xin hoá đơn khi đến nơi. Dùng "Could you" cho mọi yêu cầu.
+3. **Phân tích:** So sánh hai câu — `"Airport!"` và `"Could you take me to Terminal 2 at the airport, please?"` — Câu nào rõ hơn và vì sao? Viết 2–3 câu giải thích bằng tiếng Việt, kèm thêm một ví dụ tương tự của bạn.
+
+<Recap>
+- Luôn dùng `"Could you take me to [địa chỉ đầy đủ]?"` — đừng chỉ nói tên đường không để tránh nhầm điểm đến.
+- Với rideshare, xác nhận tên tài xế và biển số TRƯỚC khi lên xe — để tài xế nói tên bạn trước, bạn xác nhận sau.
+- `"Could you"` + base verb là khuôn lịch sự chuẩn cho mọi yêu cầu với tài xế: lộ trình, điều chỉnh giữa chừng, thanh toán.
+- `"Actually, could you drop me off at…?"` — "actually" báo hiệu thay đổi nhỏ, hoàn toàn tự nhiên, không cần xin lỗi dài dòng.
+- Tip: 15–20% ở Mỹ; làm tròn ở Anh/Úc; không bắt buộc ở nhiều nước Đông Nam Á — nhưng qua app ngày càng phổ biến.
+- Taxi có đồng hồ: yêu cầu bật meter TRƯỚC khi xe chạy bằng câu `"Could you put on the meter, please?"`
+</Recap>

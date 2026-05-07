@@ -1,0 +1,212 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Sân bay quốc tế, ga tàu lớn, bến xe liên tỉnh — đây là những môi trường điều hướng cao nhất về rủi ro trong toàn bộ topic này. Bạn có thể lạc trong một con phố và gọi taxi; bạn không thể "gọi lại" một chuyến bay đã cất cánh. Áp lực thời gian, biển hiệu bằng nhiều thứ tiếng, hàng trăm người đang di chuyển theo mọi hướng — tất cả cộng lại tạo ra một bài kiểm tra thực sự cho kỹ năng tiếng Anh định hướng của bạn. Bài capstone này tổng hợp toàn bộ những gì bạn đã học trong topic: cách hỏi đúng người, hiểu câu trả lời nhanh, dùng phương tiện đúng, và phục hồi khi mọi thứ đi chệch hướng — lần này trong bối cảnh mà dưới 30 giây có thể tạo ra sự khác biệt.
+
+## 01 — Bối cảnh
+
+Ba môi trường, một bộ kỹ năng cốt lõi.
+
+**(1) Sân bay quốc tế.** Check-in counter, hàng kiểm tra an ninh, khu vực cửa khởi hành (departure gates), hành lang transfer giữa các terminal — đây là môi trường phức tạp nhất. Biển hiệu thường bằng hai ngôn ngữ, nhưng thông báo qua loa có thể rất khó nghe. Nhân viên sân bay thường bận và di chuyển nhanh; câu hỏi của bạn cần ngắn và cụ thể. Từ khoá cao giá trị nhất: **terminal**, **gate**, **boarding**, **connection**.
+
+**(2) Ga tàu lớn.** Bảng thời gian khởi hành (departures board), khu bán vé (ticket hall), các sân ga (platforms) đánh số — ga tàu thường ít ồn ào hơn sân bay nhưng thay đổi nhanh: platform của một chuyến tàu có thể thay đổi 10 phút trước khi khởi hành. Nhân viên tại quầy thông tin (information desk) hoặc người kiểm soát vé (conductor) là nguồn thông tin tin cậy nhất. Từ khoá: **platform**, **track**, **on time / delayed**, **the departures board**.
+
+**(3) Bến xe liên tỉnh.** Các ô đỗ xe (bays) được đánh số, bảng khởi hành, phân biệt giữa xe nội thành và xe liên tỉnh — bến xe thường ít có nhân viên hơn hai môi trường trên. Biển hiệu đôi khi không đầy đủ; trong trường hợp này, hỏi tài xế hoặc nhân viên bán vé là cách nhanh nhất.
+
+**Kỹ năng cốt lõi chung cho cả ba:** Hỏi đúng người — quầy thông tin > nhân viên mặc đồng phục có thẻ tên > nhân viên khác (lao công, nhân viên bán lẻ) > hành khách ngẫu nhiên. Và quan trọng hơn: **hỏi ngắn**. "Gate 23 — this way?" với một điệu bộ tay ngắn gọn đôi khi hiệu quả hơn một câu dài được chuẩn bị kỹ trong tình huống khẩn cấp.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "terminal", ipa: "ˈtɜː.mɪ.nəl", vi: "nhà ga (sân bay) — khu vực lớn trong sân bay, ví dụ Terminal 1, Terminal 2; một sân bay có thể có nhiều terminal và bạn phải đến đúng terminal trước khi làm bất cứ điều gì khác", example: "Which terminal does Vietnam Airlines use?" },
+  { en: "gate", ipa: "ɡeɪt", vi: "cửa lên máy bay — điểm cuối bạn đến để lên máy bay; mỗi chuyến bay có một gate riêng và gate có thể thay đổi, luôn kiểm tra bảng thông báo", example: "Your flight departs from Gate 14B — check the board for updates." },
+  { en: "platform", ipa: "ˈplæt.fɔːm", vi: "sân ga (tàu hoả hoặc metro) — khu vực dọc theo đường ray nơi bạn lên xuống tàu; KHÔNG dùng 'platform' trong sân bay (dùng 'gate') và KHÔNG dùng 'gate' ở ga tàu (dùng 'platform')", example: "The 14:35 to Manchester departs from Platform 6." },
+  { en: "track", ipa: "træk", vi: "đường ray — số hiệu đường ray cụ thể tại một sân ga; ở một số ga lớn như Penn Station (New York), nhân viên thông báo 'track number' thay vì platform", example: "Your train will depart from Track 9." },
+  { en: "the departures board", vi: "bảng thông báo khởi hành — màn hình lớn hiển thị thông tin tất cả các chuyến đi: giờ khởi hành, điểm đến, gate/platform, và trạng thái (on time / delayed / cancelled / boarding)", example: "Check the departures board — your gate might have changed." },
+  { en: "on time / delayed", vi: "đúng giờ / bị trễ — hai trạng thái cơ bản trên bảng thông báo; 'delayed' chưa có giờ cụ thể, 'delayed until 18:45' thì đã có", example: "The 16:20 to Singapore is showing delayed by 40 minutes." },
+  { en: "cancelled", ipa: "ˈkæn.səld", vi: "bị huỷ — chuyến đi không chạy nữa; đây là tình huống cần leo thang ngay đến quầy hãng (airline desk hoặc train operator desk) để sắp xếp lại", example: "If your flight is cancelled, go straight to the airline desk — don't queue at the gate." },
+  { en: "to board / boarding", ipa: "bɔːd", vi: "lên phương tiện / đang lên — 'boarding' là giai đoạn hành khách được phép lên máy bay hoặc tàu; 'now boarding' trên bảng nghĩa là đi ngay", example: "Flight VN202 is now boarding at Gate 7." },
+  { en: "the boarding call", vi: "thông báo lên tàu/máy bay — thông báo qua loa (hoặc trên bảng) khi bắt đầu cho hành khách lên; thường có 'final boarding call' là lần nhắc cuối cùng trước khi đóng cửa", example: "This is the final boarding call for Flight BA289 to London." },
+  { en: "to connect / a connection", ipa: "kəˈnekt", vi: "chuyển tiếp / chuyến nối — khi bạn phải đổi máy bay hoặc tàu ở một điểm giữa; 'tight connection' = ít thời gian chuyển tiếp, đây là tình huống đặc biệt mà nhân viên được đào tạo để ưu tiên xử lý", example: "I have a tight connection in Dubai — only 45 minutes." },
+  { en: "layover / stopover", ipa: "ˈleɪ.əʊ.vər / ˈstɒp.əʊ.vər", vi: "thời gian chờ tại điểm dừng trung gian — 'layover' thường dùng ở Mỹ, 'stopover' dùng ở Anh và nhiều nước; layover ngắn (dưới 24h) vs stopover có thể dài hơn và bạn rời sân bay", example: "We have a four-hour layover in Seoul — enough time to eat." },
+  { en: "to make a connection", vi: "kịp chuyến nối — cụm có giá trị cao nhất tại sân bay; khi bạn nói câu này với nhân viên, họ biết ngay đây là ưu tiên và thường sẽ hành động nhanh hơn", example: "I need to make my connection to Hanoi — is there a faster route?" },
+  { en: "check-in counter", vi: "quầy làm thủ tục — nơi bạn đến đầu tiên ở sân bay để check in hành lý và nhận thẻ lên máy bay; 'online check-in' = làm thủ tục trước trên app, không cần đến quầy (trừ khi có hành lý ký gửi)", example: "The Vietnam Airlines check-in counters are at zone D, level 2." },
+  { en: "security / customs", vi: "kiểm tra an ninh / hải quan — security là cửa kiểm tra máy móc cho tất cả hành khách; customs là cửa khai báo hàng hoá khi nhập cảnh (thường là sau khi lấy hành lý). Hai thứ khác nhau hoàn toàn — người mới du lịch hay nhầm", example: "Security can take 20–30 minutes during peak hours — factor that in." },
+  { en: "baggage claim", vi: "khu nhận hành lý — khu vực băng chuyền nơi bạn lấy vali sau khi hạ cánh; mỗi chuyến bay có một băng chuyền riêng, kiểm tra bảng thông báo để biết số băng chuyền", example: "Your bags will be on Carousel 4 at baggage claim." },
+]} />
+
+## 03 — Mẫu câu
+
+<Pattern
+  en="Hi — could you tell me which terminal Vietnam Airlines is at?"
+  vi="Chào — bạn có thể cho tôi biết Vietnam Airlines ở terminal nào không?"
+  variations={[
+    "Excuse me — which terminal is this for? I'm flying Emirates.",
+    "Hi — I'm looking for the international departures. Which way?",
+    "Sorry — could you point me to the check-in counters for Singapore Airlines?",
+  ]}
+  note={`Đây là câu hỏi quầy thông tin tiêu chuẩn — mở đầu bằng "Hi" hoặc "Excuse me", sau đó đến câu hỏi cụ thể với hãng hoặc điểm đến. Ngắn gọn, không cần giải thích dài. Nhân viên quầy thông tin nghe hàng trăm câu hỏi như thế này mỗi ngày — họ muốn bạn đến, hỏi, và đi tiếp, không phải đứng giải thích hoàn cảnh.`}
+/>
+
+<Pattern
+  en="Excuse me, am I heading the right way for Gate 23?"
+  vi="Xin lỗi, tôi đang đi đúng hướng đến Gate 23 không?"
+  variations={[
+    "Is this the right direction for Platform 5?",
+    "Am I going the right way for the international transfer area?",
+    "Excuse me — Gate 45, is it this way or the other direction?",
+  ]}
+  note={`Câu xác nhận hướng đi — cực kỳ hữu dụng khi bạn đang đi nhưng không chắc. "Am I heading the right way for...?" là cấu trúc lịch sự và tự nhiên nhất. Câu này cũng dễ trả lời: người được hỏi chỉ cần nói "yes, keep going" hoặc "no, turn around" — ít gánh nặng cho họ hơn là hỏi "How do I get to...?" mà không có ngữ cảnh.`}
+/>
+
+<Pattern
+  en="I have a tight connection — could you tell me the fastest route to Terminal B?"
+  vi="Tôi có chuyến nối gấp — bạn có thể chỉ tôi đường nhanh nhất đến Terminal B không?"
+  variations={[
+    "I'm catching a connecting flight in 40 minutes — is there a shortcut to the transfer area?",
+    "I need to make my connection to Bangkok — which way is the transit lounge?",
+    "My connection is in 30 minutes — can I get through security any faster?",
+  ]}
+  note={`"I have a tight connection" là cụm ma thuật tại sân bay — nói câu này và nhân viên sẽ bật sang chế độ ưu tiên. Nó cũng mở ra các lựa chọn bạn không biết là tồn tại: hàng ưu tiên qua security, xe buggy trong sân bay, hoặc nhân viên đưa bạn đến gate. Đừng xin lỗi vì đang gấp — hãy nói thẳng thông tin đó.`}
+/>
+
+<Pattern
+  en="I see my flight is showing delayed — do you know how long?"
+  vi="Tôi thấy chuyến bay của tôi đang hiện trễ — bạn có biết trễ bao lâu không?"
+  variations={[
+    "Excuse me — my train is showing delayed on the board. Do you have any updates?",
+    "The board says my flight is delayed — do you know if there's a new departure time yet?",
+    "My connection is showing cancelled — what are my options?",
+  ]}
+  note={`Register này là *inquiring, not complaining* — bạn đang xin thông tin, không phàn nàn. "Do you know how long?" thêm sắc thái thực tế: bạn biết nhân viên có thể không có câu trả lời chính xác, nhưng bạn hỏi những gì họ biết. Nếu chuyến bị cancelled hoàn toàn, đây là lúc leo thang: "Could you direct me to the Vietnam Airlines desk so I can rebook?"`}
+/>
+
+<Pattern
+  en="Thanks — I think I've got it from here."
+  vi="Cảm ơn — tôi nghĩ tôi tìm được từ đây rồi."
+  variations={[
+    "Perfect — I can see the signs now, thanks.",
+    "Got it — Gate 23, left at the end of the corridor. Thank you.",
+    "Thanks so much — I'll head that way now.",
+  ]}
+  note={`Câu thoát lịch sự sau khi nhận được chỉ dẫn — xác nhận bạn đã hiểu và giải phóng nhân viên để họ phục vụ người tiếp theo. "I think I've got it from here" nghe tự nhiên hơn "I understand" hoặc "okay" đơn thuần vì nó thể hiện bạn đã tiếp nhận đủ thông tin để tiếp tục. Luôn kết thúc bằng "thanks" hoặc "thank you" — dù bận đến đâu.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`"to be" + V-ing trong bảng thông báo và "to be due to + V"`}
+  structure={`[Flight/Train] is + [boarding / departing / delayed / cancelled]. / [Flight] is due to + [base verb] + at + [time].`}
+  examples={[
+    { en: "Flight VN232 is now boarding at Gate 12.", vi: "Chuyến bay VN232 đang lên máy bay tại Cửa 12." },
+    { en: "The 14:05 to Hà Nội is delayed.", vi: "Chuyến 14:05 đi Hà Nội bị trễ." },
+    { en: "Your flight is due to depart at 16:30.", vi: "Chuyến bay của bạn dự kiến khởi hành lúc 16:30." },
+    { en: "The train is now arriving on Platform 4.", vi: "Tàu đang vào sân ga số 4." },
+    { en: "Boarding is due to start in five minutes.", vi: "Việc lên máy bay dự kiến bắt đầu trong năm phút nữa." },
+  ]}
+  contrast={`Bảng thông báo sân bay và nhà ga dùng dạng rút gọn: "now boarding", "delayed", "cancelled" — không phải câu đầy đủ. Phản xạ phổ biến của người học tiếng Việt là chuyển thành câu hiện tại tiếp diễn đầy đủ: "The plane is being delayed" — nghe hơi lạ và không đúng register. Đúng là: "The flight is delayed" (trạng thái) hoặc "The flight is now boarding" (hành động đang diễn ra). "Is due to" thêm sắc thái *kế hoạch / dự kiến* — phân biệt với "will" (chắc chắn hơn) và "should" (kỳ vọng nhẹ).`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "You", en: "Excuse me — I've just landed from Ho Chi Minh City and I have a connecting flight to London in 45 minutes. Could you tell me the fastest way to Terminal B?", vi: "Xin lỗi — tôi vừa hạ cánh từ Thành phố Hồ Chí Minh và tôi có chuyến nối đi London trong 45 phút. Bạn có thể chỉ tôi đường nhanh nhất đến Terminal B không?" },
+  { speaker: "Info Desk", en: "Terminal B — take the shuttle train, it's just past security. Turn left at the end of this corridor, follow the signs for 'Transit'. The train runs every eight minutes.", vi: "Terminal B — đi tàu con thoi, ngay sau khu an ninh. Rẽ trái cuối hành lang này, theo biển 'Transit'. Tàu chạy mỗi tám phút." },
+  { speaker: "You", en: "Got it — left, follow Transit signs, then the shuttle. And is 45 minutes enough to make it?", vi: "Hiểu rồi — rẽ trái, theo biển Transit, rồi tàu con thoi. Và 45 phút có đủ không?" },
+  { speaker: "Info Desk", en: "It should be fine if you go now. Don't stop — the shuttle takes six minutes and you'll still need to clear security on the B side.", vi: "Nên vừa kịp nếu bạn đi ngay. Đừng dừng lại — tàu mất sáu phút và bạn vẫn cần qua kiểm tra an ninh bên B." },
+  { speaker: "You", en: "Thank you — I'm heading there now.", vi: "Cảm ơn — tôi đi ngay bây giờ." },
+  { speaker: "Security Officer", en: "Boarding pass and passport, please.", vi: "Thẻ lên máy bay và hộ chiếu, làm ơn." },
+  { speaker: "You", en: "Here you go. Excuse me — am I heading the right way for Gate B42?", vi: "Đây ạ. Xin lỗi — tôi đang đi đúng hướng đến Cổng B42 không?" },
+  { speaker: "Security Officer", en: "Yes — straight ahead, then follow the gate numbers. B42 is at the far end.", vi: "Đúng rồi — đi thẳng, rồi theo số cổng. B42 ở cuối hành lang." },
+  { speaker: "Gate Announcement", en: "This is the final boarding call for Flight BA006 to London Heathrow. All remaining passengers please proceed to Gate B42 immediately.", vi: "Đây là thông báo lên máy bay lần cuối cho chuyến bay BA006 đi London Heathrow. Tất cả hành khách còn lại vui lòng đến Cổng B42 ngay lập tức." },
+  { speaker: "You", en: "Hi — I just made it. Sorry — tight connection from Ho Chi Minh City.", vi: "Chào — tôi vừa đến kịp. Xin lỗi — tôi có chuyến nối gấp từ Thành phố Hồ Chí Minh." },
+  { speaker: "Gate Staff", en: "No worries — you're the last one. Right this way.", vi: "Không sao — bạn là người cuối. Mời đi lối này." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"Excuse me, I'm so sorry to bother you, I know you're very busy, but I was wondering if maybe you could possibly tell me... where is Gate 23?"`}
+  right={`"Hi — Gate 23, this way?"`}
+  why={`Khi có áp lực thời gian, lời mở đầu dài và xin lỗi nhiều lần không phải lịch sự — nó làm chậm mọi thứ và thậm chí khiến nhân viên lo lắng thay vì tập trung vào câu hỏi của bạn. Người bản xứ trong tình huống khẩn cấp dùng câu cực ngắn, rõ ràng, kèm một nụ cười. "Hi — Gate 23, this way?" là lịch sự, đủ thông tin, và cho phép nhân viên trả lời trong 3 giây. Tiết kiệm câu dài cho khi bạn có thời gian.`}
+/>
+
+<Mistake
+  wrong={`"Where is the gate?" (hỏi hành khách đứng gần đó trong khi quầy thông tin chỉ cách 20 bước)"`}
+  right={`"Excuse me — could you direct me to the information desk?"`}
+  why={`Hỏi hành khách ngẫu nhiên là nguồn thông tin kém tin cậy nhất tại sân bay và ga tàu: họ có thể biết hoặc không biết, và đôi khi họ đoán mà không nói rõ là đang đoán. Hệ thống phân cấp đáng tin cậy: quầy thông tin chính thức > nhân viên có đồng phục và thẻ tên > nhân viên bán lẻ hoặc nhà hàng trong sân bay > hành khách khác. Một bước đi xa hơn 20 giây để tìm đúng người có thể tiết kiệm cho bạn 10 phút đi nhầm hướng.`}
+/>
+
+<Mistake
+  wrong={`"The gate is wrong — my ticket says Gate 12 but the board says Gate 14. Gate 12 is correct."`}
+  right={`"Excuse me — my ticket shows Gate 12 but the board is showing Gate 14. Has the gate changed?"`}
+  why={`Gate, platform, và bay có thể thay đổi sau khi bạn nhận vé hoặc check in — đây là điều bình thường và thường xuyên xảy ra. Luôn tin bảng thông báo thời gian thực hơn thông tin trên vé. Và khi hỏi về sự khác biệt, dùng câu xác nhận thay vì khẳng định bạn đúng: "Has the gate changed?" mời nhân viên giải thích; "Gate 12 is correct" khiến cuộc trò chuyện bắt đầu bằng sự xung đột không cần thiết.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+**Áp lực thời gian thay đổi chuẩn mực lịch sự.**
+
+Có một nghịch lý thú vị trong giao tiếp tại sân bay: *trong tình huống khẩn cấp, lịch sự thái quá là sự bất lịch sự*. Khi bạn có 10 phút để kịp boarding call và dành 30 giây để xin lỗi trước khi hỏi câu hỏi, bạn đang lãng phí thời gian của mình — nhưng bạn cũng đang gửi tín hiệu cho nhân viên rằng bạn chưa nhận ra mức độ khẩn cấp của tình huống. Một câu ngắn gọn, rõ ràng, đi kèm nụ cười và "thanks" ở cuối là hình thức lịch sự hoàn toàn phù hợp trong ngữ cảnh này, và nó kết hợp hiệu quả thực tế với sự tôn trọng lẫn nhau. Người bản xứ trong tình huống tương tự cũng làm vậy.
+
+**Hệ thống phân cấp của ai nên hỏi.**
+
+Trong bất kỳ trung tâm giao thông nào, có một hệ thống phân cấp rõ ràng về độ tin cậy của nguồn thông tin. Quầy thông tin chính thức (information desk) luôn ở vị trí số một — nhân viên ở đây được đào tạo để trả lời đúng và thường xuyên nhất về sơ đồ và thay đổi. Nhân viên mặc đồng phục có thẻ tên (gate agent, train conductor, security officer) ở vị trí thứ hai — họ biết môi trường của họ nhưng có thể không biết toàn bộ sân bay. Nhân viên nhà hàng hoặc cửa hàng trong khu vực (không mặc đồng phục sân bay) ở vị trí thứ ba — họ thường biết khu vực gần họ nhưng ít hơn về toàn bộ. Hành khách ngẫu nhiên ở vị trí cuối cùng. Đi thêm 20 giây để tìm đúng người thường là khoản đầu tư thời gian tốt hơn là hỏi người đầu tiên đứng gần nhất.
+
+**Tổng hợp toàn bộ topic Directions & getting around.**
+
+Đây là bài cuối cùng trong chuỗi sáu bài về kỹ năng điều hướng tiếng Anh, và cũng là môi trường cao-stakes nhất. Nhìn lại: bài 01 đặt nền tảng với cách dừng người lạ và hỏi đường lịch sự; bài 02 dạy cách nghe và xử lý chỉ dẫn với landmark, khoảng cách, và hướng; bài 03 đưa bạn vào hệ thống phương tiện công cộng với metro, bus, và train; bài 04 đào sâu vào taxi và rideshare với sắc thái từ đặt xe đến thanh toán; bài 05 trang bị kỹ năng phục hồi khi lạc đường; và bài này kết hợp tất cả trong môi trường thử thách nhất — nơi mọi giây đều quan trọng.
+
+Xuyên suốt cả topic, một sắc thái chủ đạo xuất hiện nhất quán: **câu ngắn, điểm đến cụ thể, xác nhận lại, và thừa nhận nhầm lẫn sớm**. Người bản xứ điều hướng không phải vì họ biết mọi thứ — họ điều hướng tốt vì họ biết *hỏi ai* và *hỏi gì* trong từng tình huống cụ thể.
+
+**Hiệu chỉnh văn hoá theo vùng.**
+
+Sân bay và ga tàu ở các quốc gia khác nhau có văn hoá giao tiếp nhân viên rất khác biệt. Ở Mỹ, nhân viên sân bay thường thân thiện và nói nhiều — họ sẽ hỏi thêm để chắc chắn bạn hiểu. Ở Anh và châu Âu, nhân viên thường hiệu quả và ngắn gọn hơn — một câu trả lời ngắn kèm điệu bộ tay là đủ và không có nghĩa là thiếu thân thiện. Ở các hub châu Á như Singapore, Hong Kong, hay Tokyo, nhân viên thường cực kỳ chuyên nghiệp và chính xác — và sân bay thường được thiết kế để biển hiệu dẫn đường mà không cần hỏi. Trong mọi trường hợp, giọng điệu "ngắn gọn + lịch sự + cảm ơn" đều phù hợp và được đánh giá cao.
+
+<Callout type="note" title={`"Tight connection" — cụm từ mở ra ưu tiên ngay lập tức`}>
+Khi bạn nói "I have a tight connection" hoặc "I need to make my connection", nhân viên sân bay lập tức chuyển sang chế độ xử lý khác. Họ biết chính xác điều gì đang bị đe dọa — một chuyến bay bị lỡ tạo ra hàng loạt vấn đề kế tiếp cho cả hành khách lẫn hãng hàng không. Cụm này cũng mở ra các lựa chọn bạn không biết tồn tại: hàng ưu tiên tại security, xe buggy chở qua terminal, hoặc nhân viên gate liên lạc trước để giữ chuyến. Đừng ngại dùng cụm này rõ ràng và sớm — đó là thông tin, không phải lời phàn nàn.
+</Callout>
+
+<Callout type="warning" title={`Đừng bao giờ theo người lạ "hướng dẫn" bạn đến taxi riêng trong sân bay`}>
+Ở nhiều sân bay trên thế giới — đặc biệt ở các điểm đến du lịch phổ biến — có người chủ động tiếp cận hành khách trong khu vực arrivals để "hướng dẫn" bạn đến xe taxi của họ. Đây thường là taxi không đồng hồ, giá gấp 3–5 lần taxi chính thức, hoặc trong trường hợp tệ hơn, là cạm bẫy an toàn. Quy tắc cứng: chỉ dùng taxi chính thức tại quầy taxi được chỉ định (official taxi queue) hoặc khu vực đón xe rideshare chính thức (rideshare pickup zone). Nếu không chắc, hỏi nhân viên sân bay mặc đồng phục — không phải người đang tiếp cận bạn chủ động. Tương tự với ga tàu và bến xe: biển hiệu chính thức luôn đáng tin hơn bất kỳ người nào tự nguyện "giúp" bạn.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`around the corner`** — ngay góc kia, gần lắm. *"The information desk is just around the corner — turn left at the exit."* Cụm không chỉ mang nghĩa địa lý mà còn là lời trấn an: bạn gần rồi, đừng lo.
+
+- **`down the street / down the corridor`** — đi xuống phía dưới đường / hành lang. *"Gate 45 is down the corridor — keep walking straight."* "Down" ở đây không phải là hướng xuống mà là "đi theo hướng đó".
+
+- **`you can't miss it`** — bạn không thể bỏ sót nó — cụm người chỉ đường hay dùng khi điểm đến rất rõ ràng. *"It's a huge departures board right in the middle of the hall — you can't miss it."* Nghe quen từ bài 02, nhưng đặc biệt phổ biến tại sân bay và ga tàu.
+
+- **`to flag down a cab`** — vẫy taxi. *"Outside the terminal you can flag down a cab or take the official taxi queue."* Dùng cho taxi truyền thống; với rideshare thì dùng "to order / book a ride".
+
+- **`to make a connection`** — kịp chuyến nối. *"I made my connection with just ten minutes to spare."* Cụm quan trọng nhất trong bài — vừa là mẫu câu, vừa là idiom thực dụng.
+
+- **`to catch a flight`** — kịp chuyến bay. *"We ran through the terminal to catch our flight."* "Catch" ở đây không phải bắt mà là "kịp". Tương tự: "to catch a train / to catch a bus".
+
+- **`to hop on / hop off`** — nhảy lên / nhảy xuống (phương tiện). *"Hop on the shuttle — it'll take you straight to Terminal C."* Thân mật, gợi lên sự nhanh chóng và dễ dàng — dùng khi phương tiện đơn giản và không cần thủ tục phức tạp.
+
+- **`to be turned around`** — bị lạc hướng, không biết mình đang ở đâu. *"Sorry — I'm completely turned around in here. Which way is arrivals?"* Dùng khi bạn thực sự mất phương hướng, mạnh hơn "lost" và có sắc thái hơi bối rối.
+
+- **`to retrace one's steps`** — đi ngược lại đường cũ. *"I think I missed a turning — let me retrace my steps to the last junction."* Cụm từ hữu dụng trong tình huống recovery từ bài 05, nhưng cũng áp dụng khi đi sai hướng trong sân bay lớn.
+
+- **`a stone's throw away`** — chỉ vài bước thôi, gần lắm. *"The transfer desk is a stone's throw from the gate — just past security."* Cụm này hơi trang trọng hơn "around the corner" nhưng vẫn tự nhiên trong tiếng Anh nói; nghe thường trong bối cảnh du lịch.
+
+## 09 — Tự luyện
+
+1. **Tình huống chuyển tiếp gấp:** Bạn vừa hạ cánh ở Bangkok và có 50 phút để kịp chuyến nối đi Tokyo. Sân bay có ba terminal. Viết bằng tiếng Anh bốn câu bạn sẽ nói tại (a) quầy thông tin ngay khi ra khỏi cửa máy bay, (b) nhân viên kiểm tra an ninh, (c) cửa khởi hành khi nhân viên hỏi lý do bạn chạy đến muộn, và (d) câu đóng khi lên máy bay kịp. Mỗi câu phải dưới 20 từ — đây là bài tập về tốc độ và sự ngắn gọn.
+
+2. **Phân tích bảng thông báo:** Tưởng tượng bạn đang nhìn vào bảng departures tại một ga tàu lớn và thấy: "14:35 London Paddington — DELAYED"; "15:00 Birmingham New Street — ON TIME"; "15:20 Manchester Piccadilly — CANCELLED". Viết bằng tiếng Anh (a) câu bạn hỏi nhân viên về chuyến 14:35, (b) câu xin thông tin về chuyến thay thế cho chuyến bị cancelled, và (c) câu xác nhận platform cho chuyến 15:00 trước khi đi đến đó. Tổng hợp từ vựng bài 02 (chỉ dẫn) và bài 03 (phương tiện công cộng).
+
+3. **Viết hội thoại đảo ngữ cảnh:** Lần này bạn là nhân viên quầy thông tin tại một sân bay quốc tế. Một hành khách đến gặp bạn với câu: *"Hi — I have a tight connection to Seoul in 35 minutes. How do I get to Terminal 2?"* Viết 4–5 lượt trao đổi từ góc độ của nhân viên, bao gồm: chỉ đường ngắn gọn, cảnh báo về thời gian, và câu đóng động viên. Bài tập này giúp bạn hiểu tại sao nhân viên thích câu hỏi ngắn và cụ thể — và tại sao "tight connection" là cụm kích hoạt ưu tiên.
+
+<Recap>
+- Trên toàn topic Directions & getting around, ta đã học: cách dừng người lạ và mở đầu câu hỏi đường đúng register — "Excuse me, could you help me?" thay vì đứng ngại ngùng (bài 01); cách nghe và xử lý chỉ dẫn với landmark, hướng, và khoảng cách — "two blocks down", "turn left at the lights", "you can't miss it" (bài 02); ngôn ngữ của phương tiện công cộng — mua vé, hỏi tuyến, xác nhận chuyến đúng, và đổi tuyến (bài 03); cách đặt taxi và rideshare, chỉ địa chỉ chính xác, và thanh toán (bài 04); cách nhận ra mình đi sai, hỏi lại không ngại, và dùng Google Maps cùng người bản xứ khi cần (bài 05); và bây giờ — điều hướng trong môi trường cao nhất về rủi ro: sân bay, ga tàu, bến xe (bài 06).
+- Câu ngắn + điểm đến cụ thể + lịch sự tối thiểu là công thức hoạt động trong mọi tình huống điều hướng, đặc biệt khi có áp lực thời gian. "Gate 23, this way?" với một nụ cười đạt được điều tương tự một câu dài mà không lãng phí thời gian.
+- Hệ thống phân cấp ai để hỏi là kỹ năng ngầm quan trọng nhất trong toàn bộ topic: quầy thông tin chính thức > nhân viên mặc đồng phục > nhân viên khác > hành khách ngẫu nhiên. Đầu tư 20 giây để tìm đúng người thường tiết kiệm 10 phút đi sai hướng.
+- "Tight connection" và "to make my connection" là cụm từ kích hoạt ưu tiên tại sân bay — nói sớm, nói rõ, và không cần xin lỗi vì đang gấp.
+- Bảng thông báo thời gian thực luôn đúng hơn thông tin trên vé hoặc app đặt trước; luôn kiểm tra departures board trước khi đến gate hoặc platform.
+- Từ vựng phân biệt rõ theo môi trường: *gate* thuộc về sân bay, *platform* thuộc về ga tàu, *terminal* là toàn bộ khu nhà — trộn lẫn ba khái niệm này tạo ra nhầm lẫn thực tế, không chỉ lỗi ngôn ngữ.
+- Sân bay và ga tàu là bài kiểm tra cuối cùng của toàn bộ topic — chúng yêu cầu tất cả: hỏi đúng (bài 01), hiểu câu trả lời nhanh (bài 02), dùng đúng từ vựng phương tiện (bài 03–04), và phục hồi khi sai (bài 05). Kỹ năng thực sự không phải là không bao giờ bị lạc — mà là biết làm gì tiếp theo khi điều đó xảy ra.
+</Recap>
