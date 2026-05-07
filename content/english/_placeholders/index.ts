@@ -2,17 +2,6 @@ import type { EnglishTopic } from '../types';
 
 export const placeholderTopics: EnglishTopic[] = [
   {
-    slug: 'apologies-complaints',
-    title: 'Xin lỗi & phàn nàn',
-    englishTitle: 'Apologies & complaints',
-    summary: 'Xin lỗi nhẹ và xin lỗi thật, phàn nàn lịch sự, leo thang đúng mức, giải quyết mâu thuẫn.',
-    level: 'B1+',
-    variant: 'daily-life',
-    lessons: [],
-    placeholder: true,
-    plannedLessonCount: 6,
-  },
-  {
     slug: 'office-small-talk',
     title: 'Trò chuyện ở văn phòng',
     englishTitle: 'Office small talk',
