@@ -1,0 +1,180 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Hành lý không ra băng chuyền là một trong những cảnh sân bay căng thẳng nhất — nhưng đây thực chất là tình huống *có quy trình*. Kỹ năng cốt lõi là: khai báo bình tĩnh và đúng thủ tục, nhận số tham chiếu để theo dõi, hỏi rõ về những quyền lợi bạn được hưởng (phần lớn hãng hàng không cung cấp khoản hỗ trợ mua đồ thiết yếu cho hành lý bị trễ), và biết khi nào cần leo thang. Phần lớn hành lý "thất lạc" thực chất chỉ đang đi trên một chuyến bay khác và sẽ được giao trong vòng 24–48 giờ.
+
+## 01 — Bối cảnh
+
+Chuỗi xử lý hành lý không về diễn ra theo thứ tự sau:
+
+Băng chuyền dừng, mọi hành khách từ chuyến bay của bạn đã nhận đủ đồ — nhưng vali của bạn không thấy đâu. **Chờ đến khi tất cả hành lý của chuyến bay đã ra hết** trước khi kết luận vali bị trễ — đôi khi các kiện hàng lớn ra sau. Khi chắc chắn, đi thẳng đến quầy dịch vụ hành lý (baggage service desk) của hãng hàng không bạn bay, thường nằm ngay trong khu vực nhận hành lý.
+
+Tại quầy, nhân viên sẽ hướng dẫn bạn điền **PIR — Property Irregularity Report**: tờ khai chính thức mô tả chiếc vali (màu sắc, kích thước, đặc điểm nhận dạng) và địa chỉ giao hàng. Bạn cần cung cấp thẻ hành lý (bag tag — nhãn dán trên vali khi check-in, thường bạn giữ một phần). Sau khi điền xong PIR, bạn nhận được **số tham chiếu (tracking/reference number)** — đây là chìa khoá để theo dõi vali trên website của hãng và để liên lạc lại.
+
+Ngay sau đó, hỏi thêm hai việc: hãng có thể **giao vali thẳng đến khách sạn** khi nó về không (thông thường là có, miễn phí), và bạn có được hưởng **khoản hỗ trợ mua đồ thiết yếu** (essentials allowance) không. Rời quầy với số tham chiếu trong tay — không rời trước khi có con số đó.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "lost baggage", ipa: "lɒst ˈbæɡɪdʒ", vi: "hành lý thất lạc — trong thực tế hàng không, hành lý thường là bị trễ (delayed) chứ chưa hẳn là mất hẳn; dùng thuật ngữ 'delayed baggage' khi nói với nhân viên sẽ chính xác hơn", example: "I need to report lost baggage." },
+  { en: "delayed baggage", ipa: "dɪˈleɪd ˈbæɡɪdʒ", vi: "hành lý bị trễ — cách diễn đạt chính xác hơn và thực tế hơn; gợi ý vali đang trên đường đến, không phải mất hẳn", example: "It looks like my baggage has been delayed." },
+  { en: "to file a PIR (Property Irregularity Report)", vi: "khai báo PIR — tờ khai chính thức về hành lý bất thường (trễ, mất, hư hỏng); đây là văn bản bắt buộc để hãng có cơ sở xử lý", example: "I need to file a PIR for my missing bag." },
+  { en: "tracking number / reference number", vi: "số theo dõi / số tham chiếu — mã được cấp sau khi nộp PIR; dùng trên website của hãng hoặc công cụ theo dõi như WorldTracer để kiểm tra vị trí vali", example: "Could I have the tracking number for my PIR?" },
+  { en: "claim", ipa: "kleɪm", vi: "yêu cầu bồi thường / khiếu nại — bạn 'file a claim' hoặc 'make a claim' để yêu cầu hãng bồi thường chi phí phát sinh do hành lý trễ hoặc mất", example: "I'd like to make a claim for the delayed baggage." },
+  { en: "to be on a later flight", vi: "đang trên một chuyến bay khác / chuyến bay muộn hơn — giải thích phổ biến nhất khi hành lý không về đúng chuyến; vali bị lỡ transit hoặc không kịp chuyển sang chuyến kết nối", example: "Your bag is probably on a later flight." },
+  { en: "to deliver to the hotel", vi: "giao đến khách sạn — hầu hết các hãng hàng không sẽ giao vali tìm được thẳng đến địa chỉ bạn cung cấp, không cần bạn quay lại sân bay", example: "Could you deliver my bag to my hotel when it arrives?" },
+  { en: "essentials allowance", vi: "khoản hỗ trợ mua đồ thiết yếu — khoản tiền hãng hàng không cho phép bạn chi tiêu vào quần áo, đồ vệ sinh cá nhân, sạc điện thoại trong thời gian chờ vali; thường từ 50–200 USD/ngày tùy hãng và tuyến bay", example: "Am I entitled to an essentials allowance while I wait?" },
+  { en: "to follow up", vi: "theo dõi / liên lạc lại — liên hệ hãng sau vài giờ hoặc vài ngày để cập nhật tình trạng", example: "How should I follow up if my bag hasn't arrived in 24 hours?" },
+  { en: "bag tag / baggage tag", ipa: "bæɡ tæɡ", vi: "thẻ hành lý — nhãn dán mã vạch gắn trên vali khi check-in; bạn thường giữ một phần (claim stub) gắn trên thẻ lên máy bay; rất quan trọng khi khai PIR", example: "Here's the bag tag from my boarding pass." },
+  { en: "where it was last scanned", vi: "lần quét mã cuối cùng ở đâu — thông tin trên hệ thống WorldTracer cho biết vị trí cuối cùng vali được ghi nhận; giúp xác định vali đang kẹt ở sân bay trung chuyển nào", example: "Can you see where my bag was last scanned in the system?" },
+  { en: "to be reimbursed", ipa: "ˌriːɪmˈbɜːzd", vi: "được hoàn tiền — khi hãng đồng ý bồi hoàn chi phí bạn đã bỏ ra do hành lý trễ (mua quần áo, đồ thiết yếu)", example: "I'd like to know how I can be reimbursed for my expenses." },
+  { en: "baggage claim", ipa: "ˈbæɡɪdʒ kleɪm", vi: "khu vực nhận hành lý — khu vực trong nhà ga sân bay nơi băng chuyền đưa hành lý ra sau khi máy bay hạ cánh", example: "My bag didn't come out at baggage claim." },
+  { en: "lost and found", vi: "phòng đồ thất lạc — nơi lưu giữ đồ vật bị bỏ quên hoặc hành lý không có người nhận; khác với baggage service desk", example: "Is there a lost and found office at this airport?" },
+]} />
+
+## 03 — Mẫu câu
+
+<Pattern
+  en="Hi — my bag didn't come out on flight 232. Could you help me file a report?"
+  vi="Chào — vali của tôi không ra trên chuyến bay 232. Bạn có thể giúp tôi khai báo không?"
+  variations={[
+    "Hi — I was on flight VN232 and my bag hasn't come out. I think it may have been delayed.",
+    "Excuse me — all the bags from my flight have come out but mine isn't here. Could I file a PIR?",
+    "Hi — I've waited for all bags to come out and mine still isn't here. I'd like to report it.",
+  ]}
+  note={`"My bag didn't come out" là cách diễn đạt tự nhiên và chính xác nhất — không nói "my bag is lost" vì nghe như kết luận cuối cùng trong khi thực tế vali thường chỉ đang trên đường. Thêm số hiệu chuyến bay ngay từ đầu giúp nhân viên tra cứu nhanh hơn.`}
+/>
+
+<Pattern
+  en="Here's the bag tag — it's a black hardshell suitcase, medium size, with a red ribbon."
+  vi="Đây là thẻ hành lý — đó là một chiếc vali cứng màu đen, kích thước trung bình, có buộc ruy băng đỏ."
+  variations={[
+    "It's a large soft-shell navy bag — I've tied a yellow luggage tag to the handle.",
+    "Here's the tag. It's a dark green trolley case, 26 inches, with a TSA lock and a sticker on the front.",
+    "The bag is a burgundy hardshell — hard to miss. I can show you a photo if that helps.",
+  ]}
+  note={`Mô tả hành lý càng cụ thể càng tốt: màu sắc, chất liệu vỏ (hardshell / softshell), kích thước, và đặc điểm nhận dạng riêng (ruy băng, nhãn dán, khóa đặc biệt). Nếu bạn có ảnh chụp chiếc vali trước khi bay — đây là lúc dùng nó.`}
+/>
+
+<Pattern
+  en="Could you deliver it to my hotel when it arrives?"
+  vi="Bạn có thể giao vali đến khách sạn của tôi khi nó về không?"
+  variations={[
+    "I'll be at the Grand Hotel downtown — could you arrange delivery there?",
+    "Is it possible to have it delivered to my accommodation rather than coming back to the airport?",
+    "Here's my hotel address and the dates I'll be there — could you note that for delivery?",
+  ]}
+  note={`Hầu hết các hãng hàng không lớn giao vali tìm được đến địa chỉ bạn cung cấp miễn phí — nhưng bạn phải chủ động hỏi và cung cấp đầy đủ thông tin: tên khách sạn, địa chỉ, và ngày lưu trú. Đừng rời quầy mà chưa điền địa chỉ giao hàng.`}
+/>
+
+<Pattern
+  en="Is there an essentials allowance I can claim while I wait?"
+  vi="Tôi có được hưởng khoản hỗ trợ mua đồ thiết yếu trong thời gian chờ không?"
+  variations={[
+    "Am I entitled to any compensation for toiletries and essentials while my bag is delayed?",
+    "What can I claim for while I'm waiting — toiletries, clothing?",
+    "I'll need to buy some essentials — is there a daily allowance I can get reimbursed for?",
+  ]}
+  note={`Nhiều hành khách không biết quyền lợi này và không hỏi — nên không nhận được gì. Từ khoá quan trọng là "essentials allowance" hoặc "interim expenses". Nhân viên sẽ cho bạn biết mức cụ thể và cách yêu cầu hoàn tiền sau. Giữ tất cả hoá đơn.`}
+/>
+
+<Pattern
+  en="How do I check status, and who do I contact if it's not back in 24 hours?"
+  vi="Tôi có thể kiểm tra tình trạng ở đâu, và tôi liên hệ ai nếu vali vẫn chưa về sau 24 giờ?"
+  variations={[
+    "Could you give me the tracking link and a contact number for follow-up?",
+    "Is there a website where I can track my bag with this reference number?",
+    "What's the best way to follow up — phone, email, or the app?",
+  ]}
+  note={`Hỏi câu này trước khi rời quầy. Bạn cần hai thứ: (1) cách tự tra cứu (website WorldTracer hoặc app của hãng với số PIR), và (2) số điện thoại hoặc email để liên hệ trực tiếp nếu vali không về đúng hạn. Đây là bước nhiều người bỏ qua và hối tiếc sau.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`"My bag didn't…" + present perfect cho timeline`}
+  structure={`My bag + didn't + [base verb — come out / arrive / show up]. / It hasn't + [past participle — appeared / been delivered] yet.`}
+  examples={[
+    { en: "My bag didn't come out on the carousel.", vi: "Vali của tôi không ra trên băng chuyền." },
+    { en: "It hasn't arrived yet.", vi: "Vali vẫn chưa về." },
+    { en: "I haven't seen it anywhere.", vi: "Tôi không thấy nó ở đâu cả." },
+    { en: "My bag tag says it was last scanned in Singapore.", vi: "Thẻ hành lý của tôi cho thấy lần cuối nó được quét ở Singapore." },
+    { en: "I've been waiting for thirty minutes and it still hasn't come out.", vi: "Tôi đã đợi ba mươi phút rồi mà vali vẫn chưa ra." },
+  ]}
+  contrast={`So sánh: "My bag is lost" — câu này nghe như một kết luận cuối cùng, gợi ý vali đã mất hẳn không tìm lại được. Trong thực tế hàng không, phần lớn hành lý "thất lạc" chỉ đang trễ và sẽ được tìm thấy trong 24–48 giờ. Dùng "My bag didn't come out" hoặc "My bag hasn't arrived" chính xác hơn về mặt thực tế và giúp nhân viên phân loại vấn đề đúng hơn (delayed vs truly lost) — điều này ảnh hưởng đến quy trình xử lý và mức bồi thường bạn được hưởng.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "You", en: "Hi — I was on flight VN232 from Singapore and my bag hasn't come out. All the other bags from my flight are gone but mine isn't here. Could I file a PIR?", vi: "Chào — tôi đến trên chuyến VN232 từ Singapore và vali của tôi chưa ra. Tất cả hành lý các hành khách khác đã ra hết rồi nhưng của tôi không có. Tôi có thể khai PIR không?" },
+  { speaker: "Staff", en: "Of course — I'm sorry about that. Do you have your bag tag from your boarding pass?", vi: "Tất nhiên — tôi rất tiếc về điều đó. Bạn có giữ thẻ hành lý trên thẻ lên máy bay không?" },
+  { speaker: "You", en: "Yes, here it is. The bag is a black hardshell suitcase, medium size — I've got a red ribbon tied to the handle so it's easy to spot.", vi: "Có, đây ạ. Vali là loại cứng màu đen, cỡ trung bình — tôi có buộc một dải ruy băng đỏ vào tay cầm để dễ nhận ra." },
+  { speaker: "Staff", en: "Great, that helps. Let me pull up the system. It looks like your bag may be on a later flight from Singapore — it's showing as still in transit.", vi: "Tốt, thông tin đó rất hữu ích. Để tôi tra hệ thống. Có vẻ như vali của bạn đang trên một chuyến bay muộn hơn từ Singapore — hệ thống hiển thị nó vẫn đang trên đường." },
+  { speaker: "You", en: "I see — could you help me complete the PIR, and give me a tracking number so I can follow up?", vi: "Tôi hiểu rồi — bạn có thể giúp tôi hoàn tất tờ PIR và cấp cho tôi số theo dõi để liên lạc lại không?" },
+  { speaker: "Staff", en: "Absolutely. I'll fill this in — could you give me your local address or hotel name and dates, so we can arrange delivery?", vi: "Tất nhiên. Tôi sẽ điền vào — bạn có thể cho tôi địa chỉ khách sạn và ngày lưu trú để chúng tôi sắp xếp giao hàng không?" },
+  { speaker: "You", en: "Sure — I'm at the Novotel on Nguyen Du Street, checking out on the 12th. Could you deliver it there directly when it arrives? I don't want to come back to the airport.", vi: "Được ạ — tôi ở Novotel trên đường Nguyễn Du, trả phòng ngày 12. Bạn có thể giao thẳng đến đó khi vali về không? Tôi không muốn phải quay lại sân bay." },
+  { speaker: "Staff", en: "Of course — we'll arrange direct delivery. Your PIR reference number is SGNABC12345. You can track it on our website with this code.", vi: "Tất nhiên — chúng tôi sẽ sắp xếp giao thẳng. Số PIR của bạn là SGNABC12345. Bạn có thể theo dõi trên website của chúng tôi bằng mã này." },
+  { speaker: "You", en: "Thank you. One more thing — is there an essentials allowance I can claim while I wait? I'll need to pick up some toiletries at least.", vi: "Cảm ơn. Thêm một điều nữa — tôi có được hưởng khoản hỗ trợ mua đồ thiết yếu trong thời gian chờ không? Tôi cần mua ít đồ vệ sinh cá nhân." },
+  { speaker: "Staff", en: "Yes — for delayed baggage on international flights, you're entitled to claim up to USD 100 for essentials. Keep all your receipts and submit them via our website within 21 days.", vi: "Có — với hành lý trễ trên các chuyến bay quốc tế, bạn được quyền yêu cầu hoàn lại tối đa 100 USD cho đồ thiết yếu. Hãy giữ tất cả hoá đơn và nộp qua website của chúng tôi trong vòng 21 ngày." },
+  { speaker: "You", en: "Perfect — thank you so much. I'll track it online and call if it's not here by tomorrow evening.", vi: "Tuyệt — cảm ơn bạn rất nhiều. Tôi sẽ theo dõi online và gọi lại nếu đến tối mai vẫn chưa về." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`Leaving the baggage service desk without a tracking/reference number.`}
+  right={`Before you leave, always confirm: "Could I have the PIR reference number, please?" and write it down.`}
+  why={`Không có số tham chiếu PIR, bạn không thể theo dõi tình trạng vali trên hệ thống WorldTracer, không thể chứng minh đã khai báo, và rất khó liên lạc lại với hãng để yêu cầu cập nhật. Đây là bước duy nhất không được bỏ qua — mọi việc tiếp theo đều phụ thuộc vào con số này.`}
+/>
+
+<Mistake
+  wrong={`Not asking about the essentials allowance when your bag is delayed.`}
+  right={`"Is there an essentials allowance I can claim while I wait?" — always ask before you leave the desk.`}
+  why={`Hầu hết các hãng hàng không quốc tế cung cấp khoản hỗ trợ từ 50–200 USD/ngày cho hành lý trễ — nhưng nhân viên không nhất thiết tự động thông báo điều này. Bạn phải hỏi. Nếu không hỏi tại quầy, bạn vẫn có thể khiếu nại sau qua website, nhưng sẽ phức tạp hơn nhiều. Câu hỏi này tốn chưa đến mười giây nhưng có thể giúp bạn được hoàn lại vài triệu đồng.`}
+/>
+
+<Mistake
+  wrong={`Forgetting to provide your hotel name, address, and check-out date.`}
+  right={`"I'm staying at [Hotel Name], [Address], checking out on [date] — please note that for delivery."`}
+  why={`Hãng hàng không chỉ có thể giao vali đến địa chỉ bạn cung cấp trong tờ PIR. Nếu bạn không điền địa chỉ cụ thể — hoặc điền sai ngày trả phòng — vali có thể được giao khi bạn đã rời khách sạn rồi. Cung cấp đủ: tên khách sạn, địa chỉ đường phố, và ngày check-out.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+Ba điểm dễ bỏ sót:
+
+1. **Hệ thống theo dõi PIR dùng số tham chiếu — lưu ngay.** Các hãng lớn dùng WorldTracer (worldtracer.aero) hoặc hệ thống riêng. Nhập mã PIR và họ tên là bạn thấy vị trí vali. Bookmark trang này hoặc lưu mã vào điện thoại trước khi rời sân bay — đừng chờ đến khi về khách sạn rồi mới tìm mã.
+
+2. **Chụp ảnh vali và giữ biên lai mua vali giúp tăng tốc quy trình.** Khi khai PIR, nhân viên cần mô tả chính xác. Ảnh chụp rõ màu sắc, kích thước, và đặc điểm nhận dạng (nhãn dán, khóa, ruy băng) giúp hệ thống so khớp nhanh hơn. Hoá đơn mua vali cũng hỗ trợ yêu cầu bồi thường nếu vali thực sự bị mất hoàn toàn.
+
+3. **Bạn không cần quay lại sân bay.** Hầu hết các hãng hàng không lớn (Vietnam Airlines, Singapore Airlines, Emirates, Cathay Pacific…) giao vali tìm được đến khách sạn hoặc địa chỉ nhà miễn phí. Bạn chỉ cần điền địa chỉ vào PIR và đợi — việc quay lại sân bay lãng phí thời gian và thường không cần thiết.
+
+<Callout type="note" title="Essentials allowance — mức hoàn trả thay đổi theo hãng và tuyến bay">
+Khoản hỗ trợ mua đồ thiết yếu (essentials allowance) là quyền lợi thực sự nhưng không đồng nhất. Các hãng như Singapore Airlines, Emirates, hay Qantas thường có chính sách rõ ràng (50–200 USD/ngày). Hãng giá rẻ có thể không có hoặc mức thấp hơn nhiều. Cách yêu cầu hoàn trả: giữ tất cả hoá đơn (đồ vệ sinh cá nhân, quần áo cơ bản, sạc điện thoại), sau đó điền form khiếu nại trên website của hãng trong thời hạn quy định — thường là **21 ngày** kể từ ngày bay. Tên form thường là "Delayed Baggage Expenses Claim" hoặc tương tự. Không cần thứ gì xa xỉ: mục đích của khoản này là đồ cần thiết cho cuộc sống hàng ngày trong thời gian chờ đợi.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to lose one's luggage`** — bị thất lạc hành lý. *"I've never lost my luggage before — this is a first."* Cụm này dùng thoải mái trong văn nói, dù thực tế hành lý thường là bị trễ chứ không phải mất hẳn.
+- **`lost and found`** — phòng / khu vực đồ thất lạc. *"Check with lost and found — sometimes bags end up there."* Khác với baggage service desk: lost and found là nơi lưu giữ đồ vật không có người nhận chung chung, không chỉ hành lý.
+- **`the carousel`** — băng chuyền hành lý. *"My bag just wasn't on the carousel."* Từ hình ảnh chiếc băng chuyền quay vòng tròn như mâm xoay. Đây là từ người bản xứ dùng thường ngày.
+- **`to track down`** — tìm kiếm và xác định vị trí (bằng cách truy vết). *"The airline managed to track down my bag — it was sitting in Dubai."* Mạnh hơn "find" — gợi ý quá trình điều tra, không phải tìm ngẫu nhiên.
+- **`to file a claim`** — nộp yêu cầu bồi thường chính thức. *"I filed a claim for my delayed baggage expenses and got reimbursed within two weeks."* Dùng với "file" (nộp hồ sơ), không phải "make" trong văn phong chính thức của hàng không.
+
+## 09 — Tự luyện
+
+1. **Nói:** Tưởng tượng bạn vừa đứng tại quầy baggage service desk. Nói to ba câu liên tiếp: (a) báo cáo vấn đề kèm số hiệu chuyến bay, (b) mô tả chiếc vali của bạn (màu, kích thước, đặc điểm), (c) hỏi về việc giao hàng đến khách sạn. Không nhìn vào bài — hãy thử từ trí nhớ.
+
+2. **Viết:** Soạn một đoạn hội thoại ngắn 5 lượt trong đó bạn (a) khai báo hành lý trễ, (b) hỏi về essentials allowance, (c) nhận số PIR và cảm ơn nhân viên. Chú ý: không dùng "my bag is lost" — thay bằng biểu đạt chính xác hơn.
+
+3. **Đổi vai:** Bạn đã nhận vali sau 36 giờ chờ đợi và đã mua đồ thiết yếu hết 80 USD. Viết một email ngắn (không quá 100 từ) gửi bộ phận baggage claims của hãng để yêu cầu hoàn lại chi phí. Đính kèm thông tin: số PIR, số chuyến bay, ngày bay, tổng chi phí kèm mô tả ngắn.
+
+<Recap>
+- Hành lý không về không phải lúc nào cũng có nghĩa là mất — hầu hết được tìm lại trong 24–48 giờ. Dùng "my bag didn't come out" thay vì "my bag is lost" để mô tả chính xác hơn.
+- PIR (Property Irregularity Report) là tờ khai bắt buộc — không có PIR, hãng không có cơ sở chính thức để xử lý hoặc bồi thường.
+- Số tham chiếu PIR là chìa khoá theo dõi — luôn hỏi và lưu lại trước khi rời quầy.
+- Điền địa chỉ khách sạn (tên, địa chỉ, ngày check-out) vào PIR để hãng giao thẳng đến nơi — không cần quay lại sân bay.
+- Essentials allowance là quyền lợi thực sự — hỏi ngay tại quầy, giữ hóa đơn, nộp claim trong vòng 21 ngày.
+- Để follow up: dùng số PIR trên website của hãng hoặc WorldTracer — liên hệ trực tiếp sau 24 giờ nếu không có cập nhật mới.
+</Recap>

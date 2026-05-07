@@ -1,0 +1,181 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Chuyến bay trễ, bị hủy, hay lỡ chuyến nối — đây là những tình huống không ai muốn gặp, nhưng ai đi máy bay đủ nhiều cũng sẽ phải đối mặt ít nhất một lần. Kỹ năng cốt lõi không phải là lo lắng hay tức giận — mà là di chuyển NHANH đến đúng quầy, nói đúng thông tin, và hỏi đúng câu hỏi. Bình tĩnh và cụ thể luôn thắng hoảng loạn và mơ hồ — đặc biệt khi còn một chuyến bay để kịp.
+
+## 01 — Bối cảnh
+
+Có hai kịch bản chính trong bài này, mỗi kịch bản đòi hỏi cách hành động khác nhau.
+
+**(1) Chuyến bay của bạn bị trễ hoặc bị hủy ngay tại sân bay đi.** Việc đầu tiên cần làm là tìm đúng quầy: thông thường là quầy của hãng hàng không (airline counter hoặc rebooking desk), không phải quầy check-in thông thường. Bảng thông báo (departure board) sẽ cho biết trạng thái chuyến bay. Mục tiêu của bạn: đặt lại chỗ trên chuyến tiếp theo (rebook), và nếu delay qua đêm hoặc đủ dài, hỏi về voucher bữa ăn và voucher khách sạn.
+
+**(2) Bạn lỡ chuyến nối vì chuyến trước bị trễ.** Đây là tình huống khác biệt quan trọng: bạn lỡ chuyến *không phải do lỗi của mình* mà do hãng hàng không. Điều này thường đồng nghĩa với việc bạn có quyền được đặt lại vé miễn phí. Người bạn nên nói chuyện đầu tiên thường là gate agent (nhân viên ở cổng lên máy bay) hoặc nhân viên tại transfer desk (quầy trung chuyển) — không nhất thiết phải đi tất cả đường về quầy chính. Nhiều trường hợp gate agent là người nhanh nhất có thể rebook cho bạn ngay tại chỗ.
+
+Xuyên suốt cả hai kịch bản, register cần thiết là *polite but firm* — giống như bài 06 của topic Shopping & money: bình tĩnh, trình bày sự thật, và luôn đi kèm một kết quả cụ thể bạn mong muốn. Nhân viên hàng không không gây ra delay — họ là người duy nhất có thể giúp bạn. Tạo điều kiện cho họ làm việc nhanh hơn bằng cách cho họ biết chính xác bạn cần gì.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "to be delayed", ipa: "dɪˈleɪd", vi: "bị trễ — chuyến bay chưa hủy nhưng khởi hành muộn hơn dự kiến", example: "My flight has been delayed by three hours." },
+  { en: "to be canceled", ipa: "ˈkæn.səld", vi: "bị hủy — chuyến bay không còn bay nữa, bạn cần đặt lại hoàn toàn", example: "The 7 p.m. flight to Tokyo has been canceled." },
+  { en: "to miss a connection", vi: "lỡ chuyến nối — khi chuyến bay đầu đến trễ và bạn không kịp lên chuyến kế tiếp", example: "I missed my connection because the first flight was delayed." },
+  { en: "to be rebooked", vi: "được đặt lại chỗ — hãng hàng không xếp bạn vào một chuyến bay khác", example: "I was rebooked on the next available flight." },
+  { en: "the next available flight", vi: "chuyến bay sớm nhất còn chỗ — đây thường là kết quả bạn muốn hỏi đầu tiên", example: "Could you put me on the next available flight to Seoul?" },
+  { en: "a meal voucher", ipa: "ˈmiːl ˈvaʊ.tʃər", vi: "phiếu ăn — hãng hàng không cấp cho hành khách bị delay dài để dùng tại sân bay", example: "Are meal vouchers available while we wait?" },
+  { en: "a hotel voucher", ipa: "hoʊˈtel ˈvaʊ.tʃər", vi: "phiếu khách sạn — được cấp khi delay qua đêm, hãng chịu chi phí lưu trú", example: "If the delay is overnight, will I receive a hotel voucher?" },
+  { en: "to be put on standby", vi: "được xếp vào danh sách chờ — có tên trên danh sách nhưng chỉ lên máy bay nếu còn ghế trống", example: "They put me on standby for the earlier flight." },
+  { en: "to file a claim", vi: "nộp yêu cầu bồi thường — thủ tục chính thức để đòi compensation sau chuyến bị hủy hoặc trễ", example: "I'll need to file a claim for the delay compensation." },
+  { en: "to be compensated", ipa: "ˌkɒm.pənˈseɪtɪd", vi: "được bồi thường — nhận tiền hoặc tín dụng hãng bay do bị ảnh hưởng", example: "Am I entitled to be compensated for the four-hour delay?" },
+  { en: "the rebooking desk", vi: "quầy đặt lại vé — quầy chuyên xử lý tình huống delay/cancel, thường tách biệt với quầy check-in", example: "Head to the rebooking desk at the far end of the terminal." },
+  { en: "to get to the gate", vi: "ra đến cổng lên máy bay — trong tình huống lỡ chuyến nối, đây là hành động cần làm ngay", example: "I ran to get to the gate but the door was already closed." },
+  { en: "Sorry to interrupt — but…", vi: "Xin lỗi vì ngắt lời — nhưng… — mẫu câu lịch sự để chen ngang khi cần nói gấp, thường dùng ở quầy đông người", example: "Sorry to interrupt — but my connecting flight leaves in twenty minutes." },
+  { en: "departure board", ipa: "dɪˈpɑː.tʃər bɔːrd", vi: "bảng thông báo chuyến đi — màn hình lớn tại sân bay hiển thị giờ khởi hành và trạng thái chuyến bay", example: "Check the departure board — your gate might have changed." },
+]} />
+
+## 03 — Mẫu câu
+
+<Pattern
+  en="Hi — my flight has been canceled. What are my options?"
+  vi="Chào — chuyến bay của tôi bị hủy. Tôi có những lựa chọn nào?"
+  variations={[
+    "Hi — my flight is showing as canceled on the board. What can you do for me?",
+    "Excuse me — flight 305 to Paris has been canceled. What happens now?",
+    "Hi, my flight was just canceled — I need to know what my options are.",
+  ]}
+  note={`Đây là câu mở khi đến quầy. Hai thành phần: (1) sự thật ("my flight has been canceled") và (2) câu hỏi mở ("What are my options?"). Câu hỏi mở này quan trọng vì nó mời nhân viên trình bày toàn bộ lựa chọn thay vì để bạn đoán từng điều. Register là *matter-of-fact* — không xin lỗi, không cáu giận, chỉ là dữ liệu và yêu cầu rõ ràng.`}
+/>
+
+<Pattern
+  en="Could you put me on the next available flight to Tokyo?"
+  vi="Bạn có thể đặt cho tôi chuyến bay sớm nhất còn chỗ đến Tokyo không?"
+  variations={[
+    "Is there anything earlier than the 9 p.m. flight to London?",
+    "Could you check if there's a seat on the next flight out?",
+    "I'd like to be rebooked on the next available departure, please.",
+  ]}
+  note={`Sau khi nghe options, đây là câu đặt kết quả cụ thể. "The next available flight" là cụm từ nhân viên nghe hàng ngày — dùng đúng cụm này giúp họ xử lý nhanh hơn. "Could you put me on…" lịch sự và trực tiếp hơn "I want to go on…" hay "Book me a ticket."  Register là *assertive but polite*.`}
+/>
+
+<Pattern
+  en="Will I get a meal voucher / hotel for the overnight?"
+  vi="Tôi có được nhận phiếu ăn / khách sạn qua đêm không?"
+  variations={[
+    "Am I entitled to a hotel voucher given the length of the delay?",
+    "Is there a meal voucher I can use while I wait?",
+    "With a delay this long, are there any vouchers available for passengers?",
+  ]}
+  note={`Nhiều hành khách không hỏi câu này — và kết quả là họ không nhận được voucher dù hoàn toàn có quyền. Nhân viên không phải lúc nào cũng tự động đưa voucher nếu bạn không hỏi, đặc biệt khi quầy đông. Câu "Am I entitled to…" là frame rất hiệu quả vì nó ngụ ý bạn biết về quyền lợi của mình, nhưng không đối đầu.`}
+/>
+
+<Pattern
+  en={`I just missed my connection because flight 232 was delayed — could you rebook me on the next one?`}
+  vi="Tôi vừa lỡ chuyến nối vì chuyến 232 bị trễ — bạn có thể đặt lại cho tôi chuyến tiếp theo không?"
+  variations={[
+    "My inbound flight was two hours late and I missed my connection — I need to be rebooked.",
+    "The delay on flight AA101 made me miss my connection to Bangkok — what can you do?",
+    "I was on flight 567 which came in late — I've just missed the connection to Amsterdam.",
+  ]}
+  note={`Đây là câu quan trọng nhất khi lỡ chuyến nối do lỗi của hãng. Hai thành phần: (1) lý do cụ thể ("because flight 232 was delayed") — quan trọng vì nó xác lập đây là lỗi của hãng, không phải của bạn, và (2) kết quả cụ thể bạn muốn ("rebook me on the next one"). Đừng chỉ nói "I missed my flight" — nêu rõ nguyên nhân để nhân viên hiểu bạn có quyền được rebook miễn phí.`}
+/>
+
+<Pattern
+  en={`I appreciate that — could I speak with a supervisor about getting an earlier rebooking?`}
+  vi="Tôi trân trọng điều đó — tôi có thể nói chuyện với quản lý về việc đặt lại chuyến sớm hơn không?"
+  variations={[
+    "I understand your hands might be tied — is there a supervisor I could speak with?",
+    "I don't want to make this difficult — but could we escalate this to see if there are other options?",
+    "Thanks for trying — if there's nothing you can do, I'd appreciate speaking with someone with more flexibility.",
+  ]}
+  note={`Câu leo thang lịch sự — cấu trúc giống với bài Shopping & money 06. Phần đầu ("I appreciate that") công nhận nỗ lực của nhân viên; phần sau ("could I speak with a supervisor") đề nghị leo thang như một bước logic, không phải tấn công cá nhân. Dùng khi nhân viên tuyến đầu không có quyền đặt bạn trên chuyến bay bạn muốn hoặc không thể cấp voucher.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`Hiện tại hoàn thành "has been delayed / canceled" + "to + base verb" cho yêu cầu cụ thể`}
+  structure={`[Subject] + has been + [past participle: delayed / canceled / rebooked]. / Could you + [base verb] + [me + on / to / for + outcome]?`}
+  examples={[
+    { en: "My flight has been canceled.", vi: "Chuyến bay của tôi đã bị hủy." },
+    { en: "The connection has been delayed by two hours.", vi: "Chuyến nối đã bị trễ hai tiếng." },
+    { en: "Could you rebook me on the next flight?", vi: "Bạn có thể đặt lại cho tôi chuyến tiếp theo không?" },
+    { en: "Could you put me on standby for the earlier departure?", vi: "Bạn có thể xếp tôi vào danh sách chờ chuyến khởi hành sớm hơn không?" },
+    { en: "Could you get me a hotel voucher for tonight?", vi: "Bạn có thể cấp cho tôi phiếu khách sạn tối nay không?" },
+  ]}
+  contrast={`Chỉ nêu sự thật mà không có yêu cầu cụ thể ("My flight is canceled.") khiến nhân viên phải đoán bạn muốn gì — rebook, refund, hay chỉ cần thông tin? Luôn ghép sự thật với một kết quả cụ thể: "My flight has been canceled — could you rebook me on the next available flight?" Cấu trúc này tiết kiệm thời gian cho cả hai bên và tạo ra cuộc hội thoại hiệu quả hơn nhiều so với việc chỉ than thở về tình huống.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "You", en: "Hi — sorry to interrupt, but I just missed my connection. I was on flight VA230 from Hanoi, and it came in two hours late. I missed the connecting flight to London.", vi: "Chào — xin lỗi vì ngắt lời, nhưng tôi vừa lỡ chuyến nối. Tôi đi chuyến VA230 từ Hà Nội, và nó đến trễ hai tiếng. Tôi đã lỡ chuyến bay nối đến London." },
+  { speaker: "Agent", en: "I'm sorry to hear that. Can I see your boarding pass and passport, please?", vi: "Tôi rất tiếc khi nghe điều đó. Cho tôi xem boarding pass và hộ chiếu của bạn được không?" },
+  { speaker: "You", en: "Of course — here you go. The missed flight was EK009, departing at 14:35.", vi: "Tất nhiên — đây ạ. Chuyến tôi lỡ là EK009, khởi hành lúc 14:35." },
+  { speaker: "Agent", en: "Let me pull up your booking... Okay, I can see the inbound delay. You're protected under our missed connection policy. Let me check what's available to London.", vi: "Để tôi tra thông tin booking của bạn... Được rồi, tôi thấy chuyến đến bị trễ rồi. Bạn được bảo vệ theo chính sách lỡ chuyến nối của chúng tôi. Để tôi kiểm tra các chuyến còn chỗ đến London." },
+  { speaker: "You", en: "Thank you. Could you put me on the next available flight? And I wanted to ask — given the delay, am I entitled to a meal voucher while I wait?", vi: "Cảm ơn. Bạn có thể đặt cho tôi chuyến sớm nhất còn chỗ không? Và tôi muốn hỏi — với độ trễ này, tôi có được nhận phiếu ăn trong lúc chờ không?" },
+  { speaker: "Agent", en: "Yes, absolutely. I'm booking you on EK003 — that departs at 18:55 tonight. And I'll print you a meal voucher for the terminal restaurants, good for up to thirty dollars.", vi: "Có, tất nhiên rồi. Tôi đang đặt bạn trên EK003 — khởi hành lúc 18:55 tối nay. Và tôi sẽ in cho bạn phiếu ăn dùng tại các nhà hàng trong sân bay, trị giá đến 30 đô." },
+  { speaker: "You", en: "Great. And the delay is about four hours — is a hotel voucher available if the flight gets delayed further?", vi: "Tốt. Và trễ khoảng bốn tiếng — tôi có được cấp phiếu khách sạn nếu chuyến sau tiếp tục trễ không?" },
+  { speaker: "Agent", en: "If EK003 is also delayed overnight, yes — come back to this desk and we'll arrange accommodation. For now, here's your new boarding pass and your meal voucher. Your gate is B14.", vi: "Nếu EK003 cũng bị trễ qua đêm, có — quay lại quầy này và chúng tôi sẽ sắp xếp chỗ nghỉ. Còn bây giờ, đây là boarding pass mới và phiếu ăn của bạn. Cổng của bạn là B14." },
+  { speaker: "You", en: "Perfect — thank you so much. I really appreciate how quickly you sorted that out.", vi: "Tuyệt vời — cảm ơn rất nhiều. Tôi thực sự biết ơn vì bạn xử lý nhanh như vậy." },
+  { speaker: "Agent", en: "Of course — safe travels, and I hope the rest of your journey goes smoothly.", vi: "Không có gì — chúc bạn lên đường bình an, và tôi hy vọng phần còn lại của hành trình suôn sẻ hơn." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"This is a DISASTER! Your airline ruined my trip!"`}
+  right={`"My flight has been canceled and I need to be rebooked as soon as possible. What are my options?"`}
+  why={`Phản ứng cảm xúc mạnh với nhân viên hàng không là lỗi phổ biến nhất — và phản tác dụng nhất. Nhân viên không gây ra delay hay cancellation; họ đang xử lý hàng chục hành khách cùng lúc và không có thêm quyền hạn gì nếu bạn tức giận hơn. Về mặt thực tế, nhân viên ưu tiên những hành khách bình tĩnh và rõ ràng — người cho họ biết chính xác cần làm gì sẽ được phục vụ nhanh hơn người đang mất bình tĩnh. Giữ bình tĩnh không có nghĩa là không kiên quyết — bạn hoàn toàn có thể nêu tình huống và yêu cầu kết quả một cách rõ ràng mà không cần leo thang cảm xúc.`}
+/>
+
+<Mistake
+  wrong={`"Please help me! I don't know what to do!"`}
+  right={`"I missed my connection — could you rebook me on flight BA6 at 19:15?"`}
+  why={`Yêu cầu mơ hồ khiến nhân viên mất thời gian hỏi thêm và làm chậm quy trình cho cả bạn lẫn những hành khách phía sau. "Help me" không cho nhân viên biết bạn cần rebook, refund, hay chỉ cần thông tin. Càng cụ thể càng tốt: tên chuyến bay, giờ khởi hành, và kết quả bạn muốn. Nếu không biết chuyến tiếp theo là gì, hỏi "What's the next available flight?" — đó vẫn là câu hỏi cụ thể hơn "Help me!".`}
+/>
+
+<Mistake
+  wrong={`"Okay, thanks." (rồi bước đi mà không hỏi về voucher)"`}
+  right={`"Thanks — and one more thing: with this delay, am I entitled to a meal voucher?"`}
+  why={`Rất nhiều hành khách nhận được boarding pass mới và rời quầy mà không hỏi về quyền lợi bổ sung. Meal voucher, hotel voucher, và compensation thường không được nhân viên chủ động đưa ra — đặc biệt khi quầy đang đông. Nếu bạn không hỏi, bạn thường không nhận. Quy tắc đơn giản: trước khi rời quầy, luôn hỏi một câu về voucher hoặc compensation. Nhân viên sẽ cho bạn biết bạn có đủ điều kiện hay không.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+1. **App hãng hàng không và Twitter/X đôi khi nhanh hơn xếp hàng.** Trong các sự cố lớn — bão, đình công, lỗi hệ thống — quầy rebooking có thể có hàng dài hàng trăm người. Trong khi chờ, mở app hãng bay và thử tự rebook trực tuyến, hoặc gọi đường dây điện thoại của hãng. Twitter/X cũng nổi tiếng là kênh xử lý nhanh của nhiều hãng hàng không lớn — tweet công khai đến tài khoản hỗ trợ của hãng thường nhận được phản hồi nhanh hơn chờ ở quầy. Chiến lược tốt nhất là xử lý song song: vừa xếp hàng vừa thử app và điện thoại.
+
+2. **EU Regulation 261 bảo vệ bạn nếu khởi hành từ sân bay EU.** Đây là một trong những luật bảo vệ hành khách mạnh nhất thế giới. Nếu chuyến bay của bạn khởi hành từ sân bay thuộc Liên minh châu Âu (hoặc trên hãng hàng không EU đến EU), bạn có thể có quyền bồi thường tiền mặt từ 250 đến 600 euro tùy độ trễ và khoảng cách chuyến bay. Quy định này áp dụng cho delay trên 3 tiếng, hủy chuyến, hoặc bị từ chối lên máy bay (bumping). Biết mình có quyền — và nếu nhân viên không đề cập, bạn có thể hỏi thẳng: "Does EU 261 apply to my situation?"
+
+3. **Gate agent thường là người nhanh nhất rebook sau khi lỡ chuyến nối.** Khi chạy ra khỏi cổng vừa đáp xuống, bản năng tự nhiên là tìm đường về quầy chính. Nhưng gate agent — nhân viên ngay tại cổng của chuyến bạn vừa lỡ — thường vẫn còn đó trong vài phút sau khi cửa đóng và có thể rebook bạn ngay tại chỗ. Đây là bước tiết kiệm nhiều thời gian nhất trong tình huống lỡ chuyến nối. Chạy đến cổng trước, giải thích tình huống, rồi mới đi quầy chính nếu gate agent không giải quyết được.
+
+<Callout type="note" title={`"What are my options?" — câu hỏi hữu ích nhất khi có sự cố`}>
+Khi chuyến bay bị hủy hoặc trễ nặng, câu hỏi đơn giản nhất và hiệu quả nhất bạn có thể hỏi là: "What are my options?" Câu này mời nhân viên trình bày toàn bộ những gì có thể làm cho bạn — rebook, refund, standby, voucher — thay vì để bạn phải đoán hoặc hỏi từng điều một. Nhiều hành khách không biết tất cả quyền lợi mình có cho đến khi được nhân viên giải thích khi được hỏi câu này. Đây là câu đáng nhớ nhất trong cả bài.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to miss a connection`** — lỡ chuyến nối — cụm chuẩn trong ngữ cảnh hàng không khi chuyến đầu đến trễ và bạn không kịp chuyến kế tiếp. *"I missed my connection in Dubai because the first flight was delayed."*
+
+- **`to be rebooked`** — được đặt lại chỗ — khi hãng hàng không sắp xếp bạn vào một chuyến khác, thường miễn phí trong trường hợp delay/cancel do lỗi hãng. *"They rebooked me on the first flight out the next morning."*
+
+- **`to be on standby`** — trong danh sách chờ — bạn có tên trong hệ thống nhưng chỉ được lên máy bay nếu còn ghế trống sau khi tất cả hành khách có đặt chỗ đã lên. *"They put me on standby for the earlier flight — I got on with five minutes to spare."*
+
+- **`to be bumped`** — bị đẩy khỏi chuyến — khi hãng hàng không bán dư vé (overbooking) và bạn là người không được lên máy bay dù có vé. Trong trường hợp này bạn thường có quyền bồi thường đáng kể. *"I was bumped from my flight and given a voucher plus a seat on the next one."*
+
+- **`to get a meal voucher`** — nhận phiếu ăn — quyền lợi phổ biến khi delay kéo dài, thường từ 2–3 tiếng trở lên tùy hãng và quốc gia. *"The agent handed me a meal voucher for the food court while I waited for the replacement flight."*
+
+## 09 — Tự luyện
+
+1. **Nói:** Bạn vừa đến quầy rebooking sau khi chuyến bay của bạn bị hủy. Tự nói to bốn câu liên tiếp bằng tiếng Anh: (a) câu mở đầu trình bày sự thật (chuyến bị hủy), (b) câu hỏi về các lựa chọn, (c) câu đặt kết quả cụ thể (chuyến tiếp theo), và (d) câu hỏi về meal voucher. Ghi âm và nghe lại: giọng có bình tĩnh và rõ ràng không, hay nghe hoảng loạn hoặc quá nhẹ nhàng?
+
+2. **Viết:** Bạn đã lỡ chuyến nối ở sân bay Frankfurt vì chuyến đầu từ Hà Nội trễ 2 tiếng 45 phút. Soạn đoạn hội thoại 6 lượt với nhân viên tại transfer desk: bạn trình bày tình huống, xác nhận đây là lỗi của hãng (không phải của bạn), đặt chuyến tiếp theo, và hỏi về quyền lợi theo EU 261. Mỗi câu của bạn không quá 20 từ — ngắn gọn và cụ thể.
+
+3. **Nghiên cứu:** Truy cập website của một hãng hàng không bạn thường bay (ví dụ: Vietnam Airlines, Emirates, hoặc Singapore Airlines) và tìm trang "passenger rights" hoặc "delay compensation policy." Ghi lại ba điều bạn có quyền yêu cầu khi chuyến bay bị trễ hơn 3 tiếng — bằng tiếng Anh như trên website. Bài tập này giúp bạn biết chính xác những gì có thể nói với nhân viên khi tình huống thực sự xảy ra.
+
+<Recap>
+- Trong tình huống delay hoặc lỡ chuyến, di chuyển nhanh đến đúng quầy và nói đúng thông tin quan trọng hơn bất kỳ kỹ năng ngôn ngữ nào khác.
+- Luôn ghép sự thật với kết quả cụ thể: "My flight has been canceled — could you rebook me on the next available flight?" Đừng chỉ nêu vấn đề mà không có yêu cầu đi kèm.
+- Trước khi rời quầy, luôn hỏi về meal voucher, hotel voucher, hoặc compensation — nhân viên không phải lúc nào cũng tự động đưa ra nếu bạn không hỏi.
+- Sau khi lỡ chuyến nối do lỗi hãng, gate agent tại cổng của chuyến bạn vừa lỡ thường nhanh hơn quầy chính — đến đó trước.
+- "What are my options?" là câu hỏi mở hiệu quả nhất khi có sự cố — nó mời nhân viên trình bày toàn bộ quyền lợi của bạn thay vì để bạn phải đoán từng điều.
+- EU Regulation 261 bảo vệ hành khách khởi hành từ sân bay EU với mức bồi thường tiền mặt cụ thể — biết mình có quyền giúp bạn hỏi đúng câu đúng lúc.
+</Recap>

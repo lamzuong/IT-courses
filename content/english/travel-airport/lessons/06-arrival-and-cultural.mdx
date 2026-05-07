@@ -1,0 +1,218 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Arrival là khoảnh khắc chuyển tiếp — từ "đang trên đường" sang "tôi đã đến đây rồi". Và những micro-encounter cuối cùng mới là những cái khó nhất: câu hỏi của sĩ quan hải quan ("Anything to declare?"), cuộc trò chuyện với tài xế taxi mà bạn bắt khi đang mệt rã người, nhân viên lễ tân khách sạn đang chờ bạn check in, và câu hỏi quan trọng nhất của đêm đầu tiên — làm thế nào để không bị jet lag đánh gục hoàn toàn? Bài capstone này bao gồm tiếng Anh của chặng cuối hành trình, cộng với bộ ghi chú văn hoá du lịch tổng hợp toàn topic — những thứ mà không bài học nào trước đây có đủ chỗ để nói hết.
+
+## 01 — Bối cảnh
+
+Trình tự arrival đầy đủ trông như thế này: xuống máy bay (deplane) → đi qua hành lang → hàng kiểm soát hộ chiếu (passport control / immigration) → nhận hành lý (baggage claim) → hải quan (customs) → ra cửa arrivals hall → chọn phương tiện di chuyển vào thành phố (ground transport) → khách sạn hoặc điểm đến.
+
+Mỗi điểm dừng trong chuỗi này có ngôn ngữ riêng. Tại passport control: tên, mục đích, thời gian lưu trú. Tại baggage claim: băng chuyền số mấy, hành lý của tôi chưa ra. Tại customs: khai báo hay không khai báo, và cách trả lời khi được hỏi. Tại arrivals hall: tìm bảng tên, quầy thông tin, hoặc bảng hướng dẫn xe buýt. Tại khách sạn: check in, hỏi WiFi, xin thêm gối, và câu đầu tiên bạn muốn nói sau 30 tiếng đồng hồ di chuyển.
+
+Nhưng có một lớp thứ hai mà hành trình arrival đòi hỏi, và đó là lớp khó hơn: **bạn đang làm tất cả những việc này trong khi mệt, có thể đang lệch múi giờ, điện thoại sắp hết pin, và đầu óc không hoạt động đủ công suất**. Kỹ năng thực sự của arrival English không phải là nói được câu hoàn hảo — mà là có sẵn những câu đủ tốt, đủ ngắn, và đủ rõ ràng để dùng ngay cả khi bạn đang chạy ở 40% công suất bình thường.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "to land", ipa: "lænd", vi: "hạ cánh — động từ chỉ máy bay chạm đất; 'We just landed' là câu đầu tiên bạn nhắn cho người thân khi vừa xuống máy bay", example: "We landed twenty minutes ago — still waiting for bags." },
+  { en: "to deplane", ipa: "diːˈpleɪn", vi: "xuống máy bay — rời khỏi máy bay sau khi hạ cánh; 'deplaning' thường được thông báo qua loa: 'We will begin deplaning from rows 1 through 10'", example: "Please remain seated until we finish deplaning." },
+  { en: "passport control", ipa: "ˈpɑːs.pɔːt kənˈtrəʊl", vi: "kiểm soát hộ chiếu — điểm kiểm tra nhập cảnh, còn gọi là 'immigration'; đây là nơi sĩ quan hải quan xem hộ chiếu, hỏi mục đích chuyến đi, và đóng dấu", example: "There was a 40-minute queue at passport control." },
+  { en: "the arrivals hall", vi: "khu arrivals — khu vực công cộng sau khi bạn đã qua customs và lấy hành lý xong; nơi người đón chờ, nơi có quầy taxi, quầy đổi tiền, và bảng hướng dẫn phương tiện", example: "Meet me in the arrivals hall — I'll be by the coffee stand." },
+  { en: "ground transport", vi: "phương tiện mặt đất — tổng hợp tất cả các lựa chọn từ sân bay vào thành phố: taxi, xe buýt, metro, shuttle, rideshare; 'ground transport desk' là quầy thông tin về phương tiện di chuyển", example: "The ground transport desk can advise on the cheapest option into the city." },
+  { en: "to hail a cab", ipa: "heɪl ə kæb", vi: "vẫy taxi — giơ tay hoặc ra hiệu dừng taxi đang chạy trên đường; khác với 'to book a cab' (đặt trước); ở sân bay, thường dùng hàng taxi chính thức thay vì hail trực tiếp", example: "You can hail a cab outside the terminal, but the official queue is safer." },
+  { en: "the hotel shuttle", vi: "xe đưa đón khách sạn — xe buýt miễn phí hoặc tính phí thấp do khách sạn vận hành giữa sân bay và khách sạn; thường có bảng hiệu tên khách sạn ở arrivals hall", example: "Our hotel offers a free shuttle every 30 minutes." },
+  { en: "to be jet-lagged", ipa: "dʒet læɡd", vi: "bị lệch múi giờ — trạng thái mệt mỏi, mất ngủ, mất phương hướng do cơ thể chưa thích nghi với múi giờ mới; đặc biệt nặng khi bay từ Đông sang Tây hoặc qua nhiều múi giờ", example: "I'm completely jet-lagged — my body thinks it's 3 AM." },
+  { en: "to power through", vi: "cố gắng tiếp tục dù mệt — cố ép cơ thể tiếp tục hoạt động thay vì nghỉ ngơi; trong bối cảnh jet lag, 'powering through' thường được khuyên tránh nếu quá 24h di chuyển", example: "I tried to power through the jet lag, but crashed at 6 PM." },
+  { en: "to crash", vi: "ngã ra ngủ, ngủ sụp — ngủ đột ngột và sâu do kiệt sức; trong tiếng Anh thân mật, 'I need to crash' nghĩa là tôi cần ngủ ngay lập tức", example: "Just landed — going to crash for a few hours. Talk later!" },
+  { en: "to acclimatize", ipa: "əˈklaɪ.mə.taɪz", vi: "thích nghi với môi trường mới — cơ thể dần điều chỉnh theo múi giờ, thời tiết, hoặc độ cao mới; thường mất 1–3 ngày để hoàn toàn acclimatize", example: "It took me three days to fully acclimatize to the time difference." },
+  { en: "to get a SIM card", vi: "mua SIM — một trong những việc đầu tiên nhiều du khách làm khi đến nơi; sân bay quốc tế thường có quầy bán SIM tại arrivals hall", example: "I always get a local SIM card at the airport — much cheaper than roaming." },
+  { en: "to check in (to the hotel)", vi: "check in khách sạn — làm thủ tục nhận phòng tại khách sạn; khác với 'check in' ở sân bay (làm thủ tục lên máy bay). Ngữ cảnh quyết định nghĩa", example: "We checked in to the hotel around midnight after the delayed flight." },
+  { en: "out of it", vi: "không tỉnh táo, mơ màng — trạng thái đầu óc không hoạt động bình thường do mệt, thiếu ngủ, hoặc thuốc; 'I'm pretty out of it' thân mật hơn 'I'm exhausted' và cụ thể hơn cho trạng thái du lịch", example: "Sorry if I seem slow — I'm pretty out of it after the flight." },
+]} />
+
+## 03 — Mẫu câu
+
+<Pattern
+  en="Just visiting — two weeks. Thanks!"
+  vi="Chỉ du lịch thôi — hai tuần. Cảm ơn!"
+  variations={[
+    "Tourism — about ten days.",
+    "Holiday — two weeks, then flying home.",
+    "Just a vacation — back on the 18th.",
+  ]}
+  note={`Câu kết thúc trao đổi tại customs/passport control. Sau khi sĩ quan đã kiểm tra hộ chiếu và hỏi mục đích chuyến đi, một câu ngắn xác nhận + "Thanks!" là cách đóng lịch sự và tự nhiên nhất. Đừng im lặng hoặc chỉ gật đầu — một câu ngắn thân thiện đóng lại cuộc trao đổi và để lại ấn tượng tốt ở điểm kiểm tra cuối cùng.`}
+/>
+
+<Pattern
+  en="Could you tell me where I'd find a taxi to the city?"
+  vi="Bạn có thể cho tôi biết tôi có thể bắt taxi vào thành phố ở đâu không?"
+  variations={[
+    "Excuse me — where's the official taxi queue?",
+    "Hi — is there a shuttle bus to the city centre?",
+    "Could you point me to the ground transport desk?",
+  ]}
+  note={`Câu hỏi tại quầy thông tin arrivals hall. "I'd find" (conditional lịch sự) nghe tự nhiên và không hung hãng hơn "I can find" hoặc "Where is". Luôn hỏi về "official taxi queue" hoặc "ground transport desk" — không theo người lạ tự tiếp cận bạn trong arrivals hall.`}
+/>
+
+<Pattern
+  en="Hi, I'm checking in — reservation under [name]."
+  vi="Xin chào, tôi muốn check in — đặt phòng dưới tên [tên]."
+  variations={[
+    "Hi — I have a reservation under Nguyen, checking in.",
+    "Good evening — checking in, name is Tran Minh.",
+    "Hi there — I booked a room online, last name Pham.",
+  ]}
+  note={`Câu mở đầu chuẩn tại quầy lễ tân khách sạn. Ngắn, đủ thông tin, và đặt rõ hành động bạn muốn ngay từ đầu. "Reservation under [name]" là cấu trúc chuẩn trong tiếng Anh khách sạn — nhân viên lễ tân nghe câu này hàng trăm lần mỗi ngày và biết chính xác phải làm gì tiếp theo.`}
+/>
+
+<Pattern
+  en={`Could you write down the WiFi password? I'm pretty out of it after the flight.`}
+  vi="Bạn có thể viết mật khẩu WiFi xuống cho tôi không? Tôi hơi mơ màng sau chuyến bay."
+  variations={[
+    "What's the WiFi password? Sorry — I'm not quite with it yet.",
+    "Could you write that down? My brain's a bit slow right now.",
+    "The WiFi password — could I get that in writing? I've been traveling for 20 hours.",
+  ]}
+  note={`Câu thực dụng và rất thường dùng. Giải thích ngắn tại sao bạn cần viết xuống ("out of it after the flight") nghe chân thực và được đồng cảm — nhân viên lễ tân hiểu ngay. Tránh yêu cầu nhân viên lặp lại 3–4 lần khi bạn mệt; xin viết xuống là cách thông minh hơn và không ai phiền.`}
+/>
+
+<Pattern
+  en={`Just landed — going to crash for a few hours. Talk later!`}
+  vi="Vừa hạ cánh rồi — sẽ ngủ vài tiếng. Nói chuyện sau nhé!"
+  variations={[
+    "Made it! Exhausted — talk tomorrow.",
+    "Landed safe — jet-lagged but fine. Catch up soon!",
+    "Here! Going to sleep now — call you in the morning.",
+  ]}
+  note={`Tin nhắn "tôi đến nơi rồi" cho gia đình hoặc bạn bè. "Going to crash" là thân mật, tự nhiên, và ai nghe cũng hiểu ngay. Không cần câu dài hay chi tiết — sau 20+ tiếng di chuyển, ngắn gọn là tốt nhất cho cả người gửi lẫn người nhận.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`"to be" + tính từ cho mô tả trạng thái du lịch + present perfect "has been + V-ing" cho timeline`}
+  structure={`I'm + [jet-lagged / out of it / wrecked / wide awake / exhausted]. / I've been + V-ing + (for [khoảng thời gian] / all night / since [mốc thời gian]).`}
+  examples={[
+    { en: "I'm completely jet-lagged.", vi: "Tôi đang bị lệch múi giờ hoàn toàn." },
+    { en: "I'm pretty out of it right now.", vi: "Tôi đang khá mơ màng lúc này." },
+    { en: "I've been traveling for 30 hours.", vi: "Tôi đã đi liên tục 30 tiếng đồng hồ." },
+    { en: "I'm wide awake — it's 4 AM back home.", vi: "Tôi đang tỉnh như sáo — ở nhà đang 4 giờ sáng." },
+    { en: "I've been on a plane all night.", vi: "Tôi đã ngồi máy bay cả đêm." },
+  ]}
+  contrast={`"I am tired" (chung chung — có thể do bất cứ điều gì) so với "I'm jet-lagged" (cụ thể cho bối cảnh du lịch qua múi giờ). Dùng từ vựng cụ thể của travel không chỉ chính xác hơn — nó còn tín hiệu cho người nghe (nhân viên khách sạn, bác sĩ, đồng nghiệp) biết ngay ngữ cảnh và có thể phản hồi phù hợp. "I've been traveling for 30 hours" dùng present perfect để nhấn mạnh trạng thái kéo dài từ quá khứ đến hiện tại vẫn còn ảnh hưởng — khác với "I traveled for 30 hours" (quá khứ đơn, đã xong và không còn liên quan).`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "Baggage Claim Screen", en: "Flight VN003 from Hanoi — Carousel 4.", vi: "Chuyến bay VN003 từ Hà Nội — Băng chuyền số 4." },
+  { speaker: "You", en: "Excuse me — my bag hasn't come through yet. Is Carousel 4 still running?", vi: "Xin lỗi — hành lý của tôi chưa ra. Băng chuyền số 4 vẫn đang chạy không?" },
+  { speaker: "Baggage Staff", en: "Yes, still going — should be the last few bags now.", vi: "Có, vẫn chạy — có lẽ là vài kiện cuối cùng rồi." },
+  { speaker: "Customs Officer", en: "Anything to declare today?", vi: "Hôm nay bạn có gì cần khai báo không?" },
+  { speaker: "You", en: "No, nothing. Just personal items.", vi: "Không, không có gì. Chỉ đồ cá nhân thôi." },
+  { speaker: "Customs Officer", en: "Purpose of your visit?", vi: "Mục đích chuyến thăm của bạn?" },
+  { speaker: "You", en: "Tourism — two weeks. Thank you!", vi: "Du lịch — hai tuần. Cảm ơn anh/chị!" },
+  { speaker: "Info Desk", en: "Hi — can I help you?", vi: "Xin chào — tôi có thể giúp gì cho bạn?" },
+  { speaker: "You", en: "Hi — could you tell me where the official taxi queue is? I want to get to the city centre.", vi: "Xin chào — bạn có thể chỉ tôi hàng taxi chính thức ở đâu không? Tôi muốn vào trung tâm thành phố." },
+  { speaker: "Info Desk", en: "Sure — out through those doors, then follow the signs for 'Official Taxis'. It's about a two-minute walk. Avoid anyone approaching you inside — they're not licensed.", vi: "Được — ra qua những cửa đó, rồi theo biển 'Official Taxis'. Đi bộ khoảng hai phút. Tránh người nào tiếp cận bạn bên trong — họ không có giấy phép." },
+  { speaker: "You", en: "Thank you — I'll head that way now.", vi: "Cảm ơn — tôi đi ngay bây giờ." },
+  { speaker: "Hotel Receptionist", en: "Good evening! Welcome — checking in?", vi: "Chào buổi tối! Chào mừng — bạn check in ạ?" },
+  { speaker: "You", en: "Hi, yes — reservation under Nguyen. I've been traveling for about 24 hours, so I'm pretty out of it.", vi: "Xin chào, đúng rồi — đặt phòng dưới tên Nguyễn. Tôi đã đi được khoảng 24 tiếng rồi, nên khá mơ màng." },
+  { speaker: "Hotel Receptionist", en: "Of course — let me get you sorted quickly. Here's your room key, floor 8. Anything else before you go up?", vi: "Tất nhiên — để tôi lo nhanh cho bạn. Đây là chìa khoá phòng, tầng 8. Bạn cần gì thêm trước khi lên không?" },
+  { speaker: "You", en: "Could you write down the WiFi password? My brain's not quite working right now.", vi: "Bạn có thể viết mật khẩu WiFi xuống không? Đầu óc tôi không hoạt động bình thường lúc này." },
+  { speaker: "Hotel Receptionist", en: "Of course! Here you go. Get some rest — breakfast starts at 7.", vi: "Tất nhiên! Đây. Nghỉ ngơi đi nhé — bữa sáng bắt đầu lúc 7 giờ." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"I'm fine, I'm fine — just tired." (rồi cố ở lại thức đến 11 PM ngày đầu tiên)`}
+  right={`"I'm jet-lagged — I'll take a 90-minute nap, eat something, and sleep at local time tonight."`}
+  why={`"Push through" không thực sự hiệu quả sau khi bay qua nhiều múi giờ. Phần lớn lỗi lầm khi mới đến nơi — đặt nhầm khách sạn, leo lên nhầm xe, đưa nhầm thẻ — xảy ra vì người du lịch cố ép não làm việc khi não đang ở múi giờ khác. Chiến lược tốt hơn: thừa nhận trạng thái, xử lý những việc quan trọng nhất (check in, WiFi, định hướng khu vực), rồi nghỉ 90 phút thực sự. Ngủ quá giờ địa phương buổi chiều là điều cần tránh — 90 phút là giới hạn khuyến cáo.`}
+/>
+
+<Mistake
+  wrong={`"Sure, okay — this gentleman said he has a taxi for me."`}
+  right={`"No thank you — I'll use the official taxi queue."`}
+  why={`Người tiếp cận hành khách trong khu arrivals để mời taxi riêng là vấn đề phổ biến tại nhiều sân bay quốc tế, đặc biệt tại các điểm du lịch lớn. Taxi không đồng hồ có thể tính giá gấp 3–5 lần, và trong trường hợp tệ hơn đây là cạm bẫy an toàn. Câu "No thank you — I'll use the official taxi queue" ngắn, lịch sự, và không cần giải thích thêm. Không cần tranh luận, không cần xin lỗi — nói và đi.`}
+/>
+
+<Mistake
+  wrong="[im lặng hoặc chỉ gật đầu khi sĩ quan hải quan đưa lại hộ chiếu]"
+  right={`"Just visiting — two weeks. Thanks!"`}
+  why={`Nhiều người học tiếng Anh im lặng hoặc chỉ gật đầu tại điểm cuối của cuộc trao đổi passport control vì không biết nói gì. Nhưng im lặng ở đây đôi khi đọc sai là căng thẳng hoặc không tự tin — và cả hai đều không cần thiết. Một câu ngắn xác nhận mục đích + "Thanks!" là cách đóng lại cuộc trao đổi lịch sự, thân thiện, và để lại ấn tượng đúng. Câu này không phức tạp và không cần chuẩn bị nhiều — chỉ cần nhớ để dùng.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+**Register nén của Travel & airport English.**
+
+Nhìn lại toàn bộ topic, có một sắc thái xuyên suốt tất cả sáu bài: tiếng Anh tại sân bay và trong hành trình du lịch chạy trên một register rất đặc thù — câu ngắn, thực tế, hướng đến kết quả cụ thể, và bình tĩnh khi có vấn đề. Đây không phải tiếng Anh của bài luận hay cuộc trò chuyện dài. Đây là tiếng Anh của người có mục tiêu rõ ràng và thời gian hạn chế.
+
+Tại check-in (bài 01): "Window seat if available, please." Tại security (bài 02): "I have a laptop and liquids in here." Tại boarding (bài 03): "Could I get the aisle seat instead?" Khi delay (bài 04): "What are my options for rebooking?" Khi mất hành lý (bài 05): "I'd like to file a PIR — my bag didn't arrive." Và bây giờ tại arrival: "Just visiting — two weeks. Thanks!" Register này nhất quán ở mọi điểm — ngắn gọn, lịch sự, và hướng đến điều bạn thực sự cần.
+
+**Công thức "calm advocacy" áp dụng toàn topic.**
+
+Khi mọi thứ đi sai — và trong du lịch, điều đó xảy ra — có một cấu trúc ngôn ngữ hoạt động nhất quán qua toàn bộ topic: *nêu tình huống thực tế + yêu cầu kết quả cụ thể + leo thang nếu cần*. "My flight is delayed and I'll miss my connection — could you help me rebook?" "My bag didn't arrive on the carousel — I'd like to file a report." "The room I booked was a double, but this is a twin — could we sort that out?" Không phàn nàn to, không xin lỗi quá mức, không im lặng chịu đựng. Công thức này — bình tĩnh + cụ thể + hành động — hoạt động với mọi nhân viên ở mọi hãng ở mọi quốc gia.
+
+**Hiệu chỉnh văn hoá theo vùng.**
+
+Sân bay và hành trình du lịch đưa bạn qua nhiều nền văn hoá giao tiếp rất khác nhau, và hiểu sự khác biệt này giúp bạn không bị hiểu lầm hay hiểu lầm người khác.
+
+Sân bay phương Tây (Mỹ, Anh, Úc) thường chạy theo kiểu hiệu quả và khá impersonal — nhân viên thân thiện nhưng không mong đợi small talk dài. Sân bay châu Á (Singapore, Tokyo, Hồng Kông) thường có dịch vụ rất tốt và nhân viên được đào tạo để chủ động hỗ trợ — đây là môi trường mà bạn thường không cần hỏi nhiều vì biển hiệu và hệ thống đã rất rõ ràng. Sân bay và cửa khẩu châu Âu có sự khác biệt lớn theo từng nước: Đức và Thuỵ Sĩ thường trang trọng, hiệu quả, ít warm; Tây Ban Nha và Ý thường casual và thân thiện hơn trong trao đổi ngắn.
+
+Tại customs và passport control, ngôn ngữ cơ thể cũng quan trọng không kém lời nói. Giữ hộ chiếu và giấy tờ nhập cảnh sẵn trong tay, mắt nhìn thẳng, và tư thế thư giãn là tổ hợp universal-friendly. Không cần mỉm cười lớn — neutral và tự tin là đủ. Over-gesturing hoặc giải thích quá nhiều khi không được hỏi đôi khi đọc sai là lo lắng, không phải thân thiện.
+
+**Quy tắc "12 tiếng đầu tiên".**
+
+Phần lớn những sự cố du lịch không xảy ra trong không khí — chúng xảy ra trong 12 tiếng đầu sau khi đến nơi, khi người du lịch mệt nhưng vẫn muốn làm mọi thứ. Người du lịch có kinh nghiệm thường có một nguyên tắc riêng: ngày đầu tiên là ngày định hướng, không phải ngày khám phá. Đến khách sạn, lấy chìa khoá phòng, nạp pin điện thoại, tìm nguồn ăn gần nhất, và ngủ đúng giờ địa phương tối hôm đó. Kỹ năng tiếng Anh cũng vậy — khi não đang ở múi giờ khác và cơ thể đang ở tần số thấp, những câu bạn đã luyện sẽ ra tự nhiên hơn những câu bạn đang cố nhớ. Đó là lý do tại sao chuẩn bị sẵn những câu ngắn, đủ dùng, cho từng điểm dừng của arrival sequence lại quan trọng — không phải để nói hay, mà để nói được khi bạn không còn đủ năng lượng để nghĩ.
+
+<Callout type="note" title={`"What brings you to [city]?" — câu hỏi vạn năng, cần 1 câu trả lời sẵn`}>
+Tại passport control, tại khách sạn, tại quán cà phê vào sáng hôm sau — câu hỏi "What brings you to [city]?" hoặc "What are you here for?" sẽ xuất hiện nhiều lần trong những ngày đầu. Đây là câu hỏi mở đầu xã giao phổ biến nhất trong văn hoá du lịch Anh ngữ, và nó xuất hiện từ sĩ quan hải quan đến người ngồi cạnh bạn trên tàu điện. Chuẩn bị sẵn một câu trả lời ngắn — "Just here for a week of travel — first time in the city" hoặc "Holiday, mostly — and some food tourism" — giúp bạn trả lời tự nhiên ngay cả khi đang mệt, thay vì đứng im và tìm từ.
+</Callout>
+
+<Callout type="warning" title="KHÔNG bao giờ theo taxi không chính thức tại sân bay">
+Ở nhiều sân bay quốc tế — đặc biệt tại các điểm đến du lịch phổ biến ở Đông Nam Á, Nam Á, châu Phi, và một số thành phố châu Âu — có người chủ động tiếp cận hành khách trong khu arrivals để "giúp" họ tìm taxi. Đây gần như luôn là taxi không đồng hồ, không cấp phép, với giá gấp nhiều lần taxi chính thức. Quy tắc cứng không có ngoại lệ: chỉ dùng hàng taxi chính thức có biển hiệu rõ ràng (official taxi queue), shuttle của khách sạn, hoặc khu vực đón xe rideshare chính thức (Grab, Uber pickup zone). Nếu không chắc, hỏi nhân viên sân bay mặc đồng phục — không phải người đang tiếp cận bạn trước.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to make a flight`** — kịp chuyến bay. *"I ran through the terminal and just made my flight."* Đối lập với "to miss a flight" — hai cụm này thường đi đôi trong bất kỳ câu chuyện du lịch nào.
+
+- **`to miss a flight`** — lỡ chuyến bay. *"I missed my connection because the first flight was delayed."* Chủ đề của bài 04 — nhưng là cụm idiom mà người du lịch nói tiếng Anh dùng tự nhiên nhất khi kể lại sự cố.
+
+- **`to be on standby`** — đang chờ vé standby. *"I'm on standby for the earlier flight — hoping a seat opens up."* Trạng thái không chắc chắn, chờ có chỗ trống trên chuyến bay.
+
+- **`to be jet-lagged`** — bị lệch múi giờ. *"Sorry I'm slow — I'm still jet-lagged from the Tokyo flight."* Cụm idiom quan trọng nhất của bài này — cụ thể, tự nhiên, và ai nghe cũng hiểu ngay.
+
+- **`to be on the carousel`** — đang trên băng chuyền. *"My bag's still on the carousel — I can see it."* Dùng khi nói về hành lý đang di chuyển trên băng chuyền baggage claim.
+
+- **`to clear customs`** — qua cửa hải quan. *"Once we clear customs, we can meet everyone in the arrivals hall."* "Clear" ở đây có nghĩa là hoàn thành thủ tục và được phép qua.
+
+- **`to be wrecked`** — kiệt sức hoàn toàn. *"I'm absolutely wrecked after that overnight flight."* Mạnh hơn "tired" và "exhausted" — thân mật, dùng trong ngữ cảnh không trang trọng.
+
+- **`to crash`** — ngã ra ngủ do kiệt sức. *"I need to crash for a few hours before dinner."* Cụm thân mật, hoàn toàn bình thường trong tiếng Anh hằng ngày — không có nghĩa tiêu cực.
+
+- **`to power through`** — cố tiếp tục dù mệt. *"I tried to power through the jet lag, but gave up at 7 PM."* Có sắc thái nỗ lực nhưng không chắc hiệu quả — thường dùng kèm kết quả thất bại.
+
+- **`to acclimatize`** — thích nghi với môi trường mới. *"Give yourself a couple of days to acclimatize before any big plans."* Lịch sự và hay dùng trong lời khuyên du lịch từ người có kinh nghiệm.
+
+## 09 — Tự luyện
+
+1. **Viết trình tự arrival của bạn:** Tưởng tượng bạn vừa hạ cánh tại London Heathrow, đến từ Hà Nội, chuyến bay 12 tiếng. Viết bằng tiếng Anh 5–6 câu bạn sẽ nói qua các điểm dừng: (a) khi sĩ quan passport control hỏi "What's the purpose of your visit?", (b) khi nhân viên thông tin hỏi "Can I help you?", (c) khi nhân viên khách sạn hỏi "How was your journey?", và (d) tin nhắn bạn gửi cho gia đình khi đến phòng. Tập trung vào ngắn gọn và tự nhiên — không cần câu hoàn hảo.
+
+2. **Phân tích jet lag:** Đọc lại phần 07 về "Quy tắc 12 tiếng đầu tiên", sau đó viết bằng tiếng Anh 4–5 câu giải thích tại sao việc cố "power through" sau một chuyến bay dài là lỗi chiến lược, không phải lỗi ngôn ngữ. Dùng ít nhất 3 từ vựng từ bài này: "jet-lagged", "to crash", "to acclimatize", hoặc "out of it".
+
+3. **Viết tình huống taxi sân bay:** Bạn vừa ra đến arrivals hall tại Bangkok Suvarnabhumi. Có ba người tiếp cận bạn — một người mặc đồng phục sân bay đứng tại quầy "Official Taxi", một người mặc thường tiếp cận và nói "Taxi? Cheap price!", và một màn hình hiển thị "Grab pickup — Level 1, Door 6". Viết bằng tiếng Anh: (a) câu bạn nói với người mặc thường để từ chối lịch sự, (b) câu bạn hỏi nhân viên quầy taxi chính thức để xác nhận giá và tuyến đường, và (c) câu bạn nói khi lên taxi xác nhận điểm đến.
+
+<Recap>
+Trên toàn topic Travel & airport, ta đã học:
+
+- **Bài 01 — Check-in & hành lý:** Ngôn ngữ của quầy check-in — từ chọn chỗ ngồi, gửi hành lý, đến xử lý hành lý quá cân và trục trặc online check-in. Register: lịch sự nhưng cụ thể, biết điều mình muốn và nói rõ.
+- **Bài 02 — An ninh & hải quan:** Ngôn ngữ của security checkpoint và cửa khai báo hải quan — từ tháo giày và laptop, đến trả lời câu hỏi của customs officer ngắn gọn và không lo lắng. Register: hợp tác, thực tế, không giải thích thừa.
+- **Bài 03 — Lên máy bay & trên khoang:** Ngôn ngữ của gate, boarding sequence, và in-flight requests — từ xử lý gate change, đến nhờ tiếp viên đổi chỗ và xử lý vấn đề nhỏ trên máy bay. Register: lịch sự nhưng trực tiếp, không ngại yêu cầu đúng.
+- **Bài 04 — Delay & lỡ chuyến:** Ngôn ngữ của tình huống đi sai kế hoạch — từ hỏi về trạng thái delay, đến đặt lại vé và yêu cầu quyền lợi. Công thức: nêu tình huống + yêu cầu kết quả + leo thang nếu cần.
+- **Bài 05 — Lạc hành lý & xin trợ giúp:** Ngôn ngữ của baggage claim không có hành lý — từ report với nhân viên, file PIR, đến theo dõi tracker và yêu cầu compensation. Register: kiên nhẫn, cụ thể về thông tin, và biết leo thang đúng lúc.
+- **Bài 06 — Đến nơi & văn hoá capstone:** Arrival sequence đầy đủ từ xuống máy bay đến check in khách sạn, cộng với toàn bộ bộ ghi chú văn hoá du lịch: register nén của travel English, công thức calm advocacy, hiệu chỉnh văn hoá theo vùng, và quy tắc 12 tiếng đầu tiên để không bị jet lag đánh gục.
+- Xuyên suốt toàn topic, sắc thái chủ đạo là **câu ngắn + kết quả cụ thể + bình tĩnh khi sai**. Travel English không đòi hỏi bạn nói hoàn hảo — nó đòi hỏi bạn nói đúng lúc, đúng người, đủ rõ để được xử lý đúng. Và bạn đã có đủ công cụ để làm điều đó ngay từ chuyến đi tiếp theo.
+</Recap>

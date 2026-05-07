@@ -2,17 +2,6 @@ import type { EnglishTopic } from '../types';
 
 export const placeholderTopics: EnglishTopic[] = [
   {
-    slug: 'travel-airport',
-    title: 'Du lịch & sân bay',
-    englishTitle: 'Travel & airport',
-    summary: 'Check-in, an ninh, lên máy bay, hải quan, hành lý thất lạc và delay.',
-    level: 'B1+',
-    variant: 'daily-life',
-    lessons: [],
-    placeholder: true,
-    plannedLessonCount: 6,
-  },
-  {
     slug: 'hotel',
     title: 'Khách sạn & nơi ở',
     englishTitle: 'Hotel & accommodation',
