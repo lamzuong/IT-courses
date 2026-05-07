@@ -1,0 +1,187 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Một bài thuyết trình sống hay chết trong 30 giây đầu tiên. Người thuyết trình bản xứ sử dụng cấu trúc 3 phần để mở bài: **hook** (một câu hỏi, con số thống kê, hoặc câu chuyện ngắn) → **nêu mục đích** rõ ràng → **roadmap** (những gì sẽ được đề cập). Người thuyết trình Việt Nam thường bỏ qua phần hook và đi thẳng vào "Today I will talk about…" — câu mở đầu quá chung chung khiến khán giả mất tập trung trước khi slide thứ hai xuất hiện. Kỹ năng sống còn là xây dựng một phần mở bài có cấu trúc, tạo ra lý do để khán giả lắng nghe đến cùng.
+
+## 01 — Bối cảnh
+
+Cấu trúc mở bài 3 phần, tổng cộng khoảng 35–40 giây:
+
+**Phần 1 — Hook (15 giây):** Câu hỏi, con số bất ngờ, mini-story, hoặc phát biểu gây tò mò. Mục đích duy nhất của hook là làm khán giả muốn nghe tiếp.
+> *"How many of you have sat through a meeting that could have been an email? Show of hands."*
+
+**Phần 2 — Purpose (10 giây):** Câu cam kết cụ thể — bạn hứa với khán giả rằng đến cuối bài, họ sẽ *biết* điều gì, *có thể làm* điều gì, hoặc *đã quyết định* điều gì.
+> *"By the end of these 15 minutes, you'll know exactly which three changes will cut our meeting load by half."*
+
+**Phần 3 — Roadmap (10 giây):** Danh sách ngắn những gì bạn sẽ đề cập, theo thứ tự. Roadmap không chỉ giúp khán giả theo dõi — nó còn báo hiệu rằng bạn đã chuẩn bị kỹ và bài có cấu trúc rõ ràng.
+> *"I'll cover three things: first the data, then the root cause, and finally the recommendation."*
+
+Mấu chốt của cấu trúc này là *thứ tự ưu tiên*: hook phải đến trước mọi thứ khác. Nhiều người thuyết trình Việt Nam cảm thấy phải giới thiệu bản thân, cảm ơn ban tổ chức, hoặc xin lỗi vì muộn — trước khi vào bài. Tất cả những việc đó cắt vào thời gian hook của bạn và làm mất đà. Nếu cần giới thiệu bản thân, làm thật nhanh sau hook hoặc sau purpose, không phải trước.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "to kick off", vi: "mở đầu, bắt đầu — cách nói tự nhiên và năng động hơn 'to start' hay 'to begin'; phổ biến trong môi trường công sở", example: "Let me kick off with a quick question." },
+  { en: "to set the stage", vi: "thiết lập bối cảnh, chuẩn bị nền tảng cho những gì sắp xảy ra — ngụ ý bạn đang tạo ra khung nhận thức cho khán giả trước khi đi vào nội dung chính", example: "Before I dive in, let me set the stage for those new to this project." },
+  { en: "the hook", vi: "yếu tố thu hút — câu hỏi, con số, hoặc câu chuyện ngắn dùng để kéo sự chú ý của khán giả ngay từ đầu bài", example: "A strong hook in the first 10 seconds can make or break your presentation." },
+  { en: "the agenda", vi: "chương trình, danh sách các mục sẽ đề cập — thường được đặt trên slide thứ hai, nhưng cũng cần được nói rõ bằng lời", example: "Our agenda today covers three topics: the problem, the solution, and the next steps." },
+  { en: "to walk you through", vi: "dẫn bạn qua từng bước — hứa hẹn việc giải thích tuần tự, rõ ràng; phổ biến khi trình bày dữ liệu hoặc quy trình", example: "Let me walk you through the key findings from our Q3 report." },
+  { en: "to dive into", vi: "đi sâu vào, bắt đầu tập trung vào nội dung chính — thường dùng để báo hiệu sự chuyển tiếp từ phần giới thiệu sang nội dung cốt lõi", example: "Let's dive into the data and see what it tells us." },
+  { en: "By the end of this presentation, you'll…", vi: "Đến cuối bài thuyết trình này, bạn sẽ… — cấu trúc purpose statement chuẩn; hứa với khán giả một kết quả cụ thể và làm họ đầu tư vào việc lắng nghe", example: "By the end of this presentation, you'll have a clear framework for prioritizing your roadmap." },
+  { en: "Let's start with a question", vi: "Hãy bắt đầu bằng một câu hỏi — câu dẫn dắt hook dạng câu hỏi; tự nhiên và tạo ngay sự tương tác", example: "Let's start with a question: when was the last time a meeting changed how you work?" },
+  { en: "Show of hands", vi: "Giơ tay — lời mời tương tác cụ thể trong hook dạng câu hỏi; buộc phải dừng lại và thực sự chờ phản hồi từ khán giả", example: "Show of hands — how many of you have had a project delayed because of poor documentation?" },
+  { en: "to be the case", vi: "là thực tế, là trường hợp xảy ra — cụm trung lập để khẳng định một sự thật hoặc tình huống mà không nghe quá cứng nhắc", example: "That's often the case in fast-growing teams — communication breaks down before process catches up." },
+  { en: "to set the context", vi: "thiết lập ngữ cảnh — cung cấp thông tin nền cần thiết để khán giả hiểu phần còn lại của bài", example: "Let me set the context: this initiative started six months ago in response to a 20% drop in retention." },
+  { en: "to get on the same page", vi: "đồng thuận, cùng hiểu một điều — idiom quen thuộc nghĩa là đảm bảo mọi người có cùng thông tin nền trước khi tiến tiếp", example: "Before we get into the solution, let's get on the same page about what the problem actually is." },
+  { en: "the takeaway", vi: "điểm cốt lõi cần nhớ — điều quan trọng nhất bạn muốn khán giả mang về sau khi rời phòng họp", example: "The key takeaway from this section is that speed matters more than perfection in the early stages." },
+  { en: "the roadmap", vi: "lộ trình, cấu trúc tổng thể của bài thuyết trình — cho khán giả biết bài có bao nhiêu phần và họ đang ở đâu", example: "Here's our roadmap for today: context, options, and the decision I'm asking you to make." },
+]} />
+
+## 03 — Mẫu câu
+
+<Pattern
+  en="How many of you have ever spent a Sunday night dreading Monday? Show of hands."
+  vi="Bao nhiêu người trong số các bạn đã từng trải qua một tối Chủ nhật với tâm trạng sợ thứ Hai? Giơ tay nào."
+  variations={[
+    "How many of you have sat through a three-hour meeting and walked out with no clear action items? Show of hands.",
+    "How many of you have had a project go over budget — not because of bad execution, but because of unclear requirements from the start? Show of hands.",
+    "Quick show of hands — who here has reviewed a deck that had more slides than the meeting had minutes?",
+  ]}
+  note={`Hook dạng câu hỏi + "Show of hands" là công thức mạnh nhất để mở bài vì nó buộc khán giả phải tham gia ngay lập tức. Hai lưu ý quan trọng: (1) câu hỏi phải liên quan trực tiếp đến vấn đề bạn sắp giải quyết, không phải câu hỏi chung chung; (2) bạn PHẢI dừng lại và chờ phản hồi — nếu hỏi "show of hands" rồi tiếp tục nói ngay, khán giả cảm thấy bị qua mặt và hook thất bại.`}
+/>
+
+<Pattern
+  en="Last quarter, our customer churn was up 18%. Today I want to show you why — and what we should do about it."
+  vi="Quý trước, tỷ lệ khách hàng rời bỏ của chúng ta tăng 18%. Hôm nay tôi muốn chỉ cho bạn thấy lý do tại sao — và chúng ta nên làm gì với điều đó."
+  variations={[
+    "Seventy percent of software projects miss their deadlines. Ours missed the last two. Today I'm going to show you the pattern — and how we break it.",
+    "Last month, we received 340 support tickets about the same three issues. Today I want to show you what those issues have in common and what one fix addresses all three.",
+    "We have a 40% drop-off at the checkout step. Today I'll walk you through what's causing it and the single change our data suggests will recover most of that loss.",
+  ]}
+  note={`Hook dạng con số bất ngờ hiệu quả nhất khi con số đó gây ra câu hỏi trong đầu khán giả ngay lập tức — "18% là nhiều hay ít? Tại sao lại vậy?" Cấu trúc: số liệu bất ngờ + "Today I want to show you [why/what/how]." Câu thứ hai mở ngay cánh cửa cho purpose statement. Tránh dùng con số quá quen thuộc (ví dụ: "50% of meetings are inefficient") — nếu khán giả đã biết con số đó, nó mất tác dụng gây bất ngờ.`}
+/>
+
+<Pattern
+  en="By the end of these 15 minutes, you'll know exactly which 3 things we should change to fix this."
+  vi="Sau 15 phút này, bạn sẽ biết chính xác 3 điều chúng ta cần thay đổi để giải quyết vấn đề này."
+  variations={[
+    "By the end of this session, you'll have a clear framework to evaluate the three options on the table — and you'll be ready to make the call.",
+    "By the end of today, you'll understand exactly why this is happening and what our first move should be.",
+    "In the next 20 minutes, you'll walk away with two things: a diagnosis and a decision.",
+  ]}
+  note={`Đây là purpose statement — câu quan trọng nhất sau hook. Công thức: "By the end of [time frame], you'll [specific outcome]." Ba yếu tố tạo ra một purpose statement mạnh: (1) có khung thời gian cụ thể ("these 15 minutes," "today," "this session") — tôn trọng thời gian của khán giả; (2) dùng "you'll" thay vì "I'll" — đặt lợi ích của khán giả vào trung tâm; (3) outcome phải cụ thể và có thể đo được, không phải mơ hồ ("understand better" không phải outcome; "know which option to choose" mới là outcome).`}
+/>
+
+<Pattern
+  en="I'll cover three things: first the data, then the root cause, and finally the recommendation."
+  vi="Tôi sẽ đề cập ba điều: đầu tiên là dữ liệu, sau đó là nguyên nhân gốc rễ, và cuối cùng là khuyến nghị."
+  variations={[
+    "We have three areas to get through today: where we are, where we need to be, and the gap between them.",
+    "I'll structure this in two halves: the first ten minutes are about the problem space, the second ten are about the solution space.",
+    "Today's session has three parts: a quick context-set, a deep-dive into the options, and then I'll need a decision from you before we close.",
+  ]}
+  note={`Roadmap đơn giản nhất là liệt kê ba phần bằng "first… then… and finally." Không cần slide riêng cho roadmap nếu bài ngắn — nói thẳng cũng đủ. Quy tắc: không quá bốn phần trong một roadmap bằng lời nói. Nếu bài có nhiều phần hơn, nhóm lại hoặc dùng slide agenda thay vì đọc danh sách dài. Roadmap cũng là lúc tốt để báo hiệu nếu bạn cần input từ khán giả: "…and at the end, I'll need a decision from you" chuẩn bị tâm lý cho khán giả từ trước.`}
+/>
+
+<Pattern
+  en="Before I dive in, let me set the stage for those new to this initiative."
+  vi="Trước khi đi vào nội dung, hãy để tôi thiết lập bối cảnh cho những ai chưa quen với dự án này."
+  variations={[
+    "Let me start by setting the context — some of you know this background, so bear with me for 60 seconds.",
+    "Before we get into the numbers, let me make sure we're all on the same page about why this matters.",
+    "A quick note before I dive in: I'll assume most of you are familiar with the project background, so I'll keep the context brief and focus most of our time on the recommendation.",
+  ]}
+  note={`"Let me set the stage" là câu chuyển tiếp lịch sự nhưng hiệu quả — nó thừa nhận rằng khán giả có thể có mức độ quen thuộc khác nhau với chủ đề. Lưu ý: đây chỉ nên là một câu dẫn dắt ngắn, không phải lời xin phép dài dòng. Nếu cần 5 phút để "set the stage," đó là dấu hiệu bạn cần cắt bớt bối cảnh hoặc gửi pre-read trước buổi họp.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`Future "will" cho purpose + "let me + base verb" cho framing`}
+  structure={`By the end of + [this presentation / today / our 15 minutes], + you'll + [base verb]. / Let me + [set the stage / walk you through / show you] + [object].`}
+  examples={[
+    { en: "By the end, you'll have a clear answer.", vi: "Đến cuối bài, bạn sẽ có câu trả lời rõ ràng." },
+    { en: "By the end, you'll know what to do next.", vi: "Đến cuối bài, bạn sẽ biết phải làm gì tiếp theo." },
+    { en: "Let me walk you through the data.", vi: "Hãy để tôi dẫn bạn qua phần dữ liệu." },
+    { en: "Let me set the stage.", vi: "Hãy để tôi thiết lập bối cảnh." },
+    { en: "Let me start with a question.", vi: "Hãy để tôi bắt đầu bằng một câu hỏi." },
+  ]}
+  contrast={`**Chung chung:** "Today I'll talk about our Q3 performance and some things we might want to think about going forward." — Câu này không hứa điều gì với khán giả. Nó mô tả việc *bạn* sẽ làm, không phải thứ *họ* sẽ nhận được. Khán giả không có lý do cụ thể để chú ý.
+
+**Có mục đích:** "By the end of these 15 minutes, you'll know exactly what's driving the Q3 drop — and you'll have one clear action to bring back to your team." — Câu này hứa một kết quả cụ thể và có thể đo được. Nó đặt khán giả vào trung tâm ("you'll know," "you'll have") thay vì đặt người thuyết trình vào trung tâm ("I'll talk about"). Sự khác biệt nhỏ trong cách dùng từ tạo ra sự khác biệt lớn trong mức độ đầu tư của khán giả vào bài thuyết trình.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "Minh (presenter)", en: "Before I start — quick show of hands.", vi: "Trước khi bắt đầu — giơ tay nhanh một chút." },
+  { speaker: "Minh (presenter)", en: "How many of you have sat through a project kick-off meeting, left feeling aligned, and then watched the project drift in four different directions within two weeks? Keep those hands up.", vi: "Bao nhiêu người trong số các bạn đã tham dự một buổi họp kick-off dự án, rời đi với cảm giác mọi người đồng thuận, rồi chứng kiến dự án lạc hướng theo bốn hướng khác nhau chỉ trong vòng hai tuần? Giữ tay lên nào." },
+  { speaker: "Minh (presenter)", en: "I count about half the room. That's actually the problem I'm here to talk about today.", vi: "Tôi đếm được khoảng nửa phòng. Và đó chính xác là vấn đề tôi đến đây để nói hôm nay." },
+  { speaker: "Minh (presenter)", en: "By the end of these 20 minutes, you'll know why alignment breaks down after kick-offs — and you'll have a three-step checklist you can use starting from your next project.", vi: "Sau 20 phút này, bạn sẽ hiểu tại sao sự đồng thuận thường sụp đổ sau các buổi kick-off — và bạn sẽ có một checklist ba bước có thể áp dụng ngay từ dự án tiếp theo." },
+  { speaker: "Minh (presenter)", en: "I'll cover three things: first, the data from our own retrospectives over the last six months; then the two root causes we found; and finally the checklist — which you can start using tomorrow.", vi: "Tôi sẽ đề cập ba điều: đầu tiên là dữ liệu từ các buổi retrospective của chúng ta trong sáu tháng qua; sau đó là hai nguyên nhân gốc rễ chúng tôi phát hiện; và cuối cùng là checklist — thứ bạn có thể bắt đầu dùng từ ngày mai." },
+  { speaker: "Minh (presenter)", en: "Before I dive into the data, let me set the stage: this analysis is based on twelve projects across three teams — so the patterns are consistent, not just one team's experience.", vi: "Trước khi đi vào dữ liệu, hãy để tôi thiết lập bối cảnh: phân tích này dựa trên mười hai dự án từ ba team khác nhau — vậy nên các mẫu này nhất quán, không chỉ là trải nghiệm của một team." },
+  { speaker: "Minh (presenter)", en: "So — let's look at what the numbers actually say.", vi: "Vậy — hãy cùng xem những con số này thực sự nói gì." },
+  { speaker: "Minh (presenter)", en: "In eight out of twelve projects, the first misalignment happened within the first five working days after the kick-off.", vi: "Trong tám trên mười hai dự án, sự mất đồng thuận đầu tiên xảy ra trong năm ngày làm việc đầu tiên sau buổi kick-off." },
+  { speaker: "Minh (presenter)", en: "And in every single one of those eight cases, the misalignment traced back to one of two things — which I'll get to in a moment.", vi: "Và trong tất cả tám trường hợp đó, sự mất đồng thuận đều bắt nguồn từ một trong hai điều — điều tôi sẽ đề cập ngay sau đây." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"Good morning everyone. Today I will talk about our Q3 performance and our plans for Q4. I hope this will be useful for you."`}
+  right={`"Q3 just closed — and our retention number is the lowest it's been in two years. By the end of this session, you'll know why, and you'll have one concrete action to bring back to your team. I'll cover three things: the data, the cause, and the fix."`}
+  why={`"Today I will talk about X" là câu mở bài phổ biến nhất trong các bài thuyết trình không hiệu quả. Nó mô tả hoạt động của *bạn* ("I will talk"), không hứa gì với *khán giả*. Không có hook, không có lý do để chú ý, không có cảm giác cấp bách. Khán giả nghe câu này và não bộ tự động chuyển sang chế độ thụ động — họ ngồi chờ thông tin thay vì chủ động xử lý. Thay thế toàn bộ mẫu câu này bằng cấu trúc hook → purpose → roadmap, dù bài thuyết trình chỉ dài 5 phút.`}
+/>
+
+<Mistake
+  wrong={`"I'll cover the background, then the analysis, then the findings, then the implications, then the recommendations, and finally next steps. Any questions before we start?"`}
+  right={`"I'll cover three things: the problem, the cause, and the recommendation. That's it. Twenty minutes, then we make a decision."`}
+  why={`Bỏ qua roadmap hoàn toàn là sai, nhưng roadmap quá dài cũng gây ra một vấn đề khác: khán giả không biết bài dài bao lâu, không biết cái nào quan trọng hơn, và cảm giác bị choáng ngợp trước khi bài bắt đầu. Roadmap tốt có tối đa ba đến bốn điểm, được diễn đạt bằng ngôn ngữ đơn giản, và nếu có thể — kèm theo khung thời gian hoặc một lời cam kết về quyết định cần đưa ra ở cuối.`}
+/>
+
+<Mistake
+  wrong={`"First I want to thank you all for being here today, especially given how busy everyone is. And I do want to apologize for the slight delay in getting started — there were some technical issues with the projector. Also, before I begin, I just want to say that I know some of you may not be familiar with this topic, so I'll try to keep things simple…"`}
+  right={`"Quick question before we dive in: how many of you have had a deadline slip because of a dependency you didn't see coming? [pause] Right — that's exactly what we're here to fix today."`}
+  why={`Phần mở đầu dài dòng với lời cảm ơn, xin lỗi, và cảnh báo ("I'll try to keep things simple") là những kẻ thù lớn nhất của hook. Mỗi giây bạn dùng cho những điều này là một giây cắt vào cơ hội tạo ấn tượng đầu tiên. Xin lỗi vì muộn và cảm ơn khán giả có thể làm sau — thậm chí không cần làm nếu bạn không muốn. Khán giả không đến để nghe bạn xin lỗi; họ đến để nghe bài thuyết trình. Hãy bắt đầu bằng bài thuyết trình.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+1. **Văn hoá thuyết trình phương Tây thưởng phần mở đầu mạnh mẽ, thậm chí hơi táo bạo.** Ở nhiều nền văn hoá châu Á, bắt đầu bằng một câu phát biểu mạnh có thể bị coi là thiếu khiêm tốn hoặc cắt ngang. Trong văn hoá thuyết trình Mỹ và Anh, một hook mạnh được đọc là sự tôn trọng thời gian của khán giả — bạn đang nói: "Tôi đã chuẩn bị kỹ để không lãng phí phút nào của bạn." Không mở mạnh không phải là khiêm tốn — đó là tín hiệu thiếu chuẩn bị.
+
+2. **"Show of hands" thực sự tạo ra sự tương tác — nhưng chỉ khi bạn thực sự chờ bàn tay giơ lên.** Đây là điểm mà nhiều người thuyết trình thất bại ngay cả khi đã dùng hook đúng. Họ hỏi "Show of hands" rồi tiếp tục nói mà không dừng lại. Khi đó, khán giả cảm thấy câu hỏi là giả tạo và họ là khán giả thụ động, không phải người tham gia. Quy tắc: hỏi, dừng lại ít nhất ba giây, nhìn quanh phòng, nhận xét ngắn gọn về những gì bạn thấy ("About half — that's actually more than I expected"), rồi mới tiếp tục.
+
+3. **Một số khán giả châu Á thích phần mở đầu khiêm tốn hơn — hãy đọc không khí, nhưng đừng undersell.** Nếu bạn đang thuyết trình trước một hội đồng lãnh đạo cấp cao trong văn hoá doanh nghiệp truyền thống Việt Nam hoặc Nhật Bản, một hook quá trực tiếp có thể bị cảm nhận là thiếu tôn trọng. Trong trường hợp đó, bạn có thể điều chỉnh: thay vì câu hỏi trực tiếp, dùng một con số bất ngờ ("Our data shows something that surprised even our team…") hoặc một framing khiêm tốn ("I want to share a pattern we've been seeing…"). Quan trọng: điều chỉnh *tone*, không bỏ đi *cấu trúc*. Hook + purpose + roadmap vẫn phải có mặt — chỉ cần đóng gói khác đi.
+
+<Callout type="note" title={`"By the end of [X], you'll [Y]" — cấu trúc purpose statement mạnh nhất trong tiếng Anh thuyết trình`}>
+Câu "By the end of this presentation, you'll…" làm một việc không câu nào khác làm được: nó biến khán giả từ người nghe thụ động thành người đang *chờ đợi* một kết quả cụ thể. Khi bạn hứa "you'll know exactly which option to choose," khán giả có lý do cụ thể để ở lại chú ý — họ đang chờ bạn giải đáp. Đây là kỹ thuật tạo ra "cognitive loop" (vòng lặp nhận thức chưa đóng) mà não bộ muốn đóng lại. Muốn câu này thực sự mạnh, outcome phải cụ thể và actionable — không phải "understand better" hay "learn about", mà là "know which option to choose", "have a checklist you can use tomorrow", "be able to answer the three questions your team will ask."
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to kick off`** — mở đầu, bắt đầu một cách năng động. Khác với "to start" ở chỗ nó ngụ ý sự hứng khởi và chuẩn bị. Thường dùng cho buổi họp, dự án, hoặc sự kiện. *"Let me kick off with a statistic that surprised our entire team."*
+
+- **`to set the stage`** — thiết lập bối cảnh, tạo nền tảng nhận thức cho khán giả trước khi đi vào nội dung chính. Hữu ích nhất khi khán giả có mức độ quen thuộc khác nhau với chủ đề. *"Before I dive into the numbers, let me set the stage — this analysis covers the last 18 months."*
+
+- **`the hook`** — yếu tố kéo sự chú ý ngay từ giây đầu tiên. Có thể là câu hỏi, con số, câu chuyện ngắn, hoặc phát biểu gây tò mò. Một hook tốt tạo ra câu hỏi trong đầu khán giả mà họ muốn nghe câu trả lời. *"The hook landed perfectly — every head in the room came up from their laptops."*
+
+- **`to dive into`** — bắt đầu tập trung vào nội dung chính, đi sâu vào vấn đề. Thường dùng để báo hiệu sự chuyển tiếp từ giới thiệu sang phần cốt lõi. *"Now that we've set the context, let's dive into what the data actually shows."*
+
+- **`to walk you through`** — dẫn khán giả qua từng bước một cách tuần tự và rõ ràng. Ngụ ý bạn sẽ không để khán giả lạc — bạn sẽ đồng hành cùng họ qua từng phần. *"Let me walk you through the three scenarios we evaluated before landing on this recommendation."*
+
+## 09 — Tự luyện
+
+1. **Viết phần mở bài 30 giây cho một bài thuyết trình thực tế của bạn.** Chọn một bài thuyết trình bạn đã làm gần đây hoặc sắp phải làm. Viết đúng ba phần: hook (câu hỏi hoặc con số liên quan đến chủ đề) → purpose statement với cấu trúc "By the end of [X], you'll [specific outcome]" → roadmap với tối đa ba điểm. Đọc to và bấm giờ. Mục tiêu: 30–40 giây. Nếu quá 45 giây, cắt phần roadmap xuống còn hai điểm.
+
+2. **Kiểm tra purpose statement của bạn.** Đọc lại câu "By the end of…" bạn vừa viết và hỏi: outcome này có cụ thể và đo được không? Nếu câu trả lời là "understand the topic better" hay "learn about X" — đó chưa phải outcome, đó là hoạt động. Viết lại: "bạn sẽ *biết điều gì*, *có thể làm gì*, hoặc *đã quyết định điều gì*?" Thử với ba purpose statement khác nhau — một dùng "you'll know", một dùng "you'll have", một dùng "you'll be able to" — và chọn cái nào mạnh nhất cho bài của bạn.
+
+3. **Thực hành "show of hands" với bạn bè hoặc đồng nghiệp.** Yêu cầu một người bạn đóng vai khán giả. Thuyết trình phần mở bài 30 giây của bạn có hook dạng "show of hands." Tập dừng lại thực sự sau khi hỏi — đếm trong đầu đến ba, nhìn thẳng vào "khán giả," nhận xét về phản hồi, rồi mới tiếp tục. Nhiều người thuyết trình biết kỹ thuật nhưng không tập dừng lại — và khi lên sân khấu thực sự, sự căng thẳng khiến họ lướt qua hook mà không chờ phản hồi.
+
+<Recap>
+- Cấu trúc mở bài 3 phần — hook (15s) → purpose (10s) → roadmap (10s) — là nền tảng của mọi bài thuyết trình hiệu quả; bỏ qua bất kỳ phần nào đều làm yếu toàn bộ phần mở.
+- "By the end of [time frame], you'll [specific outcome]" là cấu trúc purpose statement mạnh nhất — nó hứa với khán giả một kết quả cụ thể và biến họ từ người nghe thụ động thành người đang chờ đợi câu trả lời.
+- Hook dạng "Show of hands" chỉ hiệu quả khi bạn thực sự dừng lại và chờ phản hồi — nếu hỏi rồi lướt qua ngay, khán giả cảm thấy bị qua mặt và hook phản tác dụng.
+- Lời cảm ơn dài dòng, xin lỗi vì muộn, và "setting context" quá dài là những kẻ thù lớn nhất của hook — hãy bắt đầu bằng bài thuyết trình, không phải bằng lời mở đầu.
+- Roadmap tốt có tối đa ba đến bốn điểm, diễn đạt đơn giản, và nếu bài cần ra quyết định — kèm theo cam kết rõ ràng: "at the end, I'll need a decision from you."
+- Văn hoá thuyết trình phương Tây thưởng phần mở đầu mạnh mẽ; điều chỉnh *tone* cho từng khán giả cụ thể, nhưng đừng bao giờ bỏ đi cấu trúc hook → purpose → roadmap.
+</Recap>

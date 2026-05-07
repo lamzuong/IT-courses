@@ -1,0 +1,189 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Hầu hết các thuyết trình đều có nội dung ổn — nhưng cấu trúc kém. Các phần chảy vào nhau không có ranh giới rõ ràng, người nghe mất phương hướng, và đến cuối họ không nhớ được bạn đã nói những gì. Signposting là hệ thống định vị bằng lời nói: nó cho người nghe biết họ đang ở đâu trong lập luận của bạn, phần nào vừa kết thúc, và phần nào sắp bắt đầu. Học thuộc 5–6 cụm signpost cốt lõi và bài thuyết trình của bạn sẽ cảm giác rõ ràng gấp đôi — dù nội dung không thay đổi một chữ.
+
+## 01 — Bối cảnh
+
+Signpost không phải là một loại cụm từ duy nhất — chúng có sáu vai trò khác nhau trong một bài thuyết trình. Mỗi vai trò giải quyết một vấn đề định vị cụ thể cho người nghe:
+
+1. **Mở đầu phần mới (Section starts):** Báo hiệu rằng một chủ đề mới đang bắt đầu. *"First, let's look at the data."* / *"Moving on to the second point…"* — Đây là loại signpost cơ bản nhất và dễ học nhất. Người nghe ngay lập tức biết một chương mới đang mở ra.
+
+2. **Chuyển tiếp giữa ý trong cùng một phần (Mid-section transitions):** Kết nối ý này sang ý kia mà không cần "reset" người nghe về điểm đầu. *"Building on that, …"* / *"Which brings me to…"* — Loại này tạo cảm giác lập luận đang tiến lên thay vì liệt kê rời rạc.
+
+3. **Tạm thời lạc đề có kiểm soát (Mid-section asides):** Khi bạn cần nói một thứ không nằm trong mạch chính — một ví dụ minh hoạ, một số liệu thú vị, một ngữ cảnh phụ. *"Just a quick aside…"* / *"Let me pause briefly…"* — Báo hiệu trước cho người nghe: "Tôi sắp ra khỏi mạch chính một chút."
+
+4. **Quay lại mạch chính (Returning to main thread):** Sau khi aside, bạn cần kéo người nghe trở lại. *"Coming back to our main point…"* — Không có bước này, người nghe không biết bạn đã xong aside chưa hay bạn đang tiếp tục lạc đề.
+
+5. **Kết thúc phần và chuyển tiếp (Section endings):** Tóm tắt nhanh điều vừa nói rồi mở cửa cho phần tiếp theo. *"So that's our first point — [tóm tắt]. Now let's turn to…"* — Đây là kỹ thuật "đóng cửa trước khi mở cửa mới" — quan trọng để người nghe không carry cả đống thông tin chưa xử lý sang phần kế.
+
+6. **Chuyển sang điểm cuối cùng (Closing transition):** Tín hiệu đặc biệt cho người nghe biết phần đích đến đang đến. *"Which brings us to my final point…"* — Câu này tạo một khoảnh khắc tăng sự chú ý — người nghe tự nhiên ngồi thẳng dậy hơn.
+
+Khi sáu loại signpost này được dùng đúng chỗ, bài thuyết trình có nhịp điệu rõ ràng: người nghe biết mình đang ở đâu mọi lúc, và não họ được "dọn dẹp" sau mỗi phần thay vì cố giữ tất cả mọi thứ cùng một lúc.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "First / Second / Finally", vi: "Một là / Hai là / Cuối cùng — chuỗi đánh số cơ bản nhất để phân tách các phần chính", example: "First, let's look at the problem. Second, the cause. Finally, the solution." },
+  { en: "Moving on to", vi: "Chuyển sang — mở đầu nhẹ nhàng cho phần tiếp theo, không cần tóm tắt phần trước", example: "Moving on to the second point — our cost projections." },
+  { en: "Let me move on to", vi: "Cho phép tôi chuyển sang — phiên bản chủ động hơn, người nói rõ ràng đang điều hướng", example: "Let me move on to the recommendation." },
+  { en: "Building on that", vi: "Xây dựng thêm từ điều đó — nối ý theo chiều phát triển, không phải liệt kê song song", example: "Building on that, here's what the data actually shows." },
+  { en: "Which brings me to", vi: "Điều đó dẫn tôi đến — transition tự nhiên nhất, gợi cảm giác lập luận đang tiến lên", example: "Which brings me to the core question: what should we do?" },
+  { en: "Coming back to", vi: "Quay lại — dùng sau khi aside để kéo người nghe về mạch chính", example: "Coming back to the main argument — the data supports intervention." },
+  { en: "Now let's turn to", vi: "Bây giờ hãy chuyển sang — tín hiệu section ending + section start kết hợp", example: "Now let's turn to what the competition is doing." },
+  { en: "I'd like to make three points", vi: "Tôi muốn nêu ba điểm — báo trước cấu trúc, giúp người nghe chuẩn bị tinh thần theo dõi", example: "I'd like to make three points about why this matters." },
+  { en: "First, let me…", vi: "Đầu tiên, hãy để tôi — opener cho điểm đầu tiên, kết hợp tốt với 'I'd like to make X points'", example: "First, let me give you some context on where we started." },
+  { en: "That said", vi: "Tuy nhiên / Nói vậy nhưng — chuyển tiếp nhẹ mang sắc thái đối lập hoặc bổ sung", example: "That said, the numbers don't tell the whole story." },
+  { en: "Speaking of which", vi: "Nhân tiện nói đến điều đó — kết nối liên tưởng, hơi informal, dùng trong aside ngắn", example: "Speaking of which, let me show you a quick example." },
+  { en: "Just a quick aside", vi: "Chỉ là một ý ngoài lề nhanh — tuyên bố rõ ràng rằng bạn sắp lạc đề có chủ đích", example: "Just a quick aside — this data is from Q1, before the policy change." },
+  { en: "To wrap up this section", vi: "Để kết thúc phần này — tín hiệu kết phần, chuẩn bị cho người nghe nghe tóm tắt", example: "To wrap up this section: the problem is real, measurable, and urgent." },
+  { en: "So far we've covered", vi: "Cho đến nay chúng ta đã đề cập — nhìn lại những gì đã nói, giúp người nghe orient lại trước khi tiếp", example: "So far we've covered the problem and the root cause." },
+]} />
+
+## 03 — Mẫu câu
+
+Năm mẫu câu dưới đây phủ toàn bộ vòng đời signposting của một bài thuyết trình ba phần điển hình. Học thuộc cả mẫu lẫn biến thể.
+
+<Pattern
+  en="Let's start with our first point — the data."
+  vi="Hãy bắt đầu với điểm đầu tiên của chúng ta — dữ liệu."
+  variations={[
+    "First, let's look at the background.",
+    "I'd like to start with some context.",
+    "Moving on to point one — the problem statement.",
+  ]}
+  note={`Cấu trúc "Let's start with [point] — [label]" vừa mở phần vừa đặt tên cho phần đó. Cái dash (—) là khoảnh khắc người nghe "bookmark" trong đầu: họ nghe "first point" rồi ngay lập tức được cho một nhãn để gắn vào. Đừng bỏ qua phần nhãn — nó là cái neo.`}
+/>
+
+<Pattern
+  en="Building on what we just saw, here's what's interesting…"
+  vi="Xây dựng từ những gì chúng ta vừa thấy, đây là điều thú vị…"
+  variations={[
+    "Building on that, the implication is clear.",
+    "Which brings me to the next question.",
+    "And that's precisely why this matters.",
+  ]}
+  note={`"Building on that" không giống "Moving on to" — nó nói với người nghe rằng ý tiếp theo *phát triển từ* ý trước, không phải một ý mới độc lập. Dùng khi bạn đang xây lập luận tầng tầng. Nếu hai ý không liên quan, dùng "Moving on to" thay thế.`}
+/>
+
+<Pattern
+  en="Just a quick aside — [observation]. Coming back to the main point…"
+  vi="Chỉ là một ý ngoài lề nhanh — [quan sát]. Quay lại điểm chính…"
+  variations={[
+    "Let me pause briefly — [context]. Anyway, back to where we were.",
+    "Speaking of which — [example]. But returning to the main thread.",
+    "Quick note here — [aside]. Okay, so where were we? Right —",
+  ]}
+  note={`Aside mà không có "Coming back to" là bẫy phổ biến nhất. Bạn lạc đề, nói thêm vài câu, và người nghe không biết bạn đã quay về chưa hay vẫn đang trong aside. "Coming back to" là dấu hiệu tường minh: "Aside đã xong, mạch chính đã trở lại." Cặp này — aside opener + returning phrase — nên luôn đi cùng nhau.`}
+/>
+
+<Pattern
+  en="So that's the diagnosis. Now let's turn to the prescription."
+  vi="Vậy là đó là chẩn đoán. Bây giờ hãy chuyển sang phần xử lý."
+  variations={[
+    "So that covers the problem. Now let's look at the solution.",
+    "To wrap up this section: the data is clear. Now let's turn to what we do about it.",
+    "So far we've covered the why. Let's move on to the how.",
+  ]}
+  note={`Đây là cấu trúc "đóng cửa + mở cửa" chuẩn nhất. "So that's X" tóm tắt và đóng phần vừa xong trong một hơi. "Now let's turn to Y" mở phần tiếp theo. Cái khoảng dừng ngắn giữa hai câu này cho người nghe nửa giây để "lưu file" trước khi mở file mới. Đừng bỏ qua khoảng dừng đó.`}
+/>
+
+<Pattern
+  en="Which brings me to my final point — what we should do about it."
+  vi="Điều đó dẫn tôi đến điểm cuối cùng của tôi — chúng ta nên làm gì về vấn đề này."
+  variations={[
+    "Which brings us to the most important question.",
+    "And that leads me to my final recommendation.",
+    "Which brings me, finally, to the action items.",
+  ]}
+  note={`"Which brings me to my final point" là câu signpost có hiệu ứng tâm lý đặc biệt: từ "final" tạo một khoảnh khắc tập trung — người nghe biết đây là điểm đích và tự nhiên chú ý hơn. Dùng câu này thay vì "And lastly" hay "Finally" đơn giản — nó nghe tự nhiên và có chiều sâu hơn nhiều.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`Cụm transition phrases + present perfect "we've covered…" cho recap`}
+  structure={`Now let's + [base verb / turn to / move on to] + [object]. / So far + we've + [past participle] + [object]. / Which brings me / us to + [next point].`}
+  examples={[
+    { en: "Now let's turn to the second point.", vi: "Bây giờ hãy chuyển sang điểm thứ hai." },
+    { en: "So far we've covered the data.", vi: "Cho đến nay chúng ta đã đề cập đến dữ liệu." },
+    { en: "Which brings me to my final point.", vi: "Điều đó dẫn tôi đến điểm cuối cùng của tôi." },
+    { en: "Building on that, here's what's surprising.", vi: "Xây dựng từ điều đó, đây là điều đáng ngạc nhiên." },
+    { en: "Let me move on to the recommendation.", vi: "Hãy để tôi chuyển sang phần khuyến nghị." },
+  ]}
+  contrast={`Không có signpost: "OK so [bắt đầu ngay nội dung phần tiếp theo]" — người nghe bỗng nhiên thấy mình ở một chỗ mới mà không biết mình đã di chuyển. Có signpost: "Now let's turn to [nội dung phần tiếp theo]" — câu signpost cho người nghe nửa giây để đóng "tab" của phần trước trong đầu và mở "tab" mới. Đó là sự khác biệt giữa bài thuyết trình nghe rời rạc và bài thuyết trình nghe mạch lạc — không phải nội dung thay đổi, mà là cấu trúc định vị.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "Presenter", en: "I'd like to make three points today: the problem, the root cause, and what I recommend we do about it.", vi: "Hôm nay tôi muốn nêu ba điểm: vấn đề, nguyên nhân gốc rễ, và điều tôi khuyến nghị chúng ta nên làm." },
+  { speaker: "Presenter", en: "First, let's look at the problem. Our customer churn rate has increased by 18% over the last two quarters.", vi: "Đầu tiên, hãy nhìn vào vấn đề. Tỷ lệ khách hàng rời bỏ của chúng ta đã tăng 18% trong hai quý vừa qua." },
+  { speaker: "Presenter", en: "Building on that, the pattern is consistent across all three product lines — this isn't isolated to one segment.", vi: "Xây dựng từ điều đó, xu hướng này nhất quán trên cả ba dòng sản phẩm — đây không phải vấn đề riêng của một phân khúc." },
+  { speaker: "Presenter", en: "Just a quick aside — these numbers exclude the enterprise accounts, which I'll cover separately. Coming back to the main point: 18% is the floor, not the ceiling.", vi: "Chỉ một lưu ý ngoài lề — những con số này không bao gồm tài khoản doanh nghiệp, mà tôi sẽ trình bày riêng. Quay lại điểm chính: 18% là mức sàn, không phải mức trần." },
+  { speaker: "Presenter", en: "So that's the problem — real, measurable, and worsening. Now let's turn to the root cause.", vi: "Vậy là đó là vấn đề — thực, đo lường được, và đang xấu đi. Bây giờ hãy chuyển sang nguyên nhân gốc rễ." },
+  { speaker: "Presenter", en: "The data points to one thing: onboarding friction. Users who complete onboarding in under 10 minutes have a 40% higher retention rate.", vi: "Dữ liệu chỉ ra một điều: ma sát trong quá trình onboarding. Người dùng hoàn thành onboarding trong dưới 10 phút có tỷ lệ giữ chân cao hơn 40%." },
+  { speaker: "Presenter", en: "To wrap up this section: the churn is real, the cause is identifiable, and it's fixable. So far we've covered the problem and the diagnosis.", vi: "Để kết thúc phần này: tỷ lệ rời bỏ là có thật, nguyên nhân xác định được, và có thể khắc phục. Cho đến nay chúng ta đã đề cập đến vấn đề và chẩn đoán." },
+  { speaker: "Presenter", en: "Which brings me to my final point — what I recommend we do about it.", vi: "Điều đó dẫn tôi đến điểm cuối cùng của tôi — điều tôi khuyến nghị chúng ta nên làm." },
+  { speaker: "Presenter", en: "I'd like to propose a three-step onboarding redesign: simplify the first screen, add an optional guided tour, and reduce required fields from nine to three.", vi: "Tôi muốn đề xuất một thiết kế lại quy trình onboarding ba bước: đơn giản hoá màn hình đầu tiên, thêm hướng dẫn tuỳ chọn, và giảm số trường bắt buộc từ chín xuống còn ba." },
+  { speaker: "Presenter", en: "That's my case. The problem is the churn. The cause is onboarding friction. And the fix is within our reach. I'm happy to take questions.", vi: "Đó là lập luận của tôi. Vấn đề là tỷ lệ rời bỏ. Nguyên nhân là ma sát onboarding. Và giải pháp nằm trong tầm tay. Tôi sẵn sàng trả lời câu hỏi." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"...and our churn rate is really high. OK so what are the root causes? Well there are three main ones..."`}
+  right={`"So that covers the problem — 18% churn, worsening over two quarters. Now let's turn to the root causes."`}
+  why={`"OK so" không phải là signpost — nó là filler. Nó không tóm tắt phần vừa xong, không báo hiệu rằng một phần mới đang bắt đầu, và sau vài lần dùng nó trở nên vô hình. Một section close + section open chuẩn làm cả hai việc trong một hơi: đóng phần cũ bằng một câu tóm tắt, rồi mở phần mới bằng tên của nó.`}
+/>
+
+<Mistake
+  wrong={`"...and that's why the numbers are interesting. Speaking of which, there was a study in 2019 that showed similar patterns, and actually if you look at the methodology they used, it's quite different from what we're doing here, and there's also a question of sample size which brings up a whole other issue about how we measure..."`}
+  right={`"Just a quick aside — there's a 2019 study with a similar finding. Coming back to our data: the pattern holds even with a tighter methodology."`}
+  why={`Lạc đề mà không thông báo và không quay lại là nguyên nhân số một khiến người nghe mất mạch. Người nghe không biết đây là aside hay bạn đã chuyển sang một điểm mới hoàn toàn. "Just a quick aside" + "Coming back to" phải luôn đi cùng nhau — mở cửa và đóng cửa. Nếu aside của bạn dài hơn hai câu, cân nhắc cắt bỏ hoặc để vào Q&A.`}
+/>
+
+<Mistake
+  wrong={`"First I will talk about the problem. Then I will move on to the root cause. And after that I will present my recommendation."`}
+  right={`"I'd like to make three points: the problem, the cause, and my recommendation. Let's start with the first."`}
+  why={`Liệt kê signpost ở dạng "I will X, then I will Y, then I will Z" nghe máy móc và chiếm mất thời gian mà không tạo thêm giá trị. Cách tốt hơn là báo cấu trúc một lần ("I'd like to make three points") rồi đi thẳng vào phần đầu tiên. Signpost tốt là vô hình — người nghe cảm thấy được định hướng nhưng không để ý đến bản thân câu signpost.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+Ba điểm về văn hoá signposting trong môi trường làm việc quốc tế:
+
+1. **Phương Tây đào tạo signposting một cách tường minh.** Trong giáo dục đại học và môi trường doanh nghiệp Mỹ, Anh, Úc, signposting được dạy như một kỹ năng bắt buộc — không phải phong cách cá nhân. Người nghe đã được điều kiện hoá để dựa vào nó: khi họ nghe "Now let's turn to", não họ tự động "lưu" phần trước và "mở" phần mới. Khi signpost không xuất hiện, họ cảm thấy bất ổn mà không hiểu tại sao.
+
+2. **Over-signposting cũng là vấn đề.** Dùng signpost tại *ranh giới phần* — không phải giữa mỗi câu. "First I will explain X. Now I am explaining X. As you can see I am still explaining X. Now let me move to the next sentence about X." nghe buồn cười và làm chậm nhịp bài thuyết trình. Quy tắc đơn giản: một signpost mỗi lần bạn *thực sự* chuyển sang một chủ đề hoặc một bước lập luận mới. Giữa các câu trong cùng một ý, không cần signpost.
+
+3. **Chuẩn bị signpost trong slide notes loại bỏ khoảng "um".** Khoảng "um…" và "so… uh…" giữa các phần thường xảy ra không phải vì người nói không biết nói gì, mà vì họ đang thực time tìm từ để chuyển tiếp. Nếu bạn viết sẵn câu signpost vào slide notes của mình — *"So that covers X. Now let's turn to Y."* — bạn không bao giờ phải tìm từ tại chỗ. Khoảng "um" biến mất và phần chuyển tiếp nghe tự tin hơn nhiều.
+
+<Callout type="note" title={`"Which brings me to…" — câu chuyển tiếp ma thuật`}>
+Trong tất cả các signpost transition phrases, "Which brings me to…" có một đặc điểm đặc biệt: nó gợi ý rằng phần tiếp theo *phát sinh một cách tự nhiên* từ phần vừa xong — không phải bạn đang chuyển sang một chủ đề ngẫu nhiên mà là lập luận đang tự nhiên tiến về phía trước. So sánh: "Moving on to my second point" (trung tính, cơ học) vs "Which brings me to my second point" (gợi cảm giác kết nối logic). Dùng "Which brings me to" tại bất kỳ điểm chuyển phần lớn nào — đặc biệt trước điểm cuối cùng hoặc phần khuyến nghị, nơi bạn muốn người nghe cảm thấy lập luận đã "dẫn họ đến đây" một cách tất yếu.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to walk through`** — trình bày từng bước có thứ tự, dẫn người nghe đi cùng. Khác với "explain" — mang nghĩa bạn đang đồng hành cùng người nghe, không phải giảng từ trên xuống. *"Let me walk you through the three stages."* / *"I'll walk through the data quickly."*
+- **`to dive into`** — bắt tay vào ngay một chủ đề, thường dùng khi bắt đầu một phần chi tiết sau phần tổng quan. *"Now let's dive into the numbers."* / *"I want to dive into the root cause here."*
+- **`to circle back`** — quay lại một điểm đã đề cập trước đó, thường ở cuối bài hoặc trong Q&A. *"I'll circle back to that point when we get to the recommendation."* / *"Let me circle back to what I said earlier about the timeline."*
+- **`to set the context`** — đặt nền bối cảnh trước khi đi vào chi tiết. Thường là động tác đầu tiên trong phần đầu tiên. *"First, let me set the context — why this problem matters now."* / *"Before diving in, I want to set the context briefly."*
+- **`to wrap up`** — kết thúc gọn gàng, thường kèm theo tóm tắt ngắn. Dùng cho cả phần lẫn toàn bài. *"To wrap up this section — three key findings."* / *"Let me wrap up with what I'm asking you to do."*
+
+## 09 — Tự luyện
+
+1. **Phân tích bài thuyết trình thực:** Xem một TED Talk (bất kỳ, từ 10–15 phút) và ghi lại tất cả các câu signpost bạn nghe được. Phân loại chúng theo sáu loại đã học ở phần 01. Đếm xem diễn giả dùng bao nhiêu signpost, và chỉ ra một điểm chuyển phần mà họ *không* dùng signpost — điều đó ảnh hưởng gì đến cảm giác theo dõi của bạn?
+
+2. **Viết và nói to:** Soạn một bài thuyết trình ngắn ba phần về một chủ đề bạn biết rõ trong công việc (ví dụ: một vấn đề hiện tại trong team, một kết quả dự án, một đề xuất cải tiến). Viết ra đầy đủ, bao gồm tất cả sáu loại signpost. Sau đó nói to ba lần — lần đầu nhìn bản viết, lần hai chỉ nhìn signpost, lần ba không nhìn gì cả.
+
+3. **Thực hành "đóng cửa + mở cửa":** Lấy một bài thuyết trình bạn đã làm trước đây (hoặc một outline bạn chuẩn bị sẵn) và kiểm tra mỗi điểm chuyển phần. Viết lại mỗi transition dùng cấu trúc: *"So that's [tóm tắt phần vừa xong]. Now let's turn to [tên phần tiếp theo]."* Đọc phiên bản mới và so sánh với phiên bản gốc — cảm giác mạch lạc thay đổi như thế nào?
+
+<Recap>
+- Signpost có sáu vai trò riêng biệt: mở phần, chuyển tiếp giữa ý, thông báo aside, quay lại mạch chính, kết phần + chuyển tiếp, và chuyển sang điểm cuối cùng.
+- Cặp aside không thể tách rời: `"Just a quick aside"` luôn phải đi kèm với `"Coming back to"` — không có điểm về thì người nghe bị bỏ lại trong aside.
+- Cấu trúc "đóng cửa + mở cửa" chuẩn: `"So that's [tóm tắt]. Now let's turn to [phần tiếp theo]."` — tóm tắt phần cũ trước khi mở phần mới.
+- `"Which brings me to"` là transition phrase mạnh nhất — gợi cảm giác lập luận đang tự nhiên tiến lên, không phải nhảy ngẫu nhiên sang chủ đề khác.
+- Present perfect `"we've covered"` trong `"So far we've covered X"` là cách nhìn lại tiến độ bài thuyết trình tự nhiên nhất — dùng trước khi chuyển sang phần cuối.
+- Viết sẵn câu signpost vào slide notes loại bỏ khoảng "um" tại điểm chuyển phần — phần chuẩn bị nhỏ nhất nhưng tác động lớn nhất đến sự tự tin khi trình bày.
+</Recap>

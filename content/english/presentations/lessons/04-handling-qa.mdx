@@ -1,0 +1,189 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Q&A là nơi thuyết trình được thắng hoặc thua. Bạn có thể chuẩn bị slide hoàn hảo, trình bày mạch lạc — rồi một câu hỏi khó trong phần Q&A phá vỡ mọi thứ. Kỹ năng cốt lõi không phải là biết mọi câu trả lời — mà là có **cấu trúc** xử lý bất kỳ câu hỏi nào một cách tự tin: restate lại câu hỏi để mọi người cùng nghe và bạn xác nhận hiểu đúng, trả lời trực tiếp, rồi check lại. Và với ba tình huống khó hơn — câu hỏi bạn không biết trả lời, câu hỏi thù địch không muốn leo thang, câu hỏi lạc đề cần redirect — bài này cho bạn ngôn ngữ chính xác để xử lý từng trường hợp với phong thái.
+
+## 01 — Bối cảnh
+
+Bốn bước xử lý Q&A chuẩn mực:
+
+1. **Restate** — Paraphrase lại câu hỏi trước khi trả lời: *"So the question is — [paraphrase]. Did I get that right?"* Bước này làm hai việc cùng lúc: đảm bảo cả phòng nghe được câu hỏi (đặc biệt trong phòng lớn hoặc cuộc họp remote), và cho bạn vài giây suy nghĩ trong khi trông như bạn đang tôn trọng người hỏi.
+2. **Pause briefly nếu cần** — Mua thời gian là hoàn toàn bình thường và được chấp nhận. *"Let me think about that for a second."* Không ai trông đợi bạn trả lời tức thì mọi câu hỏi khó. Dừng lại có chủ ý trông tự tin hơn là nói vội vàng.
+3. **Answer** — Trả lời trực tiếp, có cấu trúc nếu câu hỏi phức tạp. Đừng rào đón quá nhiều — đi thẳng vào điểm chính trước, giải thích sau.
+4. **Check** — Xác nhận bạn đã trả lời đúng điều họ hỏi: *"Does that answer your question?"* hoặc *"Anything else on that?"* Bước này mở ra không gian để người hỏi clarify nếu cần, và cho thấy bạn quan tâm đến họ chứ không chỉ đang trả lời xong cho qua.
+
+**Ba tình huống đặc biệt:**
+
+**(a) Tôi không biết câu trả lời** — Đây là tình huống người học sợ nhất, nhưng thực ra là dễ xử lý nhất nếu bạn có câu: *"Great question — I don't have the data on that. Let me follow up by email this week."* Trả lời thật thà kèm cam kết cụ thể (email, thời hạn) được khán giả đọc là sự tự tin và trung thực — không phải yếu kém.
+
+**(b) Câu hỏi thù địch hoặc skeptical** — Đừng phòng thủ, đừng leo thang. Công thức: neutral acknowledgment + factual answer. *"I hear the concern. Here's what I can tell you — [dữ liệu cụ thể]."* Câu hỏi thù địch đôi khi là cách khán giả kiểm tra bạn — calm và factual ấn tượng hơn defensive bất kỳ lúc nào.
+
+**(c) Câu hỏi lạc đề** — Redirect lịch sự, không làm người hỏi cảm thấy bị bác bỏ: *"That's a great question for the [other team / Q&A doc] — let me redirect."* Nếu nó quan trọng nhưng ngoài phạm vi, hẹn offline: *"Could we take it offline after the session?"*
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "Great question", vi: "câu hỏi hay — filler phổ biến, nhưng dùng quá nhiều trở nên rỗng nghĩa; tốt hơn là restate thẳng vào câu hỏi", example: "Great question — so if I understand correctly, you're asking whether the timeline is realistic." },
+  { en: "If I understand correctly, you're asking…", vi: "nếu tôi hiểu đúng, bạn đang hỏi… — cách restate câu hỏi chuẩn nhất, xác nhận hiểu đúng trước khi trả lời", example: "If I understand correctly, you're asking whether we've tested this with real users — is that right?" },
+  { en: "Let me make sure I follow", vi: "để tôi chắc chắn tôi hiểu đúng — cụm mua thời gian lịch sự, báo hiệu bạn đang xử lý câu hỏi cẩn thận", example: "Let me make sure I follow — you're asking about the cost model specifically?" },
+  { en: "I'd love to come back to that", vi: "tôi muốn quay lại điểm đó — cách defer lịch sự khi câu hỏi quan trọng nhưng không phải lúc này", example: "I'd love to come back to that — can we take it offline after the session?" },
+  { en: "to take it offline", vi: "đưa ra ngoài cuộc họp chính — xử lý riêng sau, không chiếm thời gian của cả phòng", example: "That's slightly outside today's scope — could we take it offline?" },
+  { en: "I don't have data on that", vi: "tôi không có dữ liệu về điểm đó — cách nói 'tôi không biết' trực tiếp, không rào đón, không xấu hổ", example: "Honestly, I don't have data on that — let me follow up by email." },
+  { en: "Let me follow up by email", vi: "để tôi follow up qua email — cam kết cụ thể thay thế cho câu trả lời bạn chưa có", example: "Great question — I don't have the numbers here. Let me follow up by email this week." },
+  { en: "Does that answer your question?", vi: "điều đó có trả lời câu hỏi của bạn không? — check sau khi trả lời, mở không gian cho clarification", example: "So the rollout is phased over three months. Does that answer your question?" },
+  { en: "to push back gently", vi: "phản biện nhẹ nhàng — thách thức một giả định trong câu hỏi mà không tạo xung đột", example: "I'd push back gently on that framing — the data actually shows the opposite." },
+  { en: "to play devil's advocate", vi: "đóng vai phản biện — đặt câu hỏi khó hoặc lập luận đối lập để kiểm tra độ vững của ý tưởng", example: "Just to play devil's advocate — what if the assumption doesn't hold in Q4?" },
+  { en: "to defer", vi: "hoãn lại, nhường lại — chủ động không trả lời ngay, hẹn thời điểm phù hợp hơn", example: "I'll defer to the technical team on that one — they have the full picture." },
+  { en: "to acknowledge", vi: "thừa nhận, ghi nhận — công nhận câu hỏi hoặc lo ngại của người hỏi trước khi trả lời", example: "I hear the concern — let me address it directly." },
+  { en: "to circle back", vi: "quay lại điểm đó sau — hẹn sẽ trở lại một vấn đề chưa được giải quyết", example: "Let me circle back to that at the end if we have time." },
+  { en: "Q&A", vi: "hỏi đáp — viết tắt của Questions and Answers, đọc là Q-and-A trong văn nói", example: "We'll open the floor for Q&A in the last ten minutes." },
+]} />
+
+## 03 — Mẫu câu
+
+<Pattern
+  en="So if I understand correctly, you're asking whether [paraphrase]. Is that right?"
+  vi="Vậy nếu tôi hiểu đúng, bạn đang hỏi liệu [diễn giải]. Có phải không?"
+  variations={[
+    "So the question is — you're asking whether the timeline is realistic for the full rollout?",
+    "If I follow you correctly, you want to know how we're handling the data privacy side?",
+    "Let me make sure I understand — you're asking about the cost model specifically, yes?",
+  ]}
+  note={`Restate trước khi trả lời là kỹ năng quan trọng nhất trong Q&A. "So if I understand correctly, you're asking whether…" làm ba việc: (1) đảm bảo cả phòng nghe câu hỏi, (2) xác nhận bạn hiểu đúng trước khi trả lời sai, (3) mua cho bạn vài giây suy nghĩ trong khi trông như bạn đang tập trung. "Is that right?" ở cuối là bước quan trọng — nó cho người hỏi cơ hội sửa nếu bạn hiểu chưa đúng.`}
+/>
+
+<Pattern
+  en="That's a great question — and honestly, I don't have the data on that. Let me follow up by email this week."
+  vi="Câu hỏi hay — và thành thật mà nói, tôi không có dữ liệu về điểm đó. Để tôi follow up qua email tuần này."
+  variations={[
+    "I don't have that number off the top of my head — let me get back to you by Thursday.",
+    "Honestly, I'm not sure — I'd rather give you the right answer than guess. Can I follow up?",
+    "That's outside my area — I'll connect you with the right person after the session.",
+  ]}
+  note={`"I don't know" nói ra thẳng thắn — kèm cam kết cụ thể về follow-up — được khán giả đọc là sự tự tin và trung thực. Sai lầm phổ biến là bluff hoặc rào đón vòng vèo khi không biết; cả hai đều làm mất uy tín nhanh hơn câu "I don't have the data on that." Cam kết "by email this week" hay "by Thursday" quan trọng — nó biến sự không biết thành hành động cụ thể.`}
+/>
+
+<Pattern
+  en="Hmm — let me think about that for a second. [pause] OK, here's what I'd say…"
+  vi="Hmm — để tôi suy nghĩ một chút. [dừng] OK, đây là điều tôi sẽ nói…"
+  variations={[
+    "That's a layered question — give me a moment. [pause] So here's my thinking…",
+    "Let me make sure I give you a proper answer. [pause] Right — so there are two parts to this.",
+    "Good question — I want to get this right. [pause] OK, so the short answer is…",
+  ]}
+  note={`Mua thời gian một cách chủ động và có phong thái — không phải vì bạn không biết, mà vì câu hỏi xứng đáng được suy nghĩ kỹ. "Let me think about that for a second" kèm một khoảng dừng thật sự (không phải dừng giả vờ) nghe tự tin và thoughtful. Ngược lại, lấp đầy bằng "um, uh, well, so…" liên tục mà không có khoảng dừng thật sự nghe lo lắng hơn nhiều.`}
+/>
+
+<Pattern
+  en="I hear the concern. Here's what I can tell you — [factual answer]."
+  vi="Tôi nghe thấy lo ngại đó. Đây là điều tôi có thể nói với bạn — [câu trả lời có dữ liệu]."
+  variations={[
+    "I understand why that's a concern. The data actually shows — [specific numbers].",
+    "That's a fair challenge. Here's what the evidence says — [factual response].",
+    "I hear you — and here's the context that might help — [relevant fact].",
+  ]}
+  note={`Câu hỏi thù địch hoặc skeptical cần neutral acknowledgment trước, factual answer sau — không bao giờ ngược lại. "I hear the concern" thừa nhận cảm xúc của người hỏi mà không đồng ý hay phòng thủ. "Here's what I can tell you" chuyển sang địa hạt thực tế. Kết hợp hai phần này giúp bạn trông calm và authoritative thay vì defensive — và đó chính xác là ấn tượng bạn muốn để lại.`}
+/>
+
+<Pattern
+  en="That's important, but it's slightly outside the scope of today's talk. Could we take it offline after the session?"
+  vi="Điểm đó quan trọng, nhưng nó hơi ngoài phạm vi của buổi hôm nay. Chúng ta có thể đưa ra ngoài sau buổi này không?"
+  variations={[
+    "Great question — that's better suited for the team that owns [X]. Let me connect you with them.",
+    "I'd love to dig into that — it's a bit beyond today's scope, but let's talk after.",
+    "That deserves a fuller answer than I can give here — can we take it offline?",
+  ]}
+  note={`Redirect câu hỏi lạc đề mà không làm người hỏi cảm thấy bị từ chối. Hai bước: (1) acknowledge rằng câu hỏi quan trọng — "That's important" / "Great question"; (2) redirect cụ thể — "outside today's scope" + "take it offline" / "connect you with the right person." Tránh nói "That's not relevant" hay "That's off-topic" — quá thẳng và có thể gây phòng thủ. Thay vào đó, vấn đề là *phạm vi*, không phải *giá trị* của câu hỏi.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`Câu hỏi gián tiếp paraphrase + "Let me + base verb" cho buying time`}
+  structure={`If I understand correctly, you're asking + [embedded yes/no question: whether + S + V]. / Let me + [think about that / make sure I follow / follow up].`}
+  examples={[
+    { en: "If I understand correctly, you're asking whether the timeline is realistic.", vi: "Nếu tôi hiểu đúng, bạn đang hỏi liệu timeline có thực tế không." },
+    { en: "Let me make sure I follow.", vi: "Để tôi chắc chắn tôi hiểu đúng." },
+    { en: "Let me follow up by email.", vi: "Để tôi follow up qua email." },
+    { en: "Let me think about that for a second.", vi: "Để tôi suy nghĩ về điều đó một chút." },
+    { en: "Could we take it offline?", vi: "Chúng ta có thể đưa ra ngoài sau không?" },
+  ]}
+  contrast={`Trả lời thẳng vào câu hỏi mà không restate — "Yes, the timeline is fine" — có hai vấn đề: (1) một nửa phòng không nghe rõ câu hỏi gốc, đặc biệt trong phòng lớn hoặc cuộc họp remote khi micro của người hỏi không tốt; (2) bạn không có khoảng thời gian xử lý — câu trả lời có thể vội vàng hoặc trả lời sai câu hỏi. Restate bằng "If I understand correctly, you're asking whether…" giải quyết cả hai: đảm bảo audience đều nghe câu hỏi, và cho bạn vài giây suy nghĩ trong khi trông như bạn đang tập trung hoàn toàn vào người hỏi. Đây là lý do người thuyết trình chuyên nghiệp luôn restate — không phải vì họ không nghe, mà vì cấu trúc đó phục vụ cả họ lẫn khán giả.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+Cuối buổi thuyết trình về chiến lược sản phẩm mới. Presenter vừa kết thúc phần chính và mở Q&A.
+
+<Dialogue lines={[
+  { speaker: "Presenter (Minh)", en: "OK — that wraps up the main presentation. We have about ten minutes for questions — please go ahead.", vi: "OK — đó là phần chính của buổi thuyết trình. Chúng ta có khoảng mười phút cho câu hỏi — mời mọi người đặt câu hỏi." },
+  { speaker: "Audience 1 (Hoa)", en: "Thanks — great presentation. I wanted to ask about the rollout plan. Are we doing a full launch in all markets simultaneously, or is it phased?", vi: "Cảm ơn — buổi thuyết trình hay. Tôi muốn hỏi về kế hoạch triển khai. Chúng ta có ra mắt đồng loạt tất cả thị trường, hay theo từng giai đoạn?" },
+  { speaker: "Presenter (Minh)", en: "Good question — and let me make sure I understand correctly. You're asking whether the launch is simultaneous across all markets, or phased by region. Is that right?", vi: "Câu hỏi hay — và để tôi chắc chắn tôi hiểu đúng. Bạn đang hỏi liệu việc ra mắt có đồng loạt ở tất cả thị trường, hay theo từng khu vực. Đúng không?" },
+  { speaker: "Audience 1 (Hoa)", en: "Exactly, yes.", vi: "Đúng vậy." },
+  { speaker: "Presenter (Minh)", en: "So the plan is phased — Southeast Asia first in Q3, then EMEA and North America in Q4. We're starting regional to manage support load and gather early feedback before the global rollout. Does that answer your question?", vi: "Vậy kế hoạch là theo từng giai đoạn — Đông Nam Á trước vào Q3, rồi EMEA và Bắc Mỹ vào Q4. Chúng tôi bắt đầu từng khu vực để quản lý tải hỗ trợ và thu thập feedback sớm trước khi triển khai toàn cầu. Điều đó có trả lời câu hỏi của bạn không?" },
+  { speaker: "Audience 1 (Hoa)", en: "Yes, perfect — thank you.", vi: "Có, rõ ràng — cảm ơn." },
+  { speaker: "Audience 2 (Alex)", en: "I have a question about the projected retention numbers. You mentioned 40% improvement — do you have data on how that compares to industry benchmarks?", vi: "Tôi có câu hỏi về con số retention dự kiến. Bạn đề cập đến cải thiện 40% — bạn có dữ liệu so sánh với benchmarks ngành không?" },
+  { speaker: "Presenter (Minh)", en: "That's a great question — and honestly, I don't have the benchmark comparison data here. What I can say is the 40% is based on our own historical baseline from the last two cohorts. For the industry comparison, let me follow up by email this week with the full picture.", vi: "Câu hỏi hay — và thành thật mà nói, tôi không có dữ liệu so sánh benchmark ở đây. Điều tôi có thể nói là con số 40% dựa trên baseline lịch sử của chúng ta từ hai cohort gần nhất. Về so sánh ngành, để tôi follow up qua email tuần này với toàn bộ bức tranh." },
+  { speaker: "Audience 2 (Alex)", en: "Appreciated — I'll look out for that.", vi: "Cảm ơn — tôi sẽ để ý email đó." },
+  { speaker: "Audience 3 (Thanh)", en: "I want to push back on the budget allocation. You're putting 60% into acquisition — but if retention is the bottleneck, shouldn't we flip that ratio? This feels like throwing money at the wrong problem.", vi: "Tôi muốn phản biện về phân bổ ngân sách. Bạn đang đặt 60% vào acquisition — nhưng nếu retention là điểm nghẽn, chúng ta không nên đảo tỉ lệ đó sao? Điều này có vẻ như đang đổ tiền vào sai vấn đề." },
+  { speaker: "Presenter (Minh)", en: "I hear the concern — and it's a fair challenge. Here's what I can tell you: the 60/40 split reflects the growth stage we're in. Retention is improving — that's exactly what the 40% improvement shows — but we still need to build the top of funnel to hit the scale targets. Once retention stabilizes above 70%, the plan is to rebalance toward retention spend. Anything else on that?", vi: "Tôi nghe thấy lo ngại đó — và đó là câu thách thức hợp lý. Đây là điều tôi có thể nói: tỉ lệ 60/40 phản ánh giai đoạn tăng trưởng chúng ta đang ở. Retention đang cải thiện — đó chính xác là điều mà con số cải thiện 40% cho thấy — nhưng chúng ta vẫn cần xây dựng đỉnh của phễu để đạt mục tiêu quy mô. Khi retention ổn định trên 70%, kế hoạch là tái cân bằng về phía chi tiêu retention. Bạn còn câu hỏi nào về điểm đó không?" },
+  { speaker: "Audience 3 (Thanh)", en: "No — that makes sense. I'd want to see the 70% trigger documented somewhere.", vi: "Không — điều đó có lý. Tôi muốn thấy điều kiện kích hoạt 70% được ghi lại ở đâu đó." },
+  { speaker: "Presenter (Minh)", en: "Absolutely — I'll include that in the follow-up deck. Good flag.", vi: "Chắc chắn rồi — tôi sẽ đưa vào bộ slide follow-up. Cảm ơn đã nêu điểm đó." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"Well, I think the number is around… probably somewhere between 30 and 50%… it depends on a few factors… I'd have to check…" (bluff vòng vèo khi không biết)`}
+  right={`"Honestly, I don't have that number here — let me follow up by email this week."`}
+  why={`Bluff khi không biết — nói vòng vèo để tránh thừa nhận — bị phát hiện nhanh hơn bạn nghĩ, đặc biệt khi có chuyên gia trong phòng. Và khi bị phát hiện, nó phá hủy uy tín của toàn bộ bài thuyết trình, không chỉ câu đó. "I don't have the data on that — let me follow up" nghe tự tin và trung thực; khán giả đọc nó là dấu hiệu của người biết giới hạn của mình, không phải yếu kém.`}
+/>
+
+<Mistake
+  wrong={`"That's not fair — we've been over this before. The data clearly shows we're right." (phòng thủ trước câu hỏi thù địch)`}
+  right={`"I hear the concern. Here's what I can tell you — [dữ liệu cụ thể, trung lập]."`}
+  why={`Phòng thủ trước pushback làm leo thang xung đột và khiến cả phòng không thoải mái. Câu hỏi skeptical đôi khi là cách người hỏi kiểm tra xem bạn có đứng vững trước áp lực không — và phản ứng calm, factual ấn tượng hơn nhiều so với việc "thắng" cuộc tranh luận. Acknowledge lo ngại trước, trả lời bằng dữ liệu sau — không phán xét động cơ của người hỏi.`}
+/>
+
+<Mistake
+  wrong={`(Bỏ qua bước restate, trả lời thẳng vào câu hỏi trong phòng lớn hoặc cuộc họp remote)`}
+  right={`"So if I understand correctly, you're asking whether… Is that right?"`}
+  why={`Trong phòng lớn hoặc cuộc họp remote, một nửa khán giả có thể không nghe rõ câu hỏi — đặc biệt khi micro của người hỏi không tốt hoặc họ ngồi ở cuối phòng. Nếu bạn trả lời thẳng mà không restate, 50% khán giả không hiểu bạn đang trả lời câu gì. Restate mất không đến mười giây nhưng giữ cho toàn bộ phòng cùng theo dõi — và nó cho bạn thêm thời gian suy nghĩ như một phần thưởng thêm.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+Ba điểm văn hoá quan trọng trong Q&A chuyên nghiệp:
+
+1. **"I don't know" nói ra thẳng thắn, có phong thái, KIẾM được sự tôn trọng — không mất đi.** Khán giả đọc sự trung thực là dấu hiệu của authority, không phải yếu kém. Người thuyết trình mà bao giờ cũng có câu trả lời cho mọi thứ nghe đáng ngờ hơn người biết giới hạn của mình. Điều kiện cần: kèm theo cam kết hành động cụ thể — "Let me follow up by email" không chỉ là lịch sự, nó là phần thiết yếu biến "I don't know" thành câu trả lời hoàn chỉnh.
+
+2. **Câu hỏi thù địch đôi khi là cách khán giả kiểm tra bạn — calm và factual ấn tượng hơn defensive bất kỳ lúc nào.** Trong môi trường doanh nghiệp và hội thảo, một số người hỏi câu khó để xem bạn có chịu được áp lực không. Nếu bạn phòng thủ hoặc leo thang, bạn thua bài kiểm tra đó dù lý lẽ của bạn có đúng. Nếu bạn acknowledge calmly rồi đưa ra dữ liệu — không tức giận, không phán xét — bạn vượt qua và gây ấn tượng với cả phòng, không chỉ người hỏi.
+
+3. **Restate là best practice phổ quát — không bao giờ bỏ qua trong remote presentations hoặc phòng lớn.** Trong thuyết trình trực tiếp ở phòng nhỏ, bỏ restate có thể không sao. Nhưng trong bất kỳ bối cảnh nào khác — phòng hội thảo, townhall, cuộc họp video — restate không phải optional. Nó đảm bảo mọi người cùng biết câu hỏi là gì, và cho phép bạn xử lý thông tin trước khi trả lời. Đây là thói quen đơn giản nhất, hiệu quả nhất bạn có thể xây dựng cho Q&A.
+
+<Callout type="note" title={`"That's a great question" — filler bị dùng quá nhiều`}>
+"That's a great question" nghe như mua thời gian — vì đó chính xác là điều nó đang làm, và khán giả biết điều đó. Khi mỗi câu hỏi đều "great", từ đó mất đi ý nghĩa và bắt đầu nghe sáo rỗng. Thay vào đó: restate thẳng vào câu hỏi — "So if I understand correctly, you're asking whether…" — vừa mua cho bạn cùng lượng thời gian, vừa cho thấy bạn đang thực sự xử lý câu hỏi của họ. Nếu câu hỏi thực sự hay và bạn muốn acknowledge, hãy nói tại sao: "That's a question I hadn't considered from that angle — let me think."
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to take it offline`** — đưa vấn đề ra khỏi cuộc họp chính để xử lý riêng. Dùng khi câu hỏi quá chi tiết hoặc lạc đề để thảo luận trước cả phòng. *"That deserves a fuller conversation — let's take it offline."*
+- **`to circle back`** — quay lại một điểm chưa được giải quyết sau đó. Hàm ý sẽ không quên — nhưng bạn phải thực sự quay lại nếu dùng câu này. *"Let me circle back to your question after we cover the next slide."*
+- **`to follow up`** — liên hệ lại sau, thường bằng email hoặc message, để cung cấp thêm thông tin. Câu hứa thiết yếu sau "I don't know." *"I'll follow up with the numbers by end of week."*
+- **`to play devil's advocate`** — đặt ra lập luận đối lập để kiểm tra độ vững của ý tưởng, không nhất thiết phản ánh quan điểm thật của người nói. Người hỏi đôi khi dùng cụm này để báo hiệu câu hỏi của họ là constructive, không phải tấn công. *"Just to play devil's advocate — what if adoption is slower than projected?"*
+- **`to push back`** — phản biện, thách thức một điểm cụ thể — nhắm vào ý tưởng chứ không phải người. Có thể dùng cả từ người hỏi lẫn người thuyết trình. *"I'd push back gently on that assumption — the data from Q2 tells a different story."*
+
+## 09 — Tự luyện
+
+1. **Luyện restate:** Nhờ một người bạn đặt cho bạn ba câu hỏi ngẫu nhiên về bất kỳ chủ đề nào — ngân sách, kế hoạch du lịch, dự án cá nhân. Trước khi trả lời mỗi câu, bạn phải restate bằng công thức "So if I understand correctly, you're asking whether… Is that right?" Luyện đến khi cảm thấy tự nhiên, không còn cứng nhắc.
+2. **Xử lý "I don't know":** Viết ra năm câu hỏi trong lĩnh vực công việc của bạn mà bạn có thể không biết câu trả lời. Với mỗi câu, viết một phản hồi hoàn chỉnh theo công thức: acknowledge câu hỏi + "I don't have [specific thing] here" + cam kết follow-up cụ thể (ngày, kênh liên lạc). Đọc to từng câu và để ý xem có nghe tự tin không.
+3. **Nhập vai Q&A khó:** Tưởng tượng bạn vừa thuyết trình xong về một dự án bạn đang làm. Viết ra kịch bản cho ba câu hỏi: (a) một câu hỏi clarification đơn giản, (b) một câu hỏi bạn không biết câu trả lời, (c) một câu hỏi skeptical về quyết định bạn đã đưa ra. Viết phản hồi đầy đủ cho cả ba theo cấu trúc restate → answer → check, áp dụng đúng công thức cho từng loại.
+
+<Recap>
+- Bốn bước Q&A chuẩn: **restate** ("So if I understand correctly…") → **pause nếu cần** → **answer trực tiếp** → **check** ("Does that answer your question?").
+- Restate không bao giờ được bỏ qua trong remote presentations hay phòng lớn — nó đảm bảo cả phòng nghe câu hỏi và cho bạn thời gian suy nghĩ.
+- "I don't have the data on that — let me follow up by email" nghe tự tin hơn bluff; kèm cam kết cụ thể là phần thiết yếu.
+- Câu hỏi thù địch: neutral acknowledgment trước ("I hear the concern"), factual answer sau — không phòng thủ, không leo thang.
+- Câu hỏi lạc đề: acknowledge giá trị + redirect — "That's important, but slightly outside today's scope — could we take it offline?"
+- "That's a great question" dùng quá nhiều trở nên rỗng — tốt hơn là restate thẳng vào câu hỏi.
+</Recap>

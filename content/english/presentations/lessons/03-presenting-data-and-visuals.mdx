@@ -1,0 +1,180 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Một chart trên slide không tự nói chuyện được — chính phần narration bằng lời của bạn mới là thứ cho audience biết cần nhìn vào đâu và rút ra kết luận gì. Presenter giỏi dẫn dắt sự chú ý ("Notice the spike here…") và nêu kết luận một cách tường minh ("What this tells us is…"). Presenter yếu chỉ gesture vào màn hình rồi tự cho rằng mọi người đã hiểu. Audience không tự diễn giải dữ liệu của bạn một cách tối ưu — họ cần bạn làm điều đó cho họ.
+
+## 01 — Bối cảnh
+
+Khi trình bày dữ liệu trước audience, có một quy trình ba bước giúp bạn biến một cái chart câm lặng thành một lập luận thuyết phục:
+
+**Bước 1 — Frame the chart.** Trước khi chỉ vào bất cứ điều gì, hãy định hướng cho audience biết họ đang nhìn vào cái gì: *"On this slide we have monthly active users over the last 12 months — the X-axis is time, the Y-axis is unique logins."* Đừng giả định audience có thể đọc trục và tiêu đề nhanh như bạn. Một câu frame tiết kiệm 10 giây nhưng tránh được 2 phút confusion.
+
+**Bước 2 — Direct attention.** Sau khi frame, hãy dẫn dắt mắt nhìn của audience đến điểm quan trọng nhất — đừng để họ tự tìm: *"Notice the dip in March — that was when our payment gateway went down."* Câu này làm hai việc cùng lúc: nó chỉ ra *đâu* cần nhìn và gắn dữ liệu với một *sự kiện thực tế*. Đây là điểm mà data storytelling bắt đầu.
+
+**Bước 3 — Draw the conclusion.** Đây là bước quan trọng nhất và cũng là bước hay bị bỏ qua nhất. Đừng kết thúc ở việc mô tả — hãy nêu thẳng ý nghĩa: *"What this tells us is that even brief outages have a four-week recovery tail. Which is why we're recommending the redundancy investment in Q4."* Audience cần nghe kết luận từ miệng bạn. Nếu bạn không nêu, họ sẽ tự rút ra kết luận riêng — và kết luận của họ có thể không phải điều bạn muốn.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "On this slide we have…", vi: "Trên slide này chúng ta có… — câu mở đầu frame chart, giúp audience định hướng trước khi bạn chỉ vào bất cứ điều gì", example: "On this slide we have weekly conversion rates over the past six months." },
+  { en: "As you can see…", vi: "Như các bạn có thể thấy… — dẫn dắt audience đến một điểm cụ thể trên chart, thường trước một observation rõ ràng", example: "As you can see, growth was flat through most of Q1." },
+  { en: "Notice the…", vi: "Hãy chú ý đến… — câu direct attention trực tiếp và hiệu quả nhất, không rào đón", example: "Notice the spike in week 12 — that aligns with our product launch." },
+  { en: "What's striking here is…", vi: "Điều đáng chú ý ở đây là… — nhấn mạnh một điểm bất ngờ hoặc quan trọng hơn mức trông đợi", example: "What's striking here is that mobile conversions outperformed desktop by nearly 40%." },
+  { en: "Let me draw your attention to…", vi: "Cho phép tôi hướng sự chú ý của bạn đến… — trang trọng hơn 'Notice', phù hợp với audience cấp cao", example: "Let me draw your attention to the bottom-right quadrant — that's where the opportunity sits." },
+  { en: "If we zoom in on…", vi: "Nếu chúng ta phóng to vào… — frame một phần cụ thể của chart hoặc dữ liệu để phân tích kỹ hơn", example: "If we zoom in on Q3 specifically, you can see the migration impact more clearly." },
+  { en: "the trend", vi: "xu hướng — hướng đi chung của dữ liệu theo thời gian, không quan tâm đến biến động ngắn hạn", example: "The overall trend is upward, despite the dip in March." },
+  { en: "the outlier", vi: "điểm ngoại lệ — một điểm dữ liệu bất thường, lệch rõ khỏi pattern chung", example: "November is an outlier — that's Black Friday traffic inflating the numbers." },
+  { en: "the baseline", vi: "đường cơ sở — mức tham chiếu để so sánh, thường là hiệu suất trước một thay đổi hoặc can thiệp", example: "Our baseline was around 8,000 daily active users before the campaign." },
+  { en: "to spike", vi: "tăng vọt đột ngột — tăng nhanh và thường ngắn, trước khi có thể giảm lại", example: "Traffic spiked on day three and then returned to normal by the end of the week." },
+  { en: "to dip", vi: "giảm tạm thời — giảm ngắn trước khi phục hồi, khác với một sự sụt giảm kéo dài", example: "Revenue dipped in Q2 due to the system migration." },
+  { en: "to taper off", vi: "giảm dần — giảm chậm và đều, thường hướng đến mức thấp hơn hoặc bằng không", example: "User engagement tapered off after week eight, which is typical for new feature adoption." },
+  { en: "What this tells us is…", vi: "Điều này cho chúng ta thấy rằng… — câu ma thuật để chuyển từ mô tả dữ liệu sang rút ra insight, không thể thiếu trong bất kỳ data presentation nào", example: "What this tells us is that the problem isn't acquisition — it's retention." },
+  { en: "Which is why we recommend…", vi: "Đó là lý do tại sao chúng tôi đề xuất… — nối insight với hành động hoặc quyết định, biến analysis thành argument", example: "Which is why we recommend investing in onboarding improvements before scaling paid ads." },
+]} />
+
+## 03 — Mẫu câu
+
+Năm mẫu này phủ toàn bộ quy trình ba bước — từ frame, direct attention, draw the conclusion, cho đến tie vào quyết định.
+
+<Pattern
+  en="On this slide we have [X-axis subject] over [time period]."
+  vi="Trên slide này chúng ta có [chủ đề trục X] trong [khoảng thời gian]."
+  variations={[
+    "On this slide we have monthly active users over the last 12 months.",
+    "On this slide we have conversion rates broken down by channel for Q2.",
+    "On this slide we have customer support ticket volume over the past eight weeks.",
+  ]}
+  note={`Câu frame này làm một việc đơn giản nhưng quan trọng: đặt toàn bộ audience vào cùng một điểm xuất phát. Đừng giả định họ đọc tiêu đề chart ngay khi slide xuất hiện — nhiều người vẫn đang nhìn vào ghi chú của mình. Một câu frame rõ ràng tiết kiệm thời gian và tránh confusion về sau.`}
+/>
+
+<Pattern
+  en="Notice the [feature] in [period] — that was [event/cause]."
+  vi="Hãy chú ý đến [điểm nổi bật] vào [giai đoạn] — đó là [sự kiện/nguyên nhân]."
+  variations={[
+    "Notice the dip in March — that was when our payment gateway went down.",
+    "Notice the spike in week eight — that coincides with the influencer campaign.",
+    "Notice how growth flattens after Q2 — that's when we paused the ad spend.",
+  ]}
+  note={`"Notice…" là cách direct attention mạnh nhất vì nó là mệnh lệnh — nó không hỏi, nó dẫn dắt. Phần sau dấu gạch ngang ("that was when…") là thứ biến một observation thành một insight: bạn đang kết nối dữ liệu với thực tế. Nếu bạn chỉ nêu con số mà không giải thích nguyên nhân, audience phải tự đoán.`}
+/>
+
+<Pattern
+  en="What this tells us is [insight]. Which is why [decision/action]."
+  vi="Điều này cho chúng ta thấy [insight]. Đó là lý do tại sao [quyết định/hành động]."
+  variations={[
+    "What this tells us is that even brief outages have a four-week recovery tail. Which is why we're recommending the redundancy investment in Q4.",
+    "What this tells us is that mobile is now our primary channel. Which is why we're prioritizing the app redesign over desktop.",
+    "What this tells us is that the drop-off happens at step three, not step one. Which is why we're focusing on the checkout flow, not the landing page.",
+  ]}
+  note={`Đây là mẫu quan trọng nhất trong toàn bộ bài học. "What this tells us is…" chuyển bạn từ mô tả sang diễn giải. "Which is why…" chuyển bạn từ diễn giải sang hành động. Hai câu này cùng nhau tạo thành một mini-argument hoàn chỉnh: evidence → insight → recommendation. Không có chúng, presentation chỉ là một bản report dữ liệu.`}
+/>
+
+<Pattern
+  en="If we zoom in on [segment/period], you can see [observation] more clearly."
+  vi="Nếu chúng ta phóng to vào [phân khúc/giai đoạn], bạn có thể thấy [observation] rõ hơn."
+  variations={[
+    "If we zoom in on Q3 specifically, you can see the migration impact more clearly.",
+    "If we look at just the mobile segment, the growth story becomes much stronger.",
+    "If we focus on the 18–24 age group, the pattern is completely different from the overall average.",
+  ]}
+  note={`Câu "zoom in" hữu ích khi bạn muốn tách một phần dữ liệu ra khỏi bức tranh tổng thể để phân tích kỹ hơn. Nó cũng giúp giải thích tại sao một chart tổng thể trông "bình thường" có thể ẩn chứa một pattern thú vị ở cấp độ chi tiết hơn. Đây là kỹ thuật hay dùng khi dữ liệu tổng hợp che khuất một insight quan trọng.`}
+/>
+
+<Pattern
+  en="Which is why we're proposing [action] in [timeframe]."
+  vi="Đó là lý do tại sao chúng tôi đang đề xuất [hành động] vào [khoảng thời gian]."
+  variations={[
+    "Which is why we're proposing the redundancy investment in Q4.",
+    "Which is why we're recommending a freeze on new feature development until retention improves.",
+    "Which is why we're asking for budget approval today — waiting another quarter would cost us the window.",
+  ]}
+  note={`Câu này là cầu nối quan trọng giữa data slide và recommendation slide. Nhiều presenter mắc lỗi trình bày toàn bộ dữ liệu xong rồi mới nhảy sang slide đề xuất mà không nối hai phần lại. "Which is why we're proposing…" tạo ra logic tuyến tính rõ ràng: dữ liệu nói X, vì vậy chúng ta nên làm Y. Audience không cần phải tự lắp ghép.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`Imperative + chú ý "Notice + [object]" + present simple "What this tells us is…"`}
+  structure={`Notice + [the X / how Y / when Z]. / What this tells us is + [noun clause as insight]. / If we + [zoom in on / look at / focus on] + [object], + [present simple observation].`}
+  examples={[
+    { en: "Notice the spike in March.", vi: "Hãy chú ý đến đợt tăng vọt vào tháng Ba." },
+    { en: "Notice how growth flattens after Q2.", vi: "Hãy chú ý xem tốc độ tăng trưởng bẹt dần như thế nào sau Q2." },
+    { en: "What this tells us is the system can't scale linearly.", vi: "Điều này cho chúng ta thấy rằng hệ thống không thể mở rộng tuyến tính." },
+    { en: "If we zoom in on the failures, the pattern is clear.", vi: "Nếu chúng ta phóng to vào các lỗi, pattern sẽ hiện ra rõ ràng." },
+    { en: "What's striking here is the seasonality.", vi: "Điều đáng chú ý ở đây là tính mùa vụ của dữ liệu." },
+  ]}
+  contrast={`Chỉ mô tả: "This chart shows monthly users from January to December." — Audience nhìn vào chart và tự hỏi: "OK, và rồi sao?" Câu này không chỉ họ cần nhìn vào đâu và không rút ra insight nào. Dẫn dắt và kết luận: "Notice the dip in March — that's when the outage happened. What this tells us is the system has a four-week recovery tail. Which is why we're recommending the Q4 investment." — Ba câu này làm ba việc khác nhau: chỉ điểm cần nhìn, giải thích nguyên nhân, và rút ra quyết định. Audience nhận được cả context lẫn hành động cần làm, không phải chỉ một chuỗi số. Kết luận cần được nêu tường minh — audience cần nghe nó từ bạn, không phải tự mình suy ra.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "Presenter (Linh)", en: "OK, let's move on to the data. On this slide we have monthly active users over the past 12 months — the X-axis is time, the Y-axis is unique logins per month.", vi: "OK, chúng ta hãy chuyển sang phần dữ liệu. Trên slide này chúng ta có lượng người dùng hoạt động hàng tháng trong 12 tháng qua — trục X là thời gian, trục Y là số lần đăng nhập duy nhất mỗi tháng." },
+  { speaker: "Linh", en: "As you can see, growth was fairly steady through Q1 and most of Q2. But notice the dip in March — that was when our payment gateway went down for 18 hours.", vi: "Như các bạn có thể thấy, tốc độ tăng trưởng khá ổn định trong suốt Q1 và phần lớn Q2. Nhưng hãy chú ý đến đợt giảm vào tháng Ba — đó là khi cổng thanh toán của chúng ta bị ngừng hoạt động trong 18 tiếng." },
+  { speaker: "Linh", en: "What this tells us is that even a single-day outage has a recovery tail of nearly four weeks. Users who couldn't complete a transaction simply didn't come back immediately.", vi: "Điều này cho chúng ta thấy rằng ngay cả một sự cố chỉ kéo dài một ngày cũng tạo ra đuôi phục hồi gần bốn tuần. Người dùng không thể hoàn thành giao dịch đơn giản là không quay lại ngay." },
+  { speaker: "Audience member (Nam)", en: "Sorry — is that dip just the payment users, or does it affect the whole active user base?", vi: "Xin lỗi — đợt giảm đó chỉ ảnh hưởng đến người dùng thanh toán, hay toàn bộ người dùng hoạt động?" },
+  { speaker: "Linh", en: "Great question. If we zoom in on the segmented data on the next slide, you can see it clearly. The drop hits paying users hardest — about 22% — but free-tier users dipped as well, by around 8%, likely due to trust erosion.", vi: "Câu hỏi hay. Nếu chúng ta phóng to vào dữ liệu phân khúc ở slide tiếp theo, bạn có thể thấy rõ. Đợt giảm tác động mạnh nhất đến người dùng trả phí — khoảng 22% — nhưng người dùng miễn phí cũng giảm khoảng 8%, có lẽ do ảnh hưởng đến niềm tin." },
+  { speaker: "Linh", en: "Which is why we're proposing the infrastructure redundancy investment in Q4. The cost of the outage — both direct lost revenue and four-week recovery drag — exceeded the proposed investment by a factor of three.", vi: "Đó là lý do tại sao chúng tôi đề xuất đầu tư vào hạ tầng dự phòng trong Q4. Chi phí của sự cố — bao gồm cả doanh thu mất trực tiếp và đuôi phục hồi bốn tuần — đã vượt quá khoản đầu tư đề xuất gấp ba lần." },
+  { speaker: "Linh", en: "Now let's look at a different story. On this next slide we have customer acquisition cost by channel over the same 12-month period.", vi: "Bây giờ hãy nhìn vào một câu chuyện khác. Trên slide tiếp theo này chúng ta có chi phí thu hút khách hàng theo từng kênh trong cùng khoảng thời gian 12 tháng đó." },
+  { speaker: "Linh", en: "Notice how paid social and paid search have been tapering off in effectiveness — cost per acquisition has risen 34% since January. But what's striking here is the organic channel in the bottom half — it has actually improved.", vi: "Hãy chú ý xem cách mà social có trả phí và tìm kiếm có trả phí đang giảm dần hiệu quả — chi phí thu hút mỗi khách hàng đã tăng 34% kể từ tháng Một. Nhưng điều đáng chú ý ở đây là kênh organic ở nửa dưới — nó thực sự đang cải thiện." },
+  { speaker: "Linh", en: "What this tells us is that our brand equity is growing even as paid efficiency declines. Which is why we're recommending a reallocation — reduce paid spend by 15% and reinvest that budget into content and SEO.", vi: "Điều này cho chúng ta thấy rằng brand equity của chúng ta đang tăng ngay cả khi hiệu quả có trả phí giảm. Đó là lý do tại sao chúng tôi đề xuất phân bổ lại — giảm 15% chi tiêu có trả phí và tái đầu tư ngân sách đó vào content và SEO." },
+  { speaker: "Audience member (Hoa)", en: "Does that reallocation timeline assume the content team is already at full capacity?", vi: "Timeline tái phân bổ đó có giả định rằng nhóm content đã ở full capacity không?" },
+  { speaker: "Linh", en: "Good catch. It doesn't — we've factored in a two-month ramp. The full reallocation would complete by the end of Q1 next year. I can follow up with the detailed resourcing plan after this session.", vi: "Bắt được điểm hay đấy. Không — chúng tôi đã tính đến giai đoạn khởi động hai tháng. Việc tái phân bổ hoàn toàn sẽ hoàn thành vào cuối Q1 năm sau. Tôi có thể gửi kế hoạch resourcing chi tiết sau buổi này." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"Q1 was 20%, Q2 was 22%, Q3 was 19%, Q4 was 24%..."`}
+  right={`"What's striking is the Q4 peak — that's seasonality. The underlying trend throughout the year is actually flat, which tells us growth is stalling despite seasonal lift."`}
+  why={`Đọc số từ chart thay vì synthesize chúng là lỗi phổ biến nhất trong data presentations. Audience đã nhìn thấy những con số đó — chúng đang hiển thị ngay trên slide. Nhiệm vụ của bạn không phải là đọc to những gì mọi người đang thấy, mà là diễn giải ý nghĩa của chúng và rút ra pattern hoặc kết luận mà một mình con số không nói lên được.`}
+/>
+
+<Mistake
+  wrong={`"So that's the data. Any questions?"`}
+  right={`"What this tells us is that retention, not acquisition, is our bottleneck. Which is why we're recommending the onboarding overhaul before any further ad spend. Any questions on that recommendation?"`}
+  why={`Kết thúc ở dữ liệu mà không nêu kết luận là để audience tự rút ra kết luận riêng — và họ có thể rút ra kết luận sai, hoặc rất nhiều kết luận khác nhau. Kết luận là thứ bạn đã dành thời gian để phân tích và cần được nêu rõ ràng. "Any questions?" sau khi đã có recommendation cũng hiệu quả hơn vì nó invite phản hồi về một điểm cụ thể, không phải về mọi thứ.`}
+/>
+
+<Mistake
+  wrong={`(Đứng trước slide bullet points và đọc to từng dòng) "Our key metrics are: revenue up 12%, churn down 3%, NPS score 42..."`}
+  right={`"The headline here is that all three metrics moved in the right direction simultaneously — that's unusual and it's meaningful. Notice that NPS jumped most sharply in the same month churn dropped. What this tells us is that experience improvements are driving both outcomes."`}
+  why={`Đọc bullet points verbatim từ slide là một trong những lỗi phổ biến nhất và gây mất chú ý nhất. Audience đọc nhanh hơn bạn nói — họ đã xong slide trước khi bạn đọc đến dòng hai. Nhiệm vụ của bạn là thêm commentary, kết nối các điểm với nhau, và rút ra insight mà bullet points không làm được. Nếu bạn chỉ đọc slide, audience sẽ tự hỏi tại sao họ không nhận tài liệu qua email.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+1. **Văn hoá thuyết trình phương Tây dựa trên dữ liệu khen thưởng những kết luận tường minh — đừng ngại nêu thẳng.** Trong nhiều văn hoá, nêu kết luận trực tiếp từ dữ liệu bị xem là "quá áp đặt" hoặc thiếu tế nhị. Trong môi trường doanh nghiệp Anh-Mỹ thì ngược lại — audience đang trả tiền cho thời gian và expertise của bạn; họ muốn bạn nói cho họ biết điều gì quan trọng. Không nêu kết luận không phải là khiêm tốn — đó là bỏ mặc audience phải làm công việc bạn đang được trả để làm.
+
+2. **"Notice…" trực tiếp hơn "You may notice…" — dùng dạng trực tiếp để rõ ràng.** "You may notice…" nghe như bạn đang không chắc chắn liệu điểm đó có đủ quan trọng không. "Notice…" là lệnh lịch sự và tự tin: bạn đang nói với audience rằng điều này đáng chú ý. Trong thuyết trình, sự rõ ràng được nhận thức là năng lực — không ai trong phòng họp muốn phải đoán xem bạn có đang muốn họ chú ý hay không.
+
+3. **Framing dữ liệu xấu trung thực ("chúng tôi đã miss target 18% — đây là lý do tại sao") thường hiệu quả hơn spinning.** Khi dữ liệu không tốt, phản ứng tự nhiên là tìm cách đóng khung để nó trông tốt hơn. Nhưng audience thường nhận ra khi bạn đang spin — và khi họ nhận ra, họ mất lòng tin vào cả bản trình bày lẫn bạn. Framing thẳng thắn ("chúng tôi miss target, đây là nguyên nhân, đây là những gì chúng tôi thay đổi") thể hiện sự kiểm soát tình huống và tạo ra credibility cao hơn nhiều so với việc tìm cách giải thích sao cho con số trông khá hơn.
+
+<Callout type="note" title={`"What this tells us is…" — câu chuyển dữ liệu thành insight`}>
+Nếu bạn chỉ nhớ một cụm từ từ bài học này, hãy nhớ "What this tells us is…". Không có nó, bạn đang mô tả. Với nó, bạn đang diễn giải. Audience không cần thêm dữ liệu — họ cần ai đó nói cho họ biết dữ liệu đó có nghĩa là gì. "What this tells us is…" là câu tín hiệu cho audience rằng bạn sắp làm điều đó — chuyển từ "đây là những gì đã xảy ra" sang "đây là lý do tại sao điều đó quan trọng với bạn". Không có câu này, audience sẽ tự diễn giải — và kết luận của họ thường không phải điều bạn muốn họ rút ra.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to spike`** — tăng vọt đột ngột và mạnh trong một thời gian ngắn, thường trước khi giảm lại. *"Traffic spiked after the press release and then settled back to baseline within a week."*
+- **`to dip`** — giảm tạm thời, ngắn, trước khi phục hồi — khác với sự sụt giảm kéo dài và bền vững. *"Sales dipped in January, which is typical — February usually recovers it."*
+- **`to flatten`** — tăng trưởng chậm lại đến mức gần như bằng phẳng — thường là dấu hiệu thị trường đang bão hòa hoặc một can thiệp đã hết hiệu lực. *"User growth started flattening in Q3, which is why we started testing new acquisition channels."*
+- **`to taper off`** — giảm dần và đều, thường theo hướng về không hoặc một mức thấp hơn — có cảm giác nhẹ nhàng hơn "drop" hoặc "fall". *"Engagement tapered off over the 90-day lifecycle, which is consistent with the industry benchmark."*
+- **`to zoom in on`** — thu hẹp phạm vi phân tích xuống một phân khúc hoặc khoảng thời gian cụ thể để xem chi tiết rõ hơn — thường dùng khi dữ liệu tổng hợp che khuất một pattern quan trọng. *"Let's zoom in on the 25–34 cohort — that's where the most interesting behaviour is."*
+
+## 09 — Tự luyện
+
+1. **Luyện ba bước với một chart thực tế:** Tìm một chart từ báo cáo, bài báo, hoặc công cụ analytics trong công việc của bạn. Viết một đoạn ba câu theo đúng quy trình: câu đầu frame chart ("On this slide we have…"), câu hai direct attention đến điểm quan trọng nhất ("Notice the…"), câu ba rút ra kết luận và gắn vào một hành động ("What this tells us is… Which is why…"). Đọc to đoạn đó — nó có nghe như một mini-argument thuyết phục không?
+
+2. **Phân biệt mô tả và diễn giải:** Với mỗi câu mô tả dưới đây, viết lại thành một câu hoặc cụm câu diễn giải đầy đủ dùng "What this tells us is…" và nếu phù hợp, "Which is why…": (a) "Bounce rate increased from 42% to 61% between April and June." (b) "The 18–24 age group has the highest churn rate at 28% per quarter." (c) "Customer support tickets spiked in week two after the product update."
+
+3. **Mô phỏng trình bày hai chart:** Viết một đoạn presenter script cho hai chart liên tiếp — giống như cấu trúc trong hội thoại mẫu. Chart đầu tiên cho thấy một vấn đề (ví dụ: churn tăng). Chart thứ hai cho thấy nguyên nhân tiềm ẩn (ví dụ: onboarding completion rate thấp). Kết thúc với một câu tie-in recommendation dùng "Which is why we're proposing…". Mục tiêu: hai chart, một argument tuyến tính, audience biết chính xác phải làm gì tiếp theo.
+
+<Recap>
+- Ba bước data presentation: frame the chart ("On this slide we have…") → direct attention ("Notice the…") → draw the conclusion ("What this tells us is… Which is why…").
+- "Notice…" là câu direct attention hiệu quả nhất — trực tiếp, không rào đón, cho audience biết chính xác cần nhìn vào đâu.
+- "What this tells us is…" là câu chuyển từ mô tả sang diễn giải — đây là câu quan trọng nhất trong data presentation.
+- "Which is why we recommend…" nối insight với hành động — biến analysis thành argument và slide thành quyết định.
+- Đừng đọc số từ chart: audience đã nhìn thấy chúng. Nhiệm vụ của bạn là synthesize, giải thích nguyên nhân, và rút ra pattern.
+- Framing dữ liệu xấu trung thực tạo credibility cao hơn spinning — audience biết khi bạn đang spin.
+</Recap>

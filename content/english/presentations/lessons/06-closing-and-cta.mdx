@@ -1,0 +1,222 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Một bài thuyết trình không có phần kết rõ ràng chết ngay trên sân khấu — khán giả bước ra không biết phải làm gì với những thông tin vừa nghe. Kỹ năng ở đây là **4-part close**: tóm tắt ngắn gọn + takeaway duy nhất + call-to-action cụ thể + lời cảm ơn. Bài capstone này khép lại toàn bộ topic Presentations với kỹ năng chốt bài + hiệu chỉnh văn hoá xuyên biên giới + tổng hợp sáu bài đã học thành một bộ kỹ năng thuyết trình hoàn chỉnh — từ cú mở đầu có tác động đến cú kết thuyết phục.
+
+## 01 — Bối cảnh
+
+Phần kết của bài thuyết trình không phải là "So… that's all I have, thanks." Đó là bốn bước có cấu trúc, mỗi bước không quá 15 giây, tạo ra ký ức và hành động:
+
+1. **Summary (~15 giây):** "We covered three things: A, B, and C." — Khán giả quên 90% nội dung trong 24 giờ. Tóm tắt 15 giây là cơ hội cuối cùng để củng cố những gì quan trọng nhất.
+
+2. **Key takeaway (~15 giây):** "If you remember just ONE thing from today, let it be this: [single insight]." — Ép bạn phải chưng cất toàn bộ bài thuyết trình xuống còn một câu. Câu đó chính là thứ khán giả mang về nhà.
+
+3. **Call-to-action (~10 giây):** "What I'm asking is: [specific action — approve the budget / try the framework / vote yes]." — Sự khác biệt giữa thuyết trình thông tin và thuyết trình thuyết phục là câu này. Nếu bạn muốn một quyết định, hãy hỏi thẳng.
+
+4. **Thank-you + Q&A handoff (~5 giây):** "Thank you. Happy to take questions." — Ngắn, dứt khoát, lịch sự. Không "So… yeah… any questions?" — commit vào câu kết.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "to wrap up", ipa: "rӕp ʌp", vi: "chốt lại, kết thúc — cụm động từ chuẩn để mở đầu phần kết; tín hiệu cho khán giả rằng bạn sắp kết thúc và họ cần chú ý", example: "Let me wrap up by summarising the three key points." },
+  { en: "the takeaway", ipa: "ˈteɪk.ə.weɪ", vi: "bài học/thông điệp mang về — điều khán giả nhớ sau khi rời khỏi phòng; trong ngữ cảnh thuyết trình, đây là câu quan trọng nhất bạn có thể nói", example: "The main takeaway is that early customer feedback cuts development time in half." },
+  { en: "the key insight", ipa: "kiː ˈɪn.saɪt", vi: "nhận thức/hiểu biết cốt lõi — phát hiện quan trọng nhất từ data hoặc phân tích; mạnh hơn 'idea' vì nó ám chỉ sự hiểu biết sâu có cơ sở", example: "The key insight from our data is that retention, not acquisition, drives growth." },
+  { en: "the call-to-action", ipa: "kɔːl tə ˈæk.ʃən", vi: "lời kêu gọi hành động — yêu cầu cụ thể dành cho khán giả sau bài thuyết trình; thường viết tắt là CTA; đây là câu phân biệt thuyết trình thuyết phục với thuyết trình thông tin", example: "Every persuasive presentation needs a clear call-to-action at the close." },
+  { en: "If you remember just one thing…", vi: "Nếu bạn chỉ nhớ một điều… — cụm mở đầu mạnh nhất cho key takeaway; nó báo hiệu cho khán giả rằng câu tiếp theo là thứ quan trọng nhất trong toàn bộ bài, và họ tự nhiên tập trung nghe", example: "If you remember just one thing from today, let it be this: trust is built in seconds and lost in milliseconds." },
+  { en: "What I'm asking is…", vi: "Điều tôi muốn yêu cầu là… — cụm mở đầu CTA; trực tiếp, lịch sự, không tạo áp lực nhưng rõ ràng về ý định. Người nghe biết chính xác bạn muốn gì từ họ", example: "What I'm asking is for the team to commit to weekly demos starting next sprint." },
+  { en: "to leave you with…", vi: "để lại cho bạn… — cụm chuyển tiếp sang takeaway hoặc CTA; tạo cảm giác bạn đang tặng khán giả một thứ gì đó có giá trị để mang về", example: "I want to leave you with one question: what would you do differently if you knew this six months ago?" },
+  { en: "Here's the bottom line", vi: "Đây là điều cốt lõi nhất — cụm chuyển tiếp sang summary hoặc takeaway; 'bottom line' là thuật ngữ kế toán (dòng cuối của báo cáo lợi nhuận) được mượn sang ngôn ngữ thuyết trình để ám chỉ điều quan trọng nhất sau khi đã bỏ qua tất cả chi tiết", example: "Here's the bottom line — we either fix the onboarding flow this quarter, or we keep losing 40% of new users." },
+  { en: "to circle back to where we started", vi: "quay lại điểm khởi đầu — kỹ thuật kết cấu bookend: kết thúc bằng cách nhắc lại hook hoặc câu hỏi mở đầu, tạo cảm giác tròn trịa và có chủ ý cho toàn bộ bài", example: "Let me circle back to where we started — that question about why 60% of projects fail." },
+  { en: "Thank you for your attention", vi: "Cảm ơn sự chú ý của các bạn — câu cảm ơn chuẩn mực kết thúc bài thuyết trình; lịch sự và không sáo rỗng vì nó thừa nhận thời gian của khán giả", example: "Thank you for your attention. I'm happy to take any questions you have." },
+  { en: "I'd love to take questions", vi: "Tôi rất muốn trả lời câu hỏi — câu mời Q&A nhiệt tình hơn 'any questions?' thụ động; 'love' cho thấy bạn tự tin và không sợ bị hỏi khó", example: "I'd love to take questions — especially around the implementation timeline." },
+  { en: "to drive the point home", vi: "nhấn mạnh điểm quan trọng, làm cho nó khắc sâu vào trí nhớ — từ hình ảnh đóng đinh vào gỗ; dùng khi bạn muốn lặp lại hoặc gia cố một ý đã nói để đảm bảo khán giả không quên", example: "To drive the point home: every day we delay is twenty thousand dollars in lost revenue." },
+  { en: "to land the close", vi: "chốt bài thành công — 'land' theo nghĩa máy bay hạ cánh an toàn; dùng trong ngữ cảnh coaching và training về thuyết trình để chỉ việc kết thúc bài một cách tự tin, có tác động", example: "The hardest part isn't building the slides — it's learning to land the close with confidence." },
+  { en: "the through-line", vi: "sợi chỉ đỏ xuyên suốt — thông điệp trung tâm liên kết tất cả các phần của bài thuyết trình lại với nhau; nếu mỗi phần không phục vụ through-line, nó không nên có mặt trong bài", example: "Our through-line is simple: speed wins. Every data point, every case study, every recommendation connects back to that." },
+]} />
+
+## 03 — Mẫu câu
+
+<Pattern
+  en="Let me wrap up. We covered three things: the data, the root cause, and the recommendation."
+  vi="Cho phép tôi tóm tắt lại. Chúng ta đã đề cập ba điều: dữ liệu, nguyên nhân gốc rễ, và khuyến nghị."
+  variations={[
+    "To wrap up, we explored three questions: what went wrong, why it went wrong, and what we do next.",
+    "Let me close by recapping: the market shift, our response options, and the one path I recommend.",
+    "Before I hand over to Q&A, let me summarise: the problem, the evidence, and the ask.",
+  ]}
+  note={`Câu summary wrap-up không cần dài — 15 giây là đủ và tốt nhất. Công thức "we covered three things: A, B, and C" cho khán giả một cấu trúc để nhớ ngay cả khi họ đã quên chi tiết. Rule of three (ba điểm) là phổ biến nhất và dễ nhớ nhất trong truyền thông.`}
+/>
+
+<Pattern
+  en="If you remember just one thing from today, let it be this: customer trust is built in seconds and lost in milliseconds."
+  vi="Nếu bạn chỉ nhớ một điều từ hôm nay, hãy để đó là: niềm tin của khách hàng được xây trong vài giây nhưng bị phá huỷ trong vài mili giây."
+  variations={[
+    "If you take away only one thing, let it be this: retention is ten times cheaper than acquisition.",
+    "One thing I hope you carry with you: a slow onboarding doesn't just frustrate users — it kills the product.",
+    "If nothing else sticks today, I hope this does: the team that ships fastest doesn't plan least — it plans better.",
+  ]}
+  note={`"If you remember just one thing…" là cụm mạnh nhất trong phần kết của bất kỳ bài thuyết trình nào. Nó buộc bạn phải trả lời câu hỏi: sau tất cả những gì tôi vừa trình bày, thứ quan trọng nhất là gì? Nếu bạn không thể trả lời câu hỏi đó trong một câu, bài thuyết trình chưa sẵn sàng.`}
+/>
+
+<Pattern
+  en="What I'm asking from you is to approve the additional engineering budget for Q4."
+  vi="Điều tôi muốn yêu cầu từ các bạn là phê duyệt ngân sách kỹ thuật bổ sung cho Q4."
+  variations={[
+    "What I'm asking is for each team to nominate one person to pilot the new framework by end of month.",
+    "My ask is simple: give us two weeks to run a controlled experiment before we scale.",
+    "What I need from this room today is a decision — yes or no — on moving to the new architecture.",
+  ]}
+  note={`CTA phải cụ thể, có thể hành động được, và có thể hoàn thành được. "What I'm asking is…" + [một hành động duy nhất] là công thức tốt nhất. Tránh CTA mơ hồ như "think about it" hay "consider our proposal" — nếu bạn muốn khán giả làm gì, hãy nói thẳng ra.`}
+/>
+
+<Pattern
+  en="Here's the bottom line — we ship faster when we plan better. Which is why I'm asking you to approve the sprint planning workshop."
+  vi="Đây là điều cốt lõi nhất — chúng ta ship nhanh hơn khi lên kế hoạch tốt hơn. Đó là lý do tôi yêu cầu các bạn phê duyệt workshop lên kế hoạch sprint."
+  variations={[
+    "Here's the bottom line — the data doesn't lie: we lose a customer every time the page takes more than three seconds to load. Which is why performance is non-negotiable.",
+    "Bottom line: the window is closing. Every month we wait, a competitor takes the market segment we're describing. Which is exactly why we need to move now.",
+    "The bottom line is simple — this isn't a cost, it's an investment. Which is why the ROI pays back in under six months.",
+  ]}
+  note={`Cấu trúc "Here's the bottom line — [insight]. Which is why [action/CTA]." kết hợp takeaway và CTA trong một câu liên kết nhân-quả. Nó không phải là hai điểm riêng biệt — đó là một luận điểm: vì X, nên Y. Đây là cấu trúc thuyết phục nhất trong phần kết.`}
+/>
+
+<Pattern
+  en="Thank you for your time. Happy to take any questions."
+  vi="Cảm ơn thời gian của các bạn. Tôi sẵn sàng trả lời câu hỏi."
+  variations={[
+    "Thank you. I'd love to open it up for questions — especially around the implementation side.",
+    "That's my close. Thank you for the attention and the engagement. Questions welcome.",
+    "Thank you. The floor is yours — I'm happy to dig into any part of this.",
+  ]}
+  note={`Câu cảm ơn + mời Q&A nên ngắn và tự tin. "Happy to take questions" hoặc "I'd love to take questions" tốt hơn "Does anyone have any questions?" vì nó ít thụ động hơn và cho thấy bạn không sợ bị hỏi. Không bao giờ kết thúc bằng "So… yeah… any questions?" — câu đó phá huỷ toàn bộ ấn tượng của bài thuyết trình.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`"If you remember just one thing…" + present simple cho takeaway + imperative cho CTA`}
+  structure={`If you remember + just one thing, + let it be + [insight]. / What I'm asking is + [action]. / Here's + the bottom line + — + [insight].`}
+  examples={[
+    { en: "If you remember just one thing, let it be that customer trust is built in seconds and lost in milliseconds.", vi: "Nếu bạn chỉ nhớ một điều, hãy để đó là: niềm tin khách hàng được xây trong vài giây và bị phá trong vài mili giây." },
+    { en: "What I'm asking is for the team to commit to weekly demos.", vi: "Điều tôi yêu cầu là team cam kết demo hàng tuần." },
+    { en: "Here's the bottom line — we ship faster when we plan less.", vi: "Đây là điều cốt lõi nhất — chúng ta ship nhanh hơn khi lên kế hoạch ít hơn." },
+    { en: "Let me leave you with this thought.", vi: "Cho phép tôi để lại cho bạn suy nghĩ này." },
+    { en: "Thank you for your time.", vi: "Cảm ơn thời gian của các bạn." },
+  ]}
+  contrast={`**Kết không có cấu trúc (TRÁNH):** "So that's all I have, thanks." / "Okay, I think that's everything." / "So… yeah… any questions?" — Những câu này không có takeaway, không có CTA, và không có lời cảm ơn thực sự. Khán giả bước ra không biết phải làm gì và không nhớ gì.
+
+**Kết có cấu trúc (LUÔN DÙNG):** Summary (3 điểm, 15 giây) → "If you remember just one thing…" (takeaway, 15 giây) → "What I'm asking is…" (CTA cụ thể, 10 giây) → "Thank you. Happy to take questions." (5 giây). Cấu trúc này cho khán giả một thứ cụ thể để nhớ, một hành động cụ thể để làm, và một ấn tượng kết thúc mạnh mẽ — thay vì cảm giác bài thuyết trình "chết đuối" ở cuối.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "Presenter", en: "Alright — let me wrap up.", vi: "Được rồi — để tôi tóm tắt lại." },
+  { speaker: "Presenter", en: "We covered three things today: first, where our user retention stands right now and why the numbers are declining. Second, the root cause — onboarding friction in the first 72 hours. And third, the specific fix: a redesigned onboarding flow with three fewer steps and a progress indicator.", vi: "Hôm nay chúng ta đã đề cập ba điều: thứ nhất, tình trạng user retention hiện tại và lý do các con số đang giảm. Thứ hai, nguyên nhân gốc rễ — ma sát trong onboarding trong 72 giờ đầu. Và thứ ba, giải pháp cụ thể: thiết kế lại onboarding flow với ba bước ít hơn và một thanh tiến độ." },
+  { speaker: "Presenter", en: "If you remember just one thing from today, let it be this — every extra step in onboarding costs us a user. Not might. Does.", vi: "Nếu bạn chỉ nhớ một điều từ hôm nay, hãy để đó là: mỗi bước thừa trong onboarding khiến chúng ta mất một người dùng. Không phải 'có thể'. Là thực tế." },
+  { speaker: "Presenter", en: "Here's the bottom line — we have the data, we have the fix, and we have the team to build it. The only thing we're missing is the green light.", vi: "Đây là điều cốt lõi nhất — chúng ta có dữ liệu, chúng ta có giải pháp, và chúng ta có team để xây dựng nó. Thứ duy nhất còn thiếu là đèn xanh." },
+  { speaker: "Presenter", en: "Which brings me to my ask. What I'm requesting from this room today is simple: approve the two-week sprint to rebuild onboarding. That's it. Two weeks. One sprint. And based on our modelling, we recover twelve percent of lost users in the first month.", vi: "Điều đó dẫn đến yêu cầu của tôi. Điều tôi yêu cầu từ phòng này hôm nay rất đơn giản: phê duyệt sprint hai tuần để xây lại onboarding. Chỉ vậy thôi. Hai tuần. Một sprint. Và dựa trên mô hình của chúng ta, chúng ta khôi phục được mười hai phần trăm người dùng đã mất trong tháng đầu tiên." },
+  { speaker: "Presenter", en: "Let me circle back to where I started this morning — I asked: what's the most expensive bug in our product right now? The answer isn't in the codebase. It's in the first screen new users see.", vi: "Hãy để tôi quay lại điểm bắt đầu của sáng nay — tôi đã hỏi: bug đắt nhất trong sản phẩm của chúng ta lúc này là gì? Câu trả lời không nằm trong codebase. Nó nằm ở màn hình đầu tiên người dùng mới nhìn thấy." },
+  { speaker: "Presenter", en: "Fix that screen. That's the ask.", vi: "Sửa màn hình đó. Đó là yêu cầu." },
+  { speaker: "Presenter", en: "Thank you for your time and for your focus throughout. I'd love to take questions — especially around the implementation timeline or the data modelling.", vi: "Cảm ơn thời gian và sự tập trung của các bạn xuyên suốt. Tôi rất muốn trả lời câu hỏi — đặc biệt về timeline triển khai hoặc mô hình dữ liệu." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`Presenting data, making a case, then ending with: "So that's my presentation. Any questions?"`}
+  right={`"Let me wrap up. We covered X, Y, and Z. If you remember just one thing, let it be [insight]. What I'm asking is [specific action]. Thank you — happy to take questions."`}
+  why={`Kết bài mà không có CTA là lỗi phổ biến nhất trong thuyết trình chuyên nghiệp. Bạn có thể đã xây dựng một case hoàn hảo, trình bày dữ liệu thuyết phục, và giải thích vấn đề rõ ràng — nhưng nếu bạn không hỏi xin gì cụ thể, khán giả bước ra mà không có bước tiếp theo rõ ràng. Thông tin mà không có hành động là thông tin bị lãng quên. Nếu bạn muốn một quyết định, hãy hỏi thẳng ra.`}
+/>
+
+<Mistake
+  wrong={`"Okay, I think that's everything I had. So… I'm done. Any questions?"`}
+  right={`"Let me wrap up. Three points today: [A], [B], [C]. If you take away just one thing: [insight]. What I'm asking: [action]. Thank you."`}
+  why={`"I'm done" và "that's everything I had" nghe như bạn đang xin lỗi vì đã lãng phí thời gian của khán giả. Phần kết là phần quan trọng nhất của bài thuyết trình vì đó là thứ khán giả nhớ lâu nhất. Kết có cấu trúc — summary + takeaway + CTA + cảm ơn — cho khán giả một ấn tượng cuối mạnh mẽ và một hành động rõ ràng.`}
+/>
+
+<Mistake
+  wrong={`"So… yeah… I guess that covers everything… questions?"`}
+  right={`"Thank you for your time. I'd love to take questions."`}
+  why={`Trailing off ("So… yeah…") phá huỷ toàn bộ ấn tượng của bài thuyết trình trong 5 giây cuối. Dù bạn đã thuyết trình xuất sắc trong 20 phút, kết bài bằng cách đó khiến khán giả nghĩ bạn không tự tin hoặc không chuẩn bị kỹ. Commit vào câu kết: nói nó rõ ràng, dứt khoát, rồi im lặng. Im lặng sau câu kết là mạnh mẽ — không phải ngượng ngùng.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+**Phần kết là thứ người ta nhớ.**
+
+Nghiên cứu về bộ nhớ trong thuyết trình cho thấy khán giả nhớ rõ nhất hai thời điểm: phần mở đầu và phần kết. Nội dung ở giữa — dù kỹ lưỡng và được trình bày tốt đến đâu — phai dần trong vòng 24 giờ. Đây là lý do tại sao cấu trúc 4-part close (summary + takeaway + CTA + cảm ơn) không phải là kỹ thuật tuỳ chọn — đó là cơ chế để thông điệp của bạn sống sót qua cuộc họp, qua bữa trưa, và đến tận ngày hôm sau khi khán giả phải đưa ra quyết định.
+
+**CTA là ranh giới giữa thông tin và thuyết phục.**
+
+Bài thuyết trình thông tin kết thúc bằng "any questions?" Bài thuyết trình thuyết phục kết thúc bằng "What I'm asking is [specific action]." Sự khác biệt không phải ở nội dung hay data — sự khác biệt nằm ở câu cuối. Nếu bạn muốn khán giả approve budget, try a framework, vote yes, or commit to a timeline — bạn phải hỏi thẳng ra. Khán giả không tự đoán được bạn muốn gì từ họ, dù data có rõ ràng đến mấy. CTA là câu biến data thành quyết định.
+
+**Hiệu chỉnh văn hoá về cách kết thúc bài thuyết trình.**
+
+Không phải mọi khán giả đều kỳ vọng cùng một kiểu phần kết:
+
+- **Mỹ (tech, startup, corporate):** Kỳ vọng phần kết mạnh mẽ, trực tiếp, với CTA rõ ràng. "What I need from this room today is…" là cụm được chấp nhận và đánh giá cao. Bold close là chuẩn mực, không phải ngoại lệ. Khán giả Mỹ đánh giá cao sự dứt khoát.
+
+- **Anh:** Cấu trúc tương tự nhưng tone đo lường hơn. Thay vì "What I need" có thể dùng "What I'd propose is…" hoặc "My recommendation would be…". Sự trực tiếp vẫn được trân trọng, nhưng cách diễn đạt có thể mềm hơn một chút mà không mất đi sức thuyết phục.
+
+- **Đức:** Khán giả Đức đặc biệt coi trọng phần kết có cấu trúc rõ ràng với quyết định và timeline cụ thể. "My recommendation is X. I propose a decision by [date]. The next step is [concrete action]." Vague closes không được tiếp nhận tốt — họ muốn biết chính xác bước tiếp theo là gì và ai chịu trách nhiệm.
+
+- **Nhật Bản:** Văn hoá thuyết trình Nhật Bản coi trọng lời cảm ơn trang trọng và thể hiện sự khiêm tốn. Phần kết vẫn nên có cấu trúc, nhưng CTA thường được diễn đạt nhẹ nhàng hơn: "We would be honoured if you could consider…" thay vì "What I'm asking is…" Bowing và lời cảm ơn chính thức là phần bắt buộc của close trong môi trường truyền thống.
+
+**Tổng hợp toàn bộ topic Presentations.**
+
+Nhìn lại sáu bài của topic này: bài 01 dạy cách mở đầu với tác động — hook người nghe trong 30 giây đầu và set up roadmap rõ ràng. Bài 02 xây dựng kỹ năng signposting — dẫn dắt khán giả qua từng phần một cách mạch lạc. Bài 03 là ngôn ngữ của data và visuals — "As you can see from this chart…" và cách rút ra kết luận thuyết phục. Bài 04 dạy xử lý Q&A — bao gồm câu hỏi khó và khi không biết câu trả lời. Bài 05 là storytelling và engagement — anecdote, rule-of-three, pause, và emphasis. Và bài 06 — bài này — là kỹ năng chốt bài với CTA.
+
+Kết hợp lại: một bộ kỹ năng thuyết trình hoàn chỉnh. Confident open, clear structure, data clarity, Q&A grace, engagement craft, và decisive close. Người thuyết trình hiểu cả sáu giai đoạn bước vào phòng với một loại tự tin khác — và khán giả cảm nhận được điều đó.
+
+<Callout type="note" title={`"If you remember just one thing…" — cụm mạnh nhất bạn có thể nói khi kết bài`}>
+Câu "If you remember just one thing from today…" không phải kỹ thuật hoa mỹ — đó là kỷ luật tư duy. Nó ép bạn phải trả lời câu hỏi khó nhất trước khi bước lên sân khấu: sau tất cả những gì tôi sẽ trình bày, thứ quan trọng nhất — thứ tôi sẵn sàng đánh đổi tất cả còn lại để đảm bảo khán giả nhớ — là gì? Nếu bạn không thể trả lời câu đó trong một câu đơn giản, bài thuyết trình chưa đủ rõ ràng trong đầu bạn. Cụm này cũng hoạt động về mặt tâm lý: khi bạn nói "If you remember just one thing…", khán giả tự nhiên tập trung. Họ chuẩn bị tinh thần để ghi nhớ. Câu tiếp theo của bạn được tiếp nhận với mức độ chú ý cao nhất trong cả bài.
+</Callout>
+
+<Callout type="warning" title={`Bài thuyết trình không có CTA là bài thuyết trình bị quên`}>
+Ngay cả bài thuyết trình "chỉ để thông tin" cũng cần một soft CTA. Không nhất thiết phải là "approve my budget" — có thể là "share this with your team", "try the framework this week", "subscribe for the next report", hoặc "let me know your thoughts by Friday". Không có CTA nào cả thì khán giả không có lý do để làm gì với thông tin bạn vừa chia sẻ. Thông tin không có hành động là thông tin bị lãng phí. Câu hỏi bạn phải trả lời trước khi kết bài là: sau khi rời khỏi phòng này, tôi muốn khán giả làm gì? Dù câu trả lời là gì — hãy nói ra.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+Mười cụm từ sau đây tổng hợp toàn bộ topic Presentations — từ giây đầu tiên bạn bước lên sân khấu đến câu cuối khi bạn cảm ơn khán giả.
+
+- **`to kick off`** — bắt đầu, khai mạc. *"Let me kick off with a question that might surprise you."* Dùng để mở đầu bài thuyết trình hoặc một phần mới; năng động hơn "start" hay "begin".
+
+- **`to set the stage`** — đặt bối cảnh, chuẩn bị nền tảng cho điều sắp nói. *"Before I dive into the data, let me set the stage — eighteen months ago, we were growing at 40% month-on-month."* Dùng để giới thiệu context trước khi vào nội dung chính.
+
+- **`to walk through`** — trình bày từng bước một cách có cấu trúc. *"Let me walk you through the three scenarios we modelled."* Phổ biến trong thuyết trình khi giải thích quy trình, data, hoặc roadmap theo trình tự.
+
+- **`to dive into`** — đi sâu vào, bắt đầu phân tích chi tiết. *"Now let's dive into the numbers."* Năng động và chuyên nghiệp hơn "look at" hay "talk about"; ám chỉ sự phân tích kỹ lưỡng.
+
+- **`to circle back`** — quay lại một điểm đã đề cập trước đó. *"I'll circle back to that point when we get to the recommendations."* Kỹ thuật bookend: mở đầu bằng một câu hỏi hoặc ý tưởng, rồi circle back ở phần kết để tạo cảm giác tròn trịa.
+
+- **`the takeaway`** — điều quan trọng nhất để mang về. *"The takeaway from this slide is simple: early adopters are three times more likely to become advocates."* Dùng sau mỗi phần quan trọng và đặc biệt trong phần kết.
+
+- **`to drive home`** — nhấn mạnh, khắc sâu một điểm quan trọng. *"Let me drive this point home with a real example from last quarter."* Dùng khi bạn muốn đảm bảo một ý không bị quên — lặp lại hoặc gia cố bằng ví dụ cụ thể.
+
+- **`to land`** — kết thúc thành công, hạ cánh an toàn. *"That joke didn't quite land — but the point stands."* / *"We need to land this close confidently."* Trong ngữ cảnh thuyết trình: "land the close" = kết bài một cách tự tin và có tác động.
+
+- **`to wrap up`** — tóm tắt lại, chuẩn bị kết thúc. *"Let me wrap up with the three things I want you to remember."* Tín hiệu chuẩn cho khán giả biết bạn đang bước vào phần kết — họ sẽ tập trung lại.
+
+- **`the bottom line`** — điều cốt lõi nhất, kết luận sau khi đã xem xét tất cả. *"The bottom line is: we can't afford not to do this."* Từ ngữ kế toán được mượn sang ngôn ngữ thuyết trình; dùng để báo hiệu rằng câu tiếp theo là thứ quan trọng nhất trong toàn bộ bài.
+
+## 09 — Tự luyện
+
+1. **Viết 4-part close hoàn chỉnh:** Chọn một chủ đề bạn thực sự quan tâm — một đề xuất công việc, một ý tưởng sản phẩm, hoặc một vấn đề bạn muốn giải quyết. Viết phần kết 4-part theo cấu trúc: (a) summary 3 điểm trong 2–3 câu, (b) key takeaway bắt đầu bằng "If you remember just one thing…", (c) CTA bắt đầu bằng "What I'm asking is…", (d) thank-you + Q&A handoff. Tổng cộng không quá 150 từ. Đọc lại và tự hỏi: nếu là khán giả, tôi biết phải làm gì sau khi nghe phần kết này không?
+
+2. **Phân tích và viết lại:** Lấy một trong ba kết bài sau và viết lại theo cấu trúc 4-part: (a) "So that covers everything. Thanks, any questions?", (b) "Okay, I think I've gone through all my slides. Questions?", (c) "Yeah, so, that's basically what I wanted to say. Thanks." Với mỗi câu, viết phiên bản viết lại ngắn (50–80 từ) có đủ bốn phần. Sau đó giải thích bằng tiếng Việt (2–3 câu) tại sao bản viết lại mạnh hơn về mặt thuyết phục.
+
+3. **Tổng hợp topic — Chuẩn bị bài thuyết trình:** Hãy tưởng tượng bạn sẽ thuyết trình 10 phút vào tuần tới. Viết một "presentation checklist" bằng tiếng Anh gồm sáu mục — một mục cho mỗi bài trong topic Presentations. Mỗi mục là một câu hành động cụ thể bắt đầu bằng "Prepare…", "Practice…", "Design…", "Plan…", hoặc "Write…". Checklist này là bài tập tổng hợp toàn bộ topic thành một kế hoạch hành động thực tế trước khi bước lên sân khấu.
+
+<Recap>
+Trên toàn topic Presentations, ta đã học:
+
+- **Bài 01 — Mở đầu có tác động:** 30 giây đầu tiên quyết định liệu khán giả có lắng nghe phần còn lại không. Hook (câu hỏi, số liệu gây sốc, anecdote ngắn) + purpose statement + roadmap — ba thành phần của một opening tạo sự chú ý và uy tín ngay từ đầu.
+- **Bài 02 — Cấu trúc & signposting:** Khán giả cần được dẫn dắt, không phải tự tìm đường. "First… second… finally…", "Let me move on to…", "As I mentioned earlier…" — những cụm signposting này là bản đồ ngầm giúp khán giả luôn biết mình đang ở đâu trong bài thuyết trình.
+- **Bài 03 — Dữ liệu & visuals:** Data không tự nói lên mình — bạn phải diễn giải nó. "As you can see from this chart…", "What this tells us is…", "The implication here is…" — ba bước từ chart sang kết luận thuyết phục mà khán giả có thể hành động theo.
+- **Bài 04 — Xử lý Q&A:** Câu hỏi khó không phải kẻ thù — đó là cơ hội để chứng minh bạn hiểu sâu vấn đề. Restate → answer → check back; "That's a great question — let me think about that for a second"; "I don't have that data in front of me, but I can follow up" — ba tình huống Q&A khó nhất và cách xử lý chuyên nghiệp.
+- **Bài 05 — Storytelling & engagement:** Dữ liệu thuyết phục lý trí; câu chuyện thuyết phục cảm xúc. Anecdote opener, rule-of-three, strategic pause, và vocal emphasis — bốn kỹ thuật biến bài thuyết trình từ bản báo cáo thành trải nghiệm mà khán giả muốn nghe.
+- **Bài 06 — Chốt với CTA:** Phần kết là thứ người ta nhớ. 4-part close: summary (~15 giây) + "If you remember just one thing…" (takeaway) + "What I'm asking is…" (CTA cụ thể) + thank-you + Q&A handoff. Không có CTA, bài thuyết trình thông tin mãi chỉ là thông tin — không bao giờ trở thành quyết định.
+- **Sợi chỉ đỏ xuyên suốt:** Thuyết trình xuất sắc không phải là tài năng bẩm sinh — đó là kỹ năng có thể học được. Người thuyết trình chuẩn bị đủ sáu giai đoạn bước lên sân khấu với một loại tự tin khác hẳn. Và khán giả nhận ra điều đó từ những giây đầu tiên — đến tận câu cuối cùng.
+</Recap>

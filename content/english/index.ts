@@ -13,7 +13,7 @@ import { topic as apologiesComplaints } from './apologies-complaints/topic';
 import { topic as officeSmallTalk } from './office-small-talk/topic';
 import { topic as meetings } from './meetings/topic';
 import { topic as jobInterview } from './job-interview/topic';
-import { placeholderTopics } from './_placeholders';
+import { topic as presentations } from './presentations/topic';
 
 export const allEnglishTopics: EnglishTopic[] = [
   // Topic 1 (real)
@@ -44,5 +44,6 @@ export const allEnglishTopics: EnglishTopic[] = [
   meetings,
   // Topic 14 (real, work, B2+)
   jobInterview,
-  placeholderTopics.find((t) => t.slug === 'presentations')!,
+  // Topic 15 (real, work, B2+)
+  presentations,
 ];
