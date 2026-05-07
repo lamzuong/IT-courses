@@ -1,0 +1,179 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Câu hỏi behavioral — "Tell me about a time you handled a conflict," "Describe a project that didn't go to plan" — là những câu hỏi xuất hiện ở hầu hết mọi buổi phỏng vấn nghiêm túc. Người phỏng vấn không hỏi để biết bạn *nghĩ* bạn giỏi gì — họ hỏi để nghe BẰNG CHỨNG rằng bạn đã thực sự làm được điều đó. Framework STAR (Situation, Task, Action, Result) cho bạn một cấu trúc để truyền tải bằng chứng đó trong 60–90 giây mà không lan man, không mơ hồ, không bỏ sót phần quan trọng nhất: kết quả.
+
+## 01 — Bối cảnh
+
+**STAR** là viết tắt của bốn phần tạo nên một câu trả lời behavioral hoàn chỉnh:
+
+- **S — Situation (Tình huống):** Bối cảnh ngắn gọn — khoảng 10–15 giây. Đặt người nghe vào đúng khung thời gian và hoàn cảnh. *"We were 3 weeks from launch and our load tests showed 5x slower-than-expected response times."*
+
+- **T — Task (Nhiệm vụ):** Vai trò và trách nhiệm CỦA BẠN trong tình huống đó — 10–15 giây. Không phải team, không phải công ty — mà là bạn. *"I was the tech lead and accountable for shipping by deadline."*
+
+- **A — Action (Hành động):** Đây là phần dài nhất — 30–40 giây. Cụ thể hoá những gì BẠN đã làm: từng bước, từng quyết định, từng hành động cụ thể. *"I led an investigation, found the bottleneck was in the DB queries, restructured them, and ran new load tests."*
+
+- **R — Result (Kết quả):** Kết thúc bằng số liệu khi có thể — 10–15 giây. *"We hit 95th-percentile under 200ms, shipped on time, and the system handled 3x peak traffic at launch."*
+
+Tổng cộng, một STAR story tốt kéo dài 60–90 giây. Ngắn hơn thì thiếu bằng chứng; dài hơn thì mất tập trung của người nghe.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "Tell me about a time when…", vi: "Kể cho tôi nghe về một lần bạn… (câu mở behavioral question phổ biến nhất)", example: "Tell me about a time when you had to deliver under tight pressure." },
+  { en: "Walk me through a project where…", vi: "Dẫn tôi qua một dự án mà… (biến thể thường gặp, yêu cầu trình bày theo trình tự)", example: "Walk me through a project where things didn't go to plan." },
+  { en: "Give me an example of…", vi: "Cho tôi một ví dụ về… (yêu cầu bằng chứng cụ thể, không phải nhận định chung)", example: "Give me an example of how you handled a cross-team conflict." },
+  { en: "the situation / context", vi: "tình huống / bối cảnh — phần S của STAR, thiết lập khung câu chuyện" },
+  { en: "the task / responsibility", vi: "nhiệm vụ / trách nhiệm — phần T, làm rõ vai trò CỦA BẠN cụ thể là gì" },
+  { en: "the action / what I did", vi: "hành động / những gì tôi đã làm — phần A, cốt lõi của câu trả lời" },
+  { en: "the result / outcome", vi: "kết quả / đầu ra — phần R, thường bị bỏ qua nhưng là phần interviewer chờ nhất" },
+  { en: "to drive results", vi: "tạo ra kết quả thực tế (không chỉ nỗ lực)", example: "I was hired to drive results, not just manage process." },
+  { en: "to take ownership", vi: "chủ động nhận trách nhiệm, không đổ lỗi cho hoàn cảnh", example: "I took ownership of the delay and proposed a recovery plan." },
+  { en: "to deliver under pressure", vi: "hoàn thành công việc trong áp lực (thời hạn, nguồn lực hạn chế…)", example: "The team learned to deliver under pressure without cutting quality." },
+  { en: "to course-correct", vi: "điều chỉnh hướng đi khi nhận ra sai lầm hoặc kế hoạch không còn phù hợp", example: "We caught the issue early enough to course-correct before the deadline." },
+  { en: "to escalate", vi: "leo thang vấn đề lên cấp trên hoặc bộ phận khác khi vượt quá phạm vi xử lý", example: "I escalated to the VP when the vendor refused to budge on timeline." },
+  { en: "to root-cause", vi: "tìm ra nguyên nhân gốc rễ (dùng như động từ trong môi trường tech)", example: "We spent a day root-causing the performance regression." },
+]} />
+
+## 03 — Mẫu câu
+
+<Pattern
+  en="Sure — let me give you an example. About a year ago, our team was 3 weeks from launching when load tests came back showing major performance issues."
+  vi="Được — để tôi kể một ví dụ cụ thể. Khoảng một năm trước, team chúng tôi còn 3 tuần nữa là launch thì kết quả load test cho thấy vấn đề hiệu năng nghiêm trọng."
+  variations={[
+    "Sure — this actually happened about six months into my time at [Company]…",
+    "That's a good one — let me walk you through a situation from my last role.",
+    "Yes — there was a specific project where this came up pretty sharply.",
+  ]}
+  note={`"Sure — let me give you an example" là cách mở STAR chuẩn nhất: nó báo cho interviewer biết bạn sẽ trả lời bằng câu chuyện cụ thể, không phải nhận xét chung. Từ "specific" hoặc "example" trong câu mở rất quan trọng — nó đặt tông đúng ngay từ đầu.`}
+/>
+
+<Pattern
+  en="As tech lead, I was accountable for ensuring we hit our launch date and our SLA."
+  vi="Là tech lead, tôi chịu trách nhiệm đảm bảo chúng tôi đáp ứng ngày ra mắt và SLA."
+  variations={[
+    "My role was to coordinate across three teams and make sure nothing fell through the cracks.",
+    "I was the DRI — directly responsible individual — for the migration.",
+    "As the only senior engineer on the project, it fell to me to make the call.",
+  ]}
+  note={`Phần T (Task) phải làm rõ VAI TRÒ CỦA BẠN — không phải vai trò của team. "We were responsible" không đủ; "I was accountable for X" mới trả lời được câu hỏi interviewer thực sự đang hỏi: bạn cụ thể đóng góp gì?`}
+/>
+
+<Pattern
+  en="I led the investigation, partnered with our DB team to root-cause the bottleneck, and restructured the critical queries."
+  vi="Tôi dẫn đầu cuộc điều tra, phối hợp với team DB để tìm ra nguyên nhân gốc rễ của bottleneck, và cấu trúc lại các query quan trọng."
+  variations={[
+    "I pulled together a cross-functional group, set up a war room, and drove daily syncs until we had a fix.",
+    "I made the call to cut scope on two features to protect the core delivery.",
+    "I reached out directly to the other team lead, bypassed the usual approval chain, and unblocked us within 48 hours.",
+  ]}
+  note={`Phần A (Action) là phần quan trọng nhất và hay bị rút ngắn nhất. Dùng "I led / I drove / I partnered / I restructured" — động từ chủ động, ngôi thứ nhất. Interviewer chấm điểm riêng từng hành động bạn mô tả.`}
+/>
+
+<Pattern
+  en="We hit our 200ms p95 target, shipped on time, and handled 3x our projected traffic at launch."
+  vi="Chúng tôi đạt mục tiêu p95 200ms, ra mắt đúng hạn, và hệ thống xử lý được lưu lượng gấp 3 lần dự báo lúc launch."
+  variations={[
+    "We reduced churn by 18% over the following quarter — it exceeded the target we'd set.",
+    "The project shipped two weeks early and came in 12% under budget.",
+    "Customer satisfaction scores went from 3.2 to 4.6 in the three months after we launched the fix.",
+  ]}
+  note={`Phần R (Result) cần CON SỐ khi có thể. "Things went better" không có giá trị; "p95 latency dropped from 800ms to 180ms" có giá trị. Nếu không có số, dùng thước đo định tính cụ thể: "the feature became our highest-rated in user surveys."`}
+/>
+
+<Pattern
+  en="Happy to dig deeper into any part of that."
+  vi="Tôi sẵn sàng đi sâu hơn vào bất kỳ phần nào nếu bạn muốn."
+  variations={[
+    "Let me know if you'd like more detail on the technical side.",
+    "I can go into the stakeholder piece more if that's useful.",
+    "That's the high-level — happy to unpack any of the decisions if it helps.",
+  ]}
+  note={`Câu bridge này quan trọng: nó cho interviewer thấy bạn đã nói đủ để trả lời câu hỏi (không dài dòng) nhưng sẵn sàng đi sâu nếu họ cần. Nó cũng thể hiện bạn tự tin về câu chuyện của mình.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`Past simple cho STAR + "I + [action verb]" cho ownership`}
+  structure={`I + [led / drove / shipped / built / restructured / partnered] + [object]. / We + [past simple] + [object] + as a result.`}
+  examples={[
+    { en: "I led the investigation.", vi: "Tôi dẫn đầu cuộc điều tra." },
+    { en: "I partnered with the DB team.", vi: "Tôi phối hợp với team DB." },
+    { en: "We shipped on time.", vi: "Chúng tôi ra mắt đúng hạn." },
+    { en: "I restructured the critical queries.", vi: "Tôi cấu trúc lại các query quan trọng." },
+    { en: "We hit our SLA target.", vi: "Chúng tôi đạt mục tiêu SLA." },
+  ]}
+  contrast={`Thể bị động ("Things were done", "The issue was fixed", "A solution was found") che giấu chủ thể hành động — và đó chính xác là điều interviewer KHÔNG muốn. Câu hỏi behavioral được thiết kế để kiểm tra OWNERSHIP: bạn đã làm gì, bạn đã quyết định gì, bạn đã dẫn dắt cái gì. "I led X" và "I drove Y" trả lời trực tiếp; "X was led" và "Y was driven" khiến interviewer phải đoán xem đó là bạn hay người khác. Dùng thể chủ động, ngôi thứ nhất, động từ hành động trong toàn bộ phần A của STAR.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "Interviewer", en: "Tell me about a time you handled a difficult cross-team situation.", vi: "Kể cho tôi nghe về một lần bạn xử lý một tình huống khó khăn liên quan đến nhiều team." },
+  { speaker: "You", en: "Sure — let me give you a specific example. About eight months ago, we were mid-sprint on a core payments feature when the platform team pushed an infra change that broke our staging environment.", vi: "Được — để tôi kể một ví dụ cụ thể. Khoảng tám tháng trước, chúng tôi đang giữa sprint cho một tính năng thanh toán quan trọng thì team platform đẩy một thay đổi hạ tầng làm hỏng môi trường staging của chúng tôi." },
+  { speaker: "You", en: "As the senior engineer on the feature, I was accountable for keeping us on track for the sprint deadline — and we had three days left.", vi: "Là senior engineer phụ trách tính năng đó, tôi chịu trách nhiệm đảm bảo chúng tôi đúng tiến độ sprint — và chỉ còn ba ngày." },
+  { speaker: "You", en: "I reached out directly to the platform team lead, set up a joint debugging session that afternoon, and root-caused the conflict to a container config mismatch. I also flagged the risk to both engineering managers so they had visibility before it escalated.", vi: "Tôi liên lạc trực tiếp với trưởng team platform, tổ chức một buổi debug chung ngay chiều hôm đó, và tìm ra nguyên nhân gốc rễ là sự không tương thích trong config container. Tôi cũng báo rủi ro lên cả hai engineering manager để họ nắm tình hình trước khi vấn đề leo thang." },
+  { speaker: "You", en: "We had staging back up within six hours. We shipped the feature on time, and we also put in a shared checklist so infra changes get flagged to affected teams before they go out.", vi: "Staging hoạt động trở lại trong vòng sáu tiếng. Chúng tôi ra mắt tính năng đúng hạn, và chúng tôi cũng thiết lập một checklist chung để các thay đổi hạ tầng được thông báo đến các team liên quan trước khi triển khai." },
+  { speaker: "You", en: "Happy to dig deeper into any part of that.", vi: "Tôi sẵn sàng đi sâu hơn vào bất kỳ phần nào nếu bạn muốn." },
+  { speaker: "Interviewer", en: "That's helpful. On the Action part — you mentioned flagging the risk to the engineering managers. How did you decide to do that rather than just solving it at the team level?", vi: "Cảm ơn, rất rõ. Về phần hành động — bạn đề cập đã báo rủi ro lên các engineering manager. Bạn đã quyết định làm vậy thay vì chỉ giải quyết ở cấp team như thế nào?" },
+  { speaker: "You", en: "Good question. My read was that if we hit deadline, fine — but if we missed it, both managers would need to reset stakeholder expectations fast. By flagging early, I gave them the option to act rather than putting them in a reactive position. It also meant I wasn't carrying a timeline risk alone.", vi: "Câu hỏi hay. Đánh giá của tôi là nếu chúng tôi kịp deadline thì ổn — nhưng nếu lỡ, cả hai manager sẽ cần cập nhật kỳ vọng với stakeholders rất nhanh. Báo sớm cho họ có lựa chọn chủ động thay vì phải phản ứng. Nó cũng có nghĩa là tôi không phải gánh một rủi ro về tiến độ một mình." },
+  { speaker: "Interviewer", en: "That makes sense. Thanks — clear example.", vi: "Hợp lý. Cảm ơn — ví dụ rõ ràng." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"So we worked on the issue for a while and… yeah, we eventually fixed it."`}
+  right={`"We root-caused the issue to a misconfigured cache layer, patched it in four hours, and p95 latency dropped from 900ms to 160ms — back within SLA."`}
+  why={`Bỏ qua phần R (Result) là lỗi phổ biến nhất. Interviewer đã ngồi nghe Situation, Task, Action — họ đang chờ con số hoặc bằng chứng cụ thể ở cuối. Kết thúc mờ nhạt khiến toàn bộ câu chuyện cảm giác chưa hoàn chỉnh. Luôn kết thúc bằng một kết quả có thể đo được, dù là định lượng ("giảm 40% latency") hay định tính cụ thể ("trở thành feature được đánh giá cao nhất trong khảo sát Q3").`}
+/>
+
+<Mistake
+  wrong={`"We were behind on the project, so we decided to escalate the issue and the team pulled together to fix it."`}
+  right={`"I escalated directly to the VP of Engineering, proposed two recovery options with trade-offs, and drove the fix over the following 48 hours."`}
+  why={`Dùng "we" liên tục mà không làm rõ VAI TRÒ CỤ THỂ CỦA BẠN là lỗi thứ hai phổ biến nhất. Behavioral questions được thiết kế để đánh giá TỪNG CÁ NHÂN — interviewer muốn biết BẠN làm gì, không phải team làm gì. "We did X" để lại khoảng trống không rõ ràng. Hãy xen kẽ: dùng "I" khi mô tả quyết định và hành động của bạn, dùng "we" khi mô tả kết quả tập thể.`}
+/>
+
+<Mistake
+  wrong={`"Things went well in the end and everyone was happy with how it turned out."`}
+  right={`"We cut average resolution time by 40%, the client renewed their contract for another year, and the approach became our team's standard playbook."`}
+  why={`Kết quả mơ hồ ("things went well", "it was a success") không có trọng lượng. Adjective beats nothing, nhưng số liệu beats adjectives. "40% faster" > "much faster". "3x traffic handled" > "handled a lot of traffic". Nếu không nhớ số chính xác, hãy ước tính có căn cứ và nói rõ là ước tính: "roughly 40% improvement in throughput, if I recall correctly.""`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+1. **STAR là framework được dạy rộng rãi trong tuyển dụng phương Tây** — nhiều interviewer được đào tạo để chủ động chấm điểm câu trả lời của bạn theo đúng bốn phần S-T-A-R. Điều này có nghĩa là nếu bạn bỏ sót phần R, họ sẽ ghi nhận sự thiếu sót đó. Một số công ty (đặc biệt là Amazon với "Leadership Principles") tuyển dụng hầu như toàn bộ qua behavioral questions — STAR không phải là kỹ thuật tùy chọn, mà là yêu cầu tối thiểu.
+
+2. **Số liệu và chi tiết cụ thể đánh bại tính từ.** "3 weeks from launch" mạnh hơn "very close to launch." "We cut latency by 40%" mạnh hơn "much faster." "Handled 3x projected traffic" mạnh hơn "handled a lot of traffic." Não người xử lý số liệu cụ thể khác với tính từ mơ hồ — cụ thể tạo ra hình ảnh, hình ảnh tạo ra ký ức, ký ức tạo ra tác động. Chuẩn bị các con số từ trước.
+
+3. **Framing khiêm tốn không cần xóa bỏ thành tích.** Nếu bạn lo lắng nghe tự cao khi nói "I led the investigation" hay "I drove the recovery," bạn có thể thêm context về team mà không làm mờ vai trò của mình: "I was fortunate to have a strong team backing me up — but the call to restructure the queries was mine to make." Điều này thể hiện sự nhận thức về teamwork mà không hy sinh ownership.
+
+<Callout type="note" title="Luyện tập trước: 3–5 câu chuyện STAR sẵn sàng trong đầu">
+Những STAR story hay nhất kéo dài 60–90 giây và được luyện tập từ trải nghiệm thực tế — không phải bịa trong phòng phỏng vấn. Trước mỗi buổi phỏng vấn, hãy chuẩn bị ít nhất 3–5 câu chuyện bao phủ: (1) leadership — khi bạn dẫn dắt một nhóm hoặc dự án, (2) conflict — khi bạn xử lý bất đồng với đồng nghiệp hoặc stakeholder, (3) failure — khi có thứ gì đó không như kế hoạch và bạn đã làm gì, (4) technical complexity — khi bạn giải quyết vấn đề kỹ thuật khó, (5) cross-team work — khi bạn phối hợp qua nhiều bộ phận. Một câu chuyện tốt có thể trả lời nhiều câu hỏi khác nhau tùy cách bạn nhấn mạnh phần nào.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to take ownership`** — chủ động nhận trách nhiệm mà không cần được yêu cầu; trái nghĩa với đổ lỗi hoặc né tránh. *"When the deployment broke production, I took ownership and led the rollback."*
+- **`to drive results`** — tạo ra kết quả thực tế, thường dùng để phân biệt người làm được việc với người chỉ bận rộn. *"She doesn't just manage process — she drives results."*
+- **`to course-correct`** — điều chỉnh hướng đi khi nhận ra kế hoạch ban đầu không còn phù hợp, thay vì cố chấp tiếp tục. *"We caught the drift early and course-corrected before it became a real problem."*
+- **`to root-cause`** — tìm đến nguyên nhân sâu xa nhất, không chỉ xử lý triệu chứng bề mặt. *"I root-caused the recurring errors to a race condition in the queue processor."*
+- **`to deliver under pressure`** — hoàn thành công việc chất lượng ngay cả khi deadline gấp, nguồn lực hạn chế, hoặc kỳ vọng cao. *"The team proved they could deliver under pressure without compromising quality."*
+
+## 09 — Tự luyện
+
+1. **Viết một STAR story từ trải nghiệm thực tế của bạn.** Chọn một tình huống — có thể là lúc bạn xử lý một vấn đề kỹ thuật, một xung đột nhóm, một deadline gấp, hoặc một dự án không theo kế hoạch. Viết đủ bốn phần S-T-A-R, mỗi phần 1–3 câu. Kiểm tra: (a) phần T có nói "I" không hay chỉ nói "we"? (b) phần A có ít nhất 3 hành động cụ thể không? (c) phần R có con số hoặc chi tiết đo được không?
+
+2. **Luyện nói to trong 90 giây.** Đọc lại STAR story bạn vừa viết, rồi đặt xuống và nói lại không nhìn giấy — bấm giờ. Mục tiêu: 60–90 giây. Nếu ngắn hơn 60 giây, bạn đang bỏ qua chi tiết quan trọng ở phần A. Nếu dài hơn 90 giây, bạn đang lan man ở phần S hoặc A.
+
+3. **Luyện bridge và follow-up.** Sau khi kể xong STAR, hãy tập nói: *"Happy to dig deeper into any part of that."* Rồi tự đặt một câu follow-up (ví dụ: *"What made you decide to escalate instead of handling it yourself?"*) và trả lời trong 2–3 câu. Phần follow-up thường là nơi interviewer đánh giá chiều sâu tư duy của bạn.
+
+<Recap>
+- STAR = Situation (10–15s) → Task (10–15s) → Action (30–40s) → Result (10–15s). Tổng: 60–90 giây.
+- Phần A quan trọng nhất: dùng "I led / I drove / I partnered" — chủ động, ngôi thứ nhất, cụ thể.
+- Phần R hay bị bỏ qua nhất: kết thúc bằng số liệu hoặc bằng chứng đo được — "40% faster" mạnh hơn "much faster."
+- Dùng "I" cho hành động và quyết định cá nhân; "we" cho kết quả tập thể — đừng để "we" che giấu vai trò của bạn.
+- Chuẩn bị 3–5 câu chuyện STAR trước phỏng vấn, bao phủ: leadership, conflict, failure, technical complexity, cross-team work.
+- Bridge cuối: *"Happy to dig deeper into any part of that"* — báo hiệu bạn đã trả lời đủ và sẵn sàng đi sâu hơn.
+</Recap>

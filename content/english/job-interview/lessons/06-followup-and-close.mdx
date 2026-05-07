@@ -1,0 +1,223 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Phỏng vấn không kết thúc khi bạn bước ra khỏi phòng. Email cảm ơn trong vòng 24 giờ, cú follow-up lịch sự nếu im lặng kéo dài, cách bạn chấp nhận hay từ chối offer — tất cả những điều đó đều là tín hiệu gửi đến công ty về con người bạn là ai. Bài capstone này khép lại toàn bộ topic Job interview bằng phần hậu phỏng vấn, hiệu chỉnh văn hoá xuyên biên giới, và tổng hợp sáu bài đã học thành một vòng phỏng vấn hoàn chỉnh.
+
+## 01 — Bối cảnh
+
+Sau khi phỏng vấn kết thúc, hành trình vẫn còn năm nước đi quan trọng:
+
+1. **Trong vòng 24 giờ — Email cảm ơn (thank-you note):** Ngắn, cụ thể, nhắc lại một khoảnh khắc thực sự từ cuộc trò chuyện. Đây không phải tuỳ chọn trong văn hoá tuyển dụng phương Tây — bỏ qua được đọc là thiếu quan tâm.
+
+2. **Ngày 5–7 (nếu im lặng) — Follow-up lịch sự:** Một câu hỏi ngắn về timeline: *"Just checking in on next steps."* Không thúc giục, không than thở — chỉ nhắc nhở bản thân còn đang chờ và mở cửa để họ cập nhật.
+
+3. **Khi nhận offer — Cảm ơn + xin thêm thời gian:** Luôn cảm ơn trước. Sau đó hỏi deadline để trả lời, và nếu cần — đàm phán (đã học ở bài 05).
+
+4. **Chấp nhận offer:** Rõ ràng, ấm áp, chuyên nghiệp. Xác nhận ngày bắt đầu và các bước tiếp theo ngay trong email.
+
+5. **Từ chối offer:** Lịch sự, ngắn gọn, để ngỏ cánh cửa cho tương lai. Một câu từ chối trang trọng sẽ được nhớ mãi — theo chiều tốt.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "Thank you for taking the time to meet with me", vi: "Cảm ơn bạn đã dành thời gian gặp tôi — opener chuẩn của thank-you email; lịch sự và không sáo rỗng vì nó thừa nhận thời gian của người phỏng vấn", example: "Thank you for taking the time to meet with me this afternoon." },
+  { en: "I really enjoyed our conversation about…", vi: "Tôi thực sự thích cuộc trò chuyện của chúng ta về… — câu bắt buộc trong thank-you email; phần '…' phải cụ thể, không được để trống hoặc thay bằng 'our discussion'", example: "I really enjoyed our conversation about the distributed systems challenges you're working through." },
+  { en: "I'm even more excited about…", vi: "Tôi càng thêm hào hứng về… — cho thấy phỏng vấn đã củng cố, không làm yếu đi, sự quan tâm của bạn; đây là tín hiệu mạnh với recruiter", example: "After our conversation, I'm even more excited about the opportunity to join this team." },
+  { en: "to follow up on", vi: "theo dõi, hỏi thêm về — cụm chuẩn để mở email follow-up; trang trọng hơn 'check on' và không mang sắc thái thúc giục", example: "I wanted to follow up on our conversation last Tuesday." },
+  { en: "just checking in on", vi: "chỉ muốn hỏi thêm về — phiên bản thân mật hơn của 'follow up on'; dùng khi quan hệ với recruiter đã thoải mái hơn sau vài lần liên lạc", example: "Just checking in on where things stand with the timeline." },
+  { en: "Could you give me a sense of timing?", vi: "Bạn có thể cho tôi biết sơ bộ về timeline không? — câu hỏi lịch sự nhất để hỏi về tiến trình tuyển dụng mà không có vẻ sốt ruột hay áp lực", example: "Could you give me a sense of timing for the next steps?" },
+  { en: "I'm thrilled to accept", vi: "Tôi vô cùng vui mừng được chấp nhận — mức độ nhiệt tình cao nhất trong phổ chấp nhận offer; nghe chân thật và tích cực hơn 'I accept the offer'", example: "I'm thrilled to accept and very much looking forward to joining the team." },
+  { en: "after careful consideration, I've decided to decline", vi: "sau khi cân nhắc kỹ, tôi đã quyết định từ chối — cụm chuẩn cho từ chối offer; 'careful consideration' cho thấy bạn đã nghiêm túc, không phải từ chối bốc đồng", example: "After careful consideration, I've decided to decline the offer at this time." },
+  { en: "to keep me in mind for future roles", vi: "nhớ đến tôi cho các vị trí trong tương lai — câu đóng tốt nhất trong email từ chối; để ngỏ cánh cửa mà không có vẻ muốn tiếp tục đàm phán", example: "I'd be grateful if you could keep me in mind for future roles that might be a fit." },
+  { en: "I'm grateful for the opportunity", vi: "Tôi biết ơn vì cơ hội này — câu cảm ơn sâu hơn 'thank you'; dùng trong cả email chấp nhận lẫn từ chối để thể hiện sự trân trọng thực sự với thời gian đầu tư của họ", example: "I'm truly grateful for the opportunity to interview with your team." },
+  { en: "to take this step", vi: "thực hiện bước này — cụm ám chỉ việc nhận offer như một quyết định quan trọng trong sự nghiệp; tone chín chắn và có chủ đích", example: "I'm very excited to take this step and join the company." },
+  { en: "to part ways", vi: "chia tay, đi theo hướng khác — cụm trung lập để nói về từ chối offer mà không hàm ý tiêu cực; dùng khi bạn chọn cơ hội khác", example: "While I've decided to part ways this time, I hold your team in very high regard." },
+  { en: "to stay in touch", vi: "giữ liên lạc — câu kết ấm áp và chân thật trong cả email chấp nhận lẫn từ chối; đặc biệt quan trọng trong từ chối vì nó biến recruiter thành network thay vì chỉ là người liên lạc một lần", example: "I'd love to stay in touch — please don't hesitate to reach out in the future." },
+  { en: "a closer fit for my next step", vi: "phù hợp hơn với bước tiếp theo của tôi — cách từ chối không so sánh trực tiếp hai offer; tập trung vào sự khớp với hướng sự nghiệp của bạn thay vì đánh giá họ", example: "I've accepted another offer that I feel is a closer fit for my next step." },
+]} />
+
+## 03 — Mẫu câu
+
+<Pattern
+  en="Hi [Name], thank you so much for taking the time to chat today. I really enjoyed our conversation about [specific topic from interview], and I'm even more excited about the role."
+  vi="Chào [Tên], cảm ơn bạn rất nhiều đã dành thời gian trò chuyện hôm nay. Tôi thực sự thích cuộc trò chuyện của chúng ta về [chủ đề cụ thể], và tôi càng thêm hào hứng về vị trí này."
+  variations={[
+    "Hi Sarah, thank you so much for the time today. I particularly enjoyed our conversation about the distributed systems challenges — it confirmed this is exactly the kind of problem I want to work on.",
+    "Hi Marcus, thank you for the warm intro to the team. Our discussion about the growth roadmap for Southeast Asia made me even more excited about what this role could mean.",
+    "Hi Linh, I really appreciated the time and the thoughtful questions. Our conversation about engineering culture here made a real impression on me.",
+  ]}
+  note={`Email cảm ơn nên gửi cùng ngày hoặc sáng hôm sau — không để qua 24 giờ. Phần quan trọng nhất là phần cụ thể: thay "[specific topic from interview]" bằng một chủ đề thật, một câu hỏi thật, hay một chi tiết bạn còn nhớ. Đây là sự khác biệt giữa email mà recruiter đọc xong quên ngay và email khiến họ gật đầu và nhớ bạn.`}
+/>
+
+<Pattern
+  en="Hi [Name], I wanted to follow up on our conversation last [day]. Could you give me a sense of where things are in your timeline?"
+  vi="Chào [Tên], tôi muốn hỏi thêm về cuộc trò chuyện của chúng ta hôm [ngày]. Bạn có thể cho tôi biết sơ bộ về timeline hiện tại không?"
+  variations={[
+    "Hi Sarah, just checking in on where things stand — I wanted to flag that I'm still very interested and would love to move forward if timing works.",
+    "Hi Marcus, I wanted to follow up on my application. I have another process moving forward and wanted to be transparent about that — I'd prefer to join your team if possible.",
+    "Hi Linh, I know these decisions take time — just wanted to stay on your radar and let you know my interest is still strong.",
+  ]}
+  note={`Follow-up sau ngày 5–7 là chuẩn mực và hoàn toàn được chấp nhận. Đừng chờ hai tuần rồi mới hỏi — và đừng hỏi sau hai ngày. Nếu bạn có offer khác với deadline, việc đề cập điều đó là hợp lý và thường thúc đẩy quy trình nhanh hơn. Không bao giờ gửi follow-up kiểu "Tại sao anh/chị vẫn chưa trả lời tôi?" — câu đó kết thúc hành trình ngay lập tức.`}
+/>
+
+<Pattern
+  en="Thank you so much — I'm thrilled to accept. I'm looking forward to joining the team."
+  vi="Cảm ơn bạn rất nhiều — tôi vô cùng vui mừng được chấp nhận. Tôi rất mong được gia nhập team."
+  variations={[
+    "This is wonderful news — I'm thrilled to accept the offer. I look forward to confirming the start date and next steps.",
+    "Thank you — I'm delighted to accept. Please let me know what I need to do on my end to get the paperwork started.",
+    "I'm so excited to accept. I've been looking forward to this since we spoke, and I can't wait to get started.",
+  ]}
+  note={`Chấp nhận offer bằng văn bản — luôn luôn. Đừng chỉ nói miệng qua điện thoại rồi không gửi email xác nhận. Trong email chấp nhận, xác nhận rõ ngày bắt đầu (start date) và hỏi về các bước tiếp theo (onboarding paperwork, background check, v.v.). Tone nhiệt tình nhưng chuyên nghiệp — không phải quá casual, không phải quá lạnh lùng.`}
+/>
+
+<Pattern
+  en="After careful consideration, I've decided to take another opportunity that's a closer fit for my next step. I really appreciated the time you spent with me — please keep me in mind for future roles."
+  vi="Sau khi cân nhắc kỹ, tôi đã quyết định nhận một cơ hội khác phù hợp hơn với bước tiếp theo của tôi. Tôi thực sự trân trọng thời gian bạn đã dành cho tôi — xin hãy nhớ đến tôi cho các vị trí trong tương lai."
+  variations={[
+    "After careful reflection, I've decided to pursue a different direction at this time. I'm truly grateful for the opportunity and hold your team in very high regard.",
+    "I wanted to let you know that I've decided to accept another offer. This was a genuinely difficult decision — the interview process here was excellent and the team made a strong impression on me.",
+    "Thank you for the offer and for the time you invested in the process. After careful consideration, I've decided this particular role isn't the right fit for where I'm headed next — but I'd love to stay in touch.",
+  ]}
+  note={`Từ chối offer không phải là câu nói có hại — đó là hành động chuyên nghiệp. Recruiter và hiring manager kỳ vọng rằng không phải offer nào cũng được chấp nhận. Những gì họ nhớ là *cách* bạn từ chối: lịch sự, cụ thể, không mơ hồ, và để ngỏ cánh cửa. "Keep me in mind for future roles" không phải là câu nói xã giao — nó là lời đầu tư vào network dài hạn của bạn.`}
+/>
+
+<Pattern
+  en="Thank you for the offer. Could I have until [date] to think it through?"
+  vi="Cảm ơn bạn vì offer. Tôi có thể có đến [ngày] để suy nghĩ thêm không?"
+  variations={[
+    "I'm very excited about this offer — could I have until Friday to finalize my decision?",
+    "Thank you so much — this is great news. Would it be possible to have a few days to review everything before confirming?",
+    "I'd love to have until next Wednesday if that works for you — I want to make sure I give this the consideration it deserves.",
+  ]}
+  note={`Xin thêm thời gian để cân nhắc offer là hoàn toàn bình thường và được chấp nhận. Chuẩn mực là 2–5 ngày làm việc; quá một tuần có thể tạo ra căng thẳng không cần thiết. Luôn hỏi xin thêm thời gian thay vì chỉ im lặng — im lặng tạo ra sự không chắc chắn và đôi khi khiến recruiter rút offer.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`Present perfect cho follow-up + polite modal cho offer responses`}
+  structure={`I + [wanted to / would like to] + [base verb] + [object]. / I'm + [thrilled / excited / honored] + to + [base verb].`}
+  examples={[
+    { en: "I wanted to follow up on our conversation.", vi: "Tôi muốn hỏi thêm về cuộc trò chuyện của chúng ta." },
+    { en: "I'd like to thank you for the opportunity.", vi: "Tôi muốn cảm ơn bạn vì cơ hội này." },
+    { en: "I'm thrilled to accept the offer.", vi: "Tôi vô cùng vui mừng được chấp nhận offer." },
+    { en: "After careful consideration, I've decided to decline.", vi: "Sau khi cân nhắc kỹ, tôi đã quyết định từ chối." },
+    { en: "I'd love to stay in touch.", vi: "Tôi rất muốn giữ liên lạc." },
+  ]}
+  contrast={`**Casual register (KHÔNG dùng):** "Hey, what's up with my application?" / "So did you decide yet?" / "Just wanted to know if I got the job." — Những câu này nghe như nhắn tin cho bạn bè, không phải giao tiếp chuyên nghiệp. Chúng tạo cảm giác thiếu tôn trọng quy trình và làm giảm ấn tượng sau phỏng vấn.
+
+**Business register (LUÔN dùng):** "Hi [Name], I wanted to follow up on our conversation last week — could you give me a sense of timing?" — Đây là câu chuẩn mực: có tên người nhận, nhắc lại ngữ cảnh, câu hỏi lịch sự. Sau phỏng vấn, MỌI email đều phải dùng business register — dù quan hệ với recruiter đã thân. Quy trình tuyển dụng là văn bản pháp lý trong nhiều tổ chức; viết trang trọng bảo vệ cả hai bên.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "Minh (Email A — Thank-you note, sent same evening)", en: "Hi Sarah, thank you so much for the time today — I really appreciated the warmth and depth of the conversation.", vi: "Chào Sarah, cảm ơn bạn rất nhiều vì thời gian hôm nay — tôi thực sự trân trọng sự cởi mở và chiều sâu của cuộc trò chuyện." },
+  { speaker: "Minh (Email A — cont.)", en: "I particularly enjoyed our discussion about the distributed systems challenges your team is working through — specifically the tradeoffs around consistency vs. availability that you described. It confirmed that this is exactly the kind of problem I want to spend the next few years on.", vi: "Tôi đặc biệt thích cuộc thảo luận về những thách thức distributed systems mà team bạn đang giải quyết — cụ thể là những đánh đổi giữa consistency và availability mà bạn mô tả. Điều đó xác nhận đây chính xác là loại vấn đề tôi muốn dành vài năm tới để làm việc." },
+  { speaker: "Minh (Email A — cont.)", en: "I'm even more excited about the role after our conversation. Please don't hesitate to reach out if you need anything from my end. Looking forward to hearing about next steps.", vi: "Tôi càng thêm hào hứng về vị trí này sau cuộc trò chuyện. Đừng ngần ngại liên hệ nếu bạn cần thêm gì từ phía tôi. Mong sớm được nghe về các bước tiếp theo." },
+  { speaker: "Sarah (Reply, 2 days later)", en: "Hi Minh — great to hear from you. We're completing interviews this week and should have a decision by end of next week. Will keep you posted.", vi: "Chào Minh — vui khi nhận được phản hồi từ bạn. Chúng tôi đang hoàn thành phỏng vấn tuần này và sẽ có quyết định trước cuối tuần tới. Tôi sẽ cập nhật cho bạn." },
+  { speaker: "Minh (Email B — Offer acceptance, one week later)", en: "Hi Sarah, thank you so much — this is wonderful news. I'm thrilled to accept the offer.", vi: "Chào Sarah, cảm ơn bạn rất nhiều — đây thật sự là tin tuyệt vời. Tôi vô cùng vui mừng được chấp nhận offer." },
+  { speaker: "Minh (Email B — cont.)", en: "I'm confirming the start date of June 2nd, as discussed. Please let me know what I need to complete before my first day — background check, paperwork, equipment setup — and I'll turn everything around as quickly as possible.", vi: "Tôi xác nhận ngày bắt đầu là ngày 2 tháng 6 như đã thảo luận. Xin cho tôi biết những gì tôi cần hoàn thành trước ngày đầu tiên — kiểm tra lý lịch, giấy tờ, thiết lập thiết bị — và tôi sẽ xử lý tất cả càng sớm càng tốt." },
+  { speaker: "Minh (Email B — cont.)", en: "I'm genuinely grateful for the opportunity. I'm looking forward to meeting everyone and getting started. Thank you again, Sarah.", vi: "Tôi thực sự biết ơn vì cơ hội này. Tôi rất mong được gặp mọi người và bắt đầu. Cảm ơn bạn một lần nữa, Sarah." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`(Không gửi email cảm ơn sau phỏng vấn)`}
+  right={`Gửi email cảm ơn trong vòng 24 giờ — cùng ngày nếu có thể. Đề cập một chi tiết cụ thể từ cuộc trò chuyện.`}
+  why={`Trong văn hoá tuyển dụng phương Tây, email cảm ơn là kỳ vọng mặc định — không phải lịch sự ngoại lệ. Nhiều recruiter và hiring manager thực sự ghi nhận việc thiếu email này trong đánh giá ứng viên. Bỏ qua không được coi là "tiết kiệm thời gian" — nó được đọc là "ứng viên này không thực sự hứng thú" hoặc "ứng viên này không biết quy trình." Trong một vòng có nhiều ứng viên tương đương, email cảm ơn đôi khi là yếu tố phân biệt duy nhất.`}
+/>
+
+<Mistake
+  wrong={`"Dear Hiring Manager, thank you for the interview. I enjoyed it and hope to hear back soon."`}
+  right={`"Hi Sarah, thank you so much for the time today. I particularly enjoyed our discussion about the consistency vs. availability tradeoffs in your distributed systems stack — it confirmed this is exactly the kind of challenge I want to work on."`}
+  why={`Email cảm ơn generic — không có tên người nhận, không có chi tiết cụ thể từ cuộc phỏng vấn — không tốt hơn không gửi gì. "I enjoyed it" có thể áp dụng cho bất kỳ phỏng vấn nào với bất kỳ công ty nào; nó không chứng minh bạn đã chú ý lắng nghe. Phần cụ thể ("our discussion about X") là bằng chứng rằng bạn đã có mặt thật sự trong cuộc trò chuyện — và đó là điều recruiter và hiring manager nhớ.`}
+/>
+
+<Mistake
+  wrong={`(Nhận offer từ công ty B, không thông báo gì cho công ty A đã phỏng vấn)`}
+  right={`"Hi Marcus, I wanted to let you know that I've decided to accept another opportunity. I'm truly grateful for the time you invested in the process, and I have a lot of respect for what your team is building. I'd love to stay in touch."`}
+  why={`"Ghosting" recruiter sau khi nhận offer từ nơi khác là lỗi nghề nghiệp nghiêm trọng và dài hạn hơn bạn nghĩ. Ngành công nghệ đặc biệt nhỏ — recruiter chuyển công ty, hiring manager trở thành đồng nghiệp trong tương lai, và người nhớ bạn đã ứng xử tốt có thể mang lại cho bạn cơ hội tiếp theo. Một email từ chối lịch sự mất chưa đến 5 phút nhưng tạo ra ấn tượng tích cực dài hạn. Ngược lại, im lặng hoàn toàn tạo ấn tượng tiêu cực — và recruiter thực sự nhớ điều đó.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+**Email cảm ơn là chuẩn mực universal trong tuyển dụng phương Tây.**
+
+Không phải ở tất cả nền văn hoá, nhưng ở Mỹ, Anh, Canada, và Úc — nơi phần lớn môi trường tech quốc tế vận hành — email cảm ơn sau phỏng vấn là kỳ vọng mặc định. Không có nghĩa là mọi recruiter đều sẽ loại bạn vì thiếu email này; nhưng có email tốt là một điểm cộng không tốn gì, và thiếu email là một điểm trừ nhỏ mà bạn hoàn toàn có thể tránh. Ngắn, cụ thể, gửi trong 24 giờ — đó là tất cả tiêu chuẩn.
+
+**Hành trình phỏng vấn là quan hệ, không phải giao dịch.**
+
+Đây là điều quan trọng nhất trong bài này, và nó vượt ra khỏi kỹ năng ngôn ngữ. Recruiter và hiring manager bạn gặp hôm nay sẽ ở trong ngành này trong nhiều năm tới. Họ sẽ chuyển công ty, thăng chức, và mở rộng network. Người đã phỏng vấn bạn hôm nay mà bạn từ chối lịch sự có thể là người đề xuất bạn cho một vị trí tốt hơn ba năm sau. Người bạn ghosting hôm nay có thể là hiring manager tại công ty mơ ước của bạn vào năm 2028. Trong tuyển dụng chuyên nghiệp, cách bạn *kết thúc* một quy trình quan trọng gần bằng cách bạn bắt đầu nó.
+
+**Hiệu chỉnh văn hoá xuyên quốc gia.**
+
+Quy trình tuyển dụng không chỉ khác nhau về ngôn ngữ — chúng khác nhau về nhịp độ, mức độ trang trọng, và kỳ vọng follow-up:
+
+- **Mỹ (đặc biệt tech và startup):** Nhanh và thân mật. Offer thường được đưa ra trong vòng 1–2 tuần sau vòng cuối. Email cảm ơn dưới 150 từ là chuẩn. Follow-up sau 5–7 ngày là chấp nhận được và đôi khi được đánh giá cao như một tín hiệu chủ động.
+
+- **Anh:** Quy trình chuẩn hơn và thường dài hơn — 2–4 tuần từ vòng cuối đến offer không phải hiếm. Email cảm ơn được trân trọng nhưng ít phổ biến hơn ở Mỹ. Follow-up sau 7–10 ngày là phù hợp.
+
+- **Đức:** Quy trình tuyển dụng có thể kéo dài nhiều tháng với nhiều vòng phỏng vấn và bài kiểm tra kỹ năng chính thức. Sự kiên nhẫn và tính trang trọng trong giao tiếp được coi trọng hơn sự nhanh nhẹn. Email cảm ơn bằng tiếng Đức hoặc tiếng Anh trang trọng đều được chào đón.
+
+- **Nhật Bản:** Quy trình tuyển dụng kéo dài nhất trong số các nền văn hoá lớn — đặc biệt tại các tập đoàn truyền thống. Quyết định thường được đưa ra sau khi đã được thảo luận và đồng thuận trong nội bộ. Sự kiên nhẫn và tính trang trọng trong mọi giao tiếp là điều kiện bắt buộc, không phải tuỳ chọn. Email cảm ơn chính thức — bằng tiếng Anh nếu quy trình bằng tiếng Anh — được trân trọng cao.
+
+Bất kể văn hoá nào, ngôn ngữ hậu phỏng vấn trong bài này — email cảm ơn, follow-up, chấp nhận, từ chối — đều là công cụ chuyên nghiệp được chấp nhận toàn cầu. Điều cần điều chỉnh là nhịp độ và mức độ trang trọng, không phải bản chất của hành động.
+
+**Tổng hợp toàn bộ topic.**
+
+Topic Job interview đã đưa bạn qua sáu giai đoạn của một vòng phỏng vấn hoàn chỉnh: tự giới thiệu với cấu trúc Present-Past-Future (bài 01), trả lời câu hỏi behavioral bằng STAR framework (bài 02), xử lý điểm mạnh và điểm yếu với sự chân thật thông minh (bài 03), đặt câu hỏi tốt cho nhà tuyển dụng như một ứng viên đang đánh giá lại họ (bài 04), đàm phán lương mà không tạo xung đột (bài 05), và bây giờ — hậu phỏng vấn và đóng (bài 06). Ứng viên chuẩn bị tốt xử lý cả sáu giai đoạn với sự tự tin và duyên dáng. Ứng viên thiếu chuẩn bị thường vấp ngã ở một hoặc hai giai đoạn — và chỉ một lần vấp ngã cũng đủ để mất vị trí.
+
+<Callout type="note" title={`Chi tiết cụ thể trong thank-you note — sự khác biệt giữa generic và đáng nhớ`}>
+"Thank you for the interview" được gửi đi hàng trăm lần mỗi tuần. Recruiter đọc xong không nhớ bạn là ai. Nhưng "I particularly enjoyed our discussion about the consistency vs. availability tradeoffs in your distributed systems stack — it confirmed this is exactly the kind of problem I want to spend the next few years on" — câu đó không thể viết nếu bạn không thực sự chú ý lắng nghe trong phỏng vấn. Nó chứng minh bạn đã có mặt thật sự. Nó chứng minh bạn hiểu vấn đề của họ. Và nó nhắc nhở người phỏng vấn về một khoảnh khắc cụ thể trong cuộc trò chuyện — biến email của bạn thành điểm neo ký ức. Quy tắc: mỗi email cảm ơn phải có ít nhất một chi tiết không thể sao chép từ một cuộc phỏng vấn khác.
+</Callout>
+
+<Callout type="warning" title={`Ghosting recruiter là cầu nối bị đốt cháy — ngành nhỏ hơn bạn nghĩ`}>
+Nhiều ứng viên nghĩ rằng sau khi quyết định không nhận offer của một công ty, họ sẽ không bao giờ gặp lại recruiter hay hiring manager đó. Điều này hiếm khi đúng. Trong ngành tech, recruiter thường làm ở nhiều công ty khác nhau trong sự nghiệp của họ — và họ nhớ. Hiring manager trở thành đồng nghiệp, giám đốc, hoặc đối tác trong tương lai. LinkedIn kết nối tất cả. Một email từ chối lịch sự — "After careful consideration, I've decided to pursue another direction. I'm truly grateful for the time and hold your team in very high regard" — mất 3 phút để viết và bảo toàn một mối quan hệ professional không giới hạn thời gian. Im lặng hoàn toàn, ngược lại, để lại một ấn tượng tiêu cực cụ thể mà recruiter sẽ nhớ nhiều năm sau.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+Mười cụm từ sau đây tổng hợp toàn bộ topic Job interview — từ câu mở đầu self-intro đến câu kết của email từ chối offer.
+
+- **`to spearhead`** — đi đầu, khởi xướng từ đầu. *"I spearheaded the migration to a microservices architecture — nobody told me to; I saw the problem and built the case."* Mạnh hơn "led" vì nó ngụ ý sáng kiến cá nhân, không chỉ quản lý được giao.
+
+- **`to take ownership`** — chịu trách nhiệm hoàn toàn về kết quả, không chỉ về công việc. *"What I appreciated most about that project was the opportunity to take full ownership — the success and the failures were mine."* Phổ biến trong phỏng vấn khi nói về culture fit.
+
+- **`to bring [X] to the table`** — mang đến giá trị gì đó cụ thể cho team hoặc tình huống. *"I bring both technical depth and stakeholder communication to the table — a combination that's rare in a single engineer."*
+
+- **`to be a strong fit for`** — phù hợp tốt — tự tin nhưng không kiêu ngạo vì nó ám chỉ sự khớp hai chiều. *"Based on everything we've discussed, I believe I'm a strong fit for this role."*
+
+- **`to align with`** — phù hợp với, cùng định hướng với. *"This role's emphasis on ownership and autonomy aligns perfectly with how I prefer to work."*
+
+- **`to walk through`** — trình bày từng bước, giải thích có cấu trúc. *"Let me walk you through how I approached that problem."* Đặc biệt hữu ích trong phỏng vấn technical khi được yêu cầu giải thích quy trình.
+
+- **`to be in the ballpark`** — gần đúng, trong phạm vi chấp nhận được. *"Is that number in the ballpark for you?"* Dùng trong đàm phán lương khi muốn kiểm tra phạm vi mà không báo giá cụ thể trước.
+
+- **`to land at`** — đi đến, chốt ở mức/con số nào đó sau thương lượng. *"I'm hoping we can land at something closer to the upper end of that range."*
+
+- **`to keep someone in mind`** — nhớ đến ai đó cho cơ hội tương lai. *"I'd be grateful if you could keep me in mind for future roles."* Câu kết lịch sự và chiến lược nhất trong email từ chối.
+
+- **`to stay in touch`** — duy trì liên lạc. *"I'd love to stay in touch — your team is doing fascinating work and I follow it closely."* Biến mỗi quy trình phỏng vấn thành đầu tư mạng lưới thay vì giao dịch một lần.
+
+## 09 — Tự luyện
+
+1. **Viết hai email:** Chọn một vị trí bạn thực sự hứng thú (hoặc một vị trí tưởng tượng cụ thể). Viết (a) email cảm ơn sau phỏng vấn — tối đa 150 từ, phải có ít nhất một chi tiết cụ thể từ cuộc trò chuyện tưởng tượng, và (b) email chấp nhận offer — tối đa 120 từ, xác nhận start date và hỏi về bước tiếp theo. Đọc lại và kiểm tra: email cảm ơn có thể dùng cho phỏng vấn khác không? Nếu có, nó chưa đủ cụ thể — viết lại.
+
+2. **Thực hành từ chối:** Viết một email từ chối offer cho một công ty mà bạn đã "phỏng vấn" sau khi nhận offer tốt hơn từ nơi khác. Email phải: (a) cảm ơn họ một cách cụ thể, (b) đưa ra lý do không tiêu cực hay so sánh trực tiếp, (c) để ngỏ cánh cửa cho tương lai. Dưới 100 từ. Sau đó đọc lại và tự hỏi: nếu là recruiter nhận email này, tôi có nhớ người này theo chiều tích cực không?
+
+3. **Tổng hợp topic:** Hãy tưởng tượng bạn chuẩn bị cho một phỏng vấn quan trọng tuần tới. Viết một "interview checklist" bằng tiếng Anh gồm sáu mục — một mục cho mỗi bài trong topic này — tóm tắt kỹ năng cốt lõi bạn sẽ chuẩn bị. Mỗi mục một câu hành động cụ thể (bắt đầu bằng "Prepare...", "Practice...", "Write...", "Research..."). Đây là bài tập tổng hợp toàn bộ topic thành một kế hoạch hành động thực tế.
+
+<Recap>
+Trên toàn topic Job interview, ta đã học:
+
+- **Bài 01 — Tự giới thiệu:** "Tell me about yourself" là câu hỏi về story, không phải CV. Cấu trúc ba phần Present-Past-Future trong 90 giây, kết thúc bằng "What drew me to this role is…" — câu chuyển từ bạn sang nhu cầu của họ.
+- **Bài 02 — Kinh nghiệm & STAR:** Câu hỏi behavioral không cần câu trả lời hoàn hảo — cần câu trả lời có cấu trúc. STAR (Situation, Task, Action, Result) biến trải nghiệm thành bằng chứng; outcome cụ thể có số liệu luôn thuyết phục hơn mô tả công việc.
+- **Bài 03 — Điểm mạnh & điểm yếu:** "Greatest weakness" không phải bẫy — đó là bài kiểm tra về self-awareness và growth mindset. Điểm yếu thật + bước cải thiện cụ thể + bằng chứng tiến bộ: đây là công thức trả lời đúng duy nhất.
+- **Bài 04 — Câu hỏi cho nhà tuyển dụng:** "Do you have any questions for us?" là cơ hội, không phải thủ tục. Câu hỏi tốt tín hiệu rằng bạn đang đánh giá họ cũng như họ đang đánh giá bạn — và đó chính xác là tư thế bạn muốn thể hiện.
+- **Bài 05 — Lương & đàm phán:** Đàm phán lương không phải là đối đầu — đó là một cuộc trò chuyện có cấu trúc về giá trị. "What's the budget for this role?" trước; anchor cao và có cơ sở sau; im lặng sau khi đưa ra con số là kỹ năng, không phải sự ngần ngại.
+- **Bài 06 — Follow-up & đóng:** Phỏng vấn không kết thúc khi bạn bước ra. Email cảm ơn trong 24 giờ với chi tiết cụ thể, follow-up lịch sự sau ngày 5–7, và từ chối offer bằng văn bản trang trọng — ba hành động này bảo toàn và mở rộng network ngay cả khi bạn không nhận offer.
+- **Sợi chỉ đỏ:** Phỏng vấn thành công không phải là may mắn hay tài năng bẩm sinh — đó là kỹ năng chuẩn bị được. Ứng viên hiểu cả sáu giai đoạn bước vào phòng phỏng vấn với sự tự tin khác hẳn — và người phỏng vấn nhận ra điều đó từ những giây đầu tiên.
+</Recap>

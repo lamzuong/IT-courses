@@ -12,6 +12,7 @@ import { topic as plansInvitations } from './plans-invitations/topic';
 import { topic as apologiesComplaints } from './apologies-complaints/topic';
 import { topic as officeSmallTalk } from './office-small-talk/topic';
 import { topic as meetings } from './meetings/topic';
+import { topic as jobInterview } from './job-interview/topic';
 import { placeholderTopics } from './_placeholders';
 
 export const allEnglishTopics: EnglishTopic[] = [
@@ -41,6 +42,7 @@ export const allEnglishTopics: EnglishTopic[] = [
   officeSmallTalk,
   // Topic 13 (real, work)
   meetings,
-  placeholderTopics.find((t) => t.slug === 'job-interview')!,
+  // Topic 14 (real, work, B2+)
+  jobInterview,
   placeholderTopics.find((t) => t.slug === 'presentations')!,
 ];

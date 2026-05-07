@@ -1,0 +1,189 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+"Tell me about yourself" là câu hỏi phỏng vấn xuất hiện nhiều nhất — và cũng là câu bị trả lời tệ nhất. Ứng viên Việt Nam thường hiểu nhầm nó thành "hãy đọc CV của bạn cho tôi nghe bằng tiếng Anh," rồi bắt đầu liệt kê lịch sử công việc theo thứ tự thời gian: *"I graduated in 2018, then I worked at FPT for two years, then I moved to Tyme..."* Người phỏng vấn bản xứ không muốn nghe điều đó — họ đã có CV của bạn trên tay. Điều họ thực sự muốn là một **narrative 90 giây** — cấu trúc hiện tại → quá khứ liên quan → tương lai phù hợp — kết thúc bằng lý do BẠN là ứng viên đúng cho VỊ TRÍ NÀY.
+
+## 01 — Bối cảnh
+
+"Tell me about yourself" không phải câu hỏi về tiểu sử của bạn — đó là câu hỏi về *câu chuyện của bạn* trong ngữ cảnh của vai trò này. Cấu trúc chuẩn là ba phần, tổng cộng khoảng 90 giây:
+
+**Phần 1 — Present (~20 giây):** Bạn là ai ngay lúc này, ở vị trí nào, làm gì.
+> *"I'm currently a senior backend engineer at Tyme, with about six years of experience in fintech."*
+
+**Phần 2 — Past (~40 giây):** Thành tích gần nhất có liên quan, kể theo STAR ngắn gọn, rồi trajectory dẫn đến điểm hiện tại.
+> *"Most recently, I led the migration of our payments service to a new architecture — cut latency by 40% and reduced incidents by half. Before that, I was at Grab, where I grew from a mid-level engineer into the tech lead for the merchant-tools team."*
+
+**Phần 3 — Future (~30 giây):** Tại sao vị trí NÀY, tại công ty NÀY, tại thời điểm NÀY — và sự giao thoa giữa nền tảng của bạn với nhu cầu của họ.
+> *"What drew me to this role is the cross-team architectural scope — I've been wanting to move from individual contribution to broader system design, and this is exactly that opportunity."*
+
+Mấu chốt của cấu trúc này là *thứ tự ưu tiên*: bạn không kể chuyện của bạn, bạn kể chuyện của bạn *cho họ* — mọi thông tin đều được lọc qua câu hỏi "điều này có liên quan đến vị trí đang phỏng vấn không?" Nếu không liên quan, cắt bỏ.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "I'm currently", vi: "hiện tại tôi đang — opener chuẩn cho phần Present; nghe chắc chắn và hiện đại hơn 'I am now' hay 'At present I'", example: "I'm currently a lead engineer at Tyme." },
+  { en: "most recently", vi: "gần đây nhất — cụm chuyển cảnh từ Present sang Past; đóng khung thành tích quan trọng nhất của bạn", example: "Most recently, I led the migration to a microservices architecture." },
+  { en: "to lead a team of", vi: "dẫn dắt một team gồm [N người] — cách nói rõ ràng nhất về scope quản lý", example: "I lead a team of five engineers focused on payments infrastructure." },
+  { en: "to specialize in", vi: "chuyên về — dùng cho lĩnh vực hoặc kỹ năng cốt lõi; formal hơn 'focus on' một chút", example: "I specialize in distributed systems and high-availability architecture." },
+  { en: "with [N] years of experience in", vi: "với [N] năm kinh nghiệm trong — cụm chuẩn để đặt scope của bạn ngay từ đầu; đừng bỏ qua", example: "With six years of experience in fintech, I've seen both the startup and the scale stages." },
+  { en: "to be drawn to", vi: "bị thu hút bởi, cảm thấy hứng thú với — cụm cảm xúc tự nhiên nhất để giải thích lý do bạn ứng tuyển; không nghe sáo rỗng như 'I am interested in'", example: "What drew me to this role is the breadth of the system design challenges." },
+  { en: "to be excited about", vi: "hào hứng về — dùng để đóng phần Future với năng lượng tích cực và chân thật", example: "What excites me about this team is the velocity and the ownership model." },
+  { en: "to spearhead", vi: "đi đầu, chủ trì — động từ mạnh hơn 'led' hay 'managed'; phù hợp cho vai trò bạn thực sự khởi xướng và dẫn dắt", example: "I spearheaded the move from monolith to event-driven architecture." },
+  { en: "to deliver", vi: "mang lại kết quả — từ hành động trung tâm của mọi achievement statement; tập trung vào output, không phải effort", example: "We delivered the new API layer two weeks ahead of schedule." },
+  { en: "to scale", vi: "mở rộng quy mô — cả nghĩa kỹ thuật (hệ thống) và nghĩa tổ chức (team, product); rất phổ biến trong phỏng vấn tech", example: "I helped scale the platform from 10k to 2M transactions per day." },
+  { en: "to ramp up", vi: "tăng tốc, leo thang — tốc độ tăng trưởng, không phải điểm đến; dùng cho cả team lẫn hệ thống", example: "We ramped up the team from three to twelve in under a year." },
+  { en: "What sets me apart is…", vi: "Điều khiến tôi khác biệt là… — opener để nêu USP (unique selling point) của bạn; mạnh nhưng cần có ví dụ cụ thể theo sau ngay", example: "What sets me apart is that I bridge the gap between engineering and product — I speak both languages fluently." },
+  { en: "to be a strong fit for", vi: "phù hợp tốt với — cụm kết luận tự tin; dùng ở phần cuối để đóng khung lý do bạn nên được chọn", example: "I believe I'm a strong fit for this role given my background in both payments and platform infrastructure." },
+  { en: "to bring [skill/experience] to the table", vi: "mang [kỹ năng/kinh nghiệm] vào — idiom nghĩa là đóng góp gì đó có giá trị; tự nhiên hơn 'I can provide' hay 'I have'", example: "I bring a decade of fintech experience to the table, along with a track record of shipping under pressure." },
+  { en: "to align with", vi: "phù hợp với, cùng định hướng với — dùng để nói về sự khớp giữa bạn và công ty/role; phổ biến trong phỏng vấn culture-fit", example: "This role's focus on system resilience aligns perfectly with where I want to grow." },
+]} />
+
+## 03 — Mẫu câu
+
+<Pattern
+  en="Sure — I'd be happy to. I'm currently a senior backend engineer at Tyme, with about six years of experience in fintech."
+  vi="Được, tôi rất vui được giới thiệu. Hiện tại tôi là senior backend engineer tại Tyme, với khoảng sáu năm kinh nghiệm trong lĩnh vực fintech."
+  variations={[
+    "Happy to. I'm currently leading the platform team at Momo — we own the core payments and identity infrastructure, with about eight years in the space.",
+    "Of course. I'm a data engineer with a focus on real-time pipelines — currently at VNG, where I've been for the past four years building the analytics backbone.",
+    "Sure. I'm a product manager with seven years in B2B SaaS, currently at Grab where I own the merchant onboarding experience.",
+  ]}
+  note={`"Sure — I'd be happy to" hoặc "Happy to" là opener chuẩn mực — không quá trang trọng, không quá thân mật. Tránh bắt đầu bằng "Uh…" hoặc "Well…" vì những từ đệm này làm yếu ấn tượng đầu tiên. Opener ngắn → tên/role → năm kinh nghiệm → lĩnh vực: đây là công thức của phần Present.`}
+/>
+
+<Pattern
+  en="Most recently, I led the migration of our payments service to a new architecture — we cut latency by 40% and reduced production incidents by half."
+  vi="Gần đây nhất, tôi dẫn dắt quá trình migration service payments của chúng tôi sang một kiến trúc mới — chúng tôi giảm latency 40% và giảm một nửa số sự cố production."
+  variations={[
+    "Most recently, I spearheaded the rebuild of our merchant dashboard — reduced time-to-first-value from three weeks to four days, which directly improved our activation rate by 30%.",
+    "Most recently, I led the data migration to our new lakehouse architecture — cut pipeline run time from six hours to under forty minutes and enabled real-time reporting for the first time.",
+    "Most recently, I owned the redesign of our onboarding flow — improved completion rate from 52% to 78% in three months.",
+  ]}
+  note={`Đây là câu quan trọng nhất trong toàn bộ self-intro. Cấu trúc: "Most recently, I [action verb] [specific project] — [quantified outcome]." Lưu ý: outcome phải là con số hoặc kết quả kinh doanh cụ thể, không phải mô tả công việc. "I worked on the migration" là mô tả. "We cut latency by 40%" là outcome. Người phỏng vấn nhớ outcome, không nhớ mô tả.`}
+/>
+
+<Pattern
+  en="Before that, I was at Grab — started as a mid-level engineer and grew into the tech lead for our merchant-tools team."
+  vi="Trước đó, tôi ở Grab — bắt đầu là mid-level engineer và phát triển lên thành tech lead cho team merchant-tools."
+  variations={[
+    "Before Momo, I spent three years at Tyme on the core payments team — that's where I got my grounding in high-throughput, low-latency systems.",
+    "Before VNG, I was at Klara Freight in Singapore — a smaller team, but I owned the full data stack end-to-end, which gave me a lot of breadth quickly.",
+    "My background before Grab was at Dragon Capital — four years on the quantitative side, which gave me the analytical foundation I now bring to product decisions.",
+  ]}
+  note={`Câu trajectory không cần dài — một hoặc hai câu là đủ. Điểm quan trọng là chọn thông tin *liên quan* đến vị trí đang ứng tuyển. Nếu vị trí mới cần kỹ năng scale system, nhấn mạnh trajectory scale. Nếu cần kỹ năng quản lý, nhấn mạnh "grew into tech lead." Đừng kể toàn bộ lịch sử — hãy chọn thread phù hợp nhất.`}
+/>
+
+<Pattern
+  en="What drew me to this role is the cross-team architectural scope — I've been wanting to move from individual contribution to broader system design work, and this is exactly that opportunity."
+  vi="Điều thu hút tôi với vị trí này là scope kiến trúc liên team — tôi muốn chuyển từ đóng góp cá nhân sang công việc thiết kế hệ thống rộng hơn, và đây chính xác là cơ hội đó."
+  variations={[
+    "What drew me to this role is the product maturity — you're past the 'build it and see' stage and into the 'make it scale and last' stage, which is where I do my best work.",
+    "What drew me to Grab is the scale of the user base. The problems you're solving at 35 million transactions a day are problems I've been preparing for.",
+    "What drew me to this team is the mission. Most fintech companies optimize for growth — you optimize for financial inclusion, and that distinction matters to me.",
+  ]}
+  note={`"What drew me to this role is…" là câu bản lề của toàn bộ self-intro. Nó chuyển từ quá khứ của bạn sang tương lai của họ, và nó tín hiệu rõ ràng: "Tôi ở đây vì vị trí NÀY, không phải vì tôi đang job-hunt rộng rãi." Câu này phải cụ thể — generic ("I love the company culture") làm yếu toàn bộ 90 giây đi trước.`}
+/>
+
+<Pattern
+  en="What excites me is that this team is solving exactly the kind of problems I've been preparing for — and I think I can contribute meaningfully from day one."
+  vi="Điều tôi hào hứng là team này đang giải quyết chính xác loại vấn đề tôi đã chuẩn bị cho — và tôi nghĩ tôi có thể đóng góp có ý nghĩa ngay từ ngày đầu tiên."
+  variations={[
+    "What excites me most is the ownership model here — engineers own their services end-to-end, and that's the environment where I grow fastest.",
+    "What excites me about this opportunity is the intersection of my payments background and your expansion into Southeast Asian markets — that's a combination I'm uniquely positioned to contribute to.",
+    "I'm excited about the velocity of this team. Shipping every two weeks at this scale is rare — and it's the kind of environment I've always wanted to work in.",
+  ]}
+  note={`Câu kết của self-intro cần kết hợp hai thứ: sự nhiệt tình thật sự (không sáo rỗng) và một tín hiệu về giá trị bạn mang lại. "From day one" là cụm rất mạnh — nó nói với người phỏng vấn rằng bạn đã suy nghĩ về việc bắt đầu thật sự, không chỉ về việc được nhận. Tránh kết bằng câu chung chung như "I'm very excited about this opportunity" — không có ý nghĩa cụ thể nào cho người nghe.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`Hiện tại đơn cho hiện tại + present perfect cho thành tích + "what drew me to" cho lý do`}
+  structure={`I'm currently + [present role]. / Most recently, I + [past simple — specific achievement]. / What drew me to + [object] + is + [reason].`}
+  examples={[
+    { en: "I'm currently a senior engineer at Tyme.", vi: "Hiện tại tôi là senior engineer tại Tyme." },
+    { en: "Most recently, I led the migration to GCP.", vi: "Gần đây nhất, tôi dẫn dắt quá trình migration lên GCP." },
+    { en: "What drew me to this role is the cross-team scope.", vi: "Điều thu hút tôi với vị trí này là scope liên team." },
+    { en: "I've been spearheading the API redesign for the past eight months.", vi: "Tôi đã và đang dẫn đầu quá trình thiết kế lại API trong tám tháng qua." },
+    { en: "What excites me about this team is the velocity.", vi: "Điều tôi hào hứng về team này là tốc độ triển khai." },
+  ]}
+  contrast={`**CV voice:** "I have been working at Tyme since 2019. Before that I worked at Grab from 2017 to 2019. Prior to that I was at FPT for two years." — Đây là giọng văn trong CV: liệt kê, thụ động, đặt CV lên trước. Người phỏng vấn có thể đọc điều này trên giấy; họ không cần nghe nó được đọc lại.
+
+**Story voice:** "I'm currently leading X at Tyme. Most recently, I delivered Y — cut latency by 40%. What drew me to this role is Z." — Đây là giọng kể chuyện: chủ động, có outcome, và kết thúc bằng lý do liên quan đến *họ*, không phải *bạn*. Story voice đặt người nghe lên trước — nó đặt câu hỏi "thông tin này có hữu ích cho người đang phỏng vấn tôi không?" trước mỗi câu.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "Interviewer (Sarah)", en: "Thanks for coming in, Minh. Let's just dive right in — could you tell me about yourself?", vi: "Cảm ơn bạn đã đến, Minh. Mình bắt đầu ngay nhé — bạn có thể tự giới thiệu về bản thân không?" },
+  { speaker: "Minh", en: "Sure — happy to. I'm currently a senior backend engineer at Tyme, with about six years of experience in fintech. My focus is high-throughput payment systems — the kind of infrastructure that needs to be resilient at millions of transactions per day.", vi: "Được, tôi rất vui. Hiện tại tôi là senior backend engineer tại Tyme, với khoảng sáu năm kinh nghiệm trong fintech. Tôi tập trung vào hệ thống payment có throughput cao — loại infrastructure cần có độ ổn định ở mức hàng triệu giao dịch mỗi ngày." },
+  { speaker: "Minh", en: "Most recently, I led the migration of our core payments service from a monolithic architecture to an event-driven microservices stack. We delivered it in four months — cut average latency by 40% and reduced production incidents by more than half.", vi: "Gần đây nhất, tôi dẫn dắt quá trình migration service payment cốt lõi của chúng tôi từ kiến trúc monolithic sang event-driven microservices. Chúng tôi hoàn thành trong bốn tháng — giảm latency trung bình 40% và giảm hơn một nửa số sự cố production." },
+  { speaker: "Minh", en: "Before Tyme, I was at Grab for three years — started as a mid-level engineer and grew into the tech lead for the merchant-tools team. That's where I first learned to work at real scale, and to own outcomes, not just deliverables.", vi: "Trước Tyme, tôi ở Grab ba năm — bắt đầu là mid-level engineer và phát triển lên thành tech lead cho team merchant-tools. Đó là nơi tôi lần đầu tiên học cách làm việc ở quy mô thực sự, và sở hữu kết quả, không chỉ là deliverables." },
+  { speaker: "Minh", en: "What drew me to this role is the architectural scope. I've been looking for the opportunity to move from leading one service to shaping how multiple services fit together — and that's exactly what this position offers.", vi: "Điều thu hút tôi với vị trí này là scope kiến trúc. Tôi đang tìm kiếm cơ hội chuyển từ dẫn dắt một service sang định hình cách nhiều service phối hợp với nhau — và đó chính xác là những gì vị trí này mang lại." },
+  { speaker: "Interviewer (Sarah)", en: "That's a strong intro — thank you. I want to come back to the Tyme migration. You mentioned cutting latency by 40%. What was the biggest technical risk you had to manage during that project?", vi: "Phần giới thiệu rất ấn tượng — cảm ơn. Tôi muốn quay lại quá trình migration ở Tyme. Bạn đề cập đến việc giảm latency 40%. Rủi ro kỹ thuật lớn nhất bạn phải quản lý trong dự án đó là gì?" },
+  { speaker: "Minh", en: "The hardest part was the dual-write period — we had to run both the old and new systems in parallel for six weeks to validate data consistency before we could cut over. We wrote a reconciliation service specifically for that window, and it caught three data-integrity issues that would have been catastrophic in production.", vi: "Phần khó nhất là giai đoạn dual-write — chúng tôi phải chạy song song cả hệ thống cũ và mới trong sáu tuần để xác nhận tính nhất quán dữ liệu trước khi cutover. Chúng tôi viết một reconciliation service riêng cho giai đoạn đó, và nó phát hiện ra ba vấn đề data-integrity mà lẽ ra sẽ là thảm hoạ trong production." },
+  { speaker: "Interviewer (Sarah)", en: "And how did you decide on the six-week window? Was that based on risk tolerance, timeline pressure, or something else?", vi: "Và làm thế nào bạn quyết định khoảng thời gian sáu tuần? Dựa trên mức độ chấp nhận rủi ro, áp lực timeline, hay điều gì khác?" },
+  { speaker: "Minh", en: "It was a negotiation between risk and speed. The business wanted four weeks. I modelled the failure modes and made the case that six weeks gave us two full billing cycles to validate — which meant we could catch edge cases that only appear at month-end. The business accepted that framing.", vi: "Đó là cuộc thương lượng giữa rủi ro và tốc độ. Business muốn bốn tuần. Tôi mô hình hoá các failure mode và lập luận rằng sáu tuần cho phép chúng tôi có hai chu kỳ billing đầy đủ để xác nhận — nghĩa là có thể phát hiện edge case chỉ xuất hiện vào cuối tháng. Business chấp nhận lập luận đó." },
+  { speaker: "Interviewer (Sarah)", en: "That's a great example of engineering judgment meeting business context. I have a few more questions — but this is a very strong start.", vi: "Đó là ví dụ tuyệt vời về kỹ năng phán đoán engineering gặp ngữ cảnh kinh doanh. Tôi còn một vài câu hỏi nữa — nhưng đây là một khởi đầu rất tốt." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"Let me tell you about my background. I was born in Hanoi and graduated from Hanoi University of Science and Technology in 2017 with a degree in Computer Science. After graduating, I joined FPT Software as a junior developer. I was there for two years, then I moved to Tyme Bank in 2019 where I have been working until now as a backend engineer…"`}
+  right={`"I'm currently a senior backend engineer at Tyme, with six years in fintech. Most recently, I led the migration of our core payments service — cut latency by 40%. Before that, I spent two years at FPT growing from junior dev to team lead. What drew me to this role is the architecture scope — and I think I can contribute meaningfully from day one."`}
+  why={`Đây là lỗi CV-recap kinh điển. Người phỏng vấn đã có CV của bạn — khi bạn đọc lại theo thứ tự thời gian, bạn không thêm giá trị, bạn chỉ lãng phí thời gian. Vấn đề thứ hai: câu mở đầu "Let me tell you about my background" báo hiệu sẽ có một bài tự thuật dài — người phỏng vấn đã bắt đầu lên kế hoạch cho câu hỏi tiếp theo trong đầu rồi. Nguyên tắc: nếu thông tin không liên quan đến vị trí đang ứng tuyển, cắt bỏ.`}
+/>
+
+<Mistake
+  wrong={`"I am very passionate about technology and I love to learn new things. I am a hard worker and I always try my best. I am very interested in this company because it is a great company with good culture and I believe I can grow here…"`}
+  right={`"Most recently, I spearheaded the API redesign at Tyme — reduced integration time for partners from three weeks to two days. What draws me to this role specifically is the breadth of the integration challenges you're solving at this scale."`}
+  why={`"Passionate," "hard worker," "love to learn," "great company culture" — đây là những cụm mà mọi ứng viên đều nói và không ai nhớ. Chúng không có thông tin cụ thể, không thể kiểm chứng, và không phân biệt bạn với bất kỳ ai khác trong stack hồ sơ. Người phỏng vấn nghe những câu này và tự động bước vào chế độ "tiếp theo." Thay thế mỗi tính từ chung chung bằng một ví dụ cụ thể — achievements và outcomes thuyết phục hơn adjectives bao giờ cũng vậy.`}
+/>
+
+<Mistake
+  wrong={`[Nói quá 2 phút, vào chi tiết kỹ thuật sâu, kể mọi dự án từng làm, giải thích từng quyết định] "…and then in Q3 2022 we also did a separate refactoring of the authentication module which was also quite interesting because we decided to use JWT instead of session-based auth and that required…"`}
+  right={`[Kết thúc trong 90 giây] "…and that's what drew me to this role. Happy to go deeper on any of those points."`}
+  why={`Phỏng vấn là một cuộc trò chuyện, không phải bài thuyết trình. Khi bạn nói quá 90 giây cho "Tell me about yourself," người phỏng vấn bắt đầu sốt ruột — họ có cả danh sách câu hỏi cần hỏi. Ngoài ra, nói quá dài tín hiệu một vấn đề: bạn không biết cái gì quan trọng nhất. Người giỏi giao tiếp biết cắt. Câu kết "Happy to go deeper on any of those points" là cách thông minh để đóng lại — nó trao quyền kiểm soát cuộc trò chuyện cho người phỏng vấn và mời họ đào sâu vào phần họ quan tâm nhất.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+1. **Văn hoá phỏng vấn Mỹ/Anh thưởng structure và confidence.** Trong nhiều nền văn hoá châu Á — kể cả Việt Nam — thể hiện bản thân quá tự tin có thể bị coi là khoe khoang hoặc thiếu khiêm tốn. Văn hoá phỏng vấn phương Tây vận hành ngược lại: bạn được *kỳ vọng* trình bày thành tích của mình một cách rõ ràng và chủ động. Không làm điều đó không được coi là khiêm tốn — nó được đọc là thiếu tự tin hoặc thiếu chuẩn bị. Kể achievements không phải là khoe khoang; đó là cung cấp bằng chứng.
+
+2. **Modesty markers làm mềm, không xóa sổ thành tích.** Nếu bạn muốn thêm sắc thái khiêm tốn mà không làm yếu câu, dùng các cụm như "I was fortunate to…", "our team managed to…", hoặc "to be fair, the timing helped us." Những cụm này thừa nhận sự đóng góp của người khác mà vẫn giữ achievement ở trung tâm. Ngược lại, "I was just a small part of it" hay "I didn't really do much" thực sự gây hại — người phỏng vấn sẽ tin bạn và downgrade đánh giá của bạn.
+
+3. **"Tell me about yourself" là bài kiểm tra meta-skill.** Người phỏng vấn giỏi không chỉ nghe nội dung — họ đang đánh giá cách bạn *cấu trúc thông tin*. Bạn có biết cái gì quan trọng không? Bạn có thể tóm tắt 6 năm kinh nghiệm trong 90 giây có cấu trúc không? Bạn có thể kết nối câu chuyện của bạn với nhu cầu của họ không? Đây là những kỹ năng cần thiết trong mọi cuộc họp, mọi demo, mọi lần thuyết phục stakeholder. Self-intro tốt chứng minh bạn có những kỹ năng đó — trước khi cuộc phỏng vấn thực sự bắt đầu.
+
+<Callout type="note" title={`"What drew me to this role is…" — câu bản lề của toàn bộ self-intro`}>
+Câu này là quan trọng nhất trong toàn bộ 90 giây, vì nó làm một việc không câu nào khác làm được: nó chuyển từ *câu chuyện của bạn* sang *nhu cầu của họ*. Tất cả mọi thứ trước đó là setup — câu này là payoff. Nó nói với người phỏng vấn rằng bạn đã nghĩ về vị trí này cụ thể, rằng bạn hiểu họ cần gì, và rằng bạn ở đây vì lý do có định hướng chứ không phải vì đang apply mọi nơi. Muốn câu này thuyết phục, nó phải cụ thể — dùng tên công ty, tên dự án, hoặc challenge cụ thể bạn biết từ nghiên cứu trước. "I'm drawn to your company's innovative culture" không phải là câu cụ thể. "What drew me to this role is the opportunity to design for 35 million users across Southeast Asia — a scale I haven't touched yet" mới là.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to spearhead`** — đi đầu, khởi xướng và dẫn dắt một sáng kiến từ đầu. Mạnh hơn "to lead" vì nó ngụ ý bạn là người *khởi động*, không chỉ quản lý. *"I spearheaded the migration to a microservices architecture — nobody told me to; I saw the problem and built the case."*
+
+- **`to ramp up`** — tăng tốc độ, quy mô, hoặc năng lực trong một khoảng thời gian ngắn. Dùng cho cả hệ thống lẫn con người. *"We ramped up the team from four to fifteen in under a year to meet the launch deadline."*
+
+- **`to bring [X] to the table`** — mang đến, đóng góp điều gì đó có giá trị trong một bối cảnh nhất định. Nghe tự nhiên và chủ động hơn "I have" hay "I can provide." *"I bring both the technical depth and the stakeholder communication skills to the table — which is rare in a single person."*
+
+- **`to be a strong fit for`** — phù hợp tốt với — cụm tự đánh giá mạnh nhưng không kiêu ngạo, vì nó ngụ ý sự khớp hai chiều chứ không phải tự khen đơn thuần. *"I believe I'm a strong fit for this role — my background in payments infrastructure maps directly to the problems you're trying to solve."*
+
+- **`to align with`** — phù hợp, cùng chiều với — dùng khi muốn nói rằng giá trị, mục tiêu, hoặc kỹ năng của bạn khớp với của công ty/team. Phổ biến trong phần culture-fit của phỏng vấn. *"This role's emphasis on engineering ownership aligns with how I've always preferred to work — less ticket-taking, more problem-ownership."*
+
+## 09 — Tự luyện
+
+1. **Viết 90-giây self-intro của bạn.** Dùng đúng cấu trúc ba phần: Present (20s — role, năm kinh nghiệm, lĩnh vực) → Past (40s — thành tích gần nhất có số liệu + trajectory một câu) → Future (30s — "What drew me to this role is…" + "What excites me is…"). Viết ra trước, đọc to và bấm giờ. Nếu quá 2 phút, cắt phần Past xuống còn một thành tích duy nhất. Mục tiêu: 80–100 giây.
+
+2. **Kiểm tra cụ thể hóa.** Đọc lại self-intro của bạn và highlight mọi tính từ chung chung: "passionate," "hard-working," "dedicated," "strong," "good," "great." Với mỗi từ được highlight, hỏi: *bạn có ví dụ cụ thể nào chứng minh điều này không?* Nếu có, thay tính từ bằng ví dụ. Nếu không có ví dụ, cắt bỏ câu đó. Một self-intro tốt không có tính từ tự khen — chỉ có outcomes và evidence.
+
+3. **Luyện tập "What drew me to this role."** Tìm một job description thực sự cho vị trí bạn quan tâm. Đọc phần responsibilities và requirements kỹ. Viết một câu "What drew me to this role is…" dài không quá 30 giây, cụ thể đến mức nó chỉ đúng cho job description *đó* — không thể dùng cho bất kỳ công ty nào khác. Luyện điều này với ít nhất ba JD khác nhau để xây dựng phản xạ nghiên cứu và kết nối.
+
+<Recap>
+- "Tell me about yourself" là câu hỏi về *story*, không phải CV — cấu trúc đúng là ba phần: Present (20s) → Past có thành tích cụ thể (40s) → Future kết nối với role của họ (30s).
+- Câu quan trọng nhất trong 90 giây là "What drew me to this role is…" — nó chuyển từ câu chuyện của bạn sang nhu cầu của họ, và tín hiệu rằng bạn đang ứng tuyển có chủ đích.
+- Thay thế tính từ chung chung ("hard-working," "passionate") bằng outcomes cụ thể có số liệu — người phỏng vấn nhớ kết quả, không nhớ mô tả.
+- Giữ trong 90 giây: dài hơn không phải thông tin hơn — đó là tín hiệu bạn không biết cái gì quan trọng nhất.
+- Văn hoá phỏng vấn phương Tây kỳ vọng bạn trình bày thành tích rõ ràng — không làm vậy không phải khiêm tốn, mà là thiếu chuẩn bị.
+- Self-intro tốt là bài kiểm tra meta-skill: nó chứng minh bạn biết cấu trúc thông tin, ưu tiên điều quan trọng, và giao tiếp hướng đến người nghe — trước khi cuộc phỏng vấn thực sự bắt đầu.
+</Recap>
