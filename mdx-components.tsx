@@ -8,6 +8,7 @@ import { Pattern } from '@/components/mdx/english/pattern';
 import { Vocab } from '@/components/mdx/english/vocab';
 import { Dialogue } from '@/components/mdx/english/dialogue';
 import { Mistake } from '@/components/mdx/english/mistake';
+import { Grammar } from '@/components/mdx/english/grammar';
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
@@ -20,5 +21,6 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     Vocab,
     Dialogue,
     Mistake,
+    Grammar,
   };
 }
