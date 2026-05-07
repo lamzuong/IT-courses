@@ -1,0 +1,215 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Check-out là khoảnh khắc trong kỳ lưu trú mà nhiều người xử lý hoàn toàn theo quán tính — trả chìa khoá, ký tên, đi ra cửa. Nhưng đây cũng chính là thời điểm những khoản phí nhỏ sai lọt qua nếu bạn không để ý: minibar bạn không đụng tới, WiFi bị tính hai lần, bữa sáng đáng lẽ được miễn phí nhưng không được credit vào. Bài capstone này bao gồm toàn bộ quy trình check-out — từ xem lại hoá đơn, phủ nhận lịch sự một khoản phí sai, xin gửi hành lý sau khi trả phòng, đến câu tạm biệt để lại ấn tượng tốt — cộng với bộ tổng hợp văn hoá khách sạn xuyên suốt toàn topic, từ booking đến farewell.
+
+## 01 — Bối cảnh
+
+Quy trình check-out tiêu chuẩn ở hầu hết khách sạn trông như sau: đến quầy lễ tân → chào và nêu số phòng → yêu cầu xem hoá đơn cuối → xem lại từng khoản mục → đặt câu hỏi hoặc phủ nhận khoản phí không đúng → thanh toán số dư → trả key cards → hỏi về gửi hành lý nếu cần → rời khách sạn.
+
+**(1) Xem hoá đơn — đừng bỏ qua.** Phần lớn sai lệch không phải do khách sạn cố tình tính sai, mà do lỗi hệ thống: nhân viên minibar không cập nhật đúng, WiFi premium bị tính thêm dù đã bao gồm trong gói phòng, breakfast credit không được áp dụng đúng. Xem lướt qua từng dòng mất chưa đến 60 giây và có thể tiết kiệm cho bạn 15–30 USD mỗi kỳ lưu trú.
+
+**(2) Phủ nhận lịch sự.** Khi thấy một khoản phí không đúng, cách hiệu quả nhất không phải là phàn nàn to hay đòi gặp quản lý ngay — mà là nêu thực tế và yêu cầu nhẹ nhàng: "I see a $15 minibar charge — I didn't have anything from the minibar. Could you remove that?" Câu này hoạt động vì nó cụ thể, bình tĩnh, và đặt nhân viên vào vai người giúp đỡ thay vì vai người bị buộc tội.
+
+**(3) Gửi hành lý sau check-out.** Hầu hết khách sạn từ 3 sao trở lên đều có dịch vụ gửi hành lý miễn phí trong ngày sau khi trả phòng — nhưng nhiều du khách không biết hoặc ngại hỏi. Đây là câu hỏi cực kỳ thực dụng khi chuyến bay của bạn là buổi tối nhưng check-out là giữa trưa.
+
+**(4) Express check-out.** Nhiều khách sạn hiện nay cung cấp tùy chọn check-out qua TV trong phòng hoặc ứng dụng điện thoại — bạn xem hoá đơn, xác nhận, rồi đi thẳng ra mà không cần ghé quầy. Tiện lợi khi bạn tin tưởng hoá đơn, nhưng nếu có bất kỳ câu hỏi nào, cách tốt nhất vẫn là ghé quầy.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "to check out", ipa: "tʃɛk aʊt", vi: "trả phòng — làm thủ tục rời khách sạn; 'I'd like to check out' là câu mở đầu chuẩn tại quầy lễ tân", example: "Hi, I'd like to check out — room 412." },
+  { en: "the final bill", vi: "hoá đơn cuối — bảng tổng hợp tất cả các khoản phí trong suốt kỳ lưu trú, bao gồm tiền phòng, minibar, dịch vụ thêm", example: "Could I take a look at the final bill before you charge the card?" },
+  { en: "to settle the balance", vi: "thanh toán số dư — trả phần còn lại sau khi đã trừ deposit; 'settle' nghe chuyên nghiệp hơn 'pay' trong bối cảnh khách sạn", example: "I'd like to settle the balance by card, please." },
+  { en: "the receipt", ipa: "rɪˈsiːt", vi: "biên lai — bằng chứng đã thanh toán; thường được in ra hoặc gửi qua email sau khi check-out", example: "Could you email me the receipt? I need it for my expense report." },
+  { en: "to dispute a charge", vi: "phủ nhận / thắc mắc một khoản phí — không đồng ý và yêu cầu xem lại; 'dispute' là từ chuẩn trong bối cảnh tài chính và khách sạn", example: "I'd like to dispute this $20 charge — I didn't use room service." },
+  { en: "to remove a charge", vi: "xoá một khoản phí khỏi hoá đơn — kết quả mong muốn sau khi dispute thành công", example: "Could you remove the minibar charge? I didn't have anything from it." },
+  { en: "express check-out", vi: "trả phòng nhanh — hình thức check-out qua TV trong phòng hoặc app, không cần ghé quầy lễ tân; thường hoạt động khi hoá đơn không có vấn đề", example: "I used the express check-out on the TV — very convenient." },
+  { en: "to store luggage", vi: "gửi hành lý — gửi vali tại khách sạn sau khi check-out, chờ đến giờ bay hoặc tàu; hầu hết khách sạn cung cấp miễn phí trong ngày", example: "Could I store my luggage here until 5 PM?" },
+  { en: "the luggage room", vi: "phòng gửi hành lý — khu vực bảo quản vali tại khách sạn, thường nằm gần quầy lễ tân hoặc dưới tầng trệt", example: "Your bags will be safe in the luggage room — just show your key card to collect them." },
+  { en: "to come back later", vi: "quay lại sau — cụm thực dụng khi bạn gửi hành lý và cần lấy lại trước khi ra sân bay", example: "I'll come back later to pick up my bags — around 6 PM." },
+  { en: "the bellhop", ipa: "ˈbɛl.hɒp", vi: "nhân viên khuân vác — người hỗ trợ mang hành lý tại khách sạn; ở Mỹ gọi là 'bellhop' hoặc 'bellboy', ở Anh thường là 'porter'", example: "The bellhop can carry your bags to the luggage room for you." },
+  { en: "the concierge", ipa: "ˌkɒn.siˈɛərʒ", vi: "nhân viên concierge — bộ phận hỗ trợ khách về dịch vụ ngoài phòng: đặt nhà hàng, gọi taxi, gợi ý địa điểm tham quan; thường có quầy riêng tại khách sạn lớn", example: "Ask the concierge — they can arrange a taxi to the airport for you." },
+  { en: "feedback", ipa: "ˈfiːd.bæk", vi: "phản hồi, đánh giá — ý kiến của khách về kỳ lưu trú; thường được thu thập qua survey email hoặc tablet tại quầy khi check-out", example: "We'd love to hear your feedback — there's a short survey in your inbox." },
+  { en: "Could you email me the receipt?", vi: "cụm câu hỏi thực dụng — yêu cầu gửi biên lai qua email thay vì bản in; cần thiết khi bạn cần biên lai cho chi phí công tác hoặc đơn giản là không muốn mang giấy tờ", example: "Could you email me the receipt? My company needs it for reimbursement." },
+]} />
+
+## 03 — Mẫu câu
+
+<Pattern
+  en="Hi, I'd like to check out — room 412."
+  vi="Xin chào, tôi muốn trả phòng — phòng 412."
+  variations={[
+    "Good morning — checking out, room 305.",
+    "Hi there — I'd like to check out, please. Name's Nguyen.",
+    "Checking out — reservation under Tran Minh.",
+  ]}
+  note={`Câu mở đầu chuẩn tại quầy check-out. Ngắn, đủ thông tin, và đặt rõ hành động ngay. Luôn nêu số phòng hoặc tên — nhân viên lễ tân cần thông tin này để kéo hồ sơ và in hoá đơn. "Good morning" trước đó là lịch sự không tốn công sức.`}
+/>
+
+<Pattern
+  en="Could I take a look at the final bill before you charge the card?"
+  vi="Tôi có thể xem hoá đơn cuối trước khi bạn tính vào thẻ không?"
+  variations={[
+    "Could I review the bill first?",
+    "I'd like to go through the bill quickly before we settle — is that okay?",
+    "Could you print the bill for me to check?",
+  ]}
+  note={`Câu quan trọng nhất trong toàn bộ quy trình check-out. "Before you charge the card" là cụm chốt — nó thông báo rõ rằng bạn muốn xem trước khi thanh toán, không phải sau. Nhân viên lễ tân chuyên nghiệp hoàn toàn mong đợi câu này và sẽ in hoá đơn ngay.`}
+/>
+
+<Pattern
+  en={`I see a $15 minibar charge — I didn't have anything from the minibar. Could you remove that?`}
+  vi="Tôi thấy một khoản $15 cho minibar — tôi không dùng gì từ minibar. Bạn có thể xoá khoản đó không?"
+  variations={[
+    `There's a WiFi fee here — I thought it was included in the room rate. Could you check that?`,
+    `I see a duplicate charge for breakfast on the 3rd — I think there's been a mistake.`,
+    `This room service charge — I didn't order anything. Could you look into it?`,
+  ]}
+  note={`Cấu trúc dispute chuẩn: nêu khoản phí cụ thể + nêu thực tế (tôi không dùng) + yêu cầu nhẹ nhàng. Không buộc tội ("bạn tính sai"), không phàn nàn to — chỉ thực tế và yêu cầu xem lại. Câu hỏi cuối "Could you remove/check that?" đặt nhân viên vào vai người giải quyết vấn đề, không phải người bị tấn công. Hiệu quả cao hơn nhiều.`}
+/>
+
+<Pattern
+  en={`Could I leave my bags here until 4 PM? My flight isn't till evening.`}
+  vi="Tôi có thể để hành lý ở đây đến 4 giờ chiều không? Chuyến bay của tôi tối mới có."
+  variations={[
+    "Is there somewhere I can store my luggage after check-out?",
+    "Could the bellhop hold my bags until I come back around 5?",
+    "I'll be back at 6 — can I leave my bags with you until then?",
+  ]}
+  note={`Câu thực dụng và dùng rất thường xuyên. Giải thích ngắn lý do ("My flight isn't till evening") không phải bắt buộc nhưng nghe tự nhiên và được đồng cảm. Hầu hết khách sạn từ 3 sao trở lên đều có dịch vụ này miễn phí — nhưng bạn cần hỏi, không phải chỉ để vali ở đó và đi.`}
+/>
+
+<Pattern
+  en="Thanks so much — really enjoyed the stay."
+  vi="Cảm ơn rất nhiều — thực sự thích kỳ ở đây."
+  variations={[
+    "Wonderful stay — thank you for everything.",
+    "Really lovely — we'll definitely be back.",
+    `It's been a great few days. Thank you to the whole team.`,
+    "Cheers — everything was perfect.",
+  ]}
+  note={`Câu tạm biệt. Ngắn, chân thành, và không tốn công sức nào — nhưng để lại ấn tượng lâu dài với nhân viên lễ tân. "Really enjoyed the stay" là cụm cân bằng nhất: thực sự khen mà không nghe quá màu mè. Nếu có một trải nghiệm cụ thể đáng nhắc — "The breakfast was exceptional" hay "Linh helped us so much" — thêm vào một câu.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`"Could I take a look at…?" cho yêu cầu xem + "I didn't…" cho phủ nhận lịch sự`}
+  structure={`Could I take a look at + [object]? / I didn't + [base verb] + [object] — could you + [remove / refund / check]?`}
+  examples={[
+    { en: "Could I take a look at the bill?", vi: "Tôi có thể xem hoá đơn không?" },
+    { en: "I didn't have anything from the minibar.", vi: "Tôi không dùng gì từ minibar." },
+    { en: "I didn't use the late check-out.", vi: "Tôi không dùng dịch vụ trả phòng muộn." },
+    { en: "Could you remove the WiFi fee?", vi: "Bạn có thể xoá khoản phí WiFi không?" },
+    { en: "I think there's a duplicate charge — could you take another look?", vi: "Tôi nghĩ có một khoản bị tính hai lần — bạn có thể xem lại không?" },
+  ]}
+  contrast={`"You charge me wrong" — sai ngữ pháp lẫn sắc thái: câu này vừa broken English vừa accusatory (buộc tội trực tiếp), khiến nhân viên thủ thế thay vì giúp đỡ. Phiên bản đúng: "I see a $15 charge — I didn't use the minibar. Could you take another look?" — cấu trúc factual + soft challenge. "Could you take another look?" là hedge quan trọng nhất: nó đóng khung dispute như một kiểm tra kỹ thuật, không phải một cáo buộc. Nhân viên có thể "phát hiện lỗi hệ thống" và sửa mà không bị đặt vào vị thế khó xử.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "You", en: "Good morning — I'd like to check out, please. Room 308.", vi: "Chào buổi sáng — tôi muốn trả phòng. Phòng 308." },
+  { speaker: "Receptionist", en: "Of course! Let me pull up your account. Could I get your name?", vi: "Tất nhiên! Để tôi mở tài khoản của bạn. Cho tôi hỏi tên bạn?" },
+  { speaker: "You", en: "Nguyen Minh Anh. Could I take a look at the final bill before you charge the card?", vi: "Nguyễn Minh Anh. Tôi có thể xem hoá đơn cuối trước khi bạn tính vào thẻ không?" },
+  { speaker: "Receptionist", en: "Of course — here you go. Two nights, breakfast on both days, and I see a WiFi charge on day two.", vi: "Tất nhiên — đây ạ. Hai đêm, bữa sáng cả hai ngày, và tôi thấy có khoản phí WiFi vào ngày thứ hai." },
+  { speaker: "You", en: "That's the thing — I thought WiFi was included in the rate. It said 'complimentary WiFi' on the booking page.", vi: "Đúng là tôi muốn hỏi về điều đó — tôi nghĩ WiFi được bao gồm trong giá phòng. Trang đặt phòng ghi 'complimentary WiFi'." },
+  { speaker: "Receptionist", en: "Let me check that for you. You're right — standard WiFi is included. I'm not sure why it was added. I'll remove that now.", vi: "Để tôi kiểm tra lại. Bạn đúng — WiFi tiêu chuẩn được bao gồm. Tôi không rõ tại sao lại bị thêm vào. Tôi sẽ xoá ngay." },
+  { speaker: "You", en: "Thank you. And could I settle by card?", vi: "Cảm ơn bạn. Và tôi có thể thanh toán bằng thẻ không?" },
+  { speaker: "Receptionist", en: "Absolutely. Here's the updated total. Could I take the key cards?", vi: "Được ạ. Đây là tổng số đã cập nhật. Tôi có thể lấy lại key cards không?" },
+  { speaker: "You", en: "Here you go. One more thing — my flight isn't until 7 PM. Could I leave my bags here until around 5?", vi: "Đây. Còn một điều — chuyến bay của tôi 7 giờ tối mới có. Tôi có thể để hành lý ở đây đến khoảng 5 giờ không?" },
+  { speaker: "Receptionist", en: "No problem at all — the luggage room is just down the hall. The bellhop can help you now, and just come back to collect before you leave. Would you like a receipt emailed?", vi: "Không vấn đề gì — phòng gửi hành lý ở ngay cuối hành lang. Nhân viên khuân vác có thể giúp bạn ngay, và cứ quay lại lấy trước khi đi nhé. Bạn có muốn tôi gửi biên lai qua email không?" },
+  { speaker: "You", en: "Yes please — that'd be great. Thanks so much — really enjoyed the stay.", vi: "Vâng, làm ơn — tuyệt vời. Cảm ơn rất nhiều — thực sự thích kỳ ở đây." },
+  { speaker: "Receptionist", en: "We're so glad to hear it. Safe travels!", vi: "Chúng tôi rất vui khi nghe vậy. Chúc bạn đi lại an toàn!" },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"Okay, fine." (ký tên lên hoá đơn mà không xem qua)`}
+  right={`"Could I take a look at the bill first?"`}
+  why={`Bỏ qua hoá đơn khi check-out là thói quen phổ biến nhất — và tốn kém nhất về lâu dài. Một khoản minibar $15 không đúng, một WiFi fee $10 không đáng, một duplicate breakfast charge $25 — mỗi khoản nhỏ nhưng cộng lại qua nhiều chuyến đi là con số đáng kể. Kiểm tra hoá đơn mất chưa đến một phút. Nhân viên lễ tân không thấy khó chịu khi bạn muốn xem — đây là quy trình bình thường và được chào đón. Chỉ cần một câu: "Could I take a look at the bill first?"`}
+/>
+
+<Mistake
+  wrong={`"This is WRONG. You charged me wrong — this is not acceptable!"`}
+  right={`"I see a charge here that I'm not sure about — I didn't use the minibar. Could you check that for me?"`}
+  why={`Khi thấy một khoản phí sai, phản ứng cảm xúc dễ hiểu — nhưng leo thang giọng điệu hiếm khi giải quyết vấn đề nhanh hơn. Ngược lại, nó buộc nhân viên phải thủ thế và gọi quản lý, làm mọi thứ chậm hơn. Phiên bản bình tĩnh — "I see a charge here", "I didn't use the minibar", "Could you check?" — đặt nhân viên vào vai người giúp đỡ, không phải người bị cáo buộc. Kết quả thường đến trong vòng 30 giây.`}
+/>
+
+<Mistake
+  wrong={`[Mang hành lý ra ngoài và ngồi chờ ở sảnh sau khi check-out]`}
+  right={`"Is there a luggage storage room? I'd like to leave my bags until my flight this evening."`}
+  why={`Nhiều du khách không hỏi về gửi hành lý vì không biết dịch vụ này tồn tại, hoặc nghĩ rằng phải trả thêm tiền. Thực tế: hầu hết khách sạn 3 sao trở lên cung cấp dịch vụ này miễn phí trong ngày check-out, và nhân viên lễ tân hoàn toàn mong đợi câu hỏi này. Thay vì ôm vali đi tham quan hoặc ngồi chờ ở sảnh, một câu hỏi đơn giản giải phóng cả buổi chiều cuối cùng của kỳ nghỉ.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+**Register "lịch sự-nhưng-cụ thể" xuyên suốt toàn topic.**
+
+Nhìn lại sáu bài của topic Hotel & accommodation, có một sắc thái nhất quán từ bài đầu tiên đến bài này: tiếng Anh khách sạn chạy trên một register rất đặc thù — lịch sự nhưng không mơ hồ, nhẹ nhàng nhưng hướng đến kết quả cụ thể. Ở bài 01 (đặt phòng): "Could I request an early check-in? I'll be arriving around 10 AM." Ở bài 02 (check-in): "Could you put me on a higher floor if there's one available?" Ở bài 03 (tiện nghi): "Is breakfast included in the rate?" Ở bài 04 (vấn đề): "The AC isn't working — could someone take a look?" Ở bài 05 (housekeeping): "Could I have a do-not-disturb until noon?" Và ở bài này: "I didn't have anything from the minibar — could you remove that?" Register này không thay đổi dù cảnh thay đổi — và đó chính là sức mạnh của nó. Bạn học một công thức, dùng được ở mọi điểm trong kỳ lưu trú.
+
+**Nhân viên khách sạn muốn bạn được phục vụ tốt.**
+
+Đây là điểm mà nhiều người học tiếng Anh bỏ qua, đặc biệt khi họ ngại nói. Hầu hết nhân viên khách sạn được đánh giá hiệu suất dựa trên *guest satisfaction scores* — điểm đánh giá của khách. Một yêu cầu rõ ràng và lịch sự cho họ cơ hội làm tốt công việc và được ghi nhận. Một lời phàn nàn mơ hồ hoặc im lặng chịu đựng không giúp ích gì cho ai. Khi bạn nói "The AC isn't working — could someone take a look?" thay vì im lặng chịu nóng, bạn không chỉ giúp bản thân — bạn còn cho khách sạn cơ hội làm tốt công việc và nhận điểm đánh giá tích cực.
+
+**Hiệu chỉnh văn hoá theo vùng.**
+
+Tiếng Anh khách sạn hoạt động ở khắp nơi trên thế giới — nhưng sắc thái trang trọng thay đổi theo từng vùng, và nhận ra điều này giúp bạn hoà nhập tốt hơn.
+
+Khách sạn Mỹ và Úc thường casual và chatty — nhân viên lễ tân có thể hỏi về kế hoạch ngày hôm đó, gợi ý nhà hàng, và trao đổi nhỏ hoàn toàn tự nhiên. Khách sạn Anh và châu Âu trung-cao cấp thường formal hơn — "Certainly, Mr. Nguyen" và "As you wish" thay vì "Sure thing!" — nhưng vẫn thân thiện theo cách riêng. Khách sạn Nhật Bản và Hàn Quốc nổi tiếng với dịch vụ cực kỳ chu đáo và trang trọng: nhân viên cúi chào, cảm ơn nhiều lần, và chú ý đến từng chi tiết — trong bối cảnh đó, bạn cũng nên cảm ơn và tạm biệt một cách rõ ràng thay vì im lặng đi ra cửa. Khách sạn resort ở châu Á nhiệt đới (Bali, Phú Quốc, Koh Samui) thường casual và ấm áp — kiểu thân thiện làng xã hơn là thân thiện dịch vụ. Điều tốt: register "polite-but-specific" bạn đã học hoạt động tốt ở cả bốn vùng này — chỉ cần điều chỉnh mức độ trang trọng lên hoặc xuống một chút bằng cách đọc không khí tại quầy.
+
+**Lớp hậu kỳ — survey và đánh giá.**
+
+Email survey sau khi check-out có vẻ tầm thường nhưng thực ra ảnh hưởng lớn. Khách sạn đầu tư nhiều vào điểm số trên TripAdvisor, Google, và các nền tảng đặt phòng — một review chi tiết với một chi tiết cụ thể ("Minh ở quầy lễ tân đã sắp xếp xe cho chúng tôi lúc 11 giờ đêm — cực kỳ chu đáo") khác hoàn toàn so với "Good hotel, 4 stars." Với du khách thường xuyên, việc để lại feedback rõ ràng và nhất quán đôi khi được hệ thống khách sạn ghi nhận — không phải luôn luôn, nhưng đủ thường để đáng làm. 30 giây điền survey là khoản đầu tư nhỏ nhất trong toàn bộ kỳ nghỉ.
+
+<Callout type="note" title={`"I really enjoyed the stay" — câu ngắn nhất để lại ấn tượng lâu nhất`}>
+Một câu khen chân thành khi check-out — "I really enjoyed the stay" hay "The team here was wonderful" — không cần hơn 5 giây nhưng để lại ấn tượng thực sự với nhân viên lễ tân. Trong ngành khách sạn, nơi người ta xử lý hàng chục check-out mỗi ngày, một câu khen cụ thể được nhớ lâu hơn nhiều so với im lặng lịch sự. Không cần câu phức tạp: "Breakfast was exceptional" hay "Linh at the desk arranged everything perfectly for us" là đủ. Nếu bạn thực sự thích kỳ lưu trú, nói ra — đó là cách giao tiếp chân thật nhất và không tốn gì cả.
+</Callout>
+
+<Callout type="warning" title="KHÔNG bao giờ cung cấp thông tin thẻ qua điện thoại cho người tự xưng là nhân viên khách sạn">
+Một hình thức lừa đảo phổ biến nhắm vào khách du lịch: kẻ gian gọi điện đến phòng hoặc số điện thoại của bạn, tự xưng là nhân viên lễ tân, và nói có "vấn đề với booking" hoặc "cần xác nhận lại thẻ tín dụng". Khách sạn thật KHÔNG yêu cầu thông tin thẻ qua điện thoại theo cách này — họ đã có thông tin đó khi bạn check-in. Nếu nhận được cuộc gọi như vậy, đừng cung cấp bất kỳ thông tin gì. Gác máy và gọi trực tiếp xuống quầy lễ tân (qua điện thoại trong phòng hoặc đi xuống trực tiếp) để xác minh. Quy tắc này không có ngoại lệ — dù người gọi nghe có vẻ chuyên nghiệp đến đâu.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to make a reservation`** — đặt phòng trước. *"I'd like to make a reservation for two nights."* Từ bài 01 — "make a reservation" là collocaton chuẩn, không phải "do a reservation" hay "book a reservation".
+
+- **`to check in / to check out`** — làm thủ tục nhận phòng / trả phòng. *"We checked in at 3 and we're checking out tomorrow morning."* Hai cụm đi đôi xuyên suốt toàn topic — đơn giản nhưng quan trọng hơn nhiều người nghĩ vì người học hay nhầm với "check-in" tại sân bay.
+
+- **`to charge to the room`** — tính vào phòng thay vì trả trực tiếp. *"Could I charge this to the room? Room 412."* Dùng khi mua ở nhà hàng trong khách sạn, spa, hoặc các dịch vụ trong khuôn viên — tiện lợi nhưng cần xem lại khi check-out.
+
+- **`to settle the bill`** — thanh toán hoá đơn cuối. *"I'd like to settle the bill by card, please."* Dùng khi check-out — "settle" nghe chuyên nghiệp và phù hợp ngữ cảnh hơn "pay the bill" trong bối cảnh khách sạn.
+
+- **`to dispute a charge`** — thắc mắc / phủ nhận một khoản phí. *"I'd like to dispute this charge — I didn't use the minibar."* Từ khoá quan trọng nhất của bài này — biết dùng đúng giúp bạn tự tin review hoá đơn mà không ngại ngùng.
+
+- **`complimentary`** — miễn phí (dùng trong bối cảnh dịch vụ khách sạn). *"Is breakfast complimentary with this room type?"* Cao cấp hơn "free" trong tiếng Anh khách sạn — nhân viên dùng từ này, và bạn dùng lại được.
+
+- **`to store luggage`** — gửi hành lý tại khách sạn. *"Could I store my luggage here until 5 PM?"* Dịch vụ mà nhiều du khách không hỏi vì không biết — biết cụm này mở ra một lựa chọn thực dụng trong ngày check-out.
+
+- **`to extend one's stay`** — gia hạn thêm số đêm. *"I'd like to extend my stay by one more night — is that possible?"* Dùng khi chuyến đi đáng giá hơn bạn nghĩ và bạn muốn ở thêm — hoặc khi chuyến bay bị delay.
+
+- **`to be a no-show`** — đặt phòng nhưng không đến và không huỷ. *"If you don't cancel by 6 PM, it'll be counted as a no-show and the first night will be charged."* Thuật ngữ khách sạn quan trọng — no-show thường bị tính phí một đêm dù bạn không đến.
+
+- **`the concierge`** — bộ phận dịch vụ khách. *"Ask the concierge — they can arrange restaurant reservations for you."* Từ bài 03 — nhưng đặc biệt quan trọng vào ngày check-out khi bạn cần taxi ra sân bay, gợi ý địa điểm ăn trưa cuối, hoặc thông tin về phương tiện công cộng.
+
+## 09 — Tự luyện
+
+1. **Viết hội thoại check-out có dispute:** Tưởng tượng bạn đang check-out tại một khách sạn ở Singapore. Hoá đơn của bạn có hai khoản sai: (a) $12 minibar charge dù bạn không đụng vào minibar, và (b) một khoản laundry $30 mà bạn không gửi giặt. Viết một đoạn hội thoại 10–12 lượt bằng tiếng Anh: review hoá đơn → dispute từng khoản bình tĩnh → nhân viên xoá cả hai → thanh toán → hỏi về gửi hành lý → câu tạm biệt. Sử dụng cấu trúc từ bài 04: "I see a charge — I didn't use/have — could you remove/check?"
+
+2. **Phân tích register theo vùng:** Đọc lại phần 07 về hiệu chỉnh văn hoá theo vùng, sau đó viết bằng tiếng Anh 4–5 câu so sánh cách bạn sẽ điều chỉnh giọng điệu khi check-out ở (a) một khách sạn resort casual ở Bali và (b) một khách sạn 5 sao ở Tokyo. Giải thích ít nhất hai điểm khác biệt cụ thể — không phải chỉ "more formal" hay "less formal" mà là những hành vi hoặc cụm từ cụ thể bạn sẽ thay đổi.
+
+3. **Viết feedback email:** Sau kỳ lưu trú 3 đêm tại khách sạn ở Đà Nẵng, bạn nhận được email survey từ khách sạn. Viết bằng tiếng Anh một đoạn phản hồi ngắn (5–7 câu): đề cập một điểm tích cực cụ thể (nêu tên nhân viên nếu có thể), một điểm có thể cải thiện (nêu một cách xây dựng, không phàn nàn), và câu kết thể hiện bạn sẵn sàng quay lại. Lưu ý: feedback cụ thể luôn hữu ích hơn câu chung chung như "Great stay, 5 stars."
+
+<Recap>
+Trên toàn topic Hotel & accommodation, ta đã học:
+
+- **Bài 01 — Đặt phòng & pre-arrival:** Ngôn ngữ của quy trình booking — hỏi availability, đặt phòng qua điện thoại hoặc email, gửi special requests, và cửa sổ 24 giờ trước khi đến để tối ưu hoá kỳ lưu trú. Register xuyên suốt: lịch sự + cụ thể về nhu cầu.
+- **Bài 02 — Check-in & nhận phòng:** Ngôn ngữ của quầy lễ tân — cung cấp ID, deposit, chọn phòng, hỏi tiện nghi cơ bản, và câu đầu tiên bạn nói khi đến. Kỹ năng chính: "room 412 — reservation under Nguyen" đặt rõ thông tin ngay từ câu mở đầu.
+- **Bài 03 — Hỏi tiện nghi & dịch vụ:** Ngôn ngữ của các yêu cầu trong phòng — WiFi password, breakfast details, gym access, room service, và late check-out. Công thức "Is [service] included?" và "Could I get [specific thing]?" làm việc ở mọi khách sạn.
+- **Bài 04 — Vấn đề trong phòng:** Ngôn ngữ của tình huống đi sai — AC hỏng, WiFi không chạy, tiếng ồn, mất nước nóng. Công thức calm advocacy: nêu vấn đề cụ thể + yêu cầu giải pháp + leo thang lịch sự nếu cần. Không im lặng chịu đựng, không leo thang cảm xúc sớm.
+- **Bài 05 — Housekeeping & yêu cầu thêm:** Ngôn ngữ của những yêu cầu hằng ngày — thêm khăn, dọn phòng muộn hơn, do-not-disturb, giặt là. "Could I have…?", "Please don't disturb until…", và phân biệt các loại yêu cầu: cấp bách vs. tiện lợi.
+- **Bài 06 — Check-out & văn hoá capstone:** Quy trình check-out đầy đủ — review hoá đơn, dispute lịch sự, thanh toán, gửi hành lý, tạm biệt — cộng với tổng hợp văn hoá khách sạn: register "polite-but-specific" xuyên suốt, hiệu chỉnh theo vùng, và tầm quan trọng của feedback sau kỳ lưu trú.
+- Xuyên suốt toàn topic, sắc thái chủ đạo là **"Could I…?" + kết quả cụ thể**. Tiếng Anh khách sạn không yêu cầu bạn nói hoàn hảo — nó yêu cầu bạn nói đúng lúc, đủ rõ, và đủ lịch sự để được xử lý đúng. Bạn đã có đủ ngôn ngữ để làm điều đó tự tin từ lúc đặt phòng đến lúc bước ra cửa.
+</Recap>

@@ -2,17 +2,6 @@ import type { EnglishTopic } from '../types';
 
 export const placeholderTopics: EnglishTopic[] = [
   {
-    slug: 'hotel',
-    title: 'Khách sạn & nơi ở',
-    englishTitle: 'Hotel & accommodation',
-    summary: 'Đặt phòng, check-in, hỏi tiện nghi, xử lý vấn đề trong phòng và check-out.',
-    level: 'B1+',
-    variant: 'daily-life',
-    lessons: [],
-    placeholder: true,
-    plannedLessonCount: 6,
-  },
-  {
     slug: 'doctor-health',
     title: 'Khám bệnh & sức khoẻ',
     englishTitle: 'Doctor & health',

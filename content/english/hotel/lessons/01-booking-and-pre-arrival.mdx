@@ -1,0 +1,184 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Phần lớn đặt phòng khách sạn ngày nay được thực hiện online — Booking.com, Agoda, hoặc trang web chính của khách sạn. Nhưng lớp giao tiếp *trước khi đến* (pre-arrival) qua điện thoại hoặc email mới là nơi bạn sắp xếp những thứ mà trang đặt phòng không thể nắm bắt: check-in sớm, yêu cầu phòng cụ thể, thông tin đón sân bay, thời gian đến ngoài giờ bình thường. Kỹ năng ở đây là những yêu cầu lịch sự và cụ thể — không chung chung, không mơ hồ — để biến một booking bình thường thành một chuyến đến suôn sẻ.
+
+## 01 — Bối cảnh
+
+Hiểu luồng pre-arrival giúp bạn biết cần làm gì ở mỗi bước và *khi nào* nên làm.
+
+**(1) Luồng chuẩn.** Sau khi đặt phòng (online hoặc qua điện thoại), bạn sẽ nhận email xác nhận với số đặt phòng (`reservation number`) và thông tin cơ bản. Từ đây, luồng thường là: đặt xong → nhận xác nhận → gửi special requests khoảng 1–2 tuần trước ngày đến → xác nhận giờ đến cụ thể 1–2 ngày trước → đến khách sạn.
+
+**(2) Cửa sổ 24 giờ trước khi đến.** Đây là thời điểm vàng. Một email ngắn gửi trước 24 giờ — thông báo giờ đến, nhắc lại special request — giúp khách sạn chuẩn bị trước: phòng đặc biệt theo yêu cầu, early check-in được ưu tiên xử lý, nhân viên lễ tân biết bạn sắp đến. Những khách không làm gì thường phải chờ phòng tiêu chuẩn đầu tiên sẵn có; những khách chủ động liên hệ trước được đối xử tốt hơn một cách có hệ thống.
+
+**(3) Khi nào dùng điện thoại, khi nào dùng email.** Điện thoại tốt hơn khi bạn cần phản hồi ngay (hỏi về availability, thay đổi ngày trong vòng 24 giờ). Email tốt hơn cho special requests — nó tạo ra bằng chứng bằng văn bản và khách sạn có thể forward nội dung cho đúng bộ phận. Một nguyên tắc hữu ích: nếu yêu cầu quan trọng với bạn, gửi email — đừng chỉ nhờ qua hệ thống tin nhắn của trang đặt phòng vì nó thường chậm và ít được theo dõi hơn.
+
+**(4) Những gì booking sites không thể làm thay bạn.** Trang đặt phòng cho phép bạn chọn loại phòng và đôi khi để lại ghi chú, nhưng những yêu cầu thực sự — "tôi đến lúc 10 giờ sáng, có thể check in sớm không?", "phòng tôi có thể có view ra biển không?", "tôi cần chỗ đậu xe — có sẵn không?" — cần được giao tiếp trực tiếp với khách sạn.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "to make a reservation", ipa: "ˌrɛzərˈveɪʃən", vi: "đặt phòng (dùng động từ 'make', không phải 'do')", example: "I'd like to make a reservation for two nights." },
+  { en: "Could I check availability?", vi: "hỏi xem còn phòng không — cụm câu hỏi chuẩn khi gọi điện hoặc email", example: "Could I check availability for the weekend of the 15th?" },
+  { en: "single / double / twin / suite", vi: "phòng đơn (1 giường đơn) / phòng đôi (1 giường đôi) / phòng twin (2 giường đơn) / suite (phòng cao cấp có phòng khách riêng)", example: "I'd like a double room, not a twin." },
+  { en: "to be available", ipa: "əˈveɪləbl", vi: "còn trống, có sẵn — dùng cho phòng, dịch vụ, hoặc nhân viên", example: "Is a suite available for those dates?" },
+  { en: "to be sold out / fully booked", vi: "đã hết phòng — 'sold out' phổ biến ở Mỹ, 'fully booked' phổ biến ở Anh và châu Á", example: "I'm afraid we're fully booked that weekend." },
+  { en: "to modify a reservation", vi: "thay đổi booking — đổi ngày, loại phòng, hoặc số người", example: "I'd like to modify my reservation — could I extend by one night?" },
+  { en: "early check-in", ipa: "ˈɜːrli tʃɛk ɪn", vi: "check-in trước giờ tiêu chuẩn (thường là trước 14:00 hoặc 15:00)", example: "Could I request an early check-in? I'll be arriving around 10 AM." },
+  { en: "late check-out", vi: "trả phòng muộn hơn giờ tiêu chuẩn (thường là sau 11:00 hoặc 12:00)", example: "Is a late check-out available? My flight is in the evening." },
+  { en: "to add a special request", vi: "thêm yêu cầu đặc biệt — tầng cao, không hút thuốc, giường phụ, hướng phòng", example: "I'd like to add a special request for a high floor if possible." },
+  { en: "the booking confirmation", vi: "email xác nhận đặt phòng — bao gồm mọi thông tin quan trọng", example: "I have my booking confirmation — the reservation number is BK2847." },
+  { en: "the reservation number", vi: "mã số đặt phòng — dùng để tra cứu nhanh, luôn có trong email xác nhận", example: "Could I give you my reservation number? It's RX-09471." },
+  { en: "to confirm by email", vi: "xác nhận lại qua email — cách tốt nhất để có bằng chứng bằng văn bản", example: "Could you confirm the early check-in by email?" },
+  { en: "the contact at the front desk", vi: "liên hệ tại quầy lễ tân — bộ phận trực tiếp xử lý yêu cầu khi đến", example: "I'll ask the contact at the front desk when I arrive." },
+  { en: "an extra bed", vi: "giường phụ — thường có thể yêu cầu trước cho trẻ em hoặc khách thêm", example: "Could I request an extra bed? We're travelling with a child." },
+]} />
+
+## 03 — Mẫu câu
+
+Năm mẫu dưới đây phủ những tình huống phổ biến nhất trong giai đoạn đặt phòng và pre-arrival.
+
+<Pattern
+  en="Hi, I'd like to check availability for two nights starting the 20th of June."
+  vi="Chào, tôi muốn hỏi xem còn phòng không cho hai đêm bắt đầu từ 20 tháng 6."
+  variations={[
+    "Hi, do you have any double rooms available for the weekend of the 14th?",
+    "I'd like to check if you have availability for a single room from Friday to Sunday.",
+    "Could I check availability for a suite — three nights from the 8th?",
+  ]}
+  note={`"I'd like to check availability" là cách mở đầu chuẩn khi gọi điện. Nêu loại phòng và ngày ngay từ đầu để nhân viên tra cứu ngay — không cần chờ họ hỏi.`}
+/>
+
+<Pattern
+  en="I have a reservation under [your name] — could I extend my stay by one night?"
+  vi="Tôi có đặt phòng dưới tên [tên bạn] — tôi có thể gia hạn thêm một đêm không?"
+  variations={[
+    "I'd like to modify my reservation — could I change my check-out date to the 18th?",
+    "I need to push my check-in back by one day — is that possible?",
+    "Could I add a night to my existing reservation? My booking number is RX-2847.",
+  ]}
+  note={`Luôn bắt đầu bằng "I have a reservation under [name]" khi gọi để thay đổi — nhân viên cần tra cứu hồ sơ trước khi làm bất cứ điều gì. Cung cấp số đặt phòng nếu có để tiết kiệm thời gian.`}
+/>
+
+<Pattern
+  en="Hi, I have a reservation arriving on Friday — could I request an early check-in if possible?"
+  vi="Chào, tôi có đặt phòng đến vào thứ Sáu — tôi có thể yêu cầu check-in sớm nếu được không?"
+  variations={[
+    "I'll be arriving around 10 AM — is an early check-in available?",
+    "Could I check in at 11 AM? My flight lands early that morning.",
+    "I have a reservation for Friday — could I request early check-in? I can be flexible if needed.",
+  ]}
+  note={`"If possible" là cụm từ quan trọng — nó cho khách sạn biết bạn hiểu đây là yêu cầu, không phải đòi hỏi. Nêu giờ đến cụ thể (không chỉ nói "sớm") để nhân viên có thể đánh giá khả năng thực tế.`}
+/>
+
+<Pattern
+  en="Could you confirm if breakfast is included in the rate?"
+  vi="Bạn có thể xác nhận xem bữa sáng có bao gồm trong giá phòng không?"
+  variations={[
+    "Could you confirm if parking is complimentary for guests?",
+    "Could you confirm if the room has a bathtub or just a shower?",
+    "I'd like to confirm whether the pool is open year-round.",
+  ]}
+  note={`"Could you confirm if…?" là cấu trúc lịch sự để hỏi về thông tin đã ghi trên trang web nhưng bạn muốn chắc chắn. Dùng khi thông tin quan trọng với bạn và bạn cần câu trả lời rõ ràng bằng văn bản.`}
+/>
+
+<Pattern
+  en="Do you offer airport transfers? If so, what's the cost and how do I arrange one?"
+  vi="Khách sạn có dịch vụ đưa đón sân bay không? Nếu có, chi phí là bao nhiêu và tôi đặt như thế nào?"
+  variations={[
+    "Is there a shuttle service from the airport to the hotel?",
+    "Could you recommend the best way to get from the airport to the hotel?",
+    "I'd like to arrange an airport pickup — is that something you offer?",
+  ]}
+  note={`Hỏi về transfer trong email pre-arrival thường rẻ hơn và thuận tiện hơn tìm taxi ở sân bay. Hỏi cả chi phí lẫn cách đặt trong cùng một câu để tránh phải gửi email qua lại nhiều lần.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`"I'd like to" + động từ nguyên thể cho yêu cầu lịch sự, và "Could you confirm if…?" cho câu hỏi xác nhận`}
+  structure={`I'd like to + [base verb] + [object]. / Could you confirm if + [mệnh đề yes/no]?`}
+  examples={[
+    { en: "I'd like to make a reservation for two nights.", vi: "Tôi muốn đặt phòng hai đêm." },
+    { en: "I'd like to extend my stay by one night.", vi: "Tôi muốn gia hạn thêm một đêm." },
+    { en: "I'd like to request an early check-in.", vi: "Tôi muốn yêu cầu check-in sớm." },
+    { en: "Could you confirm if breakfast is included in the rate?", vi: "Bạn có thể xác nhận xem bữa sáng có bao gồm trong giá phòng không?" },
+    { en: "Could you confirm if the room has a city view?", vi: "Bạn có thể xác nhận xem phòng có view thành phố không?" },
+  ]}
+  contrast={`"I want make reservation" — sai ngữ pháp và nghe thô. "I'd like to make a reservation" — chuẩn, lịch sự, chuyên nghiệp. Trong giao tiếp khách sạn, "I'd like to" là khuôn mẫu lịch sự phổ quát cho mọi yêu cầu: dùng nó thay vì "I want" trong mọi tình huống. Tương tự, "Could you confirm if…?" mềm hơn nhiều so với "Is breakfast included?" đơn thuần — nó hàm ý bạn hiểu nhân viên cần tra cứu và đánh giá cao sự giúp đỡ của họ.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "You", en: "Hi, good afternoon — I have a reservation arriving this Friday. My name is Linh Nguyen, reservation number RX-4821.", vi: "Chào, buổi chiều tốt lành — tôi có đặt phòng đến vào thứ Sáu. Tên tôi là Linh Nguyen, mã đặt phòng RX-4821." },
+  { speaker: "Front Desk", en: "Good afternoon! Let me pull that up for you... yes, I have you here — a double room, Friday to Monday, three nights. How can I help?", vi: "Chào buổi chiều! Để tôi tra cứu nhé... vâng, tôi tìm thấy rồi — phòng đôi, từ thứ Sáu đến thứ Hai, ba đêm. Tôi có thể giúp gì ạ?" },
+  { speaker: "You", en: "Great — I'm calling because my flight lands at 9 AM on Friday, so I'll be arriving quite early. Could I request an early check-in, if possible? Around 11 AM or noon?", vi: "Tốt lắm — tôi gọi vì chuyến bay hạ cánh lúc 9 giờ sáng thứ Sáu, nên tôi sẽ đến khá sớm. Tôi có thể yêu cầu check-in sớm không, nếu được? Khoảng 11 giờ hoặc trưa?" },
+  { speaker: "Front Desk", en: "We'll do our best — standard check-in is at 3 PM, but I'll flag your reservation for the housekeeping team. If a room is ready by noon, we'll get you in. I can't guarantee it, but we'll try.", vi: "Chúng tôi sẽ cố gắng — check-in tiêu chuẩn là 3 giờ chiều, nhưng tôi sẽ đánh dấu đặt phòng của bạn cho đội dọn phòng. Nếu phòng sẵn sàng trước trưa, chúng tôi sẽ cho bạn vào. Tôi không thể đảm bảo, nhưng chúng tôi sẽ cố." },
+  { speaker: "You", en: "That's great, thank you. I also wanted to ask — do you offer airport transfers? If so, how does that work?", vi: "Tốt lắm, cảm ơn. Tôi cũng muốn hỏi — khách sạn có dịch vụ đưa đón sân bay không? Nếu có, thủ tục như thế nào?" },
+  { speaker: "Front Desk", en: "We do — it's a flat rate of $25 from the international terminal. You can book it through us or just let me add it to your reservation now. What time does your flight land?", vi: "Có ạ — giá cố định $25 từ sảnh quốc tế. Bạn có thể đặt qua chúng tôi hoặc để tôi thêm vào đặt phòng của bạn ngay bây giờ. Chuyến bay của bạn hạ cánh lúc mấy giờ?" },
+  { speaker: "You", en: "9:05 AM on Friday. Yes, please add it — that would be really helpful.", vi: "9:05 sáng thứ Sáu. Vâng, làm ơn thêm vào — sẽ rất tiện." },
+  { speaker: "Front Desk", en: "Done. Our driver will meet you at the arrivals hall with a name sign. Could you also confirm if you have any other special requests — type of pillow, floor preference, anything like that?", vi: "Xong rồi. Tài xế của chúng tôi sẽ đón bạn ở sảnh đến với bảng tên. Bạn có thể xác nhận xem có yêu cầu đặc biệt nào khác không — loại gối, tầng ưu tiên, hoặc bất cứ điều gì khác?" },
+  { speaker: "You", en: "A high floor would be great if available — and a quiet room away from the elevator. That's it, I think.", vi: "Tầng cao thì tốt nếu còn — và phòng yên tĩnh tránh xa thang máy. Tôi nghĩ chỉ vậy thôi." },
+  { speaker: "Front Desk", en: "I've noted all of that. I'll send you a confirmation email with the updated details shortly. We look forward to welcoming you on Friday!", vi: "Tôi đã ghi lại tất cả. Tôi sẽ gửi cho bạn email xác nhận với thông tin cập nhật ngay. Chúng tôi mong được đón bạn vào thứ Sáu!" },
+  { speaker: "You", en: "Perfect — thank you so much for your help. See you Friday!", vi: "Tuyệt vời — cảm ơn bạn rất nhiều. Gặp lại thứ Sáu!" },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"Reserve room for me."`}
+  right={`"I'd like to make a reservation, please."`}
+  why={`"Reserve room" thiếu mạo từ, thiếu modal, và nghe như lệnh. Cấu trúc đúng là "make a reservation" — động từ là "make", không phải "reserve" trực tiếp. Trong tiếng Anh khách sạn, "I'd like to make a reservation" là câu mở đầu chuẩn tuyệt đối.`}
+/>
+
+<Mistake
+  wrong={`"I want early check-in." (nói tại quầy lễ tân lúc đến)`}
+  right={`"I have a reservation arriving Friday — could I request an early check-in if possible?" (email gửi trước 24 giờ)`}
+  why={`Yêu cầu early check-in *tại chỗ* khi đến thường thất bại vì phòng chưa sẵn sàng và lễ tân không có thông tin trước để ưu tiên. Gửi email 24 giờ trước cho phép đội housekeeping chuẩn bị đúng phòng cho bạn — đây là sự khác biệt giữa được và không được check-in sớm trong hầu hết các trường hợp.`}
+/>
+
+<Mistake
+  wrong={`"I want early arrival."`}
+  right={`"I'll be arriving around 11 AM — could I check in early if a room is available?"`}
+  why={`"Early arrival" không có thông tin gì hữu ích — "sớm" có thể là 8 giờ sáng hoặc 1 giờ chiều. Luôn nêu giờ cụ thể để nhân viên đánh giá được tính khả thi. Thêm "if a room is available" để tỏ rõ bạn linh hoạt và không đòi hỏi — điều này thực sự làm tăng khả năng được đáp ứng.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+Ba điểm thực tế về giao tiếp khách sạn mà sách giáo khoa ít đề cập:
+
+1. **Email trực tiếp đến khách sạn hiệu quả hơn hệ thống tin nhắn của trang đặt phòng.** Tin nhắn qua Booking.com hay Agoda thường đến hộp thư chung và được xử lý chậm hơn, đôi khi bởi nhân viên không trực tiếp phụ trách ca đó. Email gửi thẳng đến địa chỉ khách sạn (thường là `reservations@...` hoặc `info@...`) đến đúng bộ phận và dễ được forward cho người có thẩm quyền xử lý — đặc biệt quan trọng với yêu cầu đặc biệt như early check-in hay phòng đặc biệt.
+
+2. **Một email ngắn cảm ơn sau một kỳ nghỉ tốt được nhân viên khách sạn đánh giá thực sự cao.** Phần lớn phản hồi mà họ nhận được là khiếu nại — một email chân thành nói "chúng tôi rất thích kỳ nghỉ, đặc biệt cảm ơn [tên nhân viên]" thực sự gây ấn tượng. Lần sau bạn quay lại, tên bạn sẽ được nhớ và bạn sẽ được đối xử tốt hơn một cách rõ ràng.
+
+3. **Chương trình loyalty (thành viên) miễn phí thường mở ra late check-out, nâng hạng phòng, và ưu tiên xử lý yêu cầu.** Đăng ký tài khoản thành viên miễn phí trước khi đặt phòng — ngay cả thành viên hạng thấp nhất đôi khi được late check-out đến 2 giờ chiều mà không tính phí, điều mà khách thường phải trả $20–$50.
+
+<Callout type="note" title={`"If possible" — cụm từ ma thuật trong mọi yêu cầu khách sạn`}>
+Thêm "if possible" vào bất kỳ yêu cầu nào — "Could I have a high-floor room, if possible?", "Could we get an early check-in, if possible?" — là tín hiệu rõ ràng rằng bạn hiểu đây là ưu tiên, không phải đảm bảo, và bạn sẽ không thất vọng nếu không được. Nghịch lý là cụm từ này thường làm cho khách sạn *cố gắng hơn* để đáp ứng, vì nhân viên biết bạn sẽ biết ơn thực sự nếu họ làm được — thay vì xem đó là điều hiển nhiên.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to make a reservation`** — đặt phòng/bàn. *"I'd like to make a reservation for Friday night."* Luôn dùng "make" + "reservation", không dùng "do" hay bỏ "make".
+- **`to be sold out / fully booked`** — hết phòng. *"I'm afraid we're fully booked that weekend — would you like us to check a nearby property?"*
+- **`to be on the wait list`** — trong danh sách chờ. *"We're fully booked, but I can put you on the wait list in case of a cancellation."* Đây là tùy chọn khi khách sạn yêu thích đã đầy.
+- **`to extend one's stay`** — gia hạn thời gian ở. *"I'd like to extend my stay by two nights — is the room available?"* Luôn hỏi trước ít nhất 24 giờ để khách sạn có thể kiểm tra tình trạng phòng.
+- **`to be a no-show`** — không đến mà không thông báo. *"If you can't make it, please let us know — we'll charge for a no-show."* Nếu kế hoạch thay đổi, luôn gọi hoặc email để hủy đúng hạn — tránh bị tính phí và giữ uy tín khi cần đặt lần sau.
+
+## 09 — Tự luyện
+
+1. **Nói thành tiếng:** Bạn đang gọi điện cho khách sạn để hỏi phòng còn trống không cho hai đêm cuối tuần này. Nói (thật to) bốn câu liên tiếp: chào, hỏi availability, nêu loại phòng muốn, và hỏi giá bao gồm bữa sáng không. Cố gắng nói liên tục, không nhìn ghi chú.
+
+2. **Viết email:** Bạn đã đặt phòng tại khách sạn, check-in thứ Năm tuần tới. Viết một email ngắn (4–6 câu) gửi cho khách sạn: xác nhận đặt phòng bằng reservation number giả định, yêu cầu early check-in lúc 11 giờ sáng, hỏi về dịch vụ đưa đón sân bay, và cảm ơn.
+
+3. **Đổi vai:** Tưởng tượng bạn là nhân viên lễ tân nhận được yêu cầu sau: *"I want to change my dates and also I need early check-in and airport pickup and a quiet room."* Viết 3–4 câu bạn sẽ nói để xử lý từng yêu cầu một cách lịch sự và có trật tự — bài tập này giúp bạn hiểu nhân viên cần gì và lần sau sẽ tổ chức yêu cầu rõ ràng hơn khi gọi điện.
+
+<Recap>
+- Giai đoạn pre-arrival — đặc biệt email 24 giờ trước — là khoảng thời gian hiệu quả nhất để sắp xếp early check-in, transfer, và yêu cầu phòng đặc biệt.
+- `I'd like to + [base verb]` là khuôn lịch sự phổ quát cho mọi yêu cầu với khách sạn — dùng thay thế hoàn toàn cho "I want".
+- `Could you confirm if…?` dùng để xác nhận thông tin cụ thể bằng văn bản — quan trọng khi điều đó ảnh hưởng đến kế hoạch của bạn.
+- Luôn nêu giờ đến cụ thể khi xin early check-in — "sớm" không có nghĩa gì; "11 AM" thì có.
+- Email trực tiếp đến khách sạn hiệu quả hơn hệ thống tin nhắn của trang đặt phòng cho special requests.
+- Thêm `if possible` vào mọi yêu cầu không đảm bảo — nó báo hiệu bạn linh hoạt và thường làm khách sạn cố gắng hơn để đáp ứng.
+</Recap>
