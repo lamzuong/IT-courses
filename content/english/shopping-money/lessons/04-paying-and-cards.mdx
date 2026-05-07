@@ -1,0 +1,186 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Thanh toán tại quầy thu ngân tưởng như chỉ mất 30 giây — nhưng với người học tiếng Anh, đó có thể là 30 giây căng thẳng nhất của cả chuyến mua sắm. Thẻ bị từ chối. Máy hỏi "credit or debit?" mà bạn chưa kịp hiểu. Thu ngân hỏi về túi đựng trong khi bạn đang cắm đầu bấm PIN. Bài này đi qua toàn bộ chuỗi thanh toán — từ lúc "Will that be all?" cho đến "Have a good one!" — kèm theo cả những con đường gãy như thẻ bị từ chối hay vượt hạn mức contactless, để bạn không bao giờ phải đứng chết lặng ở quầy thu ngân nữa.
+
+## 01 — Bối cảnh
+
+Một lượt thanh toán chuẩn ở siêu thị hoặc cửa hàng lẻ diễn ra theo trình tự sau: thu ngân quét xong đồ → "Will that be all?" (hỏi xem bạn mua xong chưa) → thông báo tổng tiền → "How would you like to pay?" (hỏi phương thức thanh toán) → bạn tap/cắm thẻ/quẹt thẻ → nhập PIN hoặc chỉ cần tap → thu ngân hỏi về túi đựng → hỏi về biên lai → "Have a good one!" và bạn đi.
+
+Nhưng thực tế hay xảy ra các nhánh phụ:
+
+- **Contactless limit bị vượt**: Nhiều nước giới hạn giao dịch không chạm ở mức $100–200. Nếu tổng tiền vượt giới hạn, máy sẽ yêu cầu bạn cắm thẻ và nhập PIN thay vì chỉ tap.
+- **Thẻ bị từ chối (declined)**: Có thể do khóa giao dịch nước ngoài, vượt hạn mức ngày, hoặc đơn giản là lỗi đầu đọc. Bình tĩnh và chuyển sang thẻ khác là xử lý chuẩn.
+- **Chia thanh toán giữa hai thẻ**: Phổ biến khi bạn đi mua sắm cùng bạn bè hoặc khi một thẻ không đủ tiền.
+- **Khách du lịch hỏi về thẻ ngoại**: Không phải cửa hàng nào cũng nhận mọi loại thẻ — biết cách hỏi trước giúp bạn tránh mất thời gian.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "How would you like to pay?", vi: "Bạn muốn thanh toán bằng hình thức nào? — câu hỏi chuẩn của thu ngân khi hỏi phương thức thanh toán", example: "How would you like to pay? Cash or card?" },
+  { en: "credit / debit", vi: "thẻ tín dụng / thẻ ghi nợ — khi thu ngân Mỹ hỏi 'credit or debit?', khách du lịch nên chọn 'credit' vì nó đi qua hệ thống Visa/Mastercard quốc tế", example: "Credit, please." },
+  { en: "to tap / tap to pay", vi: "chạm thẻ hoặc điện thoại vào đầu đọc để thanh toán không tiếp xúc (contactless)", example: "I'll just tap." },
+  { en: "to swipe", ipa: "swaɪp", vi: "quẹt thẻ — vuốt dải từ tính qua đầu đọc; ít phổ biến hơn nhưng vẫn còn ở nhiều máy cũ", example: "Try swiping instead." },
+  { en: "to insert", vi: "cắm thẻ — đưa chip thẻ vào khe đọc; an toàn hơn quẹt và thường được yêu cầu khi contactless bị giới hạn", example: "Could you insert your card?" },
+  { en: "contactless", ipa: "ˈkɒntæktləs", vi: "không tiếp xúc — phương thức thanh toán bằng cách chạm (tap) thẻ hoặc thiết bị vào đầu đọc NFC", example: "Do you have contactless?" },
+  { en: "PIN", ipa: "pɪn", vi: "mã số bí mật 4–6 chữ số để xác nhận giao dịch — viết tắt của Personal Identification Number", example: "Please enter your PIN." },
+  { en: "to be declined", ipa: "dɪˈklaɪnd", vi: "bị từ chối — khi ngân hàng không cho phép giao dịch đó xảy ra; không có nghĩa là tài khoản hết tiền", example: "I think my card was declined." },
+  { en: "Could I split it?", vi: "Tôi có thể chia thanh toán được không? — yêu cầu trả bằng hai thẻ hoặc hai phương thức khác nhau", example: "Could I split it between two cards?" },
+  { en: "Could you put X on this card?", vi: "Bạn có thể tính X lên thẻ này không? — dùng khi muốn chỉ định số tiền cụ thể cho một thẻ", example: "Could you put fifty on this card?" },
+  { en: "receipt", ipa: "rɪˈsiːt", vi: "biên lai, hoá đơn giấy sau khi thanh toán — chú ý chữ 'p' trong 'receipt' không đọc", example: "Could I get a receipt?" },
+  { en: "bag fee", vi: "phí túi đựng — nhiều thành phố/quốc gia tính tiền thêm cho mỗi túi nilon; thường $0.10–$0.25 mỗi túi", example: "There's a ten-cent bag fee." },
+  { en: "Will that be all?", vi: "Bạn mua hết rồi đúng không? — thu ngân hỏi xác nhận trước khi tính tổng tiền", example: "Will that be all for you today?" },
+  { en: "Do you take [card type]?", vi: "Bạn có nhận thẻ [loại thẻ] không? — hỏi về loại thẻ được chấp nhận trước khi trả", example: "Do you take Mastercard here?" },
+]} />
+
+## 03 — Mẫu câu
+
+Năm mẫu câu dưới đây phủ gần như toàn bộ những gì bạn có thể cần nói tại quầy thu ngân — từ câu dễ nhất đến câu hay gây lúng túng nhất.
+
+<Pattern
+  en="I'll tap."
+  vi="Tôi sẽ chạm thẻ."
+  variations={[
+    "I'll use card.",
+    "I'll pay by credit.",
+    "I'll go with card, thanks.",
+    "Just card for me.",
+  ]}
+  note={`"I'll tap" là câu ngắn gọn và tự nhiên nhất tại checkout — bạn vừa quyết định ngay tại chỗ nên dùng "I'll" (xem phần Ngữ pháp). "I'll pay by credit" rõ ràng hơn khi thu ngân hỏi "credit or debit?". "Just card for me" nghe thân mật và nhanh — phù hợp với cửa hàng bình dân.`}
+/>
+
+<Pattern
+  en="Could you put $50 on this card and the rest on the other?"
+  vi="Bạn có thể tính $50 lên thẻ này và phần còn lại lên thẻ kia được không?"
+  variations={[
+    "Could I split it between two cards?",
+    "Can I do fifty on this one and the rest on a different card?",
+    "I'd like to split the payment — is that okay?",
+  ]}
+  note={`Hãy nói câu này trước khi bắt đầu thanh toán, không phải sau khi tap thất bại. Thu ngân cần nhập tay số tiền cho từng thẻ nên họ cần biết trước. "The rest" = phần còn lại — không cần tính trong đầu rồi đọc số chính xác.`}
+/>
+
+<Pattern
+  en="No bag, thanks."
+  vi="Tôi không cần túi, cảm ơn."
+  variations={[
+    "I'm fine without a bag.",
+    "I've got my own bag, thanks.",
+    "Could I get a bag, please? I'll pay the fee.",
+    "Just the one bag is fine.",
+  ]}
+  note={`"No bag, thanks" là câu phản xạ cần luyện vì thu ngân hỏi rất nhanh và chờ trả lời ngay. Nếu bạn muốn mua túi, "I'll pay the fee" cho thấy bạn biết có tính tiền thêm — thu ngân không cần giải thích thêm.`}
+/>
+
+<Pattern
+  en="Could you try it again?"
+  vi="Bạn thử lại một lần nữa được không?"
+  variations={[
+    "Let me try a different card.",
+    "It looks like it didn't go through — let me try another one.",
+    "Could we try inserting instead of tapping?",
+    "Sorry — let me find another card.",
+  ]}
+  note={`Khi thẻ bị từ chối, đừng im lặng. "Could you try it again?" hỏi thu ngân thử lại từ phía máy. "Let me try a different card" cho thấy bạn chủ động xử lý. "It didn't go through" là cụm tự nhiên nhất để nói 'giao dịch không thành công' mà không nghe quá kỹ thuật.`}
+/>
+
+<Pattern
+  en="Do you take Mastercard?"
+  vi="Bạn có nhận thẻ Mastercard không?"
+  variations={[
+    "Do you accept foreign cards?",
+    "Is Visa okay here?",
+    "Do you take contactless?",
+    "Do you accept American Express?",
+  ]}
+  note={`Hỏi trước khi xếp hàng nếu bạn không chắc. "Do you take…?" và "Do you accept…?" đều đúng và phổ biến như nhau. Lưu ý: American Express (Amex) không được chấp nhận rộng rãi bằng Visa/Mastercard ở nhiều nơi ngoài Mỹ.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`"I'll" + base verb cho quyết định nhỏ tại chỗ`}
+  structure={`I'll + [base verb] + [object / method]. (dùng cho quyết định tức thời, ngay tại thời điểm đó — rất phổ biến ở checkout)`}
+  examples={[
+    { en: "I'll tap.", vi: "Tôi sẽ chạm thẻ." },
+    { en: "I'll pay by credit.", vi: "Tôi thanh toán bằng thẻ tín dụng." },
+    { en: "I'll grab a bag, actually.", vi: "À thôi tôi lấy một túi vậy." },
+    { en: "I'll take the receipt, please.", vi: "Cho tôi biên lai nhé." },
+    { en: "I'll use this card.", vi: "Tôi dùng thẻ này." },
+  ]}
+  contrast={`"I am going to tap" (nghe như kế hoạch đã định từ trước — hơi lạ cho một quyết định tại chỗ) so với "I'll tap" (quyết định ngay lúc đó, tự nhiên và nhanh). Tại checkout, mọi quyết định đều là tức thời — chọn thẻ nào, lấy túi không, giữ biên lai không — nên "I'll" là cấu trúc chuẩn. "I'm going to pay by credit" không sai ngữ pháp nhưng nghe nặng nề và không khớp với nhịp độ nhanh của quầy thu ngân.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "Cashier", en: "Hi there! Will that be all for you today?", vi: "Xin chào! Bạn mua hết rồi đúng không?" },
+  { speaker: "You", en: "Yes, that's everything, thanks.", vi: "Vâng, hết rồi, cảm ơn." },
+  { speaker: "Cashier", en: "Okay, your total comes to $87.40. How would you like to pay?", vi: "Được, tổng của bạn là $87.40. Bạn muốn thanh toán bằng hình thức nào?" },
+  { speaker: "You", en: "I'll tap.", vi: "Tôi sẽ chạm thẻ." },
+  { speaker: "Cashier", en: "Sure — go ahead when you're ready.", vi: "Được thôi — bạn tap khi sẵn sàng nhé." },
+  { speaker: "Cashier", en: "Hmm, looks like it's asking you to insert — the tap limit is $80 here.", vi: "Hmm, có vẻ máy yêu cầu bạn cắm thẻ — giới hạn tap ở đây là $80." },
+  { speaker: "You", en: "Oh, got it — let me insert it.", vi: "À hiểu rồi — để tôi cắm thẻ vào nhé." },
+  { speaker: "Cashier", en: "Please enter your PIN when you're ready.", vi: "Bạn nhập PIN khi sẵn sàng nhé." },
+  { speaker: "Cashier", en: "Perfect. Would you like a bag today? There's a ten-cent fee.", vi: "Xong rồi. Hôm nay bạn có muốn túi đựng không? Có tính thêm mười xu một túi." },
+  { speaker: "You", en: "No bag, thanks — I've got my own. Oh, could I get a receipt?", vi: "Không cần túi, cảm ơn — tôi có sẵn túi rồi. À, cho tôi biên lai được không?" },
+  { speaker: "Cashier", en: "Of course — here you go. Have a great day!", vi: "Tất nhiên — đây bạn. Chúc bạn một ngày tốt lành!" },
+  { speaker: "You", en: "Thanks — you too!", vi: "Cảm ơn — bạn cũng vậy nhé!" },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong="My card not work."
+  right="It looks like it didn't go through — could you try it again? / Let me try another card."
+  why={`"My card not work" là câu gãy về ngữ pháp (thiếu 'does' và sai động từ) nhưng vấn đề lớn hơn là nó quá thụ động — bạn chỉ thông báo thay vì xử lý. Người bản xứ trong tình huống này sẽ ngay lập tức đề xuất giải pháp: "Let me try another card" hoặc "Could you try it again?" Câu này cho thấy bạn chủ động, bình tĩnh, và biết mình đang làm gì.`}
+/>
+
+<Mistake
+  wrong="Yes, give bag please."
+  right="Yes, I'll take a bag, thanks. / Yes please — just the one."
+  why={`"Give bag please" là cấu trúc mệnh lệnh rút gọn — nghe thô và thiếu lịch sự trong ngữ cảnh dịch vụ. "I'll take a bag" dùng cấu trúc "I'll" tự nhiên và chủ động, nghe như bạn đang tự quyết định thay vì yêu cầu người khác thực hiện cho mình. "Yes please — just the one" còn nghe tự nhiên hơn nữa vì nó xác nhận số lượng ngay luôn.`}
+/>
+
+<Mistake
+  wrong="[im lặng khi thu ngân hỏi về túi hoặc biên lai]"
+  right="No bag, thanks. / No receipt — that's fine."
+  why={`Đứng im khi thu ngân hỏi "Would you like a bag?" hoặc "Receipt with you?" là một trong những lỗi vô hình phổ biến nhất — không sai ngữ pháp nhưng gây awkward silence và làm chậm hàng dài phía sau. Hai câu phản xạ này chỉ có hai từ thực sự cần thiết: "No bag" và "No receipt" — nhưng thêm "thanks" hoặc "that's fine" vào cuối sẽ nghe hoàn chỉnh và lịch sự hơn rất nhiều.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+1. **Giới hạn tap-to-pay (contactless limit) tồn tại ở hầu hết mọi nơi.** Tại Mỹ thường là $100, tại Anh là £100, tại Úc là $200. Nếu tổng tiền vượt ngưỡng đó, máy sẽ tự chuyển sang yêu cầu cắm thẻ và nhập PIN — đây không phải lỗi của bạn hay của thẻ. Thu ngân thường đã biết điều này nên sẽ hướng dẫn bạn ngay.
+
+2. **"Credit or debit?" — khách du lịch nên chọn "credit".** Khi bạn dùng thẻ Visa/Mastercard nước ngoài tại Mỹ, chọn "credit" sẽ xử lý giao dịch qua mạng lưới quốc tế Visa/Mastercard — đúng với cách thẻ ngoại được thiết kế. Chọn "debit" đôi khi yêu cầu mã PIN chuẩn Mỹ (4 chữ số) mà thẻ ngoại không nhất thiết có, hoặc đi qua mạng nội địa mà thẻ bạn không hỗ trợ.
+
+3. **Phí túi đựng là phổ biến ở nhiều thành phố lớn** — không phải cửa hàng tính tiền cho vui. Nhiều bang ở Mỹ (California, New York, Oregon…), toàn bộ nước Anh và Ireland, cùng nhiều nước châu Âu đã ban hành quy định thu phí túi nilon dùng một lần nhằm giảm rác thải nhựa. Phí thường từ $0.10–$0.25 một túi. Nếu bạn mua sắm thường xuyên, nên mang túi vải riêng.
+
+<Callout type="note" title="Thẻ bị từ chối — đừng hoảng">
+Thẻ bị từ chối (declined) xảy ra với hầu hết mọi người ít nhất một lần trong đời — và thường không có nghĩa là tài khoản hết tiền. Ngân hàng tự động chặn giao dịch vì nhiều lý do: giao dịch nước ngoài chưa được bật, vượt hạn mức ngày, hoặc hệ thống ngân hàng đang chạy chậm. Câu xử lý chuẩn là: **"It looks like it didn't go through — let me try a different card."** Bình tĩnh, ngắn gọn, chuyên nghiệp. Không cần xin lỗi quá nhiều — thu ngân đã thấy tình huống này hàng chục lần mỗi ngày.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to ring up`** — quét và tính tiền hàng tại quầy. *"Let me ring that up for you."* — thu ngân nói khi bắt đầu quét hàng.
+- **`to ring someone out`** — hoàn tất thanh toán cho khách hàng. *"I can ring you out at register three."* — nghe ở siêu thị khi có quầy thu ngân trống.
+- **`to tap to pay`** — thanh toán bằng cách chạm thẻ hoặc điện thoại. *"I'll just tap to pay — it's faster."*
+- **`to swipe`** — quẹt thẻ; cũng dùng nghĩa bóng là "ăn cắp nhanh" hoặc "vuốt trái/phải trên app". *"The old machine only takes swipe — no chip."*
+- **`out of pocket`** — trả từ tiền túi cá nhân (không được hoàn lại); hoặc (ở Mỹ khẩu ngữ) có nghĩa là "quá đà, không phù hợp". *"The insurance didn't cover it — I was out of pocket $200."*
+
+## 09 — Tự luyện
+
+1. **Nói to:** Tưởng tượng bạn đang đứng ở quầy thu ngân. Thu ngân hỏi "How would you like to pay?" — nói to ba câu trả lời khác nhau: một câu dùng tap, một câu dùng thẻ credit, một câu chia thanh toán giữa hai thẻ.
+
+2. **Viết:** Thẻ đầu tiên của bạn bị từ chối ở một cửa hàng tạp hoá London. Viết đoạn hội thoại 4 lượt giữa bạn và thu ngân — từ lúc máy báo lỗi đến khi bạn thanh toán thành công bằng thẻ thứ hai.
+
+3. **Đổi vai:** Bạn là du khách đến Canada lần đầu và không chắc thẻ Visa Việt Nam của mình có dùng được không. Viết hai câu bạn sẽ hỏi trước khi xếp hàng: một câu hỏi về loại thẻ được nhận, một câu hỏi nếu tap không được thì cắm thẻ có được không.
+
+<Recap>
+- "I'll tap / I'll pay by credit / I'll use this card" — dùng "I'll" cho mọi quyết định tức thời tại checkout; không dùng "I am going to".
+- Contactless có giới hạn per-transaction ($80–200 tuỳ nước) — khi vượt giới hạn, cắm thẻ và nhập PIN là bình thường, không phải lỗi.
+- Du khách dùng thẻ ngoại tại Mỹ nên chọn "credit" khi máy hỏi "credit or debit?" — thẻ sẽ đi đúng đường Visa/Mastercard quốc tế.
+- Thẻ bị từ chối không đáng xấu hổ — "It didn't go through — let me try another card" là đủ, bình tĩnh và chuyên nghiệp.
+- Luyện hai câu phản xạ ngắn: "No bag, thanks" và "No receipt — that's fine" — tránh awkward silence tại quầy.
+- Phí túi đựng là quy định môi trường ở nhiều nơi, không phải chiêu thu tiền — mang túi vải riêng nếu mua sắm thường xuyên.
+</Recap>

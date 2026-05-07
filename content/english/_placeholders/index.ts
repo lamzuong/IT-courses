@@ -2,17 +2,6 @@ import type { EnglishTopic } from '../types';
 
 export const placeholderTopics: EnglishTopic[] = [
   {
-    slug: 'shopping-money',
-    title: 'Mua sắm & tiền bạc',
-    englishTitle: 'Shopping & money',
-    summary: 'Hỏi giá, thử đồ, mặc cả nhẹ nhàng, đổi trả và xử lý phàn nàn.',
-    level: 'B1+',
-    variant: 'daily-life',
-    lessons: [],
-    placeholder: true,
-    plannedLessonCount: 6,
-  },
-  {
     slug: 'directions-getting-around',
     title: 'Hỏi đường & di chuyển',
     englishTitle: 'Directions & getting around',
