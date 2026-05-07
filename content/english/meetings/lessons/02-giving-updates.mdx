@@ -1,0 +1,176 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Status update có một cấu trúc ma thuật: (1) những gì đã xong, (2) những gì sẽ làm tiếp, (3) điểm bị chặn. Ba câu. Khoảng 30 giây. Người học Việt thường hay nói dài hoặc bỏ qua phần "blockers" — vì thừa nhận bị chặn có cảm giác như thất bại. Nhưng team *cần* biết blockers để có thể giúp. Giấu blocker không làm bạn trông mạnh hơn; nó khiến cả nhóm chậm lại.
+
+## 01 — Bối cảnh
+
+Cấu trúc 3 phần của một status update hiệu quả:
+
+1. **Done** — "Last week I shipped X." Kể chính xác một thứ (hoặc tối đa hai) đã hoàn thành. Dùng past simple. Đừng giải thích quá trình — chỉ cần kết quả.
+2. **Next** — "This week I'm focusing on Y." Dùng present continuous để nói về việc đang và sẽ làm. Nếu có deadline cụ thể, đưa vào luôn: "should be done by Thursday."
+3. **Blockers** — "Blocked on Z — need help from [person/team]." Đây là phần quan trọng nhất mà mọi người hay bỏ. Một blocker chưa được nêu là một vấn đề nhóm chưa thể giải quyết.
+
+Mỗi phần chỉ mất khoảng 10 giây. Tổng cộng 30 giây. Đừng độn thêm. Đừng bỏ phần blocker vì ngại ngùng.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "to give a quick update", vi: "cập nhật nhanh tình hình", example: "Let me give a quick update on the migration." },
+  { en: "to ship", ipa: "ʃɪp", vi: "hoàn thành và bàn giao / ra mắt (tính năng, sản phẩm)", example: "We shipped the new login flow on Friday." },
+  { en: "to wrap up", vi: "hoàn thành, kết thúc (một công việc hoặc giai đoạn)", example: "I wrapped up the design review yesterday." },
+  { en: "to be on track", vi: "đang đúng tiến độ, không bị trễ", example: "The API integration is on track for next week." },
+  { en: "to be ahead of / behind schedule", vi: "đang nhanh hơn / chậm hơn kế hoạch", example: "We're slightly behind schedule on the data pipeline." },
+  { en: "to pivot to", vi: "chuyển hướng sang (ưu tiên khác)", example: "We had to pivot to fixing the production bug." },
+  { en: "in progress", vi: "đang thực hiện, chưa xong", example: "The testing phase is still in progress." },
+  { en: "blocked on", vi: "bị chặn bởi (không thể tiến tiếp vì lý do cụ thể)", example: "I'm blocked on getting API credentials from the vendor." },
+  { en: "stuck on", vi: "bị mắc kẹt ở (gần nghĩa với 'blocked on', mang tính cá nhân hơn)", example: "I've been stuck on this edge case for two days." },
+  { en: "to need help with", vi: "cần được hỗ trợ về", example: "I need help with the database schema design." },
+  { en: "the dependency", ipa: "dɪˈpendənsi", vi: "sự phụ thuộc — việc A phải xong trước khi B bắt đầu", example: "Our release has a dependency on the infra team's deployment." },
+  { en: "to flag (something)", vi: "gắn cờ, nêu lên để mọi người lưu ý (một vấn đề, rủi ro)", example: "I want to flag a potential delay in the timeline." },
+  { en: "the timeline", ipa: "ˈtaɪmlaɪn", vi: "lịch trình, mốc thời gian của dự án", example: "Can we revisit the timeline for Q3?" },
+  { en: "an estimate", ipa: "ˈestɪmɪt", vi: "ước tính (thời gian hoặc công sức)", example: "My estimate is two more days to finish." },
+]} />
+
+## 03 — Mẫu câu
+
+Năm mẫu câu này phủ gần như mọi tình huống cập nhật status trong một cuộc họp. Học thuộc cả mẫu lẫn cấu trúc thay thế.
+
+<Pattern
+  en="Last week I wrapped up the auth refactor — shipped Friday."
+  vi="Tuần trước tôi đã hoàn thành phần refactor xác thực — bàn giao hôm thứ Sáu."
+  variations={[
+    "Last week I shipped the onboarding redesign.",
+    "Last sprint I wrapped up the payment integration.",
+    "Last week I finished the code review and merged the PR.",
+  ]}
+  note='"Wrapped up" và "shipped" đều là past simple — luôn dùng past simple cho phần Done. Dấu gạch ngang (—) ngăn cách chi tiết thêm rất tự nhiên trong văn nói.'
+/>
+
+<Pattern
+  en="This week I'm focusing on the migration — should be done by Thursday."
+  vi="Tuần này tôi đang tập trung vào việc migration — dự kiến xong trước thứ Năm."
+  variations={[
+    "This week I'm working on the dashboard redesign.",
+    "This sprint I'm focusing on the API endpoints — targeting Friday.",
+    "This week I'm picking up the testing backlog.",
+  ]}
+  note='"Should be done by [day]" là cách đưa deadline vào cực kỳ tự nhiên. "Should" thể hiện kỳ vọng nhưng không cam kết tuyệt đối — trung thực và thực tế.'
+/>
+
+<Pattern
+  en="Blocked on getting access to the staging DB — could use someone from infra to unstick this."
+  vi="Đang bị chặn ở việc cấp quyền truy cập staging DB — cần ai đó bên infra hỗ trợ để giải quyết."
+  variations={[
+    "Blocked on vendor API credentials — waiting on procurement.",
+    "Stuck on a dependency from the design team — need the final mockups.",
+    "Blocked on sign-off from legal — flagging this now so it doesn't delay the launch.",
+  ]}
+  note='"Blocked on [vấn đề]" + "— [ai/nhóm nào cần giúp]" là công thức chuẩn. Luôn nêu rõ bạn cần ai để blocker được xử lý ngay trong cuộc họp.'
+/>
+
+<Pattern
+  en="No blockers — just heads-down execution this week."
+  vi="Không có vướng mắc gì — tuần này chỉ cần tập trung làm việc thôi."
+  variations={[
+    "No blockers on my end — all good.",
+    "Nothing blocking me right now.",
+    "Clear to proceed — no dependencies outstanding.",
+  ]}
+  note='"Heads-down execution" là cụm rất phổ biến trong môi trường tech: ý là đang tập trung làm, không cần họp thêm, không cần input từ ai. Ngầm hiểu là "đừng làm phiền tôi tuần này."'
+/>
+
+<Pattern
+  en="Quick async — I'm 70% through the dashboard, will finish Wednesday."
+  vi="Cập nhật nhanh — tôi đang làm được 70% phần dashboard, sẽ xong vào thứ Tư."
+  variations={[
+    "Async update: shipped the hotfix, now moving to the new feature.",
+    "Quick update — on track, no blockers, will sync Thursday.",
+    "FYI async — blocked on design approval, pinged Sarah.",
+  ]}
+  note='"Quick async" hoặc "Async update" dùng trong Slack/Teams hoặc khi không có thời gian họp. Cùng cấu trúc 3 phần nhưng viết tắt tối đa.'
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`Past simple cho done + present continuous cho next + "blocked on / stuck on" cho blockers`}
+  structure={`[Done]: I + [past simple] + [object]. / [Next]: I'm + V-ing + [object] + (this week / by [date]). / [Blocker]: Blocked on + [issue] — need + [help].`}
+  examples={[
+    { en: "I shipped the auth refactor.", vi: "Tôi đã bàn giao phần refactor xác thực." },
+    { en: "I'm working on the migration.", vi: "Tôi đang làm phần migration." },
+    { en: "Blocked on staging access.", vi: "Đang bị chặn ở việc cấp quyền staging." },
+    { en: "I should wrap up by Thursday.", vi: "Tôi dự kiến sẽ hoàn thành trước thứ Năm." },
+    { en: "Need someone from infra to unstick this.", vi: "Cần ai đó bên infra giải quyết vấn đề này." },
+  ]}
+  contrast={`Nói lan man: "So, you know, I've been kind of working on this thing related to the auth system, there were a few issues with the token refresh logic..." — không ai biết bạn đã xong chưa, đang làm gì, hay cần gì. Nói có cấu trúc: "Done: shipped auth refactor. Next: migration. Blocked on staging access." — 10 giây, đầy đủ thông tin. Cấu trúc là biểu hiện tôn trọng thời gian của cả nhóm.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "Chair (Linh)", en: "Okay, let's run through updates. Keep it to thirty seconds each — done, next, blockers. Minh, you want to kick us off?", vi: "Được rồi, mình chạy qua phần cập nhật. Mỗi người 30 giây — xong gì, làm gì tiếp, vướng ở đâu. Minh, bạn bắt đầu nhé?" },
+  { speaker: "Minh", en: "Sure. Last week I wrapped up the payment gateway integration — shipped Thursday. This week I'm focusing on the error-handling layer, should be done by Friday. No blockers.", vi: "Được. Tuần trước mình đã xong phần tích hợp payment gateway — bàn giao hôm thứ Năm. Tuần này mình đang làm lớp xử lý lỗi, dự kiến xong trước thứ Sáu. Không có vướng mắc gì." },
+  { speaker: "Chair (Linh)", en: "Perfect. Hoa?", vi: "Tốt. Hoa?" },
+  { speaker: "Hoa", en: "Last week I shipped the new onboarding screens — design review signed off Tuesday. This week I'm picking up the notification settings UI. Blocked on final copy from the content team — I've already pinged them, but flagging it here so it doesn't delay the sprint.", vi: "Tuần trước mình đã bàn giao màn hình onboarding mới — review thiết kế được duyệt hôm thứ Ba. Tuần này mình đang làm UI phần cài đặt thông báo. Đang bị chặn ở nội dung cuối từ team content — mình đã nhắn họ rồi, nhưng nêu ở đây để đừng trễ sprint." },
+  { speaker: "Chair (Linh)", en: "Got it. I'll follow up with the content team after this. Thanh?", vi: "Hiểu rồi. Mình sẽ theo dõi team content sau cuộc họp này. Thanh?" },
+  { speaker: "Thanh", en: "Last week I was heads-down on the data pipeline — got about 80% done. This week I'm wrapping it up and moving to the reporting module. Blocked on database access to the staging environment — need someone from infra to grant permissions.", vi: "Tuần trước mình tập trung vào data pipeline — làm được khoảng 80%. Tuần này mình sẽ hoàn thành nốt rồi chuyển sang module báo cáo. Đang bị chặn ở quyền truy cập database trên môi trường staging — cần ai đó bên infra cấp quyền." },
+  { speaker: "Chair (Linh)", en: "Thanh, I'll connect you with Duc from infra right after this call — that should be sorted within the hour.", vi: "Thanh, mình sẽ kết nối bạn với Đức bên infra ngay sau cuộc gọi này — chắc sẽ xong trong vòng một tiếng." },
+  { speaker: "Thanh", en: "Great, thanks — that unblocks me.", vi: "Tốt, cảm ơn — vậy là mình làm được rồi." },
+  { speaker: "Chair (Linh)", en: "Solid updates everyone. Let's keep the momentum.", vi: "Cập nhật rõ ràng lắm mọi người. Cứ giữ đà này nhé." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`I don't have any blockers. Everything is going fine.`}
+  right={`Blocked on getting the API key from the vendor — need someone to follow up with procurement.`}
+  why={`"Everything is fine" mà không có chi tiết cụ thể không có giá trị thông tin. Nếu thực sự không có blockers thì nói "No blockers" là đủ. Nếu có, che giấu nó không giúp ai — team cần biết để giúp bạn.`}
+/>
+
+<Mistake
+  wrong={`This week I had to debug a really weird issue with the token refresh logic, so what happened was the JWT was expiring but the front-end wasn't catching it properly, and then we also had to...`}
+  right={`Last week I fixed a token refresh bug — shipped Wednesday. This week I'm on the caching layer.`}
+  why={`Status update không phải chỗ để giải thích chi tiết kỹ thuật. Chỉ nêu kết quả (done/not done) và hướng tiếp theo. Chi tiết kỹ thuật dành cho async write-up hoặc buổi pairing riêng.`}
+/>
+
+<Mistake
+  wrong={`I'm working on a lot of things this week, so it's hard to say what exactly I'll finish.`}
+  right={`This week I'm focusing on the migration — that's my top priority. Should wrap up by Thursday.`}
+  why={`"A lot of things" cho thấy thiếu ưu tiên rõ ràng, khiến team không biết trông đợi gì. Chọn một ưu tiên chính và đặt kỳ vọng cụ thể — dù chỉ là ước tính.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+Ba điểm dễ hiểu nhầm:
+
+1. **Nêu blocker sớm là dấu hiệu của người làm việc chuyên nghiệp, không phải yếu kém.** Trong các team hiệu quả, mọi người đều biết blockers là bình thường — chúng xảy ra với tất cả mọi người. Điều phân biệt người giỏi không phải là "không bao giờ bị chặn" mà là "biết nêu ra sớm để team cùng xử lý." Giấu blocker đến khi deadline trễ mới là vấn đề nghiêm trọng.
+2. **Mục tiêu 30 giây giữ cho stand-up hiệu quả.** Stand-up hoặc status check tồn tại để *đồng bộ nhanh*, không phải để báo cáo chi tiết. Mỗi người nói dài 5 phút trong một team 8 người = 40 phút họp không ai muốn. Khi bạn cập nhật gọn trong 30 giây, bạn đang tặng cho cả team thứ quý nhất: thời gian.
+3. **"I'm not sure yet" là một câu cập nhật hoàn toàn hợp lệ.** Nếu bạn chưa có estimate, hãy nói thẳng: "Still scoping this — will have a better estimate by tomorrow." Điều này trung thực và có ích hơn rất nhiều so với đưa ra con số giả mà sau đó phải cập nhật lại.
+
+<Callout type="note" title="Async update trong Slack/Teams ngày càng thay thế stand-up">
+Nhiều team tech hiện nay dùng Slack hoặc Teams để post async update thay vì họp hằng ngày — nhất là khi team trải rộng nhiều múi giờ. Cấu trúc vẫn y hệt: Done / Next / Blockers, nhưng viết ra thay vì nói. "Quick async — shipped the auth fix, now on migration, blocked on staging access (cc @infra)." Biết cấu trúc này giúp bạn viết update Slack hiệu quả không kém gì nói trong họp.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to ship`** — hoàn thành và đưa ra (tính năng, sản phẩm). Gốc từ "ship a product" nhưng nay dùng rộng cho bất cứ deliverable nào. *"We shipped three features last sprint."*
+- **`to wrap up`** — kết thúc gọn, hoàn tất. Dùng cho cả công việc lẫn cuộc họp. *"Let's wrap up by 3pm."*
+- **`to be on track`** — đang đúng tiến độ. Câu trả lời đơn giản nhất khi mọi thứ ổn. *"Everything's on track for the Friday release."*
+- **`to be heads-down`** — đang tập trung làm, không muốn bị phân tâm. Hàm ý: mình đang cần thời gian tập trung, đừng gọi họp thêm. *"I'll be heads-down the rest of the week — ping me on Slack if urgent."*
+- **`blocked on`** — bị chặn bởi. Cụm kỹ thuật chuẩn trong môi trường Agile. Trung tính, thực tế, không mang sắc thái tiêu cực. *"Blocked on legal review — not much I can do until that clears."*
+
+## 09 — Tự luyện
+
+1. **Nói thật to:** Nghĩ về một dự án hoặc công việc bạn đang làm thật trong tuần này. Trong vòng 30 giây, nêu ba phần: xong gì (past simple), đang làm gì (present continuous + deadline), bị chặn ở đâu hoặc "No blockers." Ghi âm và nghe lại — bạn có dừng dưới 30 giây không?
+2. **Viết Slack update:** Soạn một tin nhắn async update ngắn (tối đa 3 câu) theo đúng cấu trúc Done / Next / Blockers, dùng ít nhất 3 từ vựng trong bài. Ví dụ bối cảnh: bạn đang làm một tính năng mobile app, bị chặn vì chưa có mockup từ designer.
+3. **Phân tích lỗi:** Đọc câu cập nhật giả sau và viết lại theo đúng format 3 phần: *"Um, so this week I've been kind of trying to look into the performance issue we discussed last time, like it's been a bit tricky because there are multiple things going on, and I also had to help Minh with his PR, and I think I'll probably maybe finish it sometime next week hopefully if everything goes okay."*
+
+<Recap>
+- Status update hiệu quả có đúng 3 phần: Done (past simple) + Next (present continuous + deadline) + Blockers.
+- Phần blockers là quan trọng nhất — nêu sớm, nêu rõ ai cần giúp, để team xử lý ngay trong cuộc họp.
+- Mục tiêu 30 giây mỗi người: đủ thông tin, tôn trọng thời gian cả nhóm.
+- "I'm not sure yet" hoặc "Still estimating" trung thực và chuyên nghiệp hơn đưa ra con số giả.
+- Cùng cấu trúc 3 phần áp dụng cho cả async update trên Slack/Teams — viết thay vì nói.
+- Đừng giải thích chi tiết kỹ thuật trong status update — chỉ nêu kết quả và hướng tiếp theo.
+</Recap>

@@ -1,0 +1,183 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Đề xuất ý tưởng trong một cuộc họp khác với việc float ý tưởng trong trò chuyện một-một — bạn có cả một khán phòng. Kỹ năng nằm ở chỗ hedge vừa đủ để mời người khác đóng góp ("What if we tried…?") mà không trở nên thiếu tự tin ("Maybe? I don't know…"), biết cách build on ý tưởng của người khác bằng những nước "yes-and", và hướng cuộc thảo luận về phía một quyết định trước khi hết thời gian — mà không cần phải lấn át cả nhóm.
+
+## 01 — Bối cảnh
+
+Một cuộc thảo luận đề xuất hiệu quả thường đi theo năm bước ngầm hiểu nhau:
+
+**Bước 1 — Float.** Ai đó đặt ý tưởng lên bàn bằng một câu hedge nhẹ: *"What if we tried [X]?"* hoặc *"What about [Y]?"* Câu hỏi dạng này mở không gian thảo luận mà không ép người khác phải phản đối trực tiếp.
+
+**Bước 2 — Build.** Người tiếp theo không chỉ đồng ý hay phủ nhận — họ xây dựng lên trên đó: *"+1, and what if we also [Z]?"* hoặc đơn giản là *"Yes — and [extension]."* Đây là nhịp "yes-and" của improv comedy, được áp dụng vào họp để giữ năng lượng đi lên thay vì sụp đổ ngay vì phản đối.
+
+**Bước 3 — Challenge (lịch sự).** Ai đó nhìn thấy vấn đề tiềm ẩn sẽ nêu lên — nhưng không tấn công ý tưởng, họ stress-test nó: *"I see the appeal, but I'm worried about [concern]. How would we handle [edge case]?"* Đây là đóng góp có giá trị, không phải chướng ngại.
+
+**Bước 4 — Refine.** Nhóm kết hợp các góc nhìn: *"OK, what if we did [X] but with [adjustment]?"* — ý tưởng ban đầu không bị bỏ qua mà được tinh chỉnh để giải quyết mối lo ngại đã nêu.
+
+**Bước 5 — Decide.** Người điều phối (hoặc bất kỳ ai) làm nhiệm vụ converge: *"Sounds like we're landing on [decision]. Linh, are you OK with that?"* Không có bước này, cuộc thảo luận có thể kéo dài vô tận mà không đi đến đâu.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "to throw out an idea", vi: "tung ra một ý tưởng — không cam kết, chỉ đặt lên bàn để xem phản ứng", example: "I want to throw out an idea — what if we moved the deadline by a week?" },
+  { en: "to put a proposal on the table", vi: "chính thức đề xuất một phương án để cả nhóm cân nhắc — trang trọng hơn 'throw out'", example: "I'd like to put a proposal on the table: we pilot this feature in one market first." },
+  { en: "to build on", vi: "xây dựng tiếp trên ý tưởng của người khác — mở rộng, không thay thế", example: "Building on what Minh said, we could also automate that part of the process." },
+  { en: "+1", vi: "đồng ý ngắn gọn, tín hiệu ủng hộ nhanh — dùng cả trong chat lẫn nói ra thành lời", example: "+1 to that — I think it's worth trying." },
+  { en: "to play devil's advocate", vi: "cố tình đặt câu hỏi phản biện để stress-test ý tưởng — không phải thật sự phản đối", example: "Let me play devil's advocate for a sec — what if the rollout takes longer than expected?" },
+  { en: "to push back", vi: "phản đối hoặc đặt câu hỏi về một đề xuất — thường dùng kèm với lý do cụ thể", example: "I want to push back a little — have we validated the demand for this?" },
+  { en: "I see the appeal, but…", vi: "tôi hiểu sức hút của ý tưởng đó, nhưng… — cách mở đầu phản biện lịch sự nhất", example: "I see the appeal, but I'm not sure our timeline can support it." },
+  { en: "What if we…?", vi: "Nếu chúng ta… thì sao? — câu float cổ điển trong họp, hedge nhẹ và mở", example: "What if we ran a two-week sprint to test the concept first?" },
+  { en: "Have we considered…?", vi: "Chúng ta đã cân nhắc… chưa? — cách nêu phương án thay thế hoặc rủi ro mà không phán xét", example: "Have we considered what happens if the vendor can't deliver on time?" },
+  { en: "to refine the proposal", vi: "tinh chỉnh, điều chỉnh đề xuất — sau khi nhận phản hồi, không phải bắt đầu lại từ đầu", example: "Based on the concerns raised, let's refine the proposal before the next meeting." },
+  { en: "to land on", vi: "đi đến, chốt lại ở — dùng khi cả nhóm đang hội tụ về một quyết định", example: "Sounds like we're landing on Option B — can everyone live with that?" },
+  { en: "to converge on", vi: "cùng tiến đến một điểm chung, đồng thuận dần — hơi trang trọng hơn 'land on'", example: "We seem to be converging on a phased rollout approach." },
+  { en: "the trade-off", vi: "sự đánh đổi — lợi ích của lựa chọn này đi kèm với chi phí gì", example: "The trade-off is speed versus quality — which matters more right now?" },
+  { en: "to be open to alternatives", vi: "sẵn sàng xem xét các phương án khác — tín hiệu hợp tác, không cứng nhắc với ý tưởng ban đầu", example: "I'm putting this out there, but I'm totally open to alternatives if people see issues." },
+]} />
+
+## 03 — Mẫu câu
+
+Năm mẫu này phủ toàn bộ vòng đề xuất — từ lúc tung ý tưởng đến khi cả nhóm chốt quyết định.
+
+<Pattern
+  en="What if we tried [option A]? It would let us [benefit]."
+  vi="Nếu chúng ta thử [phương án A] thì sao? Điều đó sẽ giúp chúng ta [lợi ích]."
+  variations={[
+    "What if we ran a quick pilot first? It would let us validate before committing.",
+    "What if we split it into two phases? It would let us ship something sooner.",
+    "What if we brought in a freelancer for this? It would free up the core team.",
+  ]}
+  note={`"What if we tried…?" luôn dùng past simple (tried, ran, split) dù nói về tương lai — đây là cấu trúc hedge điều kiện nhẹ. Thêm "It would let us [benefit]" sau đó cho người nghe ngay lập tức thấy lý do tại sao đề xuất này đáng cân nhắc, thay vì để họ phải đoán.`}
+/>
+
+<Pattern
+  en="+1 to that — and what if we also [extension]?"
+  vi="Đồng ý với ý đó — và nếu chúng ta cũng [mở rộng] thì sao?"
+  variations={[
+    "+1 — and what if we also looped in the design team early?",
+    "Yes, and what if we set a checkpoint at week two to reassess?",
+    "Totally agree — and have we considered adding a feedback round before launch?",
+  ]}
+  note={`Cấu trúc "+1… and what if we also…?" là nhịp "yes-and" chuẩn mực trong họp. Nó không chỉ ủng hộ — nó đóng góp thêm. Người dùng câu này được nhìn nhận là collaborative và constructive, không phải chỉ là người gật đầu.`}
+/>
+
+<Pattern
+  en="I see the appeal, but I'm worried about [concern]. How would we handle [edge case]?"
+  vi="Tôi thấy sức hút của ý đó, nhưng tôi lo về [mối lo ngại]. Chúng ta sẽ xử lý [tình huống cụ thể] như thế nào?"
+  variations={[
+    "I see the appeal, but I'm worried about the timeline. How would we handle it if the vendor is delayed?",
+    "I see the appeal, but I'm worried about scope creep. How would we keep it contained?",
+    "I see the appeal, but I'm not sure about the cost. Have we done a rough estimate?",
+  ]}
+  note={`"I see the appeal, but…" là câu mở đầu pushback lịch sự nhất trong tiếng Anh công sở. Nó thừa nhận giá trị của ý tưởng trước khi đặt câu hỏi — thay vì bác bỏ ngay. Kết thúc bằng một câu hỏi cụ thể ("How would we handle…?") biến phản đối thành thảo luận có tính xây dựng.`}
+/>
+
+<Pattern
+  en="What if we did [original] but with [adjustment]?"
+  vi="Nếu chúng ta làm [ý tưởng gốc] nhưng với [điều chỉnh] thì sao?"
+  variations={[
+    "What if we did the full rollout but with a soft launch in one region first?",
+    "What if we kept the original scope but pushed the deadline by two weeks?",
+    "What if we ran the campaign but with a smaller budget to test response first?",
+  ]}
+  note={`Đây là câu tinh chỉnh — không bỏ ý tưởng gốc, không chấp nhận hoàn toàn phương án thay thế, mà kết hợp cả hai. Cấu trúc "[original] but with [adjustment]" cho thấy bạn đã nghe, đã suy nghĩ, và đang đề xuất một lối đi giữa có tính xây dựng.`}
+/>
+
+<Pattern
+  en="Sounds like we're landing on [version]. Anyone strongly opposed?"
+  vi="Có vẻ như chúng ta đang chốt ở [phương án]. Ai có phản đối mạnh không?"
+  variations={[
+    "It sounds like we're converging on Option B — can everyone live with that?",
+    "Are we all aligned on the phased approach? Any final concerns?",
+    "Sounds like we're landing on a two-week pilot. Shall I note that as the decision?",
+  ]}
+  note={`Câu converge này là dịch vụ quan trọng nhất người điều phối (hoặc bất kỳ ai) có thể làm cho nhóm. Nó đánh dấu rõ ràng thời điểm thảo luận chuyển sang quyết định. "Anyone strongly opposed?" cũng tinh tế hơn "Does everyone agree?" — nó đặt thanh thấp hơn và cho phép đồng thuận ngay cả khi không phải ai cũng hoàn toàn hài lòng.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`"What if we…?" + conditional + "I see the appeal, but…" cho lịch sự pushback`}
+  structure={`What if + we + [past simple verb] + [object]? — would + base verb + [outcome]. / I see the appeal, but + [concern].`}
+  examples={[
+    { en: "What if we shipped phase 1 first?", vi: "Nếu chúng ta ship giai đoạn 1 trước thì sao?" },
+    { en: "What if we tried it in beta?", vi: "Nếu chúng ta thử trong giai đoạn beta thì sao?" },
+    { en: "I see the appeal, but I'm worried about latency.", vi: "Tôi thấy sức hút của ý đó, nhưng tôi lo về độ trễ." },
+    { en: "What if we did A but added B?", vi: "Nếu chúng ta làm A nhưng thêm B thì sao?" },
+    { en: "Have we considered just doing nothing?", vi: "Chúng ta có cân nhắc phương án không làm gì chưa?" },
+  ]}
+  contrast={`Trực tiếp: "I think we should do X" — rõ ràng và quyết đoán, nhưng có thể vô tình đóng cửa thảo luận vì nghe như một kết luận hơn là một đề xuất mở. Người khác phải phản đối bạn trực tiếp nếu họ không đồng ý. Hedge: "What if we tried X?" — cùng ý tưởng đó, nhưng được đóng khung như một câu hỏi. Nó mời người khác đóng góp, build on, hoặc refine thay vì phải chọn giữa đồng ý hay bác bỏ. Trong họp nhóm, hedge không phải là thiếu tự tin — đó là cách thiết kế không gian để ý tưởng được cải thiện tập thể.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "Nam (chair)", en: "OK, item two — the Q3 launch plan. Linh, you wanted to raise something?", vi: "OK, mục hai — kế hoạch ra mắt Q3. Linh, bạn muốn nêu vấn đề gì đó phải không?" },
+  { speaker: "Linh", en: "Yeah — what if we did a soft launch in the South first? It would let us catch issues before we go nationwide.", vi: "Đúng — nếu chúng ta ra mắt nhẹ ở miền Nam trước thì sao? Điều đó sẽ giúp chúng ta phát hiện vấn đề trước khi triển khai toàn quốc." },
+  { speaker: "Minh", en: "+1 to that — and what if we also set up a dedicated Slack channel for that region's feedback during the pilot?", vi: "Đồng ý — và nếu chúng ta cũng lập một kênh Slack riêng để thu thập phản hồi từ khu vực đó trong thời gian chạy thử thì sao?" },
+  { speaker: "Hoa", en: "I see the appeal, but I'm worried about the timeline. A soft launch adds at least two weeks. How would we handle it if Q3 targets are affected?", vi: "Tôi thấy sức hút của ý đó, nhưng tôi lo về timeline. Ra mắt nhẹ sẽ mất thêm ít nhất hai tuần. Chúng ta sẽ xử lý như thế nào nếu chỉ tiêu Q3 bị ảnh hưởng?" },
+  { speaker: "Linh", en: "That's a fair point. What if we did the soft launch but compressed it to one week — a five-day window, just to catch critical bugs?", vi: "Đó là điểm hợp lý. Nếu chúng ta ra mắt nhẹ nhưng rút ngắn lại còn một tuần — một khoảng thời gian năm ngày, chỉ để phát hiện lỗi nghiêm trọng thì sao?" },
+  { speaker: "Hoa", en: "One week I can work with. But we'd need engineering on standby the whole time.", vi: "Một tuần tôi có thể chấp nhận được. Nhưng chúng ta cần đội kỹ thuật trực chờ suốt thời gian đó." },
+  { speaker: "Tuan", en: "Let me play devil's advocate for a sec — have we considered skipping the pilot entirely and just having a robust rollback plan instead?", vi: "Để tôi thử đặt câu hỏi phản biện một chút — chúng ta có cân nhắc bỏ qua hoàn toàn giai đoạn chạy thử và thay vào đó có một kế hoạch rollback chắc chắn chưa?" },
+  { speaker: "Minh", en: "The rollback plan is a good safety net, but I still think the pilot catches things rollback can't — user confusion, for example. Those don't show up until real people touch it.", vi: "Kế hoạch rollback là lưới an toàn tốt, nhưng tôi vẫn nghĩ giai đoạn chạy thử sẽ bắt được những thứ mà rollback không thể — chẳng hạn như sự nhầm lẫn của người dùng. Những điều đó chỉ xuất hiện khi người thật sử dụng." },
+  { speaker: "Nam (chair)", en: "OK — sounds like we're landing on a one-week soft launch in the South, with engineering on standby and a Slack channel for feedback. Hoa, are you OK with that?", vi: "OK — có vẻ như chúng ta đang chốt ở phương án ra mắt nhẹ một tuần ở miền Nam, với đội kỹ thuật trực chờ và kênh Slack để thu thập phản hồi. Hoa, bạn OK với điều đó không?" },
+  { speaker: "Hoa", en: "Yes, I can work with that. As long as the standby coverage is confirmed before we kick off.", vi: "Được, tôi có thể chấp nhận điều đó. Miễn là xác nhận được người trực chờ trước khi bắt đầu." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"No, you're wrong — that won't work. Here's why my idea is better."`}
+  right={`"I see where you're going, but I have some concerns. Could we look at this angle too?"`}
+  why={`Bảo vệ ý tưởng của mình một cách hung hăng hoặc phủ nhận ý tưởng người khác trực tiếp sẽ phá vỡ psychological safety trong nhóm. Người khác sẽ ngừng đóng góp nếu họ cảm thấy ý kiến của mình sẽ bị bác bỏ thẳng thừng. "I see where you're going, but…" thừa nhận trước khi phản biện — và đó là sự khác biệt quan trọng.`}
+/>
+
+<Mistake
+  wrong={`"Maybe we could… I don't know… what do you guys think? It's probably a bad idea anyway."`}
+  right={`"What if we tried a two-week pilot? It would let us test demand before committing the full budget."`}
+  why={`Float quá nhiều hedge đến mức không còn đề xuất thật sự nữa. Câu đầu không có điểm rõ ràng để nhóm bám vào — nó đặt gánh nặng lên người khác để đoán ý bạn. Hedge đúng cách nghĩa là dùng "What if we…?" để mở không gian thảo luận — không phải để xin lỗi vì đã có ý tưởng. Tự tin vào đề xuất, hedge vào quá trình.`}
+/>
+
+<Mistake
+  wrong={`(Sau 20 phút thảo luận sôi nổi) "Anyway, let's move on to the next item."`}
+  right={`"Sounds like we're landing on [version]. Anyone strongly opposed? OK — let me note that as the decision and we'll move on."`}
+  why={`Kết thúc thảo luận mà không có câu converge rõ ràng khiến mọi người rời họp với những hiểu biết khác nhau về quyết định vừa được đưa ra — hoặc không chắc có quyết định gì không. Làm nhiệm vụ converge là dịch vụ quan trọng nhất bạn có thể làm cho nhóm, dù bạn không phải là người điều phối.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+1. **Văn hoá họp phương Tây khen thưởng nhịp "yes-and" hơn "no-but".** Khi bạn liên tục bắt đầu phản hồi bằng "but" hay "actually", bạn vô tình tạo ra bầu không khí đối lập — dù ý kiến của bạn hợp lý. "Yes-and" không có nghĩa là đồng ý với tất cả — nó có nghĩa là bạn xây dựng từ điểm mạnh của ý tưởng trước khi đưa ra điều chỉnh. Nhóm làm việc theo nhịp "yes-and" thường ra nhiều ý tưởng tốt hơn và nhanh hơn.
+
+2. **"Devil's advocate" là một nước cờ xã hội được nhận biết rộng rãi.** Khi ai đó nói *"Let me play devil's advocate for a sec"*, họ báo hiệu rõ ràng rằng câu hỏi tiếp theo là để stress-test ý tưởng, không phải vì họ thực sự phản đối. Ngay cả người bản ngữ cũng dùng cụm này để tách biệt việc kiểm tra giả thuyết khỏi việc bất đồng thật sự. Nếu bạn muốn đặt câu hỏi khó mà không muốn bị hiểu nhầm là đang tấn công, đây là cụm bạn cần.
+
+3. **Kêu gọi một quyết định là phục vụ cho cả nhóm, không phải lấn quyền.** Nhiều người ngần ngại nói "OK, sounds like we're landing on X" vì sợ có vẻ áp đặt. Nhưng trong thực tế, đây là hành động được đánh giá cao — đặc biệt khi cuộc thảo luận đã đủ chín và mọi người đang chờ ai đó tổng kết. Cuộc họp không có quyết định không chỉ lãng phí thời gian — chúng tạo ra công việc bổ sung vì mọi người phải họp lại để làm điều đáng lẽ đã xong.
+
+<Callout type="note" title={`"+1" — tín hiệu đồng ý phổ quát trong mọi cuộc họp`}>
+"+1" ban đầu xuất phát từ văn hóa lập trình (dùng trong code review để bỏ phiếu đồng ý), nhưng giờ đây nó phổ biến trong tất cả các cuộc họp và chat công sở toàn cầu. Nó ngắn gọn, không gián đoạn người đang nói, và hoạt động cả khi nói ra thành lời lẫn gõ trong chat. Nếu bạn muốn bày tỏ sự ủng hộ mà không cướp lượt của ai — "+1" là lựa chọn hoàn hảo.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to throw out an idea`** — tung ý tưởng ra không chính thức, không cam kết, để xem phản ứng của nhóm. *"Just throwing out an idea — what if we delayed the release by a month?"*
+- **`to play devil's advocate`** — cố tình đặt câu hỏi phản biện để kiểm tra độ vững của một ý tưởng, không phải vì thật sự phản đối. *"Let me play devil's advocate — what if users just don't want this feature?"*
+- **`to push back`** — phản đối hoặc đặt câu hỏi về một đề xuất với lý do cụ thể. *"I want to push back on the timeline — three weeks feels too aggressive."*
+- **`to land on (something)`** — đi đến, chốt lại ở một quyết định hoặc phương án sau quá trình thảo luận. *"After going back and forth, we landed on the phased approach."*
+- **`to converge on`** — cùng tiến về một điểm đồng thuận, thường dùng khi nhóm đang dần thống nhất sau nhiều ý kiến khác nhau. *"I think we're converging on Option A — can we call it?"*
+
+## 09 — Tự luyện
+
+1. **Luyện float và build:** Nghĩ đến một vấn đề thực tế trong công việc hoặc học tập của bạn. Viết một đề xuất theo cấu trúc "What if we tried [X]? It would let us [benefit]." Sau đó, viết thêm hai câu "build" theo dạng "+1, and what if we also [Y]?" từ góc nhìn của các đồng nghiệp tưởng tượng. Đọc to cả ba câu để cảm nhận nhịp điệu của vòng float-build.
+
+2. **Luyện pushback lịch sự:** Với mỗi đề xuất dưới đây, viết một câu phản hồi dùng cấu trúc "I see the appeal, but I'm worried about [concern]. How would we handle [edge case]?": (a) "What if we cut the testing phase to save two weeks?" (b) "What if we hired a contractor instead of a full-time employee?" (c) "What if we launched in three markets simultaneously instead of one?"
+
+3. **Mô phỏng vòng thảo luận hoàn chỉnh:** Viết một đoạn hội thoại 6–8 lượt giữa ba người trong một cuộc họp. Người đầu tiên float một đề xuất, người thứ hai build on, người thứ ba politely push back, sau đó nhóm refine và converge đến một quyết định. Mục tiêu: thể hiện đủ năm bước (float → build → challenge → refine → decide) trong đoạn hội thoại ngắn đó.
+
+<Recap>
+- Vòng thảo luận đề xuất hiệu quả đi qua năm bước: float → build → challenge → refine → decide — bỏ bước nào cũng làm cuộc họp kém hiệu quả.
+- "What if we tried…?" + past simple là cách hedge chuẩn: mở không gian thảo luận mà không nghe như thiếu tự tin.
+- "+1, and what if we also…?" là nhịp "yes-and" xây dựng cộng tác — ủng hộ và đóng góp thêm trong cùng một lượt.
+- "I see the appeal, but I'm worried about [concern]" là cách pushback lịch sự nhất: thừa nhận giá trị của ý tưởng trước khi đặt câu hỏi.
+- "Sounds like we're landing on [X]. Anyone strongly opposed?" là câu converge quan trọng — cuộc họp không có quyết định là cuộc họp lãng phí thời gian.
+- "Let me play devil's advocate" là tín hiệu xã hội rõ ràng: bạn đang stress-test ý tưởng, không phải tấn công người đề xuất.
+</Recap>

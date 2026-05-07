@@ -11,6 +11,7 @@ import { topic as doctorHealth } from './doctor-health/topic';
 import { topic as plansInvitations } from './plans-invitations/topic';
 import { topic as apologiesComplaints } from './apologies-complaints/topic';
 import { topic as officeSmallTalk } from './office-small-talk/topic';
+import { topic as meetings } from './meetings/topic';
 import { placeholderTopics } from './_placeholders';
 
 export const allEnglishTopics: EnglishTopic[] = [
@@ -38,7 +39,8 @@ export const allEnglishTopics: EnglishTopic[] = [
   apologiesComplaints,
   // Topic 12 (real, work)
   officeSmallTalk,
-  placeholderTopics.find((t) => t.slug === 'meetings')!,
+  // Topic 13 (real, work)
+  meetings,
   placeholderTopics.find((t) => t.slug === 'job-interview')!,
   placeholderTopics.find((t) => t.slug === 'presentations')!,
 ];

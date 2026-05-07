@@ -1,0 +1,229 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Cuộc họp kết thúc là nơi quyết định được giữ lại — hoặc bốc hơi. Kỹ năng chốt họp gồm ba phần không thể thiếu: tóm tắt những gì đã được quyết định, đặt tên action items với người phụ trách và deadline cụ thể, và xác nhận follow-up. Bỏ qua bất kỳ phần nào trong ba phần đó, cuộc họp vừa rồi gần như không có giá trị. Bài capstone này đóng lại toàn bộ topic Meetings bằng kỹ năng chốt họp, hiệu chỉnh văn hoá xuyên biên giới, và tổng hợp lại sáu bài đã học.
+
+## 01 — Bối cảnh
+
+Ba phần của một closing sạch sẽ:
+
+1. **Tóm tắt (Summarize)** — Chair đọc lại những gì đã được đồng ý, những gì bị hoãn lại, và những gì cần thêm nghiên cứu. *"OK, so we agreed on [decision A], decided to defer [B] to next week, and [C] needs more research."* Mục tiêu: mọi người rời phòng họp với cùng một bức tranh.
+
+2. **Action items** — Đây là phần quan trọng nhất. Mỗi action item cần ba yếu tố: **người phụ trách (owner)**, **việc cụ thể (task)**, và **deadline**. *"Linh, you'll own the design spec by Friday. Mark, you've got the implementation plan by next Tuesday. Sara, you'll send the recap email by EOD."* Không có tên và deadline, action item chỉ là lời nói.
+
+3. **Follow-up** — Xác nhận ai gửi recap email và cuộc sync tiếp theo là khi nào. *"Sara will send a recap by EOD. Next sync is [date]."* Recap email là bộ nhớ thể chế — nó biến lời nói thành văn bản.
+
+**Về recap email:** Email chốt cuộc họp không cần dài. Cấu trúc chuẩn là: (a) quyết định đã được đưa ra, (b) danh sách action items với tên và deadline, (c) những mục trong "parking lot" (các chủ đề được ghi nhận nhưng chưa bàn), và (d) thời gian sync tiếp theo. Gửi trong vòng 24 giờ — càng sớm càng tốt.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "to wrap up", vi: "kết thúc, chốt lại — dùng khi sắp kết thúc cuộc họp hoặc một mục trong agenda", example: "Let's wrap up — we're almost out of time." },
+  { en: "to land on", vi: "chốt được, đi đến kết luận về — thường dùng với quyết định hoặc hướng đi", example: "We landed on Option B for the rollout." },
+  { en: "the action items", vi: "danh sách việc cần làm sau cuộc họp — mỗi item cần owner và deadline", example: "Let me read through the action items before we close." },
+  { en: "the next steps", vi: "các bước tiếp theo — từ rộng hơn action items, có thể bao gồm cả kế hoạch dài hạn", example: "What are the next steps from here?" },
+  { en: "the owner", vi: "người phụ trách — người chịu trách nhiệm hoàn thành một action item cụ thể", example: "Who's the owner of this task?" },
+  { en: "to be on the hook for", vi: "chịu trách nhiệm hoàn thành — mang sắc thái rõ ràng hơn 'responsible for', ngầm nói không thể trốn tránh", example: "Mark is on the hook for the budget summary by Friday." },
+  { en: "the deadline", ipa: "ˈdɛd.laɪn", vi: "hạn chót — ngày hoặc giờ phải hoàn thành", example: "What's the deadline for the design spec?" },
+  { en: "EOD (end of day)", vi: "cuối ngày làm việc — thường là 5–6 giờ chiều tùy múi giờ và văn hoá công ty", example: "I'll have it to you by EOD." },
+  { en: "EOW (end of week)", vi: "cuối tuần làm việc — thường là thứ Sáu chiều", example: "Can we get a first draft by EOW?" },
+  { en: "to send a recap", vi: "gửi email tóm tắt cuộc họp — ghi lại quyết định và action items để mọi người có thể tra cứu", example: "I'll send a recap after the call." },
+  { en: "to follow up", vi: "theo dõi, liên hệ lại — kiểm tra tiến độ hoặc cập nhật thêm thông tin sau cuộc họp", example: "Can you follow up with the legal team on this?" },
+  { en: "the next sync", vi: "buổi họp tiếp theo — cách nói thân mật và tự nhiên hơn 'the next meeting'", example: "Our next sync is Thursday at 10." },
+  { en: "to circle back", vi: "quay lại chủ đề sau — dùng khi chưa thể giải quyết ngay, hẹn bàn tiếp", example: "Let's circle back on the pricing question next week." },
+  { en: "the parking lot", vi: "khu vực tạm giữ — tổng hợp các chủ đề quan trọng nhưng không thuộc agenda hôm nay, ghi nhận để bàn sau", example: "That's a good point — let's put it in the parking lot for next time." },
+]} />
+
+## 03 — Mẫu câu
+
+<Pattern
+  en="Alright, let's wrap up. To summarize what we landed on…"
+  vi="Được rồi, chúng ta chốt lại nhé. Tóm tắt những gì đã được quyết định…"
+  variations={[
+    "OK, let's close out. Here's what we agreed on:",
+    "Before we end — quick summary of where we landed.",
+    "We're at time, so let me recap what we decided.",
+    "Alright, let's bring this home — here's the summary.",
+  ]}
+  note={`"Wrap up" là tín hiệu rõ ràng nhất để báo phần chốt họp bắt đầu. "To summarize what we landed on" mở ra phần tóm tắt mà không cần dài dòng. Dùng "we" thay vì "I" để tạo cảm giác kết quả là của cả nhóm, không phải của riêng chair.`}
+/>
+
+<Pattern
+  en="Linh, you'll own the design spec by Friday. Mark, you've got the implementation plan by next Tuesday."
+  vi="Linh, bạn phụ trách bản design spec trước thứ Sáu. Mark, bạn có bản kế hoạch triển khai trước thứ Ba tuần tới."
+  variations={[
+    "Sara is on the hook for the API draft by Wednesday.",
+    "Marcus, you'll own the budget summary — EOW works?",
+    "Linh and Mark, you two will co-own the proposal — can we say next Monday?",
+    "I'll take the research piece — I'll have something to share by Thursday.",
+  ]}
+  note={`Cấu trúc chuẩn: [Tên] + you'll own / you've got / you're on the hook for + [task] + by + [deadline]. Nói tên người trước để họ nghe ngay và biết phần tiếp theo là về mình. Deadline phải cụ thể — "soon" hay "ASAP" không phải deadline.`}
+/>
+
+<Pattern
+  en="Did I miss any action items? Anyone want to add or push back?"
+  vi="Tôi có bỏ sót action item nào không? Ai muốn bổ sung hoặc phản hồi không?"
+  variations={[
+    "Does that list look right to everyone?",
+    "Any action items I missed? And does the timeline work for everyone?",
+    "Quick check — are we all aligned on who owns what?",
+    "Anyone have concerns about the deadlines before we close?",
+  ]}
+  note={`Câu kiểm tra này quan trọng vì hai lý do: (1) bạn có thể bỏ sót một action item thực sự, và (2) nó cho những người không đồng ý với deadline một cơ hội lên tiếng trước khi cuộc họp kết thúc. Không hỏi câu này nghĩa là bạn giả định mọi người đều hài lòng — điều đó thường không đúng.`}
+/>
+
+<Pattern
+  en="I'll send a recap email by end of day with all the action items and the parking lot items."
+  vi="Tôi sẽ gửi email tóm tắt cuối ngày với tất cả action items và các mục parking lot."
+  variations={[
+    "Sara, could you send the recap? Copy everyone on the call.",
+    "I'll have the notes out by EOD — I'll include the parking lot.",
+    "Expect a recap from me by 6 PM — action items, decisions, and next steps.",
+    "I'll send a summary email tonight so we all have it in writing.",
+  ]}
+  note={`Nêu tên người gửi recap (chair hoặc người được giao), thời hạn cụ thể, và nội dung gì sẽ có trong đó. "Parking lot items" nên được nhắc đến rõ ràng — nếu không ghi vào email, các chủ đề đó sẽ biến mất.`}
+/>
+
+<Pattern
+  en="Thanks everyone — great discussion. Catch you next week."
+  vi="Cảm ơn mọi người — buổi thảo luận rất hay. Hẹn gặp tuần tới."
+  variations={[
+    "Good meeting, everyone — appreciate the focus. See you Thursday.",
+    "Thanks for the good work today — talk soon.",
+    "Alright, we're done — thanks all. Next sync is on the calendar.",
+    "That's a wrap — good discussion. See everyone at the next one.",
+  ]}
+  note={`Câu thoát ra sạch sẽ: ngắn, ấm, và xác nhận cuộc họp đã kết thúc. "Catch you next week" / "See you Thursday" cụ thể hơn "goodbye" và gợi nhớ rằng vẫn còn cuộc sync tiếp theo đang chờ.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`Future "will" + ownership + deadline trong action items`}
+  structure={`[Name], + you'll + [base verb] + [object] + by + [deadline]. / [Name] is on the hook for + [object] + by + [date].`}
+  examples={[
+    { en: "Linh, you'll send the recap by EOD.", vi: "Linh, bạn sẽ gửi recap trước cuối ngày." },
+    { en: "Mark, you've got the design spec by Friday.", vi: "Mark, bạn có bản design spec trước thứ Sáu." },
+    { en: "Sara is on the hook for the API draft by next Tuesday.", vi: "Sara chịu trách nhiệm bản draft API trước thứ Ba tuần tới." },
+    { en: "I'll follow up with Daniel on this.", vi: "Tôi sẽ theo dõi với Daniel về vấn đề này." },
+    { en: "Linh will own the rollout plan.", vi: "Linh sẽ phụ trách kế hoạch rollout." },
+  ]}
+  contrast={`Mơ hồ: "Someone should follow up on this" — không ai biết đó là ai, không ai cảm thấy bị ràng buộc, và gần như chắc chắn không ai làm. Rõ ràng: "Linh, you'll follow up with the legal team by Friday" — tên người, việc cụ thể, deadline. Nghiên cứu về quản lý dự án chỉ ra rằng action items KHÔNG có tên người phụ trách cụ thể có tỷ lệ hoàn thành thấp hơn đáng kể so với action items có tên và deadline. "We should" là câu chắc chắn thất bại; "Linh, you'll" là câu có khả năng thành công.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "Chair (Alex)", en: "Alright, we're at time — let's wrap up. Let me summarize what we landed on.", vi: "Được rồi, hết giờ rồi — chốt lại thôi. Để tôi tóm tắt những gì đã được quyết định." },
+  { speaker: "Chair (Alex)", en: "We agreed to go with the phased rollout approach. We're deferring the pricing discussion to next week, and the API integration spec needs more research before we can decide.", vi: "Chúng ta đồng ý đi theo hướng triển khai theo giai đoạn. Thảo luận về giá được hoãn lại tuần tới, và bản spec tích hợp API cần thêm nghiên cứu trước khi quyết định." },
+  { speaker: "Marcus", en: "That sounds right to me.", vi: "Nghe đúng với tôi." },
+  { speaker: "Chair (Alex)", en: "Good. Action items: Linh, you'll own the design spec by Friday — can you make that work?", vi: "Tốt. Action items: Linh, bạn phụ trách bản design spec trước thứ Sáu — bạn có làm được không?" },
+  { speaker: "Linh", en: "Friday works — I'll send a draft by EOD Thursday so there's review time.", vi: "Thứ Sáu được — tôi sẽ gửi bản nháp trước cuối ngày thứ Năm để có thời gian review." },
+  { speaker: "Chair (Alex)", en: "Even better. Mark, you're on the hook for the implementation plan by next Tuesday. Sara, you'll send the recap email today — copy everyone on the call.", vi: "Càng tốt. Mark, bạn chịu trách nhiệm bản kế hoạch triển khai trước thứ Ba tuần tới. Sara, bạn sẽ gửi email recap hôm nay — cc tất cả mọi người trong cuộc gọi." },
+  { speaker: "Sara", en: "Got it — I'll have it out within the hour.", vi: "Hiểu rồi — tôi sẽ gửi trong vòng một tiếng." },
+  { speaker: "Chair (Alex)", en: "Did I miss any action items? And does the timeline work for everyone?", vi: "Tôi có bỏ sót action item nào không? Và timeline có ổn với mọi người không?" },
+  { speaker: "Mark", en: "Tuesday is tight — could we push to Wednesday?", vi: "Thứ Ba hơi gấp — có thể đẩy sang thứ Tư không?" },
+  { speaker: "Chair (Alex)", en: "Wednesday works — let's say Wednesday EOD. Sara, note that in the recap. OK — I'll send a reminder for our next sync on Thursday at 10. Thanks everyone, great discussion.", vi: "Thứ Tư được — thứ Tư cuối ngày nhé. Sara, ghi chú điều đó vào recap. Được rồi — tôi sẽ gửi nhắc nhở cho buổi sync tiếp theo vào thứ Năm lúc 10 giờ. Cảm ơn mọi người, buổi thảo luận rất hay." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"OK we're out of time, talk to you later!"`}
+  right={`"Alright, we're at time — quick summary before we go: we agreed on X, deferred Y, and Linh you'll own the recap by EOD. Thanks everyone."`}
+  why={`Kết thúc cuộc họp mà không tóm tắt và không giao action items là lỗi phổ biến nhất — và tốn kém nhất. Toàn bộ cuộc thảo luận vừa rồi không tự động biến thành kết quả. Dù chỉ có 90 giây để chốt, hãy dùng chúng: một câu tóm tắt quyết định + một câu giao action items + một câu về follow-up. Không có ba phần này, cuộc họp về cơ bản không xảy ra.`}
+/>
+
+<Mistake
+  wrong={`"We should follow up on the budget question."`}
+  right={`"Mark, you'll follow up with Finance on the budget question by Thursday — sound good?"`}
+  why={`"We should" là câu tử hình của action items. Không có tên, không có deadline, không có ai cảm thấy họ cụ thể là người phụ trách. Sau cuộc họp, ai cũng nhớ câu đó nhưng đều nghĩ người kia sẽ làm. Quy tắc: mỗi action item phải có tên riêng và ngày cụ thể. Nếu chưa quyết định được ai làm, đó cũng là một action item: "Alex, bạn sẽ tìm người phụ trách phần này và xác nhận trước thứ Tư."`}
+/>
+
+<Mistake
+  wrong={`(Không gửi recap email sau cuộc họp)`}
+  right={`Gửi recap email trong vòng 24 giờ với: (1) quyết định đã đưa ra, (2) action items với tên và deadline, (3) parking lot items, (4) thời gian sync tiếp theo.`}
+  why={`Cam kết bằng lời nói trong cuộc họp mờ đi rất nhanh. Sau 48 giờ, người ta bắt đầu nhớ khác nhau về những gì được quyết định. Sau một tuần, một số action items sẽ bị "quên" hoàn toàn. Recap email là bộ nhớ thể chế — nó biến "tôi nghĩ chúng ta đã nói..." thành "đây là những gì chúng ta đã đồng ý." Đây không phải thủ tục hành chính — đây là công cụ execution.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+**Action items là cầu nối giữa họp và làm việc thực.**
+
+Nhìn lại cả topic Meetings, mỗi bài là một mảnh ghép của một cuộc họp hoàn chỉnh: mở đầu (bài 01), cập nhật (02), đề xuất (03), đồng ý và không đồng ý (04), ngắt lời và nhường lời (05), và bây giờ — chốt lại (06). Nếu năm bài trước là phần "vào", bài này là phần "ra" — và phần ra quyết định liệu năm bài trước có giá trị gì không.
+
+Cuộc họp không tự biến thành công việc. Quyết định trong phòng họp chỉ là ý định cho đến khi ai đó ghi tên vào bên cạnh deadline. Đây là lý do tại sao kỹ năng chốt họp là kỹ năng bị underestimate nhất — và cũng là kỹ năng có ROI cao nhất trong toàn bộ danh sách meeting skills.
+
+**Quy tắc "owner + deadline" là universal.**
+
+Không phân biệt văn hoá, không phân biệt ngành, không phân biệt quy mô công ty — action item không có tên người phụ trách cụ thể và deadline rõ ràng có tỷ lệ hoàn thành rất thấp. Đây không phải lý thuyết quản lý — đây là thực tế quan sát được trong bất kỳ team nào. "We should" là một lời tuyên bố về ý định tốt. "Linh, you'll own this by Friday" là một cam kết xã hội — và cam kết xã hội có trọng lượng khác hoàn toàn.
+
+**Hiệu chỉnh văn hoá: cách các nền văn hoá khác nhau kết thúc cuộc họp.**
+
+Tiếng Anh để chốt họp là chuẩn mực toàn cầu trong môi trường kinh doanh quốc tế — nhưng cách *thực hiện* nó thay đổi đáng kể:
+
+- **Mỹ (đặc biệt tech và startup):** Kết thúc nhanh và thân mật. Chair tóm tắt nhanh, giao action items bằng lời, sau đó gửi recap email. Câu thoát ra thường ngắn và casual: "Great work everyone — catch you next time." Không có nghi lễ lớn xung quanh phần kết thúc.
+
+- **Anh:** Kết thúc có cấu trúc hơn một chút. Chair thường dành thêm 2–3 phút để đọc lại action items và hỏi xác nhận từ từng người. "Does that sound right to you, Mark?" là câu phổ biến. Sau đó gửi "meeting minutes" — trang trọng hơn email recap.
+
+- **Đức:** Protokoll — biên bản cuộc họp — là tiêu chuẩn trong nhiều tổ chức. Biên bản chính thức ghi lại toàn bộ quyết định và được phân phối đến tất cả stakeholders, không chỉ những người trong phòng. Sự chính xác và tài liệu hóa được coi trọng cao hơn tốc độ.
+
+- **Nhật Bản:** Cuộc họp thường kết thúc với một lời cảm ơn chính thức từ người cấp cao nhất trong phòng. Các quyết định quan trọng đã được thảo luận trước (nemawashi) nên phần chốt họp thường xác nhận những gì đã được thống nhất ngoài phòng họp, hơn là quyết định thực sự lần đầu.
+
+Bộ từ vựng trong bài này — "wrap up", "action items", "owner", "deadline", "parking lot", "send a recap" — hoạt động trong tất cả các ngữ cảnh trên. Điều cần điều chỉnh là mức độ trang trọng (formal vs. casual) và tốc độ của phần chốt (nhanh vs. có cấu trúc), không phải từ vựng cốt lõi.
+
+**Tổng hợp cả topic.**
+
+Toàn bộ topic Meetings dạy một vòng đời hoàn chỉnh: bạn vào được phòng họp (01), bạn có thể cập nhật tình hình một cách rõ ràng (02), bạn có thể đề xuất và thảo luận ý tưởng (03), bạn có thể đồng ý và không đồng ý một cách lịch sự (04), bạn có thể ngắt lời và nhường lời đúng lúc (05), và bây giờ bạn có thể đóng cuộc họp theo cách khiến mọi người biết mình phải làm gì tiếp theo (06). Sáu kỹ năng này, kết hợp với nhau, cho phép bạn không chỉ *tham dự* mà còn *dẫn dắt* — bằng tiếng Anh, trong bất kỳ môi trường làm việc quốc tế nào.
+
+<Callout type="note" title={`"The parking lot" — cụm từ giúp họp không bị trật bánh`}>
+"Parking lot" là kỹ thuật meeting management phổ biến nhất trong môi trường làm việc nói tiếng Anh: một danh sách các chủ đề quan trọng nhưng không thuộc agenda hôm nay, được ghi nhận công khai và hứa sẽ bàn sau. Câu chuẩn: "That's a great point — let's put it in the parking lot and come back to it next week." Tác dụng kép: người đề xuất cảm thấy được lắng nghe (không bị ngắt ngang hay phủ định), và cuộc họp không bị trật bánh sang chủ đề khác. Parking lot items nên được đưa vào recap email và thực sự được bàn trong buổi sync tiếp theo — nếu không, mọi người sẽ ngừng tin vào nó.
+</Callout>
+
+<Callout type="warning" title="Không có recap email = mất 30% quyết định trong tuần tới">
+Nhiều nghiên cứu về workplace memory và project management chỉ ra rằng các cam kết bằng lời nói trong cuộc họp có tỷ lệ "bị quên" hoặc "bị nhớ khác đi" đáng kể chỉ sau 48–72 giờ. Không phải vì mọi người thiếu thiện chí — mà vì trí nhớ làm việc của con người không được thiết kế để giữ danh sách chi tiết qua nhiều ngày bận rộn. Recap email không phải thủ tục hành chính — nó là bộ nhớ thể chế của team. Khi có tranh cãi về "nhưng ai đã đồng ý làm gì?", email recap là trọng tài. Không có nó, team mất thời gian họp lại để làm rõ thứ đáng ra đã được ghi chú. Quy tắc: ai ra khỏi cuộc họp mà không biết ai phải làm gì và khi nào — cuộc họp đó chưa kết thúc.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+Mười cụm từ sau đây xuất hiện xuyên suốt toàn bộ topic Meetings — từ lúc mở họp đến lúc chốt lại. Đây là bộ meeting vocabulary cốt lõi.
+
+- **`to kick off`** — mở đầu cuộc họp hoặc dự án. *"Let's kick off with the status update."* / *"We kicked off the project last Monday."* Nghe năng động và chủ động hơn "start."
+
+- **`to dive in`** — bắt tay vào việc ngay, không vòng vo. *"Alright, let's dive in — we have a lot to cover."* Dùng khi chair muốn báo hiệu cuộc họp đang bắt đầu thực sự.
+
+- **`to ship`** — hoàn thành và deliver sản phẩm, tính năng, hay tài liệu. *"When can we ship the first version?"* / *"The team shipped the update last Friday."* Phổ biến trong tech nhưng dùng rộng hơn trong bất kỳ ngữ cảnh delivery nào.
+
+- **`to be on track`** — đang đúng tiến độ, không bị trễ. *"We're on track for the Q3 deadline."* Đối lập: "we're behind" hoặc "we're off track." Dùng nhiều trong status updates (bài 02).
+
+- **`to push back`** — phản đối, không đồng ý một cách lịch sự. *"I want to push back on that timeline — I don't think it's realistic."* Mang sắc thái professional hơn "disagree" (bài 04).
+
+- **`to play devil's advocate`** — đặt câu hỏi phản biện để kiểm tra ý tưởng, không nhất thiết là ý kiến thật của người nói. *"Just to play devil's advocate — what if the market isn't ready?"* Cách lịch sự nhất để challenge một đề xuất (bài 03, 04).
+
+- **`to land on (something)`** — chốt được một quyết định sau khi thảo luận. *"We finally landed on Option B."* / *"Did we land on a date?"* Nghe tự nhiên hơn "decided on" trong ngữ cảnh họp.
+
+- **`+1`** — đồng ý nhanh, đặc biệt trong chat. *"+1 on the phased approach."* Đây là cách bày tỏ sự ủng hộ ngắn nhất và phổ biến nhất trong môi trường tech (bài 04).
+
+- **`to jump in`** — ngắt lời để thêm ý kiến, ngụ ý muốn đóng góp. *"Can I jump in here?"* / *"I'd like to jump in with a different perspective."* Cách chuyên nghiệp nhất để vào cuộc khi người khác đang nói (bài 05).
+
+- **`the parking lot`** — danh sách các chủ đề quan trọng nhưng chưa được bàn hôm nay, để giải quyết sau. *"Let's put that in the parking lot."* Công cụ quản lý cuộc họp được sử dụng rộng rãi nhất trong tiếng Anh công sở.
+
+## 09 — Tự luyện
+
+1. **Viết và nói:** Chọn một cuộc họp thực tế bạn vừa tham dự (hoặc tưởng tượng một cuộc họp trong lĩnh vực của bạn). Viết phần chốt cuộc họp đó theo cấu trúc ba phần: tóm tắt quyết định → giao ít nhất ba action items với tên và deadline → xác nhận follow-up. Sau đó đọc to phần đó như thể bạn đang là chair — luyện cho đến khi nghe tự nhiên mà không cần nhìn bản viết.
+
+2. **Phân tích và viết lại:** Đọc lại các action items mơ hồ dưới đây và viết lại mỗi câu thành một action item chuẩn (tên + task + deadline): (a) "Someone should reach out to the client." (b) "We need to update the budget." (c) "The design team should look into this." (d) "Let's revisit the pricing discussion." Với mỗi câu, hãy giải thích ngắn gọn tại sao phiên bản gốc có thể thất bại.
+
+3. **Tổng hợp topic:** Hãy soạn một recap email hoàn chỉnh cho cuộc họp trong hội thoại mẫu ở bài này (Phần 05). Email phải có: subject line rõ ràng, phần quyết định đã được đưa ra, danh sách action items với owner và deadline, parking lot items (ít nhất một mục), và thời gian sync tiếp theo. Viết email bằng tiếng Anh, khoảng 150–200 từ. Đây là bài tập tổng hợp toàn bộ kỹ năng của topic.
+
+<Recap>
+Trên toàn topic Meetings, ta đã học:
+
+- **Bài 01 — Mở đầu cuộc họp:** Chair có năm nước đi cố định — gọi chú ý, nêu mục tiêu, đi qua agenda, kiểm tra tham dự, bàn giao. Câu mục tiêu chuẩn: *"The goal today is to [verb] [outcome] — should take about [X] minutes."* Phần mở đầu thiết lập tone cho cả buổi.
+- **Bài 02 — Cập nhật ngắn:** Ba phần của một status update sắc nét: what's done, what's next, và blockers. *"As of this week, we're on track for…"* Cập nhật không phải báo cáo dài — nó là snapshot 60 giây để mọi người ra quyết định tốt hơn.
+- **Bài 03 — Đề xuất & thảo luận:** Đề xuất ý tưởng bằng *"What if we…?"* hoặc *"One option could be…"* để mở ra thảo luận, không đóng lại. Phản hồi đề xuất bằng cách build on (*"I like that — what if we also…"*) hoặc refine (*"What if we tried a smaller version first?"*).
+- **Bài 04 — Đồng ý & không đồng ý lịch sự:** *"I'm aligned on that"* để đồng ý; *"I see it differently"* và *"I'd push back on…"* để không đồng ý mà không đối đầu. Kỹ năng quan trọng nhất: tách người ra khỏi ý kiến — disagree với idea, không phải với người.
+- **Bài 05 — Ngắt lời & nhường lời:** *"Can I jump in here?"* để vào cuộc lịch sự; *"Go ahead — you were saying?"* để nhường lời. Biết khi nào nên time-box một chủ đề: *"Let's table this for now and come back in five."*
+- **Bài 06 — Chốt & action items:** Ba phần của một closing sạch sẽ: tóm tắt → action items với owner + deadline → follow-up. Không có tên và ngày cụ thể, action items không được làm. Recap email là bộ nhớ thể chế — luôn gửi trong vòng 24 giờ.
+- Sợi chỉ đỏ xuyên suốt: **cuộc họp hiệu quả không phải may mắn — nó là kỹ năng.** Biết cách mở, cập nhật, đề xuất, đồng ý/không đồng ý, ngắt lời đúng lúc, và chốt sạch sẽ là bộ kỹ năng cho phép bạn không chỉ tham dự mà còn dẫn dắt — bằng tiếng Anh, trong bất kỳ phòng họp quốc tế nào.
+</Recap>

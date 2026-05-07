@@ -2,17 +2,6 @@ import type { EnglishTopic } from '../types';
 
 export const placeholderTopics: EnglishTopic[] = [
   {
-    slug: 'meetings',
-    title: 'Họp',
-    englishTitle: 'Meetings',
-    summary: 'Mở đầu, cập nhật/đề xuất, đồng ý/không đồng ý lịch sự, ngắt lời, chốt action items.',
-    level: 'B1+',
-    variant: 'work',
-    lessons: [],
-    placeholder: true,
-    plannedLessonCount: 6,
-  },
-  {
     slug: 'job-interview',
     title: 'Phỏng vấn xin việc',
     englishTitle: 'Job interview',
