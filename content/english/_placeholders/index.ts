@@ -2,17 +2,6 @@ import type { EnglishTopic } from '../types';
 
 export const placeholderTopics: EnglishTopic[] = [
   {
-    slug: 'office-small-talk',
-    title: 'Trò chuyện ở văn phòng',
-    englishTitle: 'Office small talk',
-    summary: 'Chào buổi sáng, cuối tuần, mời ăn trưa, "office chat" mà không vượt giới hạn.',
-    level: 'B1+',
-    variant: 'work',
-    lessons: [],
-    placeholder: true,
-    plannedLessonCount: 6,
-  },
-  {
     slug: 'meetings',
     title: 'Họp',
     englishTitle: 'Meetings',
