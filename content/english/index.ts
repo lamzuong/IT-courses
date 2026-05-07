@@ -8,6 +8,7 @@ import { topic as phoneVideoCalls } from './phone-video-calls/topic';
 import { topic as travelAirport } from './travel-airport/topic';
 import { topic as hotel } from './hotel/topic';
 import { topic as doctorHealth } from './doctor-health/topic';
+import { topic as plansInvitations } from './plans-invitations/topic';
 import { placeholderTopics } from './_placeholders';
 
 export const allEnglishTopics: EnglishTopic[] = [
@@ -29,7 +30,8 @@ export const allEnglishTopics: EnglishTopic[] = [
   hotel,
   // Topic 9 (real)
   doctorHealth,
-  placeholderTopics.find((t) => t.slug === 'plans-invitations')!,
+  // Topic 10 (real)
+  plansInvitations,
   placeholderTopics.find((t) => t.slug === 'apologies-complaints')!,
   // Topics 12–15 (placeholders, work)
   placeholderTopics.find((t) => t.slug === 'office-small-talk')!,
