@@ -2,6 +2,12 @@ import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { FewShotToggleDemo } from '@/components/demos/ai-in-your-project/few-shot-toggle-demo';
 
+<Callout type="note" title="In this lesson">
+- The two prompt techniques that actually move output quality: few-shot examples and format pinning.
+- The folklore (politeness, ALL CAPS, expert preambles, threats) you can stop spending tokens on.
+- A heuristic that stays useful long after the trends change: when in doubt, add an example, not an adjective.
+</Callout>
+
 Most of what passes for "prompt engineering" online is folklore — emoji rituals, ALL-CAPS pleas, unverifiable claims about the magic word that doubles output quality. Strip the noise away and only two techniques have stood up to repeated testing across model families and years: showing examples, and pinning the output format. Everything else is decoration.
 
 This lesson is about those two techniques. Both take ten minutes to apply and both produce a measurable lift on real tasks. After that, we'll talk about what *doesn't* matter, so you can stop worrying about it.

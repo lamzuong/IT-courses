@@ -2,6 +2,12 @@ import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { ErrorsRetryDemo } from '@/components/demos/ai-in-your-project/errors-retry-demo';
 
+<Callout type="note" title="In this lesson">
+- Three categories of tool failure — validation, business-rule, infrastructure — each routed to whoever can fix it.
+- Why a `{ ok, data | error }` envelope beats throwing strings at the model.
+- How a clear error message becomes a self-healing recovery path with zero retry code on your side.
+</Callout>
+
 Every tool call has three possible outcomes — success, recoverable failure, unrecoverable failure — and the model only knows what you tell it. There's no exception trace it can read, no debugger it can attach. The string your tool function returns is the *entire* universe of information the model has about what just happened. If that string is *"Internal server error"*, the model is going to retry the same broken args and you'll get the same useless string back. If the string is *"discountValue must be ≤ 100 for percentage discounts; you sent 150"*, the model fixes it on the next turn and moves on.
 
 The discipline this lesson is teaching is small but unfamiliar: **error messages are now part of your prompt.** Every byte of an error string is read by the model and used to decide what to do next. Write them with the same care you write tool descriptions.

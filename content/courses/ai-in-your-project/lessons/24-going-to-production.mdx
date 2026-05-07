@@ -1,6 +1,12 @@
 import { Recap } from '@/components/mdx/recap';
 import { Callout } from '@/components/mdx/callout';
 
+<Callout type="note" title="In this lesson">
+- Swap `ChatOllama` for `ChatAnthropic` (or OpenAI, or Gemini) in one line — the rest of the graph code, tools, and tests don't change.
+- Switch to a Postgres-backed checkpointer so interrupts survive Vercel Function cold starts.
+- Three rate-limit layers (provider 429 retries, per-user sliding windows, global daily kill-switch) and a $10/day starting cap.
+</Callout>
+
 You've shipped an AI Operator that runs locally on Ollama. It plans, it asks for confirmation, it commits to a real database, it audits, it tests. Now ship it for real. The gap between your laptop and a production URL is smaller than it looks — it's an import, an env var, a deploy command, a couple of guard rails — but every step has a place where a small mistake quietly costs money. This lesson walks the gap.
 
 The promise is small and concrete: by the end of this page, you've swapped the model provider, configured the secrets, deployed to Vercel, capped the budget, and added a rate limiter. That is the floor for a production AI feature. Everything else — multi-tenant policies, audit retention, per-customer fine-tuning — is a layer on top.

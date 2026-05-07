@@ -2,6 +2,12 @@ import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { MultiToolRunnerDemo } from '@/components/demos/ai-in-your-project/multi-tool-runner-demo';
 
+<Callout type="note" title="In this lesson">
+- Three patterns to scale read tools from toy to production: pagination, filtering, aggregation.
+- Why you write the SQL and the model only describes intent — never let a model emit raw `where` clauses.
+- How tight tool descriptions and schemas let the model orchestrate multi-tool sequences without you scripting them.
+</Callout>
+
 One tool that returns 25 customers is fine. One tool that returns 25 million is a denial-of-service attack against your model's context window — and your bill. Once tools graduate from your local seed file to a production database, the design problem shifts from *"can I expose this query to the model"* to *"can I expose this query in a way that doesn't melt down the moment a row count gets interesting."*
 
 This lesson is the read-side playbook. Three patterns will cover most of what you ever need: pagination so the model can ask for more without seeing everything, filtering so the model expresses intent and you translate it into a real query, and aggregation so the model can ask for *summaries* instead of raw rows. Each pattern shrinks the data flowing into context by an order of magnitude or more.

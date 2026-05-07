@@ -2,6 +2,12 @@ import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { WriteToolDangerDemo } from '@/components/demos/ai-in-your-project/write-tool-danger-demo';
 
+<Callout type="note" title="In this lesson">
+- Why `bindTools` is permissive by default and your application has to be the restrictive layer.
+- The per-call confirmation gate: a write tool call is a *proposal*, not an instruction.
+- A taxonomy for classifying write tools (trivial, standard, irreversible) and matching the gate strength to each class.
+</Callout>
+
 Read tools fail safe. The worst case is a wrong answer — the model says *"there are 41 lapsed customers"* when the right number was 42, and a human spots it during review. Write tools fail expensive. The worst case is a charge to a customer's card, an email to fifty thousand inboxes, or a `DELETE` that took out three weeks of orders. The same model running the same loop with the same prompt becomes a different category of risk the moment it can mutate state.
 
 The whole reason this part of the course exists is that almost every AI integration starts as read-only — chatbot, search, summary — and then someone says *"can it also create the promo code?"* and the answer is *"yes, but…"* That *but* is the rest of this lesson.

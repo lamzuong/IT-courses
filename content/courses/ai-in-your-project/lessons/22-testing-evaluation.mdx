@@ -1,6 +1,13 @@
 import { Recap } from '@/components/mdx/recap';
 import { Callout } from '@/components/mdx/callout';
 
+<Callout type="note" title="In this lesson">
+- Golden tool-call tests for the deterministic surface — `temperature: 0` + assert on the `tool_calls` your agent produces.
+- Snapshot prose by *shape* (sentence count, key phrases, JSON structure) — never by exact text.
+- `FakeListChatModel` for testing graph logic without spending real tokens.
+- A small eval dataset of `(prompt, expected_tool_calls)` replayed on every PR.
+</Callout>
+
 Testing AI integrations is testing a stochastic system. The patterns are different from unit-testing a sort function. A sort function has one right answer for every input; a model has a distribution. You can lower the temperature, you can pin the seed, you can swear at the API — and on a flaky day a model will still emit a slightly different sentence than yesterday. The trick is to stop testing the parts that vary and start testing the parts that don't. This lesson is about which parts are which.
 
 The promise: by the end you'll have golden tests for tool-call routing, snapshot tests for prose shape, fake LLMs in your unit tests, and an eval dataset on every PR. None of those four things is "test that the AI is smart." All four are testing software, with the model as a deterministic-enough collaborator.

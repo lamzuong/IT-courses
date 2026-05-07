@@ -1,6 +1,12 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 
+<Callout type="note" title="In this lesson">
+- Four design rules for tools: narrow > broad, idempotent by default, description-as-prompt, typed errors.
+- Five anti-patterns to refactor before you ship: 12-arg tools, silent writes, free-form returns, recursive tools, implicit global state.
+- Why "could a model that has never seen my code call this correctly using only the name, description, and schema?" is the test you run on every tool.
+</Callout>
+
 Tool design is API design with one extra constraint — your caller is a probabilistic interpreter, not a deterministic one. Every other API you've ever shipped has been called by code that does exactly what its author told it to. This one is called by a model that read your description, formed a guess about what the tool does, and is now trying. If your description was vague, the guess will be vague. If your name was clever, the guess will be wrong. Tool design rewards the dull, specific, and obvious in a way most software design does not.
 
 This lesson is the principles file. Four rules to follow and five mistakes to recognize. None of them are revolutionary — they're the same things experienced API designers have always preached — but the cost of getting them wrong is higher when the caller can't read your source code and won't ask clarifying questions.

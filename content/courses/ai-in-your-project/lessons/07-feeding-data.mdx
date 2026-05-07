@@ -2,6 +2,12 @@ import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { SchemaContextDemo } from '@/components/demos/ai-in-your-project/schema-context-demo';
 
+<Callout type="note" title="In this lesson">
+- What earns its tokens in the system prompt: schema definitions, sample rows, business definitions.
+- What belongs behind a tool call instead: per-request data, PII at scale, full table dumps.
+- How to lay out the prompt so prompt caching keeps the stable parts warm — and why pasting a SELECT result is a privacy *and* token mistake.
+</Callout>
+
 An LLM that doesn't know your data is a generalist on a leash. It can write you a paragraph about *customers in general* but it can't tell you anything about *your* customers. The system prompt is one place where you can extend the leash — by feeding the model your schema, a few sample rows, and the business definitions that don't live anywhere else.
 
 This lesson is about doing that well. The trick isn't pasting more text in; it's choosing the smallest set of facts that makes the model useful, and being deliberate about everything else.
@@ -59,7 +65,75 @@ The mirror image. Things that look helpful and aren't:
 - **Anything that changes per request.** Today's order count, this user's pending tasks, the current cart. These are tool calls, not system-prompt content.
 - **Stale derived fields.** *"The most popular product is X."* If it's true today and false next week, don't bake it in.
 
+### System-prompt content vs. tool calls — what's the difference?
+
+Two delivery channels, two cost shapes, two lifecycles. Worth pinning down before the rule of thumb makes sense:
+
+| | System-prompt content | Tool call |
+|---|---|---|
+| **Sent when?** | Every single turn, before the model thinks | Only when the model decides it needs that data |
+| **Who pays the tokens?** | You, on every request, for every user, forever | You, only on the turns where the tool actually fires |
+| **Freshness** | Frozen at the moment the prompt was assembled | Live — runs against the database in the millisecond before the model sees the result |
+| **Best for** | Stable facts: schemas, definitions, rules, business glossary | Volatile facts: today's revenue, this user's cart, the row for customer #42 |
+| **Anti-pattern** | Pasting `SELECT * FROM customers` into the prompt | Re-deriving the column types of `customers` on every read |
+
+A worked example of the same question, served two ways:
+
+```md
+## Bad: stuffed into the system prompt
+"Today's revenue is $3,184.20. There are 47 orders. The top product
+ is the linen apron. Pending drafts: 12..."
+
+→ Cost: ~80 tokens × every turn × every user, forever.
+→ Wrong by 09:00 the next morning. Permanently wrong by Tuesday.
+```
+
+```md
+## Good: a tool the model calls when relevant
+tool: stats.today() → { revenueCents: 318420, orderCount: 47, topProductSku: 'apron-linen' }
+
+→ Cost: ~25 tokens, only on the ~5% of turns where the model needs it.
+→ Always fresh — runs against the live database the moment the model asks.
+→ The tool definition (~40 tokens) lives in the prompt; the data does not.
+```
+
+The mental model: **the system prompt teaches the model what your world looks like; tool calls let it look at the current state of that world.** The first is a textbook the model carries; the second is a phone the model can pick up. Don't write today's weather report into the textbook.
+
+We wire the actual `tool()` mechanics in lesson 09 — for now, just know that "this is a tool call, not system-prompt content" means *"don't bake the value in; expose a function the model can call to fetch the value when it actually needs it."*
+
 The rule of thumb: if it's true for every user on every turn and unlikely to change in a month, it's a candidate for the system prompt. Otherwise it's a tool call.
+
+A real-world bad prompt that violates all four — the kind you'll see in a junior dev's first PR:
+
+```md
+## Customers (so the AI "knows our users")
+c_001  Phuoc Luu     phuoc@gmail.com   +84-901-234-567   last_order: 2026-02-14
+c_002  Anna Becker   anna@hotmail.com  +49-30-12345678   last_order: 2026-04-22
+c_003  Diego Santos  diego@yahoo.com   +55-11-98765432   last_order: 2026-01-08
+... (24,997 more rows) ...
+
+## Today's stats
+Orders today: 47
+Revenue today: $3,184.20
+Pending email drafts: 12
+Operator on shift: Phuoc (login 08:14)
+
+## Insights
+Our most popular product is the linen apron.
+Most lapsed customers respond best to 15% off codes.
+Tuesday is our slowest day.
+```
+
+What's wrong, line by line:
+
+| Block | Anti-pattern | Better home |
+|---|---|---|
+| Customer table | PII at scale + full table dump | `customers.search(...)` tool returning ≤25 rows |
+| Today's stats | Per-request data | `stats.today()` tool, called when relevant |
+| Operator on shift | Per-request data + stale within hours | a non-cached suffix appended per turn |
+| "Insights" | Stale derived fields presented as fact | recompute via tool or omit entirely |
+
+This prompt would burn ~80,000 tokens *every turn*, leak customer phone numbers into every provider log, hallucinate "facts" the moment Tuesday stops being slow, and still do worse than the 200-token version from §01 — because the model can't reliably find the right row in 25,000.
 
 ## 03 — See the difference
 
@@ -106,6 +180,98 @@ Even one variable token (today's date) at the top of the prompt invalidates the 
 <Callout type="warning" title="Don't paste your users table into the prompt">
 A common mistake: copying a SELECT result into the system prompt so "the model has the data." Don't. Pass the user's *id* in the prompt, then call a `get_customer(id)` tool to fetch the row server-side. Sensitive fields stay on the server; tokens stay small; the schema is the same as production.
 </Callout>
+
+### The pattern, worked out
+
+Picture a support assistant that helps an operator answer questions about *one specific customer* (the one whose ticket is open). The naive instinct is to "give the AI the customer" by inlining the row.
+
+**❌ The bad version — SELECT pasted into the prompt:**
+
+```ts
+// app/api/assist/route.ts
+const customer = await db.customers.findUnique({ where: { id: customerId } });
+
+const systemPrompt = `
+You are a support assistant. The customer you are helping:
+
+  id: ${customer.id}
+  name: ${customer.name}
+  email: ${customer.email}
+  phone: ${customer.phone}
+  date_of_birth: ${customer.dateOfBirth}
+  address: ${JSON.stringify(customer.address)}
+  payment_method_last4: ${customer.paymentLast4}
+  last_order_at: ${customer.lastOrderAt}
+  tags: ${customer.tags.join(', ')}
+  internal_notes: ${customer.internalNotes}
+
+Answer the operator's questions about this customer.
+`;
+
+const result = await model.invoke([
+  { role: 'system', content: systemPrompt },
+  { role: 'user', content: operatorMessage },
+]);
+```
+
+What just went wrong, even though the code "works":
+
+- **Privacy.** The customer's phone, DOB, address, and last-4 of their card are now in your provider's API logs — *every turn*, not just the turns where the model needed them. If the operator only ever asks *"when did they last order?"*, you leaked the credit card data for nothing.
+- **Tokens.** Every irrelevant field is paying rent on every turn. A 50-field customer record is a few hundred tokens; multiply by every turn of every conversation of every operator and the bill is non-trivial.
+- **Schema drift.** The shape of the row in the prompt is hand-written. If `paymentLast4` becomes `paymentMethod.last4` in the database tomorrow, the prompt still says `payment_method_last4` until someone notices. The model and the database disagree, and the model doesn't know it.
+- **Hallucinations on stale data.** If the customer updates their address mid-conversation, the AI is still answering from the snapshot taken at turn 1. *"Their address is 123 Old St"* — confidently wrong.
+
+**✅ The good version — ID in the prompt, fetch via a tool:**
+
+```ts
+// system prompt: just the ID and the rules, no PII
+const systemPrompt = `
+You are a support assistant. The customer for this conversation has id "${customerId}".
+Use customers.get(id) to fetch their non-sensitive profile.
+Use orders.list({ customerId }) for order history.
+Never ask the user for their phone or address — fetch from the database if needed.
+`;
+
+// Tool definition (lesson 09 covers tool() in depth)
+const getCustomer = tool(
+  async ({ id }) => {
+    const c = await db.customers.findUnique({ where: { id } });
+    if (!c) return { ok: false, error: `customer ${id} not found` };
+    return {
+      ok: true,
+      data: {
+        id: c.id,
+        name: c.name,
+        emailDomain: c.email.split('@')[1],   // domain only, not the address
+        segment: c.segment,
+        lastOrderAt: c.lastOrderAt,
+        tags: c.tags,
+        // phone, address, DOB, payment data — deliberately NOT returned
+      },
+    };
+  },
+  {
+    name: 'customers.get',
+    description: 'Fetch the non-sensitive profile of a customer by id.',
+    schema: z.object({ id: z.string() }),
+  },
+);
+```
+
+Read what each property buys you:
+
+| Property | Bad version | Good version |
+|---|---|---|
+| Phone / DOB / card last-4 in provider logs | Yes, every turn | Never — server side only |
+| Tokens per turn | ~250 (full row) | ~30 (just the id reference) |
+| Tool fires when the model actually needs the data | n/a — always there | Only on turns that ask "who is this person?" |
+| Schema follows production | No — frozen at prompt-build time | Yes — `findUnique` returns whatever your migration just added |
+| Address change mid-conversation | Hallucinated stale value | Re-fetched, current |
+| Sensitive fields | Mixed in with the rest | Allow-listed in the tool's return shape |
+
+**The principle:** the prompt should say *"the customer in this conversation is `c_001`"*, not *"the customer in this conversation is Phuoc Luu, born 1988-03-12, card ending 4242, …"*. The ID is the handle. The tool is the door. The sensitive fields stay behind the door, and they're only opened when the model actually needs to look at them.
+
+A useful test: skim everything you've got in the system prompt and ask, *"if a screenshot of this prompt leaked on Twitter tomorrow, would I be fine?"* If the answer is anything but yes, the leaky fields belong behind a tool.
 
 <Recap>
 - Three things earn their tokens in context: schema, sample rows, business definitions. Skip everything else.

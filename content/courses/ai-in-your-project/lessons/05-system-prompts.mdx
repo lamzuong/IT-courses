@@ -2,6 +2,12 @@ import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { SystemPromptToggleDemo } from '@/components/demos/ai-in-your-project/system-prompt-toggle-demo';
 
+<Callout type="note" title="In this lesson">
+- The four ingredients of every production system prompt: role, constraints, format, refusal rules.
+- A reusable starter template (~90 tokens) you can copy and edit a few words to match your domain.
+- The iteration loop for refining a prompt against five real-shaped inputs — and why "panel of five" beats single-input debugging.
+</Callout>
+
 The system prompt is where you tell the model who it is. It's a five-line input, hidden from the user, that sits at the top of every conversation and quietly controls about 80% of how the rest feels. Tone, format, willingness to refuse, what counts as "done" — all of it lives there. Get the system prompt right and the user-facing prompts can be sloppy. Get the system prompt wrong and even a perfectly worded user message produces a result you don't want.
 
 This lesson is about writing system prompts you can iterate on. Not "the perfect prompt" — there isn't one — but a prompt you can read, debug, and improve when something goes wrong.

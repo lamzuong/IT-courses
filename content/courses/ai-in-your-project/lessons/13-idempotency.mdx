@@ -1,5 +1,12 @@
+import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { IdempotencyDemo } from '@/components/demos/ai-in-your-project/idempotency-demo';
+
+<Callout type="note" title="In this lesson">
+- The request-key pattern that makes any write tool safe to retry — the model never knows it's a retry.
+- Database-level dedup with unique indexes plus `ON CONFLICT DO NOTHING` to close the race window.
+- Out-of-band dedup keys (e.g. `customer_id + subject_hash + hour_bucket`) for tools without an obvious orchestrator key.
+</Callout>
 
 The model will retry. It will retry because a network call hiccupped and the orchestrator re-emitted the tool call. It will retry because a streaming connection dropped halfway through. It will retry because, on rare and unsettling days, it second-guessed itself and called the same tool twice in the same turn for reasons no log will ever explain. The first time you see your *"create promo"* tool fire two and a half times for one user request, you will understand idempotency in your bones. Better to understand it now.
 

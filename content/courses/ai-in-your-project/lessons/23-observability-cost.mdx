@@ -2,6 +2,12 @@ import { Recap } from '@/components/mdx/recap';
 import { Callout } from '@/components/mdx/callout';
 import { TokenCounterDemo } from '@/components/demos/ai-in-your-project/token-counter-demo';
 
+<Callout type="note" title="In this lesson">
+- LangSmith (or Helicone, Langfuse, Phoenix) — flip on tracing with one env var, or write a 50-line DIY callback that logs to your own DB.
+- Where token cost actually goes in a multi-step plan — almost always in the conversation history, not the output.
+- Three SQL queries plus a per-user cap and a global kill-switch that prevent the surprise-bill failure mode.
+</Callout>
+
 Every LLM call is a paid request. You wouldn't ship a service that hits a third-party API without a request log; don't ship an AI without a call log. Observability for AI is two things at once: it is *operational telemetry* — what happened, when, how long, did it fail — and it is *spend telemetry* — how much did this cost, who incurred it, is the trend up or down. The first kind is familiar; the second is the one teams discover the hard way, usually around the end of the first month, when the bill arrives.
 
 This lesson sketches the minimum viable setup: pick a tracing tool (or roll one in fifty lines), pin token usage to your own database, and turn on a per-user budget cap before your first paying user signs up.

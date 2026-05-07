@@ -1,6 +1,12 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 
+<Callout type="note" title="In this lesson">
+- A 5-question audit you run on your own schema *before* writing any LLM code.
+- The action-inventory table that becomes the spine of every read tool and write tool you'll build later in the course.
+- Why "pass IDs to the model, fetch sensitive fields server-side" is a rule from day one, not an afterthought.
+</Callout>
+
 Before you write a single LLM call, you need a clear picture of what your AI is allowed to read and what it's allowed to do. This lesson is the prep work nobody publishes blog posts about: a 30-minute audit of your data and your actions that pays off every lesson after this one.
 
 We'll do the audit on the mock CMS we use for the rest of the course, so you have a concrete example to copy. If you're following along with your own app, do the same audit on your schema as you read.

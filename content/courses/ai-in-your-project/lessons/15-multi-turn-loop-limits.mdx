@@ -1,4 +1,11 @@
+import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
+
+<Callout type="note" title="In this lesson">
+- Where the bare `while (toolCalls)` loop from Part III runs out of road: multi-step plans, branching, pauses, recovery.
+- Why every honest fix you'd write on top of it ends up reinventing a graph runtime — the motivation for Part IV.
+- The seam between Part III and Part IV: tools, schemas, and prompts all stay; only the orchestrator graduates.
+</Callout>
 
 By the end of lesson 14 you have something that genuinely works: a tool-calling agent that loops, recovers from errors, and produces a sensible final answer. For a single question with one or two tool calls, this loop is roughly all you need. The trouble starts the moment your prompts get even slightly more ambitious — *"create a promo, find the customers, draft them an email"* — and the abstractions you've leaned on so far quietly start to crack.
 

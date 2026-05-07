@@ -1,5 +1,12 @@
 import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
 import { LapsedCustomerDemo } from '@/components/demos/ai-in-your-project/lapsed-customer-demo';
+
+<Callout type="note" title="In this lesson">
+- Run the example prompt from lesson 01 through the full graph end-to-end.
+- See every primitive from Parts I–IV composing on one spine: structured output, read tools, write tools, idempotency, error recovery, conditional routing, interrupt, audit log.
+- The cleanest possible failure mode: rejection halts cleanly, earlier mutations stay committed and audited — recovery is its own approved workflow, not silent undo magic.
+</Callout>
 
 Walk through the example from lesson 1 with every tool you've built. The lapsed-customer workflow has been the carrot on a stick since the first page of this course: *create a 15% promo for customers who haven't ordered in 60 days, draft them a re-engagement email, and tag them so we can see what worked.* Twenty lessons ago that sentence felt like a paragraph for a feature spec. Now it's three nodes, four tool calls, and three confirmation gates wired up on a graph you understand line by line. This lesson runs the whole thing end-to-end and points out where each primitive from the course earns its keep.
 

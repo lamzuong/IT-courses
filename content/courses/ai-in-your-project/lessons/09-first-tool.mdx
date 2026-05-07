@@ -2,6 +2,12 @@ import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { FirstToolDemo } from '@/components/demos/ai-in-your-project/first-tool-demo';
 
+<Callout type="note" title="In this lesson">
+- Define a tool with `tool()` from `@langchain/core/tools` — name, Zod schema, async function.
+- Bind tools to a model and read the `tool_call` payload it emits.
+- The two-call shape of one tool-using turn (model → tool → model) — the foundation everything in Part III and IV builds on.
+</Callout>
+
 A tool is a typed function the model can call. You define one with three things — a name, a Zod input schema, and a function that runs when the model decides to invoke it. The model never executes your code itself; it emits a structured request that says *"please call `customers.search` with these arguments"*, your runtime executes it, and the result goes back into the conversation as another message. The whole loop runs server-side, and your TypeScript is in charge from start to finish.
 
 That separation is the entire point. Up until now the model has been a paragraph generator with read-only access to whatever you stuffed into the prompt. With tools, it gets verbs. It can search, fetch, count, and (once we get to writes in lesson 12) act. The prompt explains the world; the tools let the model touch it.

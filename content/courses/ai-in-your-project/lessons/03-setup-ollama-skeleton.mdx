@@ -1,6 +1,12 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 
+<Callout type="note" title="In this lesson">
+- Install Ollama, pull a tool-calling-capable open model (`qwen2.5:3b` or `llama3.1:8b`).
+- Scaffold a Next.js + LangChain project with the dependencies the rest of the course uses.
+- Ship a streaming "hello" route handler — the smallest vertical slice every later lesson grows from.
+</Callout>
+
 Time to install something. By the end of this lesson you'll have a local model server running, a Next.js project that hits it, and a streaming "hello" coming back over an SSE response. That's the smallest possible vertical slice — every later lesson is just adding to it.
 
 ## 1. Install Ollama

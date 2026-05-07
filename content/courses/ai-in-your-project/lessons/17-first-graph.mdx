@@ -1,5 +1,12 @@
 import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
 import { GraphRunnerDemo } from '@/components/demos/ai-in-your-project/graph-runner-demo';
+
+<Callout type="note" title="In this lesson">
+- Rebuild the lesson 14 tool-calling loop as a graph — same behaviour, named steps.
+- The canonical ReAct pattern (`agent → tools → agent → ...`) in nine lines of edge declarations.
+- A spine you'll bolt confirmation, conditional routing, and persistence onto across lessons 18-20.
+</Callout>
 
 Take the tool-calling agent from Part III and rebuild it as a graph. Same tools, same prompts, same model — only the orchestrator changes. The behaviour you'll see at the end of this lesson is identical to lesson 14: the model decides whether to call tools, the runtime executes them, the model speaks again, and the loop terminates when there's nothing left to do. The difference is invisible from the outside and structural on the inside: every step is a node, every transition is an edge, and you have somewhere to *put* every concern that's coming in the rest of Part IV.
 

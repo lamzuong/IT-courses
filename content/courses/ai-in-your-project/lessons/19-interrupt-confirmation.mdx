@@ -2,6 +2,12 @@ import { Recap } from '@/components/mdx/recap';
 import { Callout } from '@/components/mdx/callout';
 import { ConfirmationInterruptDemo } from '@/components/demos/ai-in-your-project/confirmation-interrupt-demo';
 
+<Callout type="note" title="In this lesson">
+- `interrupt()` from `@langchain/langgraph` — pause a graph from inside a node, surface a payload to your UI, resume with the user's decision.
+- The `Command` / `thread_id` API that makes resumption survive across requests.
+- Why this primitive turns confirmation from sprawling app logic into a single graph feature — and what makes the gate trustworthy enough to ship.
+</Callout>
+
 This is the lesson the rest of the course was building toward. Every read tool, every Zod schema, every retry loop, every routing decision so far has been preparing the ground for this one primitive: a graph that *pauses itself* before it does something irreversible, hands control back to your application, waits for a human decision, and resumes from the exact same state once the answer arrives. The first time you watch this work end-to-end, the difference between a chatbot and an *AI Operator* clicks into place. A chatbot answers questions. An AI Operator proposes mutations and waits for you to approve them.
 
 This lesson covers the LangGraph `interrupt()` primitive — what it does, where it goes, and how you resume the graph with the human's verdict. The demo at the bottom is the visual highlight of the entire course; the code snippet above it is the thirty lines that make confirmation a graph primitive instead of application logic sprawled across five files.

@@ -1,70 +1,420 @@
-import { Callout } from '@/components/mdx/callout';
-import { Recap } from '@/components/mdx/recap';
+import { Callout } from "@/components/mdx/callout";
+import { Recap } from "@/components/mdx/recap";
 
-This course leans on a small vocabulary that comes from three different worlds — model providers, the LangChain ecosystem, and general backend engineering — and it's easy to feel lost when a lesson casually drops *"bind the tool to the model and stream the deltas back through the graph."* That sentence is five terms in a trench coat. This page exists so you can skim it once now, and flip back any time a word stops you.
+<Callout type="note" title="In this lesson">
+  - A skim-once reference for every LLM, LangChain, and LangGraph term used in
+  the rest of the course. - Terms grouped into five clusters (models &
+  inference, prompts, tools, LangGraph, production) so you can find them by
+  topic, not alphabetically.
+</Callout>
+
+This course leans on a small vocabulary that comes from three different worlds — model providers, the LangChain ecosystem, and general backend engineering — and it's easy to feel lost when a lesson casually drops _"bind the tool to the model and stream the deltas back through the graph."_ That sentence is five terms in a trench coat. This page exists so you can skim it once now, and flip back any time a word stops you.
 
 It's organised by cluster, not alphabetically — terms that show up together in real code are grouped together here.
 
 <Callout type="tip" title="You don't need to memorise this">
-Read it once, then keep this tab open while you go through the lessons. Most terms make far more sense the second time you see them, in context.
+  Read it once, then keep this tab open while you go through the lessons. Most
+  terms make far more sense the second time you see them, in context.
 </Callout>
+
+<figure style={{ margin: '1.75rem auto', maxWidth: '640px' }}>
+  <svg viewBox="0 0 640 230" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Three vocabulary layers stacking: model basics at the bottom, tools and agents in the middle, graph orchestration on top">
+    <rect x="20" y="10" width="600" height="56" rx="10" fill="rgba(22,163,74,0.05)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="40" y="34" fontSize="13" fontWeight="700" fill="#16a34a">Layer 3 · Graph orchestration  (Part IV)</text>
+    <text x="40" y="54" fontSize="12" fill="currentColor" opacity="0.75">state · nodes · edges · conditional routing · interrupt · checkpointer</text>
+
+    <rect x="20" y="82" width="600" height="56" rx="10" fill="rgba(22,163,74,0.10)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="40" y="106" fontSize="13" fontWeight="700" fill="#16a34a">Layer 2 · Tools & agents  (Part III)</text>
+    <text x="40" y="126" fontSize="12" fill="currentColor" opacity="0.75">tool · tool_call · schema · structured output · ReAct loop · idempotent</text>
+
+    <rect x="20" y="154" width="600" height="56" rx="10" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="40" y="178" fontSize="13" fontWeight="700" fill="#16a34a">Layer 1 · Model basics  (Part II)</text>
+    <text x="40" y="198" fontSize="12" fill="currentColor" opacity="0.75">LLM · token · context window · streaming · system prompt · temperature</text>
+
+  </svg>
+  <figcaption style={{ marginTop: '0.5rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    The vocabulary stacks. Layer 1 is the foundation; each layer above reuses the words below.
+  </figcaption>
+</figure>
 
 ## Models & inference
 
 - **LLM (Large Language Model)** — the AI itself. Takes text in, produces text out. Examples: GPT-4, Claude, Llama, Mistral. In this course we run a small one locally via Ollama.
-- **Token** — the unit a model reads and writes in. Roughly ¾ of an English word. *"Hello, world"* is about 3 tokens. Pricing, context limits, and speed are all measured in tokens.
+- **Parameter count / model size** — the number of learned weights in the neural network, written with a `B` for billions. `qwen2.5:3b` has 3 billion parameters; `llama3.1:8b` has 8 billion. More parameters generally means a smarter, more reliable model — but also more RAM, more disk, and slower per-token speed.
+
+  <table>
+    <thead>
+      <tr>
+        <th style={{ width: '1%', whiteSpace: 'nowrap' }}>Size</th>
+        <th>Examples</th>
+        <th>Runs on</th>
+        <th>Reliability for this course's patterns</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}><strong>1–3B</strong></td>
+        <td><code>qwen2.5:3b</code>, <code>llama3.2:3b</code>, <code>gemma2:2b</code></td>
+        <td>Laptop CPU, phone</td>
+        <td>Drops fields, mis-types enums on harder tasks</td>
+      </tr>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}><strong>7–8B</strong></td>
+        <td><code>qwen2.5:7b</code>, <code>llama3.1:8b</code>, <code>mistral:7b</code></td>
+        <td>Laptop with 16 GB+ RAM</td>
+        <td>Reliable enough for every pattern in this course</td>
+      </tr>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}><strong>13–14B</strong></td>
+        <td><code>qwen2.5:14b</code>, <code>phi-4:14b</code></td>
+        <td>Consumer GPU (12 GB+ VRAM)</td>
+        <td>Sweet spot for self-hosted production</td>
+      </tr>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}><strong>30–70B</strong></td>
+        <td><code>llama3.3:70b</code>, <code>qwen2.5:72b</code></td>
+        <td>Workstation or multi-GPU rig</td>
+        <td>Frontier-quality on most tasks</td>
+      </tr>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}><strong>100B+</strong></td>
+        <td>GPT-4, Claude, Gemini Pro</td>
+        <td>Hosted only (API)</td>
+        <td>The reference point everyone benchmarks against</td>
+      </tr>
+    </tbody>
+  </table>
+
+  Lesson 03 has you pull a 3B or 8B model. If you hit reliability issues on the 3B, the fix is often "swap the model name to the 8B" — same code, much better behaviour.
+
+  _A concrete example._ Same input (`"Hi, our customer Phuoc <phuoc@savyu.com> hasn't ordered in 3 months — mark as lapsed."`), same Zod schema (`{ name, email, segment: enum['active','lapsed'] }`), same `withStructuredOutput` call — different model sizes, run 100 times each:
+
+  | Model              | Correct    | Failed    | Latency  | $ per run |
+  | ------------------ | ---------- | --------- | -------- | --------- |
+  | `qwen2.5:3b` (3B)  | 78 / 100   | 22 / 100  | ~3.0 s   | free      |
+  | `llama3.1:8b` (8B) | 97 / 100   | 3 / 100   | ~5.5 s   | free      |
+  | `claude-sonnet`    | 100 / 100  | 0 / 100   | ~1.4 s   | ~$0.001   |
+
+  The 22 failures on the 3B model break down as: 14× capitalisation drift (`"Lapsed"` instead of `"lapsed"`, fails the enum), 5× missing the `segment` field entirely, 3× hallucinating `segment: "inactive"` (not in the enum). All three failure modes are exactly the gotchas from lesson 08 §04.
+
+  _The takeaway:_ you can run the **whole course** on a 3B model — it's slow and you'll hit retries — but if a lesson's structured-output demo flakes on you, change `'qwen2.5:3b'` to `'llama3.1:8b'` in the same `ChatOllama({ model: ... })` line and the failures usually go away. Save the hosted frontier model for production (lesson 24).
+
+- **Token** — the unit a model reads and writes in. Roughly ¾ of an English word. _"Hello, world"_ is about 3 tokens. Pricing, context limits, and speed are all measured in tokens.
 - **Context window** — the maximum number of tokens the model can "see" at once (your prompt + its reply). When you exceed it, older messages get cut. Bigger windows aren't free — they cost more and slow down.
-- **Inference** — one round-trip to the model: send tokens in, get tokens out. *"Slow inference"* means the model is taking a long time to reply.
+- **Inference** — one round-trip to the model: send tokens in, get tokens out. _"Slow inference"_ means the model is taking a long time to reply.
+
+  _A concrete example._ One inference call, timed:
+
+  ```ts
+  console.time('inference');
+  const reply = await model.invoke('What is the capital of France?');
+  console.timeEnd('inference');
+  // → inference: 1247ms
+
+  // reply.content: "The capital of France is Paris."
+  ```
+
+  Where those 1247 ms actually went, on a local 8B model:
+
+  <table>
+    <thead>
+      <tr>
+        <th style={{ width: '1%', whiteSpace: 'nowrap' }}>Phase</th>
+        <th style={{ width: '1%', whiteSpace: 'nowrap' }}>Time</th>
+        <th>What happened</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}>Tokenize input</td>
+        <td style={{ whiteSpace: 'nowrap' }}>~10 ms</td>
+        <td>7 input tokens prepared from the prompt string</td>
+      </tr>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}>Prefill (forward pass)</td>
+        <td style={{ whiteSpace: 'nowrap' }}>~30 ms</td>
+        <td>Model "reads" all 7 prompt tokens at once and builds its working state</td>
+      </tr>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}><strong>Generate output</strong></td>
+        <td style={{ whiteSpace: 'nowrap' }}><strong>~1180 ms</strong></td>
+        <td><strong>24 output tokens, one at a time, ~50 ms each</strong> — the dominant cost</td>
+      </tr>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}>Decode + return</td>
+        <td style={{ whiteSpace: 'nowrap' }}>~25 ms</td>
+        <td>Tokens assembled back into a string and returned to your code</td>
+      </tr>
+    </tbody>
+  </table>
+
+  Three rules of thumb fall straight out of that breakdown:
+
+  - **Output length dominates.** Doubling the output roughly doubles inference time. That's why a "short answer" instruction in your prompt isn't just a style preference — it's a real speed-up.
+  - **Input length matters far less.** Adding 100 tokens of system prompt costs ~10 ms of prefill. Adding 100 tokens to the *output* costs ~5 seconds at 50 ms/token.
+  - **Model size is a multiplier on every output token.** A 3B model might emit at ~30 ms/token; an 8B at ~50 ms; a 14B at ~80 ms. Same 24-token reply, very different wall-clock times. (See the model-size chart further up.)
 - **Temperature** — a knob from 0 to ~2 that controls randomness. `0` = same answer every time (good for tools and structured output). `0.7` = creative (good for drafting copy).
 - **Streaming** — receiving the reply token-by-token as the model produces it, instead of waiting for the whole thing. Lesson 4 wires this up.
 - **Provider** — the service that hosts the model. **Ollama** runs models on your laptop. **OpenAI**, **Anthropic**, **Google** host them in the cloud. LangChain lets you swap providers without rewriting your app (lesson 24).
 
+<figure style={{ margin: '1.5rem auto', maxWidth: '560px' }}>
+  <svg viewBox="0 0 560 220" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Reliability of the same structured-extraction task across four model sizes: 3B 78%, 8B 97%, 14B 99%, 100B+ 100%">
+    <text x="280" y="20" textAnchor="middle" fontSize="12" fontWeight="600" fill="currentColor">Reliability on the same structured-output task (100 runs)</text>
+
+    <line x1="120" y1="40" x2="120" y2="200" stroke="currentColor" strokeWidth="1" opacity="0.25" />
+    <line x1="240" y1="40" x2="240" y2="200" stroke="currentColor" strokeWidth="1" opacity="0.15" strokeDasharray="2 3" />
+    <line x1="360" y1="40" x2="360" y2="200" stroke="currentColor" strokeWidth="1" opacity="0.15" strokeDasharray="2 3" />
+    <line x1="480" y1="40" x2="480" y2="200" stroke="currentColor" strokeWidth="1" opacity="0.15" strokeDasharray="2 3" />
+
+    <text x="120" y="215" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">0%</text>
+    <text x="240" y="215" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">25%</text>
+    <text x="360" y="215" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">50%</text>
+    <text x="480" y="215" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">75%</text>
+
+    <text x="110" y="65" textAnchor="end" fontSize="12" fontWeight="600" fill="currentColor">3B</text>
+    <text x="110" y="78" textAnchor="end" fontSize="9" fill="currentColor" opacity="0.6">qwen2.5:3b</text>
+    <rect x="120" y="50" width="294" height="28" rx="4" fill="rgba(22,163,74,0.20)" stroke="#16a34a" strokeWidth="1.2" />
+    <text x="424" y="69" fontSize="12" fontWeight="700" fill="#16a34a">78%</text>
+
+    <text x="110" y="105" textAnchor="end" fontSize="12" fontWeight="600" fill="currentColor">8B</text>
+    <text x="110" y="118" textAnchor="end" fontSize="9" fill="currentColor" opacity="0.6">llama3.1:8b</text>
+    <rect x="120" y="90" width="365" height="28" rx="4" fill="rgba(22,163,74,0.30)" stroke="#16a34a" strokeWidth="1.2" />
+    <text x="495" y="109" fontSize="12" fontWeight="700" fill="#16a34a">97%</text>
+
+    <text x="110" y="145" textAnchor="end" fontSize="12" fontWeight="600" fill="currentColor">14B</text>
+    <text x="110" y="158" textAnchor="end" fontSize="9" fill="currentColor" opacity="0.6">qwen2.5:14b</text>
+    <rect x="120" y="130" width="372" height="28" rx="4" fill="rgba(22,163,74,0.40)" stroke="#16a34a" strokeWidth="1.2" />
+    <text x="502" y="149" fontSize="12" fontWeight="700" fill="#16a34a">~99%</text>
+
+    <text x="110" y="185" textAnchor="end" fontSize="12" fontWeight="600" fill="currentColor">100B+</text>
+    <text x="110" y="198" textAnchor="end" fontSize="9" fill="currentColor" opacity="0.6">claude / gpt</text>
+    <rect x="120" y="170" width="376" height="28" rx="4" fill="rgba(22,163,74,0.55)" stroke="#16a34a" strokeWidth="1.2" />
+    <text x="506" y="189" fontSize="12" fontWeight="700" fill="#16a34a">100%</text>
+
+  </svg>
+  <figcaption style={{ marginTop: '0.5rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Reliability climbs sharply from 3B → 8B (+19 points), then flattens. The biggest practical win for a self-hosted setup is the 3B → 8B jump.
+  </figcaption>
+</figure>
+
+<figure style={{ margin: '1.5rem auto', maxWidth: '560px' }}>
+  <svg viewBox="0 0 560 170" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="The string Hello, world! splits into four tokens">
+    <defs>
+      <marker id="tok-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+    <rect x="180" y="14" width="200" height="36" rx="6" fill="none" stroke="currentColor" strokeOpacity="0.35" strokeDasharray="4 3" />
+    <text x="280" y="38" textAnchor="middle" fontSize="16" fontFamily="monospace" fill="currentColor">{'"Hello, world!"'}</text>
+    <line x1="280" y1="56" x2="280" y2="84" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#tok-arr)" />
+    <g transform="translate(60, 92)">
+      <rect width="100" height="44" rx="8" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+      <text x="50" y="28" textAnchor="middle" fontSize="14" fontFamily="monospace" fill="currentColor">{'"Hello"'}</text>
+    </g>
+    <g transform="translate(170, 92)">
+      <rect width="50" height="44" rx="8" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+      <text x="25" y="28" textAnchor="middle" fontSize="14" fontFamily="monospace" fill="currentColor">{'","'}</text>
+    </g>
+    <g transform="translate(230, 92)">
+      <rect width="120" height="44" rx="8" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+      <text x="60" y="28" textAnchor="middle" fontSize="14" fontFamily="monospace" fill="currentColor">{'" world"'}</text>
+    </g>
+    <g transform="translate(360, 92)">
+      <rect width="50" height="44" rx="8" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+      <text x="25" y="28" textAnchor="middle" fontSize="14" fontFamily="monospace" fill="currentColor">{'"!"'}</text>
+    </g>
+    <text x="450" y="120" fontSize="14" fill="#16a34a" fontWeight="600" fontStyle="italic">{'= 4 tokens'}</text>
+  </svg>
+  <figcaption
+    style={{
+      marginTop: "0.5rem",
+      fontSize: "0.875rem",
+      textAlign: "center",
+      opacity: 0.7,
+    }}
+  >
+    Tokenization splits text into the units the model actually reads. Most words
+    are one token; punctuation, leading spaces, and rare words can split.
+  </figcaption>
+</figure>
+
 ## Prompts & messages
 
 - **Prompt** — the text you send to the model. Casual usage; in code it's usually structured as messages.
-- **System prompt** — a special "instructions to the AI" message at the top. Defines role, tone, hard rules. *"You are a helpful CMS assistant. Never invent customer IDs."* Lesson 5.
+- **System prompt** — a special "instructions to the AI" message at the top. Defines role, tone, hard rules. _"You are a helpful CMS assistant. Never invent customer IDs."_ Lesson 5.
 - **User message / assistant message** — the back-and-forth turns of a conversation. The chat history is just an array of these.
-- **Few-shot examples** — including 1–5 worked examples in the prompt to show the model the pattern you want. *"Here's how I'd phrase a re-engagement email; now do one for this customer."*
+- **Few-shot examples** — including 1–5 worked examples in the prompt to show the model the pattern you want. _"Here's how I'd phrase a re-engagement email; now do one for this customer."_
 - **Prompt engineering** — the skill of writing prompts that get reliable output. Less black-magic than the internet implies. Lesson 6.
 - **Hallucination** — when the model confidently makes up a fact. The standard failure mode. Tools and structured output reduce it; they don't eliminate it.
 
 ## Tools & agents
 
-- **Tool** (a.k.a. **function call**) — a TypeScript function the model is allowed to call, with a typed schema describing its arguments. The model says *"I want to call `searchCustomers({ tag: 'lapsed' })`"*; your code runs it; you hand the result back. Lesson 9.
+- **Tool** (a.k.a. **function call**) — a TypeScript function the model is allowed to call, with a typed schema describing its arguments. The model says _"I want to call `searchCustomers({ tag: 'lapsed' })`"_; your code runs it; you hand the result back. Lesson 9.
 - **Tool call** — one specific request from the model to invoke a tool, including the arguments it chose.
 - **Read tool / write tool** — our own naming. Read tools fetch data (safe to auto-run). Write tools change the database or send messages (need confirmation).
 - **Agent** — an LLM in a loop with tools. It reads, decides, calls a tool, reads the result, decides again, eventually replies.
-- **ReAct loop** — *Reason + Act*. The classic agent pattern: model thinks → calls a tool → reads result → thinks again → repeat until done. Lessons 15 and 17.
-- **Schema** (Zod) — a TypeScript-first way to declare *"this tool takes an object with `customerId: string` and `discount: number between 0 and 100"*. Both validates input and tells the model what's expected. Lessons 8 and 9.
+- **ReAct loop** — _Reason + Act_. The classic agent pattern: model thinks → calls a tool → reads result → thinks again → repeat until done. Lessons 15 and 17.
+- **Schema** (Zod) — a TypeScript-first way to declare _"this tool takes an object with `customerId: string` and `discount: number between 0 and 100"_. Both validates input and tells the model what's expected. Lessons 8 and 9.
 - **Structured output** — forcing the model to reply with JSON that matches a schema, instead of free text. Lesson 8.
-- **Idempotent** — calling the same operation twice has the same effect as calling it once. *"Mark order #42 as cancelled"* is idempotent; *"Send an email"* is not. Lesson 13.
+- **Idempotent** — calling the same operation twice has the same effect as calling it once. _"Mark order #42 as cancelled"_ is idempotent; _"Send an email"_ is not. Lesson 13.
+
+<figure style={{ margin: '1.5rem auto', maxWidth: '600px' }}>
+  <svg viewBox="0 0 600 220" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="A tool-calling round-trip: model emits tool_call, runtime executes, result feeds back into the model">
+    <defs>
+      <marker id="tool-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+    <text x="300" y="22" textAnchor="middle" fontSize="11" fontStyle="italic" fill="currentColor" opacity="0.65">↻ repeat until the model stops emitting tool_calls</text>
+
+    <rect x="40" y="80" width="120" height="60" rx="8" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="100" y="106" textAnchor="middle" fontSize="14" fontWeight="700" fill="currentColor">Model</text>
+    <text x="100" y="124" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">(LLM)</text>
+
+    <rect x="240" y="80" width="120" height="60" rx="8" fill="rgba(22,163,74,0.10)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="300" y="106" textAnchor="middle" fontSize="14" fontWeight="700" fill="currentColor">Your runtime</text>
+    <text x="300" y="124" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">(executes tool)</text>
+
+    <rect x="440" y="80" width="120" height="60" rx="8" fill="rgba(22,163,74,0.05)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="500" y="106" textAnchor="middle" fontSize="14" fontWeight="700" fill="currentColor">Database</text>
+    <text x="500" y="124" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">(your data)</text>
+
+    <line x1="160" y1="100" x2="240" y2="100" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#tool-arr)" />
+    <text x="200" y="92" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.85">tool_call</text>
+
+    <line x1="360" y1="100" x2="440" y2="100" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#tool-arr)" />
+    <text x="400" y="92" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.85">query</text>
+
+    <line x1="440" y1="124" x2="360" y2="124" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#tool-arr)" />
+    <text x="400" y="142" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.85">rows</text>
+
+    <line x1="240" y1="124" x2="160" y2="124" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#tool-arr)" />
+    <text x="200" y="142" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.85">ToolMessage</text>
+
+    <line x1="100" y1="140" x2="100" y2="180" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#tool-arr)" opacity="0.6" />
+    <text x="100" y="200" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">final reply to user</text>
+
+  </svg>
+  <figcaption style={{ marginTop: '0.5rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    One turn of a tool-using agent: model proposes a call → your code runs it → result feeds back → model speaks. Two model invocations, one tool execution, one turn.
+  </figcaption>
+</figure>
 
 ## LangChain & LangGraph
 
 - **LangChain** — a library that gives you one common interface across every model provider, plus helpers for prompts, tools, parsing, etc.
-- **LangGraph** — built on top of LangChain. Lets you express your agent as a *graph* of steps with state, branching, and pauses. The reason this course gets human-in-the-loop without writing a state machine by hand. Lesson 16+.
-- **Node** — one step in the graph. Usually a function: *"call the model"*, *"run a tool"*, *"ask the user for confirmation"*.
-- **Edge** — the connection from one node to the next. Plain edges always go to the same place; **conditional edges** branch based on state (*"if the next tool is a write, route to the confirmation node; otherwise auto-run"*).
+- **LangGraph** — built on top of LangChain. Lets you express your agent as a _graph_ of steps with state, branching, and pauses. The reason this course gets human-in-the-loop without writing a state machine by hand. Lesson 16+.
+- **Node** — one step in the graph. Usually a function: _"call the model"_, _"run a tool"_, _"ask the user for confirmation"_.
+- **Edge** — the connection from one node to the next. Plain edges always go to the same place; **conditional edges** branch based on state (_"if the next tool is a write, route to the confirmation node; otherwise auto-run"_).
 - **State** — a typed object that flows through every node in the graph. Each node reads it and returns updates. This is where messages, pending tool calls, and confirmation status live.
 - **StateGraph** — the LangGraph class you use to wire nodes and edges together.
 - **Interrupt** — LangGraph's killer feature. A node calls `interrupt(...)`, the graph pauses and persists, your UI shows the user what's pending, the user clicks Approve, the graph resumes. Lesson 19.
 - **Checkpointer** — the storage backend (in-memory, SQLite, Postgres) that lets a paused graph survive a server restart so the user can confirm later.
+
+<figure style={{ margin: '1.5rem auto', maxWidth: '640px' }}>
+  <svg viewBox="0 0 640 250" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="A LangGraph with an agent node and three conditional paths: read tools auto-run, write tools route through await_confirmation, or the graph ends">
+    <defs>
+      <marker id="lg-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+
+    <rect x="430" y="10" width="200" height="46" rx="6" fill="rgba(22,163,74,0.05)" stroke="#16a34a" strokeWidth="1.2" strokeDasharray="3 2" />
+    <text x="530" y="30" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">state (channels)</text>
+    <text x="530" y="48" textAnchor="middle" fontSize="10" fontFamily="ui-monospace, monospace" fill="currentColor" opacity="0.75">{'{ messages, pendingTool }'}</text>
+
+    <circle cx="320" cy="40" r="10" fill="#16a34a" />
+    <text x="320" y="68" textAnchor="middle" fontSize="11" fontWeight="600" fill="currentColor">START</text>
+
+    <rect x="250" y="90" width="140" height="52" rx="8" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="320" y="112" textAnchor="middle" fontSize="14" fontWeight="700" fill="currentColor">agent</text>
+    <text x="320" y="130" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.65">(calls the model)</text>
+
+    <line x1="320" y1="52" x2="320" y2="90" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#lg-arr)" />
+
+    <text x="320" y="160" textAnchor="middle" fontSize="11" fontStyle="italic" fill="currentColor" opacity="0.6">↓ conditional edge</text>
+
+    <rect x="40" y="180" width="140" height="50" rx="8" fill="rgba(22,163,74,0.10)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="110" y="202" textAnchor="middle" fontSize="13" fontWeight="700" fill="currentColor">read_tools</text>
+    <text x="110" y="218" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.65">auto-runs</text>
+
+    <rect x="220" y="180" width="200" height="50" rx="8" fill="rgba(220,140,40,0.14)" stroke="#dc8c28" strokeWidth="1.5" strokeDasharray="5 3" />
+    <text x="320" y="202" textAnchor="middle" fontSize="13" fontWeight="700" fill="currentColor">await_confirmation ⏸</text>
+    <text x="320" y="218" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">interrupt() — pauses for human</text>
+
+    <rect x="460" y="180" width="140" height="50" rx="8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.6" />
+    <text x="530" y="202" textAnchor="middle" fontSize="13" fontWeight="700" fill="currentColor">END</text>
+    <text x="530" y="218" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.65">no more tool_calls</text>
+
+    <path d="M 290 142 Q 200 165 130 180" stroke="currentColor" strokeWidth="1.5" fill="none" markerEnd="url(#lg-arr)" />
+    <text x="195" y="160" textAnchor="middle" fontSize="10" fontWeight="600" fill="currentColor" opacity="0.75">read</text>
+
+    <line x1="320" y1="142" x2="320" y2="180" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#lg-arr)" />
+    <text x="338" y="162" fontSize="10" fontWeight="600" fill="#dc8c28">write</text>
+
+    <path d="M 350 142 Q 440 165 510 180" stroke="currentColor" strokeWidth="1.5" fill="none" markerEnd="url(#lg-arr)" />
+    <text x="445" y="160" textAnchor="middle" fontSize="10" fontWeight="600" fill="currentColor" opacity="0.75">done</text>
+
+  </svg>
+  <figcaption style={{ marginTop: '0.5rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    A node does work; a conditional edge picks the path. The orange node calls <code>interrupt()</code> — that's where the graph pauses for human approval before any write fires.
+  </figcaption>
+</figure>
 
 ## Production & safety
 
 - **Prompt injection** — an attack where the model reads attacker-controlled text (a customer note, a scraped page) and treats it as instructions. Mitigated with input sanitisation, output validation, and never giving the AI ambient authority. Lesson 21.
 - **Guardrails** — checks around the model: input filters, output validators, rate limits. Belt-and-braces.
 - **Eval** (evaluation) — a regression test for an AI. Run a fixed set of inputs, check the outputs against expected behaviour. Lesson 22.
-- **Trace / observability** — logging every model call, tool call, and graph step so you can debug *"why did the agent do that?"* days later. Lesson 23.
+- **Trace / observability** — logging every model call, tool call, and graph step so you can debug _"why did the agent do that?"_ days later. Lesson 23.
 - **Token budget / cost cap** — a per-request or per-day ceiling on token usage so a runaway loop can't drain your credit card.
 - **Rate limit** — provider-imposed cap on requests per minute. You'll hit it eventually; lesson 14 covers retries with backoff.
 - **HITL (Human-in-the-loop)** — the design pattern where the AI proposes and the human approves before any irreversible action. The whole point of Part IV.
 
+<figure style={{ margin: '1.5rem auto', maxWidth: '600px' }}>
+  <svg viewBox="0 0 600 320" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Five layers of defense, stacked from input at top to confirmation gate at the bottom">
+    <defs>
+      <marker id="def-arr-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" />
+      </marker>
+    </defs>
+
+    <text x="300" y="20" textAnchor="middle" fontSize="12" fill="#dc2626" fontWeight="600">⚠ Hostile input</text>
+    <line x1="300" y1="28" x2="300" y2="50" stroke="#dc2626" strokeWidth="2" markerEnd="url(#def-arr-red)" />
+
+    <rect x="40" y="60" width="520" height="44" rx="6" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="60" y="86" fontSize="13" fontWeight="700" fill="#16a34a">1. Input structure</text>
+    <text x="220" y="86" fontSize="11" fill="currentColor" opacity="0.75">{'user text in <tags>, never glued into instructions'}</text>
+
+    <rect x="40" y="112" width="520" height="44" rx="6" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="60" y="138" fontSize="13" fontWeight="700" fill="#16a34a">2. Input validation</text>
+    <text x="220" y="138" fontSize="11" fill="currentColor" opacity="0.75">Zod schemas at the API boundary — before the model</text>
+
+    <rect x="40" y="164" width="520" height="44" rx="6" fill="rgba(22,163,74,0.14)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="60" y="190" fontSize="13" fontWeight="700" fill="#16a34a">3. Tool allowlist</text>
+    <text x="220" y="190" fontSize="11" fill="currentColor" opacity="0.75">model can ONLY call the tools you bound to it</text>
+
+    <rect x="40" y="216" width="520" height="44" rx="6" fill="rgba(22,163,74,0.18)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="60" y="242" fontSize="13" fontWeight="700" fill="#16a34a">4. Output validation</text>
+    <text x="220" y="242" fontSize="11" fill="currentColor" opacity="0.75">Zod on every tool call's args — model can't influence this layer</text>
+
+    <rect x="40" y="268" width="520" height="44" rx="6" fill="rgba(220,140,40,0.16)" stroke="#dc8c28" strokeWidth="1.5" />
+    <text x="60" y="294" fontSize="13" fontWeight="700" fill="#dc8c28">5. Confirmation gate ⏸</text>
+    <text x="240" y="294" fontSize="11" fill="currentColor" opacity="0.75">human Approve / Reject before any irreversible write</text>
+
+  </svg>
+  <figcaption style={{ marginTop: '0.5rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Each layer alone is bypassable. Five layers together is what survives a real attacker.
+  </figcaption>
+</figure>
+
 <Recap>
-- Inference vocabulary: LLM, token, context window, streaming, temperature, provider.
-- Prompt vocabulary: system prompt, messages, few-shot, hallucination.
-- Tool vocabulary: tool, tool call, schema, structured output, idempotent, agent, ReAct loop.
-- LangGraph vocabulary: node, edge, state, StateGraph, interrupt, checkpointer.
-- Production vocabulary: prompt injection, guardrails, eval, trace, rate limit, HITL.
-- Don't memorise — bookmark and skim back as needed.
+  - Inference vocabulary: LLM, token, context window, streaming, temperature,
+  provider. - Prompt vocabulary: system prompt, messages, few-shot,
+  hallucination. - Tool vocabulary: tool, tool call, schema, structured output,
+  idempotent, agent, ReAct loop. - LangGraph vocabulary: node, edge, state,
+  StateGraph, interrupt, checkpointer. - Production vocabulary: prompt
+  injection, guardrails, eval, trace, rate limit, HITL. - Don't memorise —
+  bookmark and skim back as needed.
 </Recap>
+

@@ -2,6 +2,12 @@ import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { StreamingTextDemo } from '@/components/demos/ai-in-your-project/streaming-text-demo';
 
+<Callout type="note" title="In this lesson">
+- The two halves of a streaming chat: `model.stream()` on the server, a 25-line `useStream` hook on the client.
+- Why time-to-first-token (not wall-clock time) is what your users actually feel.
+- Why you don't need an SSE library — `fetch` + `body.getReader()` is enough.
+</Callout>
+
 Streaming is the difference between "the model is thinking" and "the model is talking." Same wait time, very different feel. The user who watches words appear is patient; the user who stares at a spinner is not. Nothing about the model changes — only what the browser does with the bytes as they arrive.
 
 This lesson takes the SSE handler from lesson 3 and connects it to a real React UI. By the end, your app will drip tokens in as the model produces them, and you'll have a small `useStream` hook you can drop into every page that needs it.

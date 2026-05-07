@@ -72,7 +72,8 @@
       "Bash(Test-Path *)",
       "Bash(awk -F\"'\" '{print $2}')",
       "Bash(node -e ' *)",
-      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); routes=[k for k in data['routes'].keys\\(\\) if 'english' in k]; print\\('\\\\n'.join\\(sorted\\(routes\\)\\)\\)\")"
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); routes=[k for k in data['routes'].keys\\(\\) if 'english' in k]; print\\('\\\\n'.join\\(sorted\\(routes\\)\\)\\)\")",
+      "Bash(Select-String \"reconnecting\")"
     ]
   }
 }

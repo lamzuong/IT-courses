@@ -1,5 +1,12 @@
 import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
 import { ConditionalRoutingDemo } from '@/components/demos/ai-in-your-project/conditional-routing-demo';
+
+<Callout type="note" title="In this lesson">
+- Sort every tool into reads (auto-run) and writes (route through `await_confirmation`).
+- One small router function on a single conditional edge picks the path.
+- Why an unknown tool name routes to write by default — fail safe so a forgotten classification can't bypass the human.
+</Callout>
 
 Two tool nodes, one router, two paths. That's how reads run free and writes wait for the user. The single-tools-node graph from lesson 17 works, but it treats every tool the same — every result is appended automatically, every loop closes without a human in the loop. The instant a tool starts mutating the database, you want a different shape: *reads continue automatically; writes pause for confirmation*. That's a routing decision, and routing decisions live on conditional edges.
 
