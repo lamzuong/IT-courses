@@ -1,0 +1,237 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+Trong tiếng Anh y tế, không có kỹ năng nào được coi trọng hơn — và ít được dạy hơn — là kỹ năng hỏi về chi phí *trước khi* điều trị. Hệ thống y tế Mỹ đặc biệt nổi tiếng với hóa đơn bất ngờ: một thủ thuật bạn tưởng được bảo hiểm chi trả có thể dẫn đến hóa đơn hàng nghìn đô nếu bạn không hỏi đúng câu đúng lúc. Bài capstone này khép lại toàn bộ topic Doctor & health bằng hai lớp kỹ năng: (1) ngôn ngữ bảo hiểm và thanh toán — co-pay, deductible, in-network, EOB — và cách dùng chúng để bảo vệ ví tiền; (2) tổng hợp văn hoá y tế xuyên quốc gia, từ US đến UK, Úc, và EU — để bạn bước vào bất kỳ phòng khám nào trong thế giới nói tiếng Anh với sự tự tin đầy đủ, không chỉ về ngôn ngữ mà về *cách hệ thống vận hành*.
+
+## 01 — Bối cảnh
+
+**(1) Bảo hiểm y tế — các khái niệm cơ bản.**
+
+Nếu bạn sống, học, hoặc làm việc ở Mỹ, hiểu bảo hiểm y tế không phải tuỳ chọn — đây là kỹ năng sống còn về tài chính. Ba thuật ngữ bạn cần thuộc lòng:
+
+- **Co-pay (đồng thanh toán):** Khoản tiền cố định bạn trả mỗi lần khám — thường $20–$50 cho khám thông thường, cao hơn cho chuyên khoa. Trả ngay tại quầy trước khi gặp bác sĩ.
+- **Deductible (mức khấu trừ):** Số tiền bạn phải tự trả trước khi bảo hiểm bắt đầu chi trả. Ví dụ: deductible $1,500/năm nghĩa là bạn tự trả $1,500 đầu tiên trong năm, sau đó bảo hiểm mới vào cuộc. Sau khi "deductible has been met" (đã đạt mức khấu trừ), bạn chỉ trả co-pay hoặc một tỷ lệ nhỏ (co-insurance).
+- **Out-of-pocket maximum (giới hạn tự trả):** Mức tối đa bạn phải tự trả trong một năm. Sau khi đạt mức này, bảo hiểm trả 100% cho phần còn lại trong năm.
+
+Hai loại mạng lưới bảo hiểm phổ biến nhất:
+- **PPO (Preferred Provider Organization):** Linh hoạt hơn — bạn có thể gặp bác sĩ ngoài mạng lưới nhưng sẽ trả nhiều hơn.
+- **HMO (Health Maintenance Organization):** Rẻ hơn nhưng cứng hơn — bạn phải chọn một bác sĩ chính (PCP) và cần được giới thiệu (referral) để gặp chuyên khoa.
+
+**In-network vs out-of-network:** Bác sĩ "in-network" đã ký hợp đồng với công ty bảo hiểm của bạn — bạn trả ít hơn đáng kể. Bác sĩ "out-of-network" chưa ký hợp đồng — bạn có thể phải trả toàn bộ hoặc phần lớn chi phí. Câu hỏi "Is Dr. [Name] in-network?" cần được hỏi *trước* khi đặt lịch — không phải sau.
+
+**(2) Billing (thanh toán) và hóa đơn bất ngờ.**
+
+Sau khi khám hoặc điều trị, bạn sẽ nhận được **EOB — Explanation of Benefits**: một tài liệu từ công ty bảo hiểm giải thích điều gì đã xảy ra — bảo hiểm chi trả bao nhiêu, bạn còn nợ bao nhiêu, và tại sao. EOB *không phải* hóa đơn — đó là bản giải thích. Hóa đơn thực tế đến từ bệnh viện hoặc phòng khám.
+
+**Những khoản phí bất ngờ phổ biến nhất:**
+- Bác sĩ gây mê (anesthesiologist) tại bệnh viện in-network nhưng *bản thân họ* là out-of-network — gọi là "surprise billing".
+- Xét nghiệm lab được gửi đến lab out-of-network mà bạn không hay biết.
+- Thủ thuật không được pre-authorized (yêu cầu phê duyệt trước từ bảo hiểm).
+
+Công cụ tự bảo vệ: yêu cầu **itemized bill** (hóa đơn chi tiết từng dòng) bất cứ khi nào bạn nghi ngờ. Nhiều lỗi thanh toán — và nhiều khoản phí không có cơ sở — rơi rụng khi bạn yêu cầu hóa đơn chi tiết. Theo luật, bệnh viện tại Mỹ bắt buộc phải cung cấp itemized bill khi được yêu cầu.
+
+## 02 — Từ vựng
+
+<Vocab items={[
+  { en: "co-pay", ipa: "ˈkoʊ.peɪ", vi: "đồng thanh toán — khoản tiền cố định bạn trả mỗi lần khám, bất kể tổng chi phí thực tế là bao nhiêu; thường $20–$50 cho GP, cao hơn cho chuyên khoa", example: "My co-pay for a specialist visit is $45." },
+  { en: "deductible", ipa: "dɪˈdʌk.tɪ.bəl", vi: "mức khấu trừ — số tiền bạn phải tự trả trong một năm trước khi bảo hiểm bắt đầu chi trả. 'My deductible is $1,500' = tôi tự trả $1,500 đầu tiên mỗi năm", example: "I haven't met my deductible yet, so I'm paying out-of-pocket for now." },
+  { en: "out-of-pocket", vi: "tự bỏ tiền túi — chi phí bạn tự trả, không được bảo hiểm chi trả; cũng là tên gọi của 'out-of-pocket maximum' — giới hạn tự trả tối đa trong một năm", example: "How much will I be paying out-of-pocket for this procedure?" },
+  { en: "in-network / out-of-network", vi: "trong mạng lưới / ngoài mạng lưới — bác sĩ hoặc cơ sở y tế đã (hoặc chưa) ký hợp đồng với công ty bảo hiểm của bạn. In-network = bảo hiểm chi trả nhiều hơn, bạn trả ít hơn", example: "Is this clinic in-network with Blue Cross? I want to confirm before I book." },
+  { en: "to be covered", vi: "được bảo hiểm chi trả — thủ thuật, xét nghiệm, hoặc thuốc nằm trong phạm vi bảo hiểm của bạn. Lưu ý: 'covered' không có nghĩa là miễn phí — thường vẫn có co-pay hoặc co-insurance", example: "Is this MRI covered by my insurance, or will I be billed separately?" },
+  { en: "to be reimbursed", ipa: "ˌriː.ɪmˈbɜːrst", vi: "được hoàn tiền — bạn trả trước, sau đó nộp claim để bảo hiểm hoàn lại. Phổ biến với out-of-network hoặc khi đi nước ngoài", example: "I paid out of pocket and was reimbursed by my insurance two weeks later." },
+  { en: "the EOB / explanation of benefits", vi: "giải thích quyền lợi — tài liệu từ công ty bảo hiểm giải thích chi phí nào được chi trả, bao nhiêu, và bạn còn nợ bao nhiêu. Không phải hóa đơn — nhưng cần đọc kỹ để phát hiện sai sót", example: "I got the EOB and the numbers don't match the bill — I need to call the insurance company." },
+  { en: "the deductible has been met", vi: "đã đạt mức khấu trừ — sau khi bạn đã tự trả đủ số tiền deductible trong năm, bảo hiểm bắt đầu chi trả theo tỷ lệ thông thường", example: "Good news — your deductible has been met, so this visit should only cost your co-pay." },
+  { en: "to dispute a charge", vi: "tranh chấp / phản đối một khoản phí — liên hệ bệnh viện hoặc bảo hiểm để yêu cầu xem xét lại một khoản phí bạn cho là sai hoặc không có cơ sở", example: "I'd like to dispute this $400 charge — I was never told about this fee beforehand." },
+  { en: "pre-authorization", ipa: "ˌpriː.ˌɔː.θər.aɪˈzeɪ.ʃən", vi: "phê duyệt trước — sự chấp thuận từ công ty bảo hiểm trước khi thực hiện một thủ thuật hoặc xét nghiệm cụ thể. Thiếu pre-auth có thể dẫn đến bị từ chối chi trả", example: "Does this procedure need pre-authorization, or can we go ahead today?" },
+  { en: "the itemized bill", vi: "hóa đơn chi tiết — bản liệt kê từng dòng tất cả các dịch vụ và chi phí; theo luật ở Mỹ, bệnh viện phải cung cấp khi được yêu cầu. Đây là công cụ tốt nhất để phát hiện sai sót", example: "Could I get an itemized bill? I want to review each charge line by line." },
+  { en: "the patient portal", vi: "cổng thông tin bệnh nhân — nền tảng trực tuyến (thường qua web hoặc app) cho phép bạn xem kết quả xét nghiệm, lịch sử khám, hóa đơn, và liên hệ bác sĩ", example: "You can view your lab results and pay your bill through the patient portal." },
+  { en: "to ask for an itemized bill", vi: "yêu cầu hóa đơn chi tiết — hành động cụ thể quan trọng nhất khi nhận được hóa đơn y tế bất ngờ hoặc cao hơn dự kiến", example: "Before I pay, I'd like to ask for an itemized bill — is that possible?" },
+]} />
+
+## 03 — Mẫu câu
+
+<Pattern
+  en="Hi — do you accept [insurance name], and is Dr. [Name] in-network?"
+  vi="Xin chào — phòng khám có nhận bảo hiểm [tên bảo hiểm] không, và bác sĩ [Tên] có trong mạng lưới không?"
+  variations={[
+    "I have Blue Cross PPO — is this clinic in-network?",
+    "Does Dr. Patel accept Aetna? I want to confirm before I book.",
+    "I'm with United Healthcare — can you confirm you're in-network before I make an appointment?",
+    "I just moved here — do you know if my Cigna plan covers visits here?",
+  ]}
+  note={`Câu hỏi đầu tiên và quan trọng nhất — cần hỏi TRƯỚC khi đặt lịch, không phải tại quầy lễ tân. Phòng khám có thể "accept" bảo hiểm của bạn (tức là họ nộp claim thay bạn) nhưng bác sĩ cụ thể bạn muốn gặp vẫn có thể là out-of-network. Hỏi cả hai — tên bảo hiểm và tên bác sĩ — trong cùng một câu.`}
+/>
+
+<Pattern
+  en="Before we do the test — could you tell me what my co-pay or out-of-pocket cost will be?"
+  vi="Trước khi làm xét nghiệm — bạn có thể cho tôi biết co-pay hoặc chi phí tự trả của tôi sẽ là bao nhiêu không?"
+  variations={[
+    "What's my estimated cost for today's visit?",
+    "Could you run a benefits check before we proceed?",
+    "I'd like to know the cost before we order any tests — is that something you can check?",
+    "What will I owe today, roughly?",
+  ]}
+  note={`"Before we do the test" là cụm chốt quan trọng — nó đặt câu hỏi đúng thời điểm: trước khi thủ thuật được thực hiện, khi nhân viên vẫn có thể kiểm tra. Sau khi làm xong, hóa đơn đã được tạo và rất khó thay đổi. Nhân viên phòng khám chuyên nghiệp sẽ không thấy câu hỏi này là phiền phức — đây là yêu cầu hoàn toàn hợp lý.`}
+/>
+
+<Pattern
+  en="Is this procedure covered by my insurance, or will I be billed separately?"
+  vi="Thủ thuật này có được bảo hiểm của tôi chi trả không, hay tôi sẽ nhận hóa đơn riêng?"
+  variations={[
+    "Is this covered under my plan?",
+    "Will insurance cover the lab work, or is that billed separately?",
+    "I want to make sure this is covered — can you check with my insurer before we proceed?",
+    "Is the specialist referral included, or do I pay for that separately?",
+  ]}
+  note={`"Billed separately" là cụm từ cần biết — nhiều khoản phí bất ngờ đến từ các dịch vụ được thực hiện trong cùng một lần khám nhưng được lập hóa đơn riêng (separate billing): lab gửi đến lab khác, bác sĩ phụ bạn không biết, v.v. Hỏi rõ để tránh bất ngờ.`}
+/>
+
+<Pattern
+  en={`I see a $400 charge I wasn't expecting — could I get an itemized bill?`}
+  vi="Tôi thấy một khoản $400 tôi không ngờ tới — tôi có thể nhận hóa đơn chi tiết không?"
+  variations={[
+    "This total is higher than I expected — could you break it down for me?",
+    "I'd like to review each charge before I pay — can you send me an itemized bill?",
+    `There's a charge here I don't recognize — could I get more detail on what that's for?`,
+    "Before I settle this, I'd like an itemized breakdown — is that possible?",
+  ]}
+  note={`Câu quan trọng nhất khi nhận hóa đơn y tế bất ngờ. "Itemized bill" là từ khoá pháp lý — khi bạn dùng từ này, nhân viên hiểu bạn biết quyền của mình và yêu cầu là chính thức. Theo luật Mỹ, bệnh viện buộc phải cung cấp itemized bill. Nhiều khoản phí sai hoặc không có cơ sở sẽ tự biến mất khi được yêu cầu giải thích chi tiết.`}
+/>
+
+<Pattern
+  en="Does this need pre-authorization, or can I just go ahead?"
+  vi="Thủ thuật này có cần phê duyệt trước không, hay tôi có thể tiến hành ngay?"
+  variations={[
+    "Do I need a referral for this, or can I book directly?",
+    "Will insurance require pre-auth before approving this scan?",
+    "Should I call my insurance first to get this authorized?",
+    "I want to make sure this is pre-authorized before we schedule it.",
+  ]}
+  note={`Pre-authorization là bước hay bị bỏ qua nhất — và hậu quả là bảo hiểm từ chối chi trả sau khi thủ thuật đã được thực hiện. Phòng khám thường hỗ trợ bạn xin pre-auth, nhưng họ chỉ làm nếu bạn hỏi và yêu cầu. Câu hỏi này mất 10 giây nhưng có thể tiết kiệm hàng trăm đô.`}
+/>
+
+## 04 — Ngữ pháp
+
+<Grammar
+  point={`"Will this be covered?" — future passive cho dự đoán chi phí và quyền lợi bảo hiểm`}
+  structure={`Will + [this / that / it] + be + [covered / billed / reimbursed / authorized]? / How much will I + be + [charged / paying / billed]?`}
+  examples={[
+    { en: "Will this be covered by my insurance?", vi: "Khoản này có được bảo hiểm của tôi chi trả không?" },
+    { en: "Will I be billed separately for this?", vi: "Tôi có bị lập hóa đơn riêng cho khoản này không?" },
+    { en: "How much will I be paying out-of-pocket?", vi: "Tôi sẽ phải tự trả bao nhiêu?" },
+    { en: "Will I be reimbursed for this if I pay upfront?", vi: "Tôi có được hoàn tiền không nếu tôi trả trước?" },
+    { en: "Will this need pre-authorization before it can be scheduled?", vi: "Thủ thuật này có cần phê duyệt trước khi đặt lịch không?" },
+  ]}
+  contrast={`Sự khác biệt quan trọng nhất là về *thời điểm*: hỏi TRƯỚC ("Will this be covered?", "How much will I be charged?") rất khác với hỏi SAU ("How much do I owe?", "Why was I charged for this?"). Hệ thống y tế phương Tây — đặc biệt Mỹ — khuyến khích hỏi trước vì: (1) nhân viên có thể kiểm tra và điều chỉnh trước khi thủ thuật được thực hiện; (2) hóa đơn đã phát sinh rất khó tranh chấp; (3) pre-authorization phải được xin trước, không phải sau. "How much do I owe?" là câu hỏi thụ động — câu chủ động và hiệu quả hơn là "Will this be covered?" trước khi ký bất kỳ consent form nào.`}
+/>
+
+## 05 — Hội thoại mẫu
+
+<Dialogue lines={[
+  { speaker: "You", en: "Hi, I have a 10 AM appointment with Dr. Chen — I'm Nguyen Minh Thu. Before I check in, could I confirm that my insurance is in-network?", vi: "Xin chào, tôi có lịch hẹn 10 giờ sáng với bác sĩ Chen — tôi là Nguyễn Minh Thu. Trước khi tôi đăng ký, tôi có thể xác nhận bảo hiểm của tôi có trong mạng lưới không?" },
+  { speaker: "Receptionist", en: "Of course — which insurance are you with?", vi: "Tất nhiên — bạn đang dùng bảo hiểm nào?" },
+  { speaker: "You", en: "Blue Cross Blue Shield PPO. And I wanted to check — is Dr. Chen herself in-network, not just the clinic?", vi: "Blue Cross Blue Shield PPO. Và tôi muốn hỏi — bản thân bác sĩ Chen có trong mạng lưới không, không chỉ phòng khám?" },
+  { speaker: "Receptionist", en: "Yes, Dr. Chen is in-network with Blue Cross. Your co-pay today will be $35 for a primary care visit.", vi: "Vâng, bác sĩ Chen có trong mạng lưới Blue Cross. Co-pay hôm nay của bạn sẽ là $35 cho lần khám chăm sóc cơ bản." },
+  { speaker: "You", en: "Great. And if she orders any lab tests — will those be covered, or billed separately?", vi: "Tốt. Và nếu bác sĩ yêu cầu xét nghiệm máu — khoản đó có được chi trả không, hay bị lập hóa đơn riêng?" },
+  { speaker: "Receptionist", en: "Lab work is usually covered, but it depends on whether we send it to our in-network lab. Dr. Chen always uses LabCorp — they're in-network with Blue Cross.", vi: "Xét nghiệm thường được chi trả, nhưng phụ thuộc vào việc chúng tôi gửi mẫu đến lab trong mạng lưới. Bác sĩ Chen luôn dùng LabCorp — họ có trong mạng lưới Blue Cross." },
+  { speaker: "You", en: "Perfect. One more thing — has my deductible been met for this year? I'm not sure where I stand.", vi: "Tốt lắm. Còn một điều nữa — mức khấu trừ của tôi năm nay đã đạt chưa? Tôi không chắc tình trạng hiện tại của mình." },
+  { speaker: "Receptionist", en: "I can see your benefits here — it looks like your deductible has been met. So after your co-pay today, insurance should cover the rest.", vi: "Tôi có thể xem quyền lợi của bạn ở đây — có vẻ như mức khấu trừ của bạn đã đạt. Vậy sau co-pay hôm nay, bảo hiểm sẽ chi trả phần còn lại." },
+  { speaker: "You", en: "That's great news. Does today's visit need any pre-authorization, or are we good to go?", vi: "Đó là tin tốt. Lần khám hôm nay có cần phê duyệt trước không, hay chúng ta có thể tiến hành?" },
+  { speaker: "Receptionist", en: "No pre-auth needed for a primary care visit. You're all set — please have a seat and Dr. Chen will be right with you.", vi: "Không cần phê duyệt trước cho lần khám chăm sóc cơ bản. Bạn đã sẵn sàng — mời bạn ngồi và bác sĩ Chen sẽ gặp bạn ngay." },
+  { speaker: "You", en: "Thank you so much — I appreciate you checking all of that for me.", vi: "Cảm ơn bạn rất nhiều — tôi trân trọng việc bạn kiểm tra tất cả những điều đó cho tôi." },
+]} />
+
+## 06 — Lỗi thường gặp
+
+<Mistake
+  wrong={`"How much will this cost?" (hỏi chung chung, sau khi đồng ý làm thủ thuật)`}
+  right={`"Before we proceed — could you tell me my estimated out-of-pocket cost for this?"`}
+  why={`Hỏi về chi phí một cách chung chung sau khi đã đồng ý với phác đồ điều trị thường quá muộn — đặc biệt với xét nghiệm hoặc thủ thuật. Câu hỏi hiệu quả nhất cần: (1) được hỏi TRƯỚC ("before we proceed", "before I sign"), (2) cụ thể về loại chi phí ("out-of-pocket cost", "my co-pay", "what my insurance covers"), và (3) đặt nhân viên vào vai người có thể kiểm tra và xác nhận. Ở Mỹ, hóa đơn bất ngờ là vấn đề phổ biến đến mức chính phủ phải lập luật (No Surprises Act 2022) — hỏi trước là hàng phòng thủ đầu tiên của bạn.`}
+/>
+
+<Mistake
+  wrong={`"Is this covered?" → hiểu "covered" = miễn phí hoàn toàn`}
+  right={`"Is this covered — and if so, what will my co-pay or cost-sharing be?"`}
+  why={`"Covered" trong tiếng Anh bảo hiểm không có nghĩa là miễn phí — nó có nghĩa là nằm trong phạm vi bảo hiểm xem xét chi trả. Nhưng bạn vẫn có thể phải trả: (1) co-pay cố định, (2) co-insurance (ví dụ bảo hiểm trả 80%, bạn trả 20%), (3) deductible nếu chưa đạt. Hỏi "Is this covered?" là câu mở đầu đúng, nhưng câu hoàn chỉnh phải thêm "and what will I owe?" Nhiều người nhận được câu trả lời "Yes, it's covered" rồi bị sốc khi nhận hóa đơn — vì "covered" thực ra là "covered at 70% after your $1,500 deductible".`}
+/>
+
+<Mistake
+  wrong={`Vứt EOB và hóa đơn mà không đọc kỹ`}
+  right={`Đọc EOB ngay khi nhận, đối chiếu với hóa đơn từ phòng khám, và dispute trong vòng 30–60 ngày nếu có sai lệch`}
+  why={`Lỗi thanh toán trong y tế Mỹ phổ biến hơn nhiều người nghĩ — các nghiên cứu ước tính 80% hóa đơn y tế có ít nhất một sai sót. EOB từ bảo hiểm và hóa đơn từ bệnh viện phải khớp nhau. Nếu không khớp, bạn có thể đang bị tính phí hai lần, bị tính cho dịch vụ không nhận, hoặc bị tính mã sai. Mỗi công ty bảo hiểm và bệnh viện có cửa sổ dispute khác nhau — thường 30–60 ngày từ ngày nhận hóa đơn. Sau thời hạn đó, tranh chấp trở nên rất khó khăn, đôi khi không thể.`}
+/>
+
+## 07 — Văn hoá & sắc thái
+
+**Tiếng Anh y tế có register riêng của nó — và bạn đã học xuyên suốt 6 bài.**
+
+Nhìn lại toàn bộ topic Doctor & health, có một sợi chỉ đỏ xuyên suốt từ bài đầu đến bài này: tiếng Anh y tế không phải là ngôn ngữ thụ động. Ở bài 01 (đặt lịch), bạn học cách đặt cuộc hẹn và hỏi về walk-in vs appointment. Ở bài 02 (mô tả triệu chứng), bạn học cách diễn đạt chính xác — "sharp pain", "dull ache", "on and off" — vì bác sĩ cần thông tin cụ thể để chẩn đoán. Ở bài 03 (chẩn đoán), bạn học cách hỏi lại, yêu cầu giải thích, và hiểu kế hoạch điều trị — không im lặng gật đầu. Ở bài 04 (hiệu thuốc), bạn học cách hỏi pharmacist về liều dùng và tương tác thuốc. Ở bài 05 (cấp cứu), bạn học cách truyền đạt thông tin sống còn trong áp lực cao — ngắn gọn, cụ thể, không hoảng loạn. Và ở bài này (bảo hiểm & billing), bạn học lớp kỹ năng cuối cùng: bảo vệ bản thân về tài chính. Kỹ năng chung xuyên suốt tất cả: *hỏi đúng câu, đúng lúc, đủ cụ thể*. Đó là tiếng Anh y tế thực sự — không phải học thuộc từ, mà là biết khi nào cần nói và nói gì.
+
+**Chu trình "hỏi trước — tranh chấp sau".**
+
+Một trong những điều khiến hệ thống y tế Mỹ gây sốc cho người nước ngoài — kể cả người nói tiếng Anh bản xứ đến từ UK hay Úc — là không có cơ chế giá cố định. Cùng một thủ thuật có thể có giá $200 ở phòng khám này và $800 ở phòng khám kia, và bảo hiểm của bạn có thể trả toàn bộ, một phần, hoặc không một đồng nào tuỳ thuộc vào mạng lưới. Trong bối cảnh đó, chiến lược tốt nhất là hình thành thói quen "hỏi trước" — trước khi ký bất kỳ consent form nào, trước khi nhân viên bắt đầu thủ thuật, trước khi rời phòng khám. Chi phí y tế dễ thương lượng trước điều trị hơn rất nhiều so với sau — vì một khi dịch vụ đã được cung cấp và hóa đơn đã được tạo ra, bạn đang ở vị trí yếu hơn nhiều trong bất kỳ cuộc đàm phán nào.
+
+**Hiệu chỉnh văn hoá y tế xuyên quốc gia.**
+
+Cùng một vốn tiếng Anh y tế bạn đã học, nhưng bối cảnh tài chính thay đổi hoàn toàn theo quốc gia:
+
+- **Mỹ:** Chi phí cao, hệ thống bảo hiểm phức tạp, hỏi *mọi thứ* về chi phí trước. Câu hỏi về co-pay, deductible, in-network là hoàn toàn bình thường và được mong đợi. Nhân viên y tế được đào tạo để trả lời những câu hỏi này.
+- **Anh (NHS):** Phần lớn dịch vụ y tế cơ bản miễn phí tại điểm khám cho người có quyền lợi NHS. Không cần hỏi về chi phí ở GP công. Tuy nhiên, private healthcare tồn tại song song và bạn vẫn cần ngôn ngữ này nếu dùng private insurance hoặc khám tư nhân.
+- **Úc (Medicare):** Hệ thống công-tư hỗn hợp. Medicare bao gồm nhiều dịch vụ cơ bản, nhưng "gap fees" (khoản chênh lệch giữa Medicare rebate và phí bác sĩ) là phổ biến. Hỏi "Is there a gap?" trước khi khám là câu hỏi chuẩn của người Úc.
+- **EU (Đức, Pháp, Hà Lan...):** Hệ thống bảo hiểm bắt buộc với chi phí thấp hơn Mỹ đáng kể. Nếu bạn có European Health Insurance Card (EHIC), nhiều dịch vụ được chi trả trong EU. Nhưng khi đi du lịch từ ngoài EU vào, travel insurance và ngôn ngữ reimbursement là cần thiết.
+
+Điểm chung: vốn từ vựng bạn đã học — "to be covered", "to be reimbursed", "to dispute a charge" — dùng được ở tất cả các hệ thống này. Chỉ cần điều chỉnh *mức độ lo lắng*: ở Mỹ, hỏi kỹ mọi thứ; ở NHS Anh, câu hỏi về quyền lợi thường đơn giản hơn nhiều.
+
+**Tư duy "patient self-advocate" — bệnh nhân chủ động.**
+
+Đây là điểm văn hoá quan trọng nhất mà người học Việt Nam thường cần điều chỉnh: trong văn hoá y tế phương Tây — đặc biệt Mỹ và Úc — bệnh nhân được kỳ vọng *chủ động tham gia*, không phải thụ động tiếp nhận. Hỏi bác sĩ về chẩn đoán ("Could you explain what that means?"), yêu cầu second opinion, ghi chép trong phòng khám, yêu cầu bản sao kết quả xét nghiệm, gọi điện hỏi khi không hiểu hóa đơn — tất cả những hành động này không phải là thiếu tôn trọng. Đây chính là cách bệnh nhân được kỳ vọng hành xử trong hệ thống. Người bệnh không hỏi thường *không được phục vụ tốt hơn* — họ thường kém đi, vì nhân viên y tế giả định là bạn đã hiểu và đã đồng ý. Kỹ năng ngôn ngữ bạn đã xây dựng xuyên suốt 6 bài là nền tảng cho tư duy này — biết cách nói là bước đầu tiên để dám nói.
+
+<Callout type="note" title={`"Itemized bill, please" — câu thần chú của hóa đơn y tế Mỹ`}>
+Khi nhận hóa đơn y tế cao bất ngờ, bốn từ mạnh nhất bạn có thể nói là: "Can I get an itemized bill?" Theo luật Mỹ, bệnh viện và phòng khám bắt buộc phải cung cấp itemized bill — danh sách từng dòng mỗi dịch vụ, mỗi thuốc, mỗi vật tư được tính phí. Thực tế cho thấy nhiều khoản phí — "facility fee", "administrative fee", thuốc OTC được tính với giá nhà thuốc bệnh viện — rơi rụng hoặc giảm đáng kể khi bạn yêu cầu giải thích chi tiết. Nếu phòng khám từ chối hoặc trì hoãn cung cấp itemized bill, đó là dấu hiệu đỏ cần leo thang lên bộ phận billing supervisor.
+</Callout>
+
+<Callout type="warning" title="Surprise billing — biết quyền của bạn theo No Surprises Act 2022">
+Một trong những hóa đơn bất ngờ phổ biến nhất ở Mỹ: bạn phẫu thuật tại bệnh viện in-network, nhưng bác sĩ gây mê hoặc bác sĩ phụ là out-of-network — và gửi hóa đơn riêng, đôi khi hàng nghìn đô. Kể từ tháng 1/2022, **No Surprises Act** bảo vệ bệnh nhân khỏi phần lớn các trường hợp này: nếu bạn sử dụng cơ sở y tế in-network, các nhà cung cấp dịch vụ khẩn cấp và nhiều chuyên gia khác không được phép tính phí out-of-network cho bạn mà không có sự đồng ý trước bằng văn bản. Nếu nhận được hóa đơn out-of-network bất ngờ từ một thủ thuật tại cơ sở in-network, hãy hỏi thẳng: "Does this charge violate the No Surprises Act?" — và liên hệ bảo hiểm hoặc CMS (Centers for Medicare & Medicaid Services) để báo cáo nếu cần.
+</Callout>
+
+## 08 — Idiom & cụm tự nhiên
+
+- **`to come down with [something]`** — bị mắc (bệnh gì đó), thường là bệnh nhẹ xảy ra đột ngột. *"I came down with a cold right before the trip."* Từ bài 02 — cụm tự nhiên nhất để nói về bệnh khởi phát: "I think I'm coming down with something" (tôi có vẻ đang bị bệnh).
+
+- **`to feel under the weather`** — cảm thấy không khoẻ, không được khoẻ như bình thường; nhẹ hơn "sick", mang sắc thái mơ hồ và thân mật. *"I've been feeling a bit under the weather this week."* Không dùng trong tình huống khẩn cấp — chỉ dùng khi mô tả trạng thái mệt mỏi, nhẹ bệnh.
+
+- **`to be on the mend`** — đang hồi phục, dần khỏi bệnh. *"She had a rough week, but she's on the mend now."* Dùng khi ai đó hỏi thăm và bạn muốn cho biết bạn hoặc người khác đang tiến triển tốt sau khi ốm.
+
+- **`side effects`** — tác dụng phụ của thuốc hoặc điều trị. *"The doctor warned me about some side effects — mainly drowsiness."* Từ bài 03 — cụm cần biết khi hỏi pharmacist hoặc bác sĩ: "Are there any side effects I should watch out for?"
+
+- **`to keep an eye on [something]`** — theo dõi cẩn thận, chú ý đến. *"The doctor said to keep an eye on the swelling and come back if it gets worse."* Thường xuất hiện trong hướng dẫn của bác sĩ — "keep an eye on your temperature", "keep an eye on how you respond to the medication".
+
+- **`to be a [N] out of 10`** — mô tả mức độ đau hoặc khó chịu trên thang điểm. *"On a scale of one to ten, the pain is about a six."* Từ bài 02 — bác sĩ và y tá Mỹ hỏi câu này thường xuyên; biết cách trả lời tự nhiên là kỹ năng thực dụng.
+
+- **`to fill a prescription`** — lấy thuốc theo toa tại hiệu thuốc. *"I need to fill this prescription before the pharmacy closes."* Từ bài 04 — "fill" là động từ chuẩn, không phải "get" hay "buy a prescription". Phân biệt: "prescription" là tờ giấy kê đơn; "fill a prescription" là hành động lấy thuốc thực tế.
+
+- **`to be in critical condition`** — ở tình trạng nguy kịch, đe doạ tính mạng. *"The patient is in critical condition following the accident."* Từ bài 05 — thuật ngữ y tế chính thức thường nghe trong bản tin hoặc tại bệnh viện; phân biệt với "stable condition" (tình trạng ổn định) và "serious but stable".
+
+- **`out-of-pocket`** — (1) tiền bạn tự trả không được bảo hiểm chi trả; (2) (informal) trả trước rồi xin hoàn lại. *"I paid out-of-pocket and submitted a claim for reimbursement."* Bài này — một trong những cụm quan trọng nhất trong ngôn ngữ bảo hiểm Mỹ; cũng dùng trong cuộc sống hằng ngày cho bất kỳ chi phí cá nhân nào.
+
+- **`to dispute a charge`** — tranh chấp / phản đối một khoản phí trên hóa đơn. *"I disputed the charge and the hospital removed it after reviewing the itemized bill."* Bài này — cụm pháp lý-tài chính quan trọng trong bối cảnh y tế, khách sạn, thẻ tín dụng; biết dùng đúng từ giúp bạn được đối xử nghiêm túc hơn.
+
+## 09 — Tự luyện
+
+1. **Tình huống mô phỏng:** Bạn chuẩn bị khám chuyên khoa tim mạch lần đầu tại Mỹ. Viết một đoạn hội thoại 10–12 lượt bằng tiếng Anh với nhân viên lễ tân phòng khám, đi qua đủ các bước: xác nhận in-network, hỏi co-pay cho lần khám chuyên khoa, hỏi liệu thủ thuật siêu âm tim có cần pre-authorization không, và xác nhận liệu deductible đã được đáp ứng hay chưa. Dùng ít nhất ba mẫu câu từ bài này.
+
+2. **Phân tích EOB:** Bạn nhận được EOB sau lần khám và thấy: (a) bảo hiểm đã "denied" (từ chối) một xét nghiệm máu với lý do "not medically necessary", và (b) có khoản "balance billing" $150 từ một bác sĩ bạn không biết là out-of-network. Viết bằng tiếng Anh 5–6 câu mô tả bạn sẽ làm gì tiếp theo — ai bạn gọi, câu bạn nói, và tại sao bạn có quyền tranh chấp cả hai khoản này.
+
+3. **So sánh hệ thống:** Viết một đoạn ngắn 5–7 câu bằng tiếng Anh so sánh trải nghiệm đi khám bệnh ở Việt Nam và ở Mỹ (hoặc Anh/Úc nếu bạn quen hơn). Tập trung vào: kỳ vọng giao tiếp (bệnh nhân chủ động vs thụ động), vai trò của chi phí trong quyết định khám bệnh, và ít nhất một điều bạn sẽ làm khác đi khi khám bệnh bằng tiếng Anh so với tiếng Việt.
+
+<Recap>
+Trên toàn topic Doctor & health, ta đã học:
+
+- **Bài 01 — Đặt lịch khám:** Gọi clinic hoặc GP, phân biệt walk-in vs appointment, hỏi về bảo hiểm được chấp nhận, và xử lý tình huống không có lịch trống. Câu chốt: "I'd like to make an appointment with Dr. [Name] — what's the earliest available?" — ngắn, đủ thông tin, lịch sự.
+- **Bài 02 — Mô tả triệu chứng:** Ngôn ngữ chính xác cho đau — "sharp", "dull", "throbbing", "on and off"; vị trí và thời gian; thang điểm 1–10. Kỹ năng chính: đừng nói "It hurts" — nói "I have a sharp pain on my lower right side that comes and goes, about a 6 out of 10."
+- **Bài 03 — Hiểu chẩn đoán:** Hỏi lại khi không hiểu ("Could you explain that in simpler terms?"), xác nhận kế hoạch điều trị, hỏi về side effects và follow-up. Bác sĩ nói tiếng Anh mong đợi bệnh nhân hỏi — im lặng không phải biểu hiện của sự hiểu.
+- **Bài 04 — Hiệu thuốc & toa thuốc:** Nộp toa, phân biệt prescription vs OTC, hỏi pharmacist về liều dùng, tương tác thuốc, và cách bảo quản. "Fill a prescription" là cụm từ chuẩn — biết dùng đúng từ giúp bạn được phục vụ nhanh hơn.
+- **Bài 05 — Cấp cứu & urgent care:** Phân biệt urgent care vs ER, gọi 911/999/112, mô tả tình trạng khẩn cấp trong áp lực cao. Nguyên tắc: ngắn, rõ, cụ thể — "There's been an accident on [location]. One person is unconscious and bleeding." Không giải thích dài dòng.
+- **Bài 06 — Bảo hiểm & billing:** Ngôn ngữ của co-pay, deductible, in-network, EOB, và itemized bill. Chiến lược: hỏi trước điều trị, đọc EOB khi nhận, yêu cầu itemized bill khi có nghi ngờ, và dispute trong cửa sổ 30–60 ngày.
+- Xuyên suốt toàn topic, kỹ năng quan trọng nhất là **chủ động tham gia** — hỏi, paraphrase lại để xác nhận, ghi chép, và follow up. Hệ thống y tế phương Tây được thiết kế cho bệnh nhân tham gia tích cực; người biết hỏi đúng câu đúng lúc luôn được phục vụ tốt hơn người im lặng chờ đợi.
+</Recap>

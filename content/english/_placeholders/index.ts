@@ -2,17 +2,6 @@ import type { EnglishTopic } from '../types';
 
 export const placeholderTopics: EnglishTopic[] = [
   {
-    slug: 'doctor-health',
-    title: 'Khám bệnh & sức khoẻ',
-    englishTitle: 'Doctor & health',
-    summary: 'Đặt lịch, mô tả triệu chứng, hiểu chẩn đoán, hiệu thuốc và tình huống khẩn cấp.',
-    level: 'B1+',
-    variant: 'daily-life',
-    lessons: [],
-    placeholder: true,
-    plannedLessonCount: 6,
-  },
-  {
     slug: 'plans-invitations',
     title: 'Hẹn hò & lời mời',
     englishTitle: 'Plans & invitations',

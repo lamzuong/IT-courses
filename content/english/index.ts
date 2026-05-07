@@ -7,6 +7,7 @@ import { topic as directionsGettingAround } from './directions-getting-around/to
 import { topic as phoneVideoCalls } from './phone-video-calls/topic';
 import { topic as travelAirport } from './travel-airport/topic';
 import { topic as hotel } from './hotel/topic';
+import { topic as doctorHealth } from './doctor-health/topic';
 import { placeholderTopics } from './_placeholders';
 
 export const allEnglishTopics: EnglishTopic[] = [
@@ -26,7 +27,8 @@ export const allEnglishTopics: EnglishTopic[] = [
   travelAirport,
   // Topic 8 (real)
   hotel,
-  placeholderTopics.find((t) => t.slug === 'doctor-health')!,
+  // Topic 9 (real)
+  doctorHealth,
   placeholderTopics.find((t) => t.slug === 'plans-invitations')!,
   placeholderTopics.find((t) => t.slug === 'apologies-complaints')!,
   // Topics 12–15 (placeholders, work)
