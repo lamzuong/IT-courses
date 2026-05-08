@@ -23,6 +23,7 @@ export const course: Course = {
         { slug: '01-what-this-teaches',     title: 'What this course teaches',                  summary: 'Agents vs chat, tool calling, why human-in-the-loop matters.' },
         { slug: '02-inventory-domain',      title: 'Inventory your domain',                     summary: 'What\'s AI-callable in your app — schema, intents, actions.' },
         { slug: '03-setup-ollama-skeleton', title: 'Setup: Ollama + project skeleton',          summary: 'Install Ollama, pull a model, scaffold the route handler.' },
+        { slug: 'recap-part-1',             title: 'Part I recap — Before you touch AI',         summary: 'Mind map of glossary, course shape, domain inventory, and Ollama setup.' },
       ],
     },
     {
@@ -33,6 +34,7 @@ export const course: Course = {
         { slug: '06-prompt-engineering',    title: 'Prompt engineering basics',                 summary: 'Few-shot examples, formatting, what works versus folklore.' },
         { slug: '07-feeding-data',          title: 'Feeding the model your data',               summary: 'Schema and samples in context; the token-cost warning.' },
         { slug: '08-structured-output',     title: 'Structured output with Zod',                summary: 'withStructuredOutput, typed JSON, schema strictness.' },
+        { slug: 'recap-part-2',             title: 'Part II recap — First conversations',        summary: 'Mind map of streaming, prompts, few-shot, data feeding, and structured output.' },
       ],
     },
     {
@@ -44,6 +46,7 @@ export const course: Course = {
         { slug: '12-write-tools-danger',    title: 'Write tools & the danger zone',             summary: 'Why writes need a confirmation gate.' },
         { slug: '13-idempotency',           title: 'Idempotency & duplicate-action guards',     summary: 'Request keys, dedup, double-fire defenses.' },
         { slug: '14-errors-retries',        title: 'Errors & retries',                          summary: 'Failed tool calls, validation errors, recovery.' },
+        { slug: 'recap-part-3',             title: 'Part III recap — Tools',                     summary: 'Mind map of read scaling, tool design, write danger, idempotency, and recovery.' },
       ],
     },
     {
@@ -55,6 +58,7 @@ export const course: Course = {
         { slug: '18-state-conditional-routing', title: 'State & conditional routing',                    summary: 'Branch on tool type — read auto-runs, write requires confirmation.' },
         { slug: '19-interrupt-confirmation',  title: 'interrupt: pausing for confirmation',              summary: 'LangGraph\'s killer feature; pause, get approval, resume.' },
         { slug: '20-lapsed-customer-workflow',title: 'The lapsed-customer workflow end to end',          summary: 'Full walkthrough; every prior lesson\'s piece slots in.' },
+        { slug: 'recap-part-4',               title: 'Part IV recap — LangGraph & confirmation',         summary: 'Mind map of state, nodes, edges, conditional routing, and interrupt().' },
       ],
     },
     {
@@ -64,6 +68,7 @@ export const course: Course = {
         { slug: '22-testing-evaluation',    title: 'Testing & evaluation',                         summary: 'Golden tests, snapshot regression, fake LLMs.' },
         { slug: '23-observability-cost',    title: 'Observability & cost',                         summary: 'Tracing every call, token accounting, budgets.' },
         { slug: '24-going-to-production',   title: 'Going to production',                          summary: 'Provider swap from Ollama to hosted, deploy, rate limits.' },
+        { slug: 'recap-part-5',             title: 'Part V recap — Production-grade AI',            summary: 'Mind map of safety, testing, observability, and the production launch checklist.' },
       ],
     },
   ],

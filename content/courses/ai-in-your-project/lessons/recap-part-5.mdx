@@ -1,0 +1,70 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+<Callout type="note" title="In this recap">
+- A mind map of Part V — the four production layers wrapped around a working graph.
+- The launch checklist: input guards, golden tests, observability, and the one-line provider swap.
+- A Recap block summarising what *production-ready* actually means for this kind of feature.
+</Callout>
+
+Part V is the wrapper. The graph from Part IV works on your laptop; Part V is what stops it from blowing up in production. Four lessons, each addressing one class of failure that surprises teams in the first month: a malicious user prompt that reroutes the agent (safety), a quiet drift in the model's behaviour after a prompt change (testing), a billing surprise on the first Monday of the month (observability and cost), and the inevitable swap from your local Ollama to a hosted provider on deploy day (going to production). The lesson the experienced teams have already learned: none of these layers is optional.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 480" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map of Part V: a central node 'Production-grade AI' with four branches — safety and prompt injection, testing and evaluation, observability and cost, and going to production">
+    {/* connectors */}
+    <path d="M 360,200 L 360,90" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,240 L 540,240" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 360,280 L 360,390" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,240 L 180,240" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+
+    {/* center */}
+    <rect x="260" y="200" width="200" height="80" rx="14" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="232" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'Production-grade AI'}</text>
+    <text x="360" y="252" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'four wrappers around the graph'}</text>
+    <text x="360" y="270" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'Part V'}</text>
+
+    {/* north — safety */}
+    <rect x="240" y="30" width="240" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Safety  ·  L21'}</text>
+    <text x="360" y="76" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'prompt injection · output validation'}</text>
+
+    {/* east — testing */}
+    <rect x="540" y="210" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="620" y="236" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Testing  ·  L22'}</text>
+    <text x="620" y="256" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'golden + fake LLMs'}</text>
+
+    {/* south — observability */}
+    <rect x="240" y="390" width="240" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="416" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Observability  ·  L23'}</text>
+    <text x="360" y="436" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'tracing · token cost · kill-switch'}</text>
+
+    {/* west — going to production */}
+    <rect x="20" y="210" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="100" y="236" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Deploy  ·  L24'}</text>
+    <text x="100" y="256" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'one-line provider swap'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    The four layers wrap the graph. Skip one and that's where the first incident comes from.
+  </figcaption>
+</figure>
+
+## How the pieces fit
+
+**Safety (L21)** is two distinct guardrails. *Prompt injection* — a user (or a piece of user-supplied data) tries to override the system prompt with *"ignore previous instructions and..."*. The defence is layered: never paste raw user data into the system prompt; validate model output against your Zod schemas; route writes through `interrupt()` so a malicious prompt can't bypass approval. *Output validation* — never trust a model's free-form text in code paths; trust only what comes back through `withStructuredOutput`.
+
+**Testing (L22)** is a genre shift, not just more unit tests. You don't test that the AI is *smart*; you test that the *deterministic surface around it* behaves. Golden tool-call tests with `temperature: 0`. Snapshot prose by *shape*, not exact text. `FakeListChatModel` for graph-logic tests that don't spend tokens. A small eval dataset replayed on every PR. Software is testable; the model is *evaluable*.
+
+**Observability and cost (L23)** is the lesson teams discover the hard way. LangSmith (or DIY a `BaseCallbackHandler` in fifty lines) gives you per-call tracing and per-user spend tracking. Three SQL queries — yesterday's spend, top spenders, daily trend — beat any pre-built dashboard for the first month. A daily cap and a global kill-switch turn *"the bill is $4,200"* into *"it capped out at $73 and emailed me."*
+
+**Going to production (L24)** is the final dev-to-prod swap. `ChatOllama` becomes `ChatAnthropic` in one import. `MemorySaver` becomes a Postgres-backed checkpointer (interrupts must survive cold starts). Three rate-limit layers — provider 429 retries, per-user sliding windows, global daily kill-switch. Start the budget cap at $10/day; if you hit it, find the bug before raising the cap.
+
+<Recap>
+- **Safety is layered, not point-in-time.** Treat user input as adversarial, validate model output with Zod, gate every write with `interrupt()`. No single defence is enough.
+- **Test the deterministic surface, evaluate the rest.** Golden tool-call tests + snapshot-by-shape + fake LLMs in CI. Eval datasets for prose quality. Don't mix them up.
+- **Observability is two halves.** Operational (latency, errors) and *spend* (tokens, $/day, top users). The second one is what surprises teams. Wire a `CostLogger` callback before your first paying user.
+- **Cost optimisation is usually about trimming history, not picking a cheaper model.** Multi-step plans pay 10× a quick chat — and most of that growth is conversation history.
+- **Provider swap is one line.** `ChatOllama` → `ChatAnthropic`. The graph, tools, and tests don't change. That's the payoff for sticking to the LangChain abstraction the whole way through.
+- **First-deploy budget cap: $10/day.** If you hit it, your prompt or your loop has a bug. Find the bug, then raise the cap.
+</Recap>
+
+**The course in one sentence.** You went from *"AI in my project"* as a vague intention to a graph-shaped state machine that plans, gates, mutates, audits, tests, observes, and ships. The Final Project — the AI Operator console — is where you put the entire thing in front of a UI and watch the loop you understood theory-of in lesson 01 actually run end-to-end.

@@ -6,6 +6,7 @@ import { LessonSidebar } from '@/components/site/lesson-sidebar';
 import { Breadcrumb } from '@/components/site/breadcrumb';
 import { PrevNext } from '@/components/site/prev-next';
 import { ReadingProgress } from '@/components/site/reading-progress';
+import { BookmarkButton } from '@/components/site/bookmark-button';
 
 export async function generateStaticParams() {
   return getAllCourses().flatMap((course) =>
@@ -78,7 +79,13 @@ export default async function LessonPage({ params }: { params: Promise<Params> }
                 <span aria-hidden style={{ color: 'color-mix(in oklab, var(--color-accent), transparent 60%)' }}>/</span>
                 {totalNum}
               </p>
-              <h1 className="lesson-title">{ctx.lesson.title}</h1>
+              <div className="lesson-title-row">
+                <h1 className="lesson-title">{ctx.lesson.title}</h1>
+                <BookmarkButton
+                  path={`/courses/${ctx.course.slug}/lessons/${lessonSlug}`}
+                  title={ctx.lesson.title}
+                />
+              </div>
               {ctx.lesson.summary && <p className="lesson-deck">{ctx.lesson.summary}</p>}
 
               <p className="lesson-meta">

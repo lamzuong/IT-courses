@@ -17,7 +17,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const searchIndex = getSearchIndex();
   return (
-    <html lang="en" className={`${manrope.variable} ${fraunces.variable} ${mono.variable}`}>
+    <html
+      lang="en"
+      className={`${manrope.variable} ${fraunces.variable} ${mono.variable}`}
+      suppressHydrationWarning
+    >
       <body suppressHydrationWarning>
         <SiteNav searchIndex={searchIndex} />
         {children}

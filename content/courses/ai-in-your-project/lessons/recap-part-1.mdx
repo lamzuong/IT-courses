@@ -1,0 +1,85 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+<Callout type="note" title="In this recap">
+- A mind map of Part I — what *Before you touch AI* actually means in practice.
+- The four threads that the rest of the course pulls on: vocabulary, course shape, domain inventory, and the Ollama dev loop.
+- A Recap block you can re-read in two minutes before moving on to Part II.
+</Callout>
+
+Part I is the one part of the course where you write almost no AI code. That is the point. Before you ship an LLM into a real product you need a vocabulary that survives the docs, a clear picture of what an *agent* actually does in this course, an honest map of which corners of your existing app it gets to touch, and a development loop that doesn't cost you a dollar every time you press save. Four lessons, one finished foundation.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 480" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map of Part I: a central node 'Before you touch AI' with six branches — glossary, agents vs chat, tool calling, human-in-the-loop, domain inventory, and Ollama setup">
+    {/* connectors first so nodes paint over them */}
+    <path d="M 360,200 L 360,90" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,220 Q 500,200 520,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,260 Q 500,290 520,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 360,280 L 360,390" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,260 Q 220,290 200,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,220 Q 220,200 200,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+
+    {/* center node */}
+    <rect x="260" y="200" width="200" height="80" rx="14" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="236" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'Before you touch AI'}</text>
+    <text x="360" y="256" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'Part I — foundation'}</text>
+
+    {/* north — glossary (lesson 00) */}
+    <rect x="260" y="30" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Glossary  ·  L00'}</text>
+    <text x="360" y="76" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'tokens · tools · LangGraph terms'}</text>
+
+    {/* north-east — agents vs chat (lesson 01) */}
+    <rect x="520" y="110" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="610" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Agents vs chat  ·  L01'}</text>
+    <text x="610" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'plan → call → reply'}</text>
+
+    {/* south-east — tool calling (lesson 01) */}
+    <rect x="520" y="310" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="610" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Tool calling  ·  L01'}</text>
+    <text x="610" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'verbs the model can use'}</text>
+
+    {/* south — human-in-the-loop (lesson 01) */}
+    <rect x="260" y="390" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="416" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Human-in-the-loop  ·  L01'}</text>
+    <text x="360" y="436" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'every write needs approval'}</text>
+
+    {/* south-west — domain inventory (lesson 02) */}
+    <rect x="20" y="310" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="110" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Domain inventory  ·  L02'}</text>
+    <text x="110" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'schema · intents · actions'}</text>
+
+    {/* north-west — Ollama setup (lesson 03) */}
+    <rect x="20" y="110" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="110" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Ollama setup  ·  L03'}</text>
+    <text x="110" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'local model · skeleton route'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Six things you walked away from Part I knowing. Three of them came from lesson 01 alone.
+  </figcaption>
+</figure>
+
+## How the pieces fit
+
+**Glossary (L00)** is the reference desk. You won't memorise *checkpointer* or *interrupt* on first read; you'll skim them once, then return when Part IV uses the words and they suddenly mean something.
+
+**Agents vs chat (L01)** is the framing that holds the whole course together. A chatbot just talks. An agent runs a small plan: read context, decide whether to call a tool, run the tool, read the result, decide what's next. Every later lesson is a piece of that loop.
+
+**Tool calling (L01)** is what turns the model from a paragraph generator into something that can act. The protocol is small — a `tool_call` JSON object, a `ToolMessage` with the result — and the rest of Part III is one long study of how to design the tools at the receiving end.
+
+**Human-in-the-loop (L01)** is the safety stance the course commits to. The model proposes; the human approves; the system commits. Three roles, and the boundary between them is where the bugs live. We come back to this at L19 with `interrupt()`.
+
+**Domain inventory (L02)** is the unglamorous spreadsheet exercise. Before any LLM code, you list what's queryable, what's mutable, what's destructive, and which actions need a confirmation gate. The list becomes your tool catalog in Part III.
+
+**Ollama setup (L03)** gives you a free dev loop. A local 7–8B model runs on a laptop, costs nothing per request, and matches the LangChain interface you'll later swap for a hosted provider in one line (L24). Build the whole course on Ollama, ship on Anthropic.
+
+<Recap>
+- **Read the glossary once, then keep it open.** Most terms only click in context. The vocab stack is *model basics → tools & agents → graphs* — three layers, each one reusing the words below.
+- **An agent is a loop, not a chatbot.** Plan, call a tool, read the result, decide again. Every lesson in Parts III–IV is a refinement of that loop.
+- **Tool calling is the verb half of LLM apps.** The model emits a structured `tool_call`; your runtime executes it; the result goes back as a `ToolMessage`. Lesson 09 is where this turns into code.
+- **HITL is the safety stance.** *Reads run automatically; writes wait for approval.* That sentence is the whole spec for `interrupt()` in Part IV.
+- **Inventory before you touch the LLM.** Schema, intents, destructive vs reversible — the inventory becomes your tool catalog.
+- **Ollama for dev, hosted for prod.** One-line provider swap (L24) means you build the course on a free local model and ship on a hosted one when the rest is right.
+</Recap>
+
+**Up next — Part II: First conversations.** You stop sketching the agent and start writing the first prompts. Streaming text into a UI, system prompts that actually shape behaviour, and the first time the model returns typed JSON instead of prose.

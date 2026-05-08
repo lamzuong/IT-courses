@@ -3,6 +3,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { getAllCourses, getCourse, flattenLessons, lessonNumberFromSlug } from '@/lib/courses';
 import { getCourseStats, toRoman } from '@/lib/lesson-stats';
+import { BookmarkIndicator } from '@/components/site/bookmark-indicator';
 
 export async function generateStaticParams() {
   return getAllCourses().map((c) => ({ course: c.slug }));
@@ -89,7 +90,10 @@ export default async function CoursePage({ params }: { params: Promise<{ course:
                       className="agenda-link"
                     >
                       <span className="agenda-num">{num}.</span>
-                      <span className="agenda-lesson-title">{lesson.title}</span>
+                      <span className="agenda-lesson-title">
+                        <BookmarkIndicator path={`/courses/${course.slug}/lessons/${lesson.slug}`} />
+                        {lesson.title}
+                      </span>
                       <span className="agenda-time">{readMin} min</span>
                     </Link>
                   </li>

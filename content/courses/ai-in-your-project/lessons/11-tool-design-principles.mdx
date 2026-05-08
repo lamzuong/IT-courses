@@ -1,5 +1,6 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
+import { Term } from '@/components/mdx/term';
 
 <Callout type="note" title="In this lesson">
 - Four design rules for tools: narrow > broad, idempotent by default, description-as-prompt, typed errors.
@@ -19,6 +20,57 @@ The instinct from human library design is to build one general tool and let the 
 `promotions.create_for_lapsed_customers` is a worse tool from a code-aesthetic standpoint. Six tools instead of one, each a thin wrapper over the same primitive. But it's a much better tool for an LLM, because *the name itself tells the model what the tool does and when to use it*. The model picks the right tool by reading the directory; you don't have to teach it your composition rules.
 
 A practical rule: if you find yourself writing *"to do X, set field A to Y and field B to Z"* in a tool description, that's two tools, not one. Split it.
+
+**The broad version (the temptation)**
+
+```ts
+export const createPromotion = tool(
+  async (args) => { /* ... */ },
+  {
+    name: 'promotions.create',
+    description: 'Create a promotion. See schema for all options.',
+    schema: z.object({
+      type: z.enum(['percent', 'fixed', 'bogo', 'free_shipping']),
+      value: z.number().optional(),
+      audience: z.enum(['all', 'lapsed', 'vip', 'new', 'tag']).optional(),
+      audienceTag: z.string().optional(),
+      lapsedDays: z.number().optional(),
+      minOrderCents: z.number().optional(),
+      validFrom: z.string().datetime().optional(),
+      validUntil: z.string().datetime().optional(),
+      code: z.string().optional(),
+      maxUses: z.number().optional(),
+      stackable: z.boolean().optional(),
+      // ...four more fields
+    }),
+  },
+);
+```
+
+When the user asks *"15% off for customers who haven't ordered in 60 days"*, the model has to derive a sixteen-field shape: `type: 'percent'`, `value: 15`, `audience: 'lapsed'`, `audienceTag: undefined`, `lapsedDays: 60`, plus a default code. It will get this right most of the time and wrong some of the time, and the failures look like *"audience is 'tag' but audienceTag is missing"* — silent semantic errors, not validation errors.
+
+**The narrow version (the right move)**
+
+```ts
+export const createLapsedCustomerPromo = tool(
+  async ({ discountPercent, lapsedDays, code }) => { /* ... */ },
+  {
+    name: 'promotions.create_for_lapsed_customers',
+    description: 'Create a percentage-off promo code targeted at customers who have not ordered in N days.',
+    schema: z.object({
+      discountPercent: z.number().int().min(1).max(75),
+      lapsedDays: z.number().int().min(7).max(365),
+      code: z.string().regex(/^[A-Z0-9]{4,16}$/),
+    }),
+  },
+);
+
+export const createVipThankYouPromo = tool(/* ... */);
+export const createFlashSale = tool(/* ... */);
+export const createFreeShippingPromo = tool(/* ... */);
+```
+
+Three fields, all required, all bounded. The name *is* the use case — the model picks `promotions.create_for_lapsed_customers` from the directory the same way you'd pick a function from autocomplete. Six tools instead of one, but each is twenty lines, each is independently testable, and the model never has to compose a sixteen-field call from scratch.
 
 ## 02 — Idempotent by default
 
@@ -58,6 +110,40 @@ The bad version: `"Search customers."` Five characters of signal. The model has 
 
 The good version: `"Search customers by lapsed-days threshold, tag membership, or email domain. Returns up to 25 rows ordered by last_order_at descending. Use customers.list for unfiltered listing."` Three sentences, three things the model now knows it didn't have to guess. Notice the cross-reference at the end — pointing at a sibling tool helps the model pick the right one.
 
+**The same tool, three versions of the description**
+
+```ts
+// ❌ Vague — the model guesses what's searchable and what comes back
+description: 'Search customers.';
+
+// ⚠ Better, but missing the boundary
+description: 'Search customers by tag, email, or lapsed days.';
+
+// ✅ Tells the model what it filters on, what it returns,
+//    how many, and which sibling to use when this isn't right
+description: [
+  'Search customers by lapsed-days threshold, tag membership, or email domain.',
+  'Returns up to 25 rows ordered by last_order_at descending.',
+  'Use customers.list for unfiltered listing or customers.byId for a single lookup.',
+].join(' ');
+```
+
+A second example for a write tool, where stakes are higher and the description does double duty as a guard rail:
+
+```ts
+// ❌ Tells the model nothing about side effects
+description: 'Send an email.';
+
+// ✅ States the side effect, the safety net, and the boundary
+description: [
+  'Draft an email to a single customer and save it as a DRAFT.',
+  'Does NOT send — a human reviews drafts before they go out.',
+  'For bulk drafts use email_drafts.create_for_segment.',
+].join(' ');
+```
+
+The pattern that holds across all good descriptions: *what it does · what it returns / what its side effect is · which sibling to pick if this isn't the right one*. Three sentences, big leverage.
+
 <Callout type="tip" title="Read your descriptions out loud">
 The fastest test for tool descriptions: read them aloud as if you were briefing a coworker. If a sentence makes you stumble, the model will stumble. If you used jargon you'd normally explain, the model didn't get the explanation. If you said "etc." or "and so on", the model has no idea what was elided. Tool descriptions are technical writing, and the same instincts that make a good README make a good description.
 </Callout>
@@ -74,7 +160,7 @@ The shape that works: `<what failed>. <why>. <suggested next step>.` Treat error
 
 ## 05 — How many tools is enough?
 
-There is no magic number, but there are clear failure modes at both ends. Too few and the model has to compose primitives it doesn't understand; too many and it confuses sibling tools that sound alike. The bands below are what shows up in practice across small and mid-sized agents:
+There is no magic number, but there are clear failure modes at both ends. Too few and the model has to compose primitives it doesn't understand; too many and it confuses sibling tools that sound alike. Most production agents live in what we'll call the <Term def="A metaphor borrowed from sports — the comfortable range where the model picks tools confidently and all descriptions fit in context without competing.">sweet spot</Term> — the bands below are what shows up in practice across small and mid-sized agents:
 
 | Tool count | What you'll see |
 | --- | --- |
@@ -102,6 +188,93 @@ A short, brutal checklist. If your tool matches any of these, refactor before yo
 - **Tools that return free-form text instead of structured data.** *"I sent the email to ana@example.com at 14:32"* is a paragraph; the model has to re-parse it. Return `{ sentTo, sentAt }` and the model can quote the values directly.
 - **Tools that call other tools recursively.** The model orchestrates tool sequences. Tools should not. A tool that internally calls three other tools is hiding work from the model and making the round-trip un-debuggable.
 - **Tools that depend on global state.** *"This tool uses the customer set in the previous call."* No. Pass the customer ID explicitly every time. Implicit state across calls is how you build features that work in development and silently fail in production.
+
+**Refactor pairs — what each anti-pattern looks like, and the fix**
+
+*Silent writes — return what you wrote*
+
+```ts
+// ❌ Returns void; the model can't reference the row it just created
+export const createDraft = tool(
+  async ({ customerId, body }) => {
+    await db.emailDrafts.create({ data: { customerId, body } });
+    return 'OK';
+  },
+  { name: 'email_drafts.create', /* ... */ },
+);
+
+// ✅ Returns the row; the next turn can quote draftId, sentAt, etc.
+export const createDraft = tool(
+  async ({ customerId, body }) => {
+    const draft = await db.emailDrafts.create({ data: { customerId, body } });
+    return JSON.stringify({
+      draftId: draft.id,
+      customerId: draft.customerId,
+      createdAt: draft.createdAt.toISOString(),
+      status: 'draft',
+    });
+  },
+  { name: 'email_drafts.create', /* ... */ },
+);
+```
+
+*Free-form returns — give the model JSON, not prose*
+
+```ts
+// ❌ The model has to parse English to find the values
+return `Sent the email to ${email} at ${new Date().toISOString()}.`;
+
+// ✅ The model quotes structured fields directly
+return JSON.stringify({ sentTo: email, sentAt: new Date().toISOString() });
+```
+
+*Recursive tools — surface the steps to the model instead*
+
+```ts
+// ❌ One tool hides three operations; the model can't reason about partial failure
+export const createPromoAndDraftEmail = tool(
+  async ({ discount, lapsedDays }) => {
+    const promo = await createPromotion({ discount, lapsedDays });
+    const customers = await findLapsedCustomers({ lapsedDays });
+    const drafts = await Promise.all(customers.map((c) => createDraft({ customerId: c.id, /* ... */ })));
+    return JSON.stringify({ promo, draftCount: drafts.length });
+  },
+  { /* ... */ },
+);
+
+// ✅ Three narrow tools the model orchestrates itself; each step is observable
+export const createPromotion = tool(/* ... */);
+export const customersLapsed = tool(/* ... */);
+export const createDraft = tool(/* ... */);
+```
+
+*Implicit global state — pass the ID every time*
+
+```ts
+// ❌ Relies on whatever was set on the last call
+let CURRENT_CUSTOMER: Customer | null = null;
+
+export const setCustomer = tool(/* sets CURRENT_CUSTOMER */);
+export const draftEmail = tool(
+  async ({ body }) => {
+    if (!CURRENT_CUSTOMER) throw new Error('No customer selected');
+    return await createDraft({ customerId: CURRENT_CUSTOMER.id, body });
+  },
+  /* ... */
+);
+
+// ✅ Pure: every call carries its own context
+export const draftEmail = tool(
+  async ({ customerId, body }) => createDraft({ customerId, body }),
+  {
+    schema: z.object({
+      customerId: z.string().uuid(),
+      body: z.string().min(20),
+    }),
+    /* ... */
+  },
+);
+```
 
 A useful exercise after writing a tool: read it back and ask *"could a model that has never seen my code call this correctly using only the name, description, and schema?"* If the answer is no, you have more work to do.
 

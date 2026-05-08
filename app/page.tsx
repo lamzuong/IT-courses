@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { getAllCourses, flattenLessons } from '@/lib/courses';
 import { placeholderCourses } from '@/content/courses';
 import { getCourseStats } from '@/lib/lesson-stats';
+import { ContinueCard } from '@/components/site/continue-card';
+import { CourseShelf, type Category } from '@/components/site/course-shelf';
 import type { ReactNode } from 'react';
 
 type CardProps = {
@@ -264,106 +266,141 @@ export default async function Home() {
         </p>
       </header>
 
+      <ContinueCard />
+
       <section aria-labelledby="course-shelf-heading">
         <h2 id="course-shelf-heading" className="sr-only">Available courses</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          <CourseCard
-            variant="peach"
-            title={aiCourse.title}
-            summary={aiCourse.summary}
-            stats={[
-              { label: 'lessons', value: String(aiLessonCount) },
-              { label: 'demos',   value: '17' },
-              { label: 'project', value: '1' },
-            ]}
-            pct={100}
-            pctLabel="Complete"
-            footerLeft={`${aiLessonCount} lessons · ${aiTotalRead} read`}
-            cta={{ label: 'Begin reading', href: `/courses/${aiCourse.slug}` }}
-            illustration={<ArtAIOperator />}
-          />
-
-          <CourseCard
-            variant="moss"
-            title={lcCourse.title}
-            summary={lcCourse.summary}
-            stats={[
-              { label: 'lessons', value: String(lcLessonCount) },
-              { label: 'parts',   value: String(lcCourse.parts.length) },
-              { label: 'project', value: '1' },
-            ]}
-            pct={100}
-            pctLabel="Complete"
-            footerLeft={`${lcLessonCount} lessons · ${lcTotalRead} read`}
-            cta={{ label: 'Begin reading', href: `/courses/${lcCourse.slug}` }}
-            illustration={<ArtLangGraph />}
-          />
-
-          <CourseCard
-            variant="clay"
-            title={ceCourse.title}
-            summary={ceCourse.summary}
-            stats={[
-              { label: 'lessons', value: String(ceLessonCount) },
-              { label: 'parts',   value: String(ceCourse.parts.length) },
-              { label: 'project', value: '1' },
-            ]}
-            pct={100}
-            pctLabel="Complete"
-            footerLeft={`${ceLessonCount} lessons · ${ceTotalRead} read`}
-            cta={{ label: 'Begin reading', href: `/courses/${ceCourse.slug}` }}
-            illustration={<ArtClaude />}
-          />
-
-          <CourseCard
-            variant="sage"
-            title={dndCourse.title}
-            summary={dndCourse.summary}
-            stats={[
-              { label: 'lessons', value: String(dndLessonCount) },
-              { label: 'demos',   value: '13' },
-              { label: 'project', value: '1' },
-            ]}
-            pct={100}
-            pctLabel="Complete"
-            footerLeft={`${dndLessonCount} lessons · ${dndTotalRead} read`}
-            cta={{ label: 'Begin reading', href: `/courses/${dndCourse.slug}` }}
-            illustration={<ArtDragDrop />}
-          />
-
-          <CourseCard
-            variant="butter"
-            title={placeholderCourses[0].title}
-            summary={placeholderCourses[0].summary}
-            stats={[
-              { label: 'lessons', value: String(placeholderCourses[0].lessons) },
-              { label: 'demos',   value: String(placeholderCourses[0].demos) },
-              { label: 'project', value: '1' },
-            ]}
-            pct={placeholderCourses[0].authoringPct}
-            pctLabel={`${placeholderCourses[0].authoringPct}%`}
-            footerLeft="Coming soon"
-            cta={{ label: 'In progress', href: '#', disabled: true }}
-            illustration={<ArtAnimations />}
-          />
-
-          <CourseCard
-            variant="sky"
-            title={placeholderCourses[1].title}
-            summary={placeholderCourses[1].summary}
-            stats={[
-              { label: 'lessons', value: String(placeholderCourses[1].lessons) },
-              { label: 'demos',   value: String(placeholderCourses[1].demos) },
-              { label: 'project', value: '1' },
-            ]}
-            pct={placeholderCourses[1].authoringPct}
-            pctLabel={`${placeholderCourses[1].authoringPct}%`}
-            footerLeft="Coming soon"
-            cta={{ label: 'Planned', href: '#', disabled: true }}
-            illustration={<ArtAccessibility />}
-          />
-        </div>
+        <CourseShelf
+          cards={[
+            {
+              slug: aiCourse.slug,
+              category: 'ai' satisfies Category,
+              node: (
+                <CourseCard
+                  variant="peach"
+                  title={aiCourse.title}
+                  summary={aiCourse.summary}
+                  stats={[
+                    { label: 'lessons', value: String(aiLessonCount) },
+                    { label: 'demos',   value: '17' },
+                    { label: 'project', value: '1' },
+                  ]}
+                  pct={100}
+                  pctLabel="Complete"
+                  footerLeft={`${aiLessonCount} lessons · ${aiTotalRead} read`}
+                  cta={{ label: 'Begin reading', href: `/courses/${aiCourse.slug}` }}
+                  illustration={<ArtAIOperator />}
+                />
+              ),
+            },
+            {
+              slug: lcCourse.slug,
+              category: 'ai' satisfies Category,
+              node: (
+                <CourseCard
+                  variant="moss"
+                  title={lcCourse.title}
+                  summary={lcCourse.summary}
+                  stats={[
+                    { label: 'lessons', value: String(lcLessonCount) },
+                    { label: 'parts',   value: String(lcCourse.parts.length) },
+                    { label: 'project', value: '1' },
+                  ]}
+                  pct={100}
+                  pctLabel="Complete"
+                  footerLeft={`${lcLessonCount} lessons · ${lcTotalRead} read`}
+                  cta={{ label: 'Begin reading', href: `/courses/${lcCourse.slug}` }}
+                  illustration={<ArtLangGraph />}
+                />
+              ),
+            },
+            {
+              slug: ceCourse.slug,
+              category: 'ai' satisfies Category,
+              node: (
+                <CourseCard
+                  variant="clay"
+                  title={ceCourse.title}
+                  summary={ceCourse.summary}
+                  stats={[
+                    { label: 'lessons', value: String(ceLessonCount) },
+                    { label: 'parts',   value: String(ceCourse.parts.length) },
+                    { label: 'project', value: '1' },
+                  ]}
+                  pct={100}
+                  pctLabel="Complete"
+                  footerLeft={`${ceLessonCount} lessons · ${ceTotalRead} read`}
+                  cta={{ label: 'Begin reading', href: `/courses/${ceCourse.slug}` }}
+                  illustration={<ArtClaude />}
+                />
+              ),
+            },
+            {
+              slug: dndCourse.slug,
+              category: 'frontend' satisfies Category,
+              node: (
+                <CourseCard
+                  variant="sage"
+                  title={dndCourse.title}
+                  summary={dndCourse.summary}
+                  stats={[
+                    { label: 'lessons', value: String(dndLessonCount) },
+                    { label: 'demos',   value: '13' },
+                    { label: 'project', value: '1' },
+                  ]}
+                  pct={100}
+                  pctLabel="Complete"
+                  footerLeft={`${dndLessonCount} lessons · ${dndTotalRead} read`}
+                  cta={{ label: 'Begin reading', href: `/courses/${dndCourse.slug}` }}
+                  illustration={<ArtDragDrop />}
+                />
+              ),
+            },
+            {
+              slug: 'placeholder-animations',
+              category: 'frontend' satisfies Category,
+              node: (
+                <CourseCard
+                  variant="butter"
+                  title={placeholderCourses[0].title}
+                  summary={placeholderCourses[0].summary}
+                  stats={[
+                    { label: 'lessons', value: String(placeholderCourses[0].lessons) },
+                    { label: 'demos',   value: String(placeholderCourses[0].demos) },
+                    { label: 'project', value: '1' },
+                  ]}
+                  pct={placeholderCourses[0].authoringPct}
+                  pctLabel={`${placeholderCourses[0].authoringPct}%`}
+                  footerLeft="Coming soon"
+                  cta={{ label: 'In progress', href: '#', disabled: true }}
+                  illustration={<ArtAnimations />}
+                />
+              ),
+            },
+            {
+              slug: 'placeholder-accessibility',
+              category: 'frontend' satisfies Category,
+              node: (
+                <CourseCard
+                  variant="sky"
+                  title={placeholderCourses[1].title}
+                  summary={placeholderCourses[1].summary}
+                  stats={[
+                    { label: 'lessons', value: String(placeholderCourses[1].lessons) },
+                    { label: 'demos',   value: String(placeholderCourses[1].demos) },
+                    { label: 'project', value: '1' },
+                  ]}
+                  pct={placeholderCourses[1].authoringPct}
+                  pctLabel={`${placeholderCourses[1].authoringPct}%`}
+                  footerLeft="Coming soon"
+                  cta={{ label: 'Planned', href: '#', disabled: true }}
+                  illustration={<ArtAccessibility />}
+                />
+              ),
+            },
+          ]}
+        />
       </section>
 
       <p className="mt-10 text-sm text-[color:var(--color-text-soft)] font-serif italic">

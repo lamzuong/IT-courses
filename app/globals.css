@@ -634,6 +634,63 @@
 .callout-tip     .callout-title { color: var(--color-pine); }
 .callout-tip     .callout-title::before { background: var(--color-lime); }
 
+/* ───────────────────────── inline term tooltip ───────────────────────── */
+
+.term {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+  outline: none;
+}
+.term-label {
+  border-bottom: 1px dotted var(--color-accent);
+  color: inherit;
+}
+.term:focus-visible .term-label {
+  border-bottom-style: solid;
+  outline: 2px solid var(--color-lime);
+  outline-offset: 2px;
+  border-radius: 1px;
+}
+.term-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: max-content;
+  max-width: 320px;
+  padding: 0.6rem 0.8rem;
+  background: var(--color-ink);
+  color: #f5fbe8;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 50;
+  white-space: normal;
+}
+.term-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--color-ink);
+}
+.term:hover .term-tooltip,
+.term:focus-visible .term-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* ───────────────────────── demo plates ───────────────────────── */
 
 .plate {
@@ -2008,3 +2065,365 @@
   }
   .about-name-underline { transform: scaleX(1); }
 }
+
+/* ── Bookmark ──────────────────────────────────────────────────────────── */
+.lesson-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.lesson-title-row .lesson-title {
+  flex: 1;
+  min-width: 0;
+}
+.bookmark-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-top: 1.5rem;
+  border: 1px solid var(--color-rule);
+  background: var(--color-bg);
+  color: var(--color-text-soft);
+  border-radius: 999px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    color 140ms ease,
+    background 140ms ease,
+    border-color 140ms ease,
+    transform 140ms ease;
+}
+.bookmark-btn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+.bookmark-btn:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+.bookmark-btn.is-saved {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: color-mix(in oklab, var(--color-accent), transparent 92%);
+}
+
+.bookmark-indicator {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.4rem;
+  color: var(--color-accent);
+  vertical-align: -1px;
+}
+
+/* ── Continue card (homepage) ─────────────────────────────────────────── */
+.continue-card {
+  display: block;
+  margin: 0 0 2.5rem;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid var(--color-rule);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--color-accent), transparent 95%);
+  text-decoration: none;
+  color: var(--color-ink);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+.continue-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--color-accent);
+  background: color-mix(in oklab, var(--color-accent), transparent 90%);
+  box-shadow: 0 6px 20px -10px color-mix(in oklab, var(--color-accent), transparent 60%);
+}
+.continue-card:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 3px;
+}
+.continue-card-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.continue-card-title {
+  display: block;
+  margin-top: 0.55rem;
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.continue-card-arrow {
+  display: block;
+  margin-top: 0.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--color-text-soft);
+}
+
+/* ── /bookmarks page ──────────────────────────────────────────────────── */
+.bookmarks-empty {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--color-text-soft);
+  padding: 2.5rem 0;
+  text-align: center;
+}
+.bookmarks-groups {
+  margin-top: 1rem;
+}
+.bookmarks-section-link {
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px solid transparent;
+  transition: border-color 120ms ease;
+}
+.bookmarks-section-link:hover {
+  border-bottom-color: var(--color-text-faint);
+}
+.bookmarks-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: stretch;
+}
+.bookmarks-link {
+  /* Inherits .agenda-link grid */
+}
+.bookmarks-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin: auto 0.25rem auto 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-faint);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease;
+}
+.bookmarks-remove:hover {
+  color: var(--color-ink);
+  background: var(--color-bg-soft);
+  border-color: var(--color-rule);
+}
+.bookmarks-remove:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+
+/* ── Section heading (per-section bookmark) ───────────────────────────── */
+.prose-lesson .section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.6rem;
+  scroll-margin-top: 5rem;
+}
+.prose-lesson .section-heading::before {
+  flex: 0 0 100%;
+}
+.prose-lesson .section-heading .heading-anchor {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.prose-lesson .section-heading .heading-anchor:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--color-rule);
+}
+.prose-lesson .section-heading .bookmark-btn {
+  width: 1.9rem;
+  height: 1.9rem;
+  margin-top: 0;
+  border-color: transparent;
+  background: transparent;
+  opacity: 0;
+  transform: translateY(0);
+  transition:
+    opacity 140ms ease,
+    color 140ms ease,
+    background 140ms ease,
+    border-color 140ms ease;
+}
+.prose-lesson .section-heading .bookmark-btn:hover {
+  background: var(--color-bg-soft);
+  border-color: var(--color-rule);
+  transform: none;
+}
+.prose-lesson .section-heading:hover .bookmark-btn,
+.prose-lesson .section-heading .bookmark-btn:focus-visible,
+.prose-lesson .section-heading .bookmark-btn.is-saved {
+  opacity: 1;
+}
+.prose-lesson .section-heading .bookmark-btn svg {
+  width: 16px;
+  height: 16px;
+}
+@media (max-width: 640px) {
+  .prose-lesson .section-heading .bookmark-btn {
+    opacity: 1;
+  }
+}
+
+/* ── Course shelf sidebar filter ──────────────────────────────────────── */
+.course-shelf {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+@media (min-width: 900px) {
+  .course-shelf {
+    grid-template-columns: 14rem 1fr;
+    gap: 2.25rem;
+    align-items: start;
+  }
+}
+
+.course-shelf-filter {
+  position: sticky;
+  top: 5rem;
+  align-self: start;
+}
+@media (max-width: 899px) {
+  .course-shelf-filter {
+    position: static;
+  }
+}
+
+.course-shelf-filter-heading {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  margin: 0 0 0.85rem;
+}
+.course-shelf-filter-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+@media (max-width: 899px) {
+  .course-shelf-filter-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+.course-shelf-filter-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--color-rule);
+  border-radius: 10px;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
+}
+.course-shelf-filter-btn:hover {
+  border-color: var(--color-text-faint);
+  background: var(--color-bg-soft);
+}
+.course-shelf-filter-btn:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+.course-shelf-filter-btn.is-active {
+  border-color: var(--color-accent);
+  background: color-mix(in oklab, var(--color-accent), transparent 92%);
+}
+.course-shelf-filter-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.course-shelf-filter-label {
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+.course-shelf-filter-count {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  color: var(--color-text-faint);
+}
+.course-shelf-filter-btn.is-active .course-shelf-filter-count {
+  color: var(--color-accent);
+}
+.course-shelf-filter-desc {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.82rem;
+  color: var(--color-text-soft);
+  line-height: 1.4;
+}
+@media (max-width: 899px) {
+  .course-shelf-filter-btn {
+    padding: 0.55rem 0.75rem;
+  }
+  .course-shelf-filter-desc {
+    display: none;
+  }
+}
+
+.course-shelf-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+@media (min-width: 640px) {
+  .course-shelf-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.course-shelf-cell {
+  min-width: 0;
+}
+
+.course-shelf-empty {
+  grid-column: 1 / -1;
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--color-text-soft);
+  padding: 3rem 0;
+  text-align: center;
+}
+

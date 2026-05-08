@@ -1,0 +1,77 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+<Callout type="note" title="In this recap">
+- A mind map of Part II — the five techniques for shaping a model's *output* before you ever give it a tool.
+- The pipeline you actually built: stream → system prompt → in-context examples → schema → typed JSON.
+- A Recap block so the prompt-shaping playbook fits on one screen.
+</Callout>
+
+Part II is where the model goes from a black box on your laptop to something you can shape, ground, and constrain. Five lessons, each adding a knob. Streaming makes it feel alive. System prompts give it a role. Few-shot examples teach it your domain. Feeding data anchors it to your reality. And `withStructuredOutput` ends the era of regex-parsing English. By the end of Part II you can produce reliable, typed output without writing a single tool — which is exactly the floor you need before tools start running.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 480" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map of Part II: a central node 'First conversations' with five branches — streaming, system prompts, prompt engineering, feeding data, and structured output">
+    {/* connectors */}
+    <path d="M 360,200 L 360,90" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,220 Q 510,200 540,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,260 Q 510,290 540,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,260 Q 210,290 180,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,220 Q 210,200 180,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+
+    {/* center */}
+    <rect x="260" y="200" width="200" height="80" rx="14" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="236" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'First conversations'}</text>
+    <text x="360" y="256" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'Part II — shaping output'}</text>
+
+    {/* north — streaming */}
+    <rect x="260" y="30" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Streaming  ·  L04'}</text>
+    <text x="360" y="76" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'tokens flow live · SSE'}</text>
+
+    {/* north-east — system prompts */}
+    <rect x="540" y="110" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="620" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'System prompt  ·  L05'}</text>
+    <text x="620" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'role · tone · hard limits'}</text>
+
+    {/* south-east — prompt engineering */}
+    <rect x="540" y="310" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="620" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Few-shot  ·  L06'}</text>
+    <text x="620" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'examples > instructions'}</text>
+
+    {/* south-west — feeding data */}
+    <rect x="20" y="310" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="100" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Feeding data  ·  L07'}</text>
+    <text x="100" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'SELECT · don\'t paste'}</text>
+
+    {/* north-west — structured output */}
+    <rect x="20" y="110" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="100" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Structured out  ·  L08'}</text>
+    <text x="100" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'Zod schema → typed JSON'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    The five knobs you can turn before tools enter the picture. Each one narrows the model's output a little more.
+  </figcaption>
+</figure>
+
+## How the pieces fit
+
+**Streaming (L04)** is the first time the model feels real-time instead of a 3-second silence. Tokens arrive over SSE, your React UI appends them, the user sees it think. Mechanically simple; experientially decisive.
+
+**System prompts (L05)** is where you stop talking *to* the model and start talking *about* it — its role, its tone, the things it must never do. The system prompt is invisible to the user but stamped on every turn.
+
+**Few-shot examples (L06)** is the lesson that breaks most beginners' assumptions. You think you'll explain in English; the model thinks much better when you show two or three examples of the right output. Examples > instructions, almost always.
+
+**Feeding data (L07)** is where the model leaves vague-paragraph mode. You pull a *small, relevant slice* of your real DB into the prompt — never the whole table. The SELECT-don't-paste rule is what keeps token bills sane and answers grounded.
+
+**Structured output (L08)** is the lesson that makes everything downstream possible. `withStructuredOutput(zSchema)` returns a typed object, not prose. From here on, the model emits values your TypeScript can trust — which is the precondition for tools, for graphs, for anything that needs to *act* on a model's answer.
+
+<Recap>
+- **Stream by default.** The user-experience delta is enormous and the API is one method swap.
+- **System prompts are stamped on every turn.** Use them for role, tone, and *hard* limits. Don't repeat instructions that belong in tool descriptions or schemas.
+- **Show, don't tell.** Two or three concrete examples beat a paragraph of explanation. Few-shot is cheap and disproportionately effective.
+- **Pull a slice, not the table.** Feed only what's relevant to *this* turn. Schema in the system prompt, samples in user messages, never both at full size.
+- **`withStructuredOutput` ends prose-parsing.** A Zod schema produces typed JSON the rest of your code can trust. From here on, English is for users and JSON is for code.
+- **The five techniques compose.** A real call at the end of Part II uses all five at once: stream a structured-output response, anchored to a SELECTed slice, with a system prompt that defines the role, and one example for the harder fields.
+</Recap>
+
+**Up next — Part III: Tools.** The output knobs you just learned now have to stand up to actual side effects. Six lessons on writing tools the model can call: how to expose them, how to scale them, how to guard the dangerous ones.

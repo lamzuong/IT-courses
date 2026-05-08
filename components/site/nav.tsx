@@ -95,6 +95,7 @@ export function SiteNav({ searchIndex }: { searchIndex: SearchRecord[] }) {
             <nav aria-label="Site" className="flex gap-5 text-sm">
               <Link href="/" className="hover:underline">Courses</Link>
               <Link href="/english" className="hover:underline">English</Link>
+              <Link href="/bookmarks" className="hover:underline">Bookmarks</Link>
               <Link href="/about" className="hover:underline opacity-70 hidden sm:inline">About</Link>
             </nav>
           </div>

@@ -10,6 +10,7 @@ import { getEnglishLessonStats } from '@/lib/english-stats';
 import { EnglishTopicSidebar } from '@/components/site/english-topic-sidebar';
 import { Breadcrumb } from '@/components/site/breadcrumb';
 import { ReadingProgress } from '@/components/site/reading-progress';
+import { BookmarkButton } from '@/components/site/bookmark-button';
 
 export async function generateStaticParams() {
   return getAllEnglishTopics()
@@ -81,7 +82,13 @@ export default async function EnglishLessonPage({
                 <span aria-hidden style={{ color: 'color-mix(in oklab, var(--color-accent), transparent 60%)' }}>/</span>
                 {totalNum}
               </p>
-              <h1 className="lesson-title">{ctx.lesson.title}</h1>
+              <div className="lesson-title-row">
+                <h1 className="lesson-title">{ctx.lesson.title}</h1>
+                <BookmarkButton
+                  path={`/english/${ctx.topic.slug}/lessons/${lessonSlug}`}
+                  title={ctx.lesson.title}
+                />
+              </div>
               {ctx.lesson.scene && <p className="lesson-deck">{ctx.lesson.scene}</p>}
 
               <p className="lesson-meta">

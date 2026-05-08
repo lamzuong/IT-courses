@@ -1,0 +1,88 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+
+<Callout type="note" title="In this recap">
+- A mind map of Part III — six lessons on giving the model verbs without giving it the keys.
+- The two halves: read tools (cheap, almost reversible) and write tools (expensive, irreversible).
+- A Recap block covering the tool-design playbook the rest of the course assumes you know.
+</Callout>
+
+Part III is where the model stops being a paragraph generator and starts being a system that does things. That shift is the most consequential moment in the course. A tool is a typed function the model can call; six lessons turn that one sentence into a working catalog. You learn how to define one, how to scale read tools when the data is large, the four design rules that decide whether the model picks the right one, the danger zone where writes need a confirmation gate, idempotency as the default, and finally the typed-error shape that turns failures into self-healing recovery paths.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 480" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map of Part III: a central node 'Tools — AI that does things' with six branches — first tool, read tools at scale, design principles, write danger zone, idempotency, and errors and retries">
+    {/* connectors */}
+    <path d="M 360,200 L 360,90" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,220 Q 500,200 520,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,260 Q 500,290 520,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 360,280 L 360,390" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,260 Q 220,290 200,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,220 Q 220,200 200,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+
+    {/* center */}
+    <rect x="260" y="200" width="200" height="80" rx="14" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="232" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'Tools'}</text>
+    <text x="360" y="252" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'AI that does things'}</text>
+    <text x="360" y="270" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'Part III'}</text>
+
+    {/* north — first tool */}
+    <rect x="260" y="30" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Your first tool  ·  L09'}</text>
+    <text x="360" y="76" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'tool() · Zod · tool_call'}</text>
+
+    {/* north-east — read tools at scale */}
+    <rect x="520" y="110" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="610" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Reads at scale  ·  L10'}</text>
+    <text x="610" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'paginate · filter · aggregate'}</text>
+
+    {/* south-east — design principles */}
+    <rect x="520" y="310" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="610" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Design rules  ·  L11'}</text>
+    <text x="610" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'narrow · idempotent · typed'}</text>
+
+    {/* south — write danger */}
+    <rect x="260" y="390" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="416" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Write danger  ·  L12'}</text>
+    <text x="360" y="436" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'every write needs a gate'}</text>
+
+    {/* south-west — idempotency */}
+    <rect x="20" y="310" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="110" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Idempotency  ·  L13'}</text>
+    <text x="110" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'request keys · dedupe retries'}</text>
+
+    {/* north-west — errors & retries */}
+    <rect x="20" y="110" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="110" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Errors & retries  ·  L14'}</text>
+    <text x="110" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'typed errors as recovery'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Six lessons. The top three are about exposing tools well; the bottom three are about surviving the things that go wrong.
+  </figcaption>
+</figure>
+
+## How the pieces fit
+
+**Your first tool (L09)** introduces the trio that defines a tool: `name`, `description`, and Zod `schema`. The model emits a `tool_call` in JSON, your runtime executes the function, the result goes back as a `ToolMessage`. Two model calls + one tool execution = one turn.
+
+**Reads at scale (L10)** is the playbook for the moment your dev seed graduates to a production DB. Three patterns — pagination (cursor, not offset), filtering (typed object, never raw SQL), aggregation (pre-compute summaries). Each one shrinks the data flowing into context by an order of magnitude.
+
+**Design rules (L11)** is the principles file. Narrow tools beat broad. Idempotent by default. The description IS the prompt. Errors are recovery paths. And the `5–15 sweet spot` for how many tools an agent should hold at once.
+
+**Write danger (L12)** is the moment the safety stance from L01 gets teeth. Every mutating tool — *create*, *update*, *delete*, *charge*, *send* — needs a confirmation gate before it commits. Reads run automatically; writes wait for approval. The gate machinery is built in Part IV with `interrupt()`.
+
+**Idempotency (L13)** is what keeps retries from billing twice. A request key per logical operation, a check-and-insert pattern in the DB. The first call lands; the second call returns the first call's result. The model never has to know it retried.
+
+**Errors & retries (L14)** is the lesson that elevates error messages to first-class prompt material. *What failed. Why. What to do instead.* Three sentences, and most of the time the model fixes its call on the next turn — a self-healing recovery path with no scaffolding.
+
+<Recap>
+- **A tool is `name + description + Zod schema + function`.** The Zod schema is the contract that tells the model what to emit and lets your function trust what it receives.
+- **Reads at scale: paginate, filter, aggregate.** Cursor-based pagination, typed filter objects translated to parameterised queries, and pre-computed summaries instead of raw rows.
+- **Never interpolate model output into SQL.** Parse with Zod, validate, translate. Your function writes the SQL; the model only describes intent.
+- **Narrow tools beat broad ones.** `promotions.create_for_lapsed_customers` is a worse tool from a code-aesthetic standpoint and a much better one for an LLM. The name *is* the use case.
+- **Writes need a confirmation gate.** No mutating tool runs unattended in this course. Even your first write goes through `interrupt()` before commit.
+- **Idempotent by default.** Every write tool takes a `requestKey`; the DB check-and-insert pattern keeps retries safe.
+- **Typed errors are recovery paths.** *What failed. Why. What to do.* Often the model reads your error message and fixes its own call.
+- **5–15 tools is the sweet spot.** Past 30 the model picks near-siblings; past 50 you need scoping, retrieval, or sub-agents.
+</Recap>
+
+**Up next — Part IV: LangGraph & confirmation.** The pieces stop being separate. State, nodes, edges, conditional routing, and `interrupt()` come together into a graph that can pause for a human and resume from where it stopped.

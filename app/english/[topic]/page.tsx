@@ -3,6 +3,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { getAllEnglishTopics, getEnglishTopic, flattenEnglishLessons } from '@/lib/english';
 import { getEnglishTopicStats } from '@/lib/english-stats';
+import { BookmarkIndicator } from '@/components/site/bookmark-indicator';
 
 export async function generateStaticParams() {
   return getAllEnglishTopics()
@@ -68,6 +69,7 @@ export default async function EnglishTopicPage({
                 >
                   <span className="agenda-num">{i + 1}.</span>
                   <span className="agenda-lesson-title">
+                    <BookmarkIndicator path={`/english/${topic.slug}/lessons/${lesson.slug}`} />
                     {lesson.title}
                     {lesson.scene && (
                       <span className="agenda-lesson-summary">{lesson.scene}</span>
