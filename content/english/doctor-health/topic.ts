@@ -8,6 +8,8 @@ export const topic: EnglishTopic = {
     'Đặt lịch khám, mô tả triệu chứng, hiểu chẩn đoán, hiệu thuốc và tình huống khẩn cấp — tiếng Anh y tế cho du lịch và đi làm việc.',
   level: 'B1+',
   variant: 'daily-life',
+  memoryTip:
+    'Mô tả triệu chứng theo **OPQRST**: **O**nset (khi nào bắt đầu), **P**rovokes (gì làm tệ hơn / đỡ hơn), **Q**uality (sharp / dull / throbbing), **R**egion (đau ở đâu, có lan không), **S**everity (1–10), **T**iming (liên tục hay từng cơn). Bác sĩ Anh–Mỹ hỏi đúng theo trật tự này. Không hiểu chẩn đoán? Câu cứu: **"Could you explain that in plain English?"**',
   lessons: [
     {
       slug: '01-booking-an-appointment',

@@ -8,6 +8,8 @@ export const topic: EnglishTopic = {
     'Hỏi đường, hiểu chỉ dẫn, dùng phương tiện công cộng, taxi và ridesharing — di chuyển tự tin trong thành phố nói tiếng Anh.',
   level: 'B1+',
   variant: 'daily-life',
+  memoryTip:
+    'Hỏi đường = **"Excuse me, how do I get to…?"**. Hiểu đường = ghép **4 mảnh**: **hướng** (left/right/straight), **khoảng cách** (two blocks / five minutes), **mốc** (the bank, the corner), **xác nhận** ("You can\'t miss it"). Lạc rồi? Câu cứu: **"I think I\'m turned around — could you point me to…?"**',
   lessons: [
     {
       slug: '01-asking-directions',

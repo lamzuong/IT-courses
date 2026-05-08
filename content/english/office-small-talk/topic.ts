@@ -8,6 +8,8 @@ export const topic: EnglishTopic = {
     'Chào buổi sáng, cuối tuần, mời ăn trưa, "office chat" mà không vượt giới hạn — small talk chuyên dụng cho môi trường công sở phương Tây.',
   level: 'B1+',
   variant: 'work',
+  memoryTip:
+    'Quy tắc **3 an toàn / 3 tránh**. **An toàn**: cuối tuần, đồ ăn, thời tiết & commute. **Tránh**: lương, chính trị, gossip cá nhân. Mỗi sáng dùng 1 mẫu duy nhất **"Morning! How\'s it going?"** — đừng sáng tạo trước cà phê. Thoát khỏi corridor chat trong 60 giây: **"Anyway, I should let you get back to it — catch you later!"**',
   lessons: [
     {
       slug: '01-good-mornings-and-greetings',

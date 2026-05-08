@@ -8,6 +8,8 @@ export const topic: EnglishTopic = {
     'Mở đầu cuộc trò chuyện, giới thiệu bản thân và người khác trong các bối cảnh khác nhau — từ networking trang trọng đến gặp gỡ thân mật, online, và gặp lại sau lâu ngày.',
   level: 'B1+',
   variant: 'daily-life',
+  memoryTip:
+    'Nhớ công thức **3 lớp**: **Hi/Hello/Nice to meet you** → **I\'m [tên] from [bối cảnh]** → **What about you?**. Đổi tone bằng cách rút/giãn câu chứ không đổi từ — formal chỉ thêm "Pleased to meet you" và "How do you do?". Quên tên ai đó? Cụm cứu cánh: **"I\'m sorry, your name has just slipped my mind."**',
   lessons: [
     {
       slug: '01-first-meeting-formal',

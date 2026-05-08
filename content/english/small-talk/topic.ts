@@ -8,6 +8,8 @@ export const topic: EnglishTopic = {
     'Bắt đầu, duy trì và kết thúc cuộc trò chuyện ngắn một cách tự nhiên — từ thang máy, hàng đợi cà phê đến tiệc cocktail và networking event.',
   level: 'B1+',
   variant: 'daily-life',
+  memoryTip:
+    'Quy tắc **kéo bóng → đá lại**: nhận xét 1 câu về môi trường (thời tiết, hàng đợi, sự kiện) rồi hỏi ngược **"How about you?"**. Mọi cuộc small-talk đều xoay quanh khung **observe → ask → exit** — không cần ý tưởng mới. Câu thoát êm: **"It was great chatting — I should go grab a refill."**',
   lessons: [
     {
       slug: '01-opening-moments',

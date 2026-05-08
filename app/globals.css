@@ -1154,6 +1154,39 @@
   outline-offset: 4px;
 }
 
+/* ───────────────────────── memory tip (topic page) ───────────────────────── */
+
+.memory-tip {
+  margin: 1.75rem 0 0;
+  padding: 1.5rem 1.75rem 1.6rem 1.85rem;
+  border-left: 3px solid var(--color-accent);
+  background: color-mix(in oklab, var(--color-accent), transparent 92%);
+  border-radius: 0 6px 6px 0;
+}
+.memory-tip-label {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.memory-tip-body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--color-ink);
+}
+.memory-tip-body strong {
+  font-weight: 600;
+  color: var(--color-ink);
+  background: color-mix(in oklab, var(--color-accent), transparent 80%);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+}
+
 /* ───────────────────────── table of contents (sidebar) ───────────────────────── */
 
 .toc {

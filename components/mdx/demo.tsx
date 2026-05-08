@@ -1,15 +1,22 @@
 'use client';
-import { useState, type ReactNode, isValidElement, cloneElement } from 'react';
+import { useEffect, useState, type ReactNode, isValidElement, cloneElement } from 'react';
 
-let counter = 0;
-function nextFigureNum() {
-  counter = (counter % 99) + 1;
-  return counter;
-}
+// Figure numbers are assigned client-side after hydration so the server's
+// shared module counter (which persists across renders in dev/Fluid Compute)
+// can't disagree with the client's freshly-loaded counter and trip a
+// hydration mismatch. Render path: server emits no number; once mounted,
+// the client claims the next number from this counter.
+let clientCounter = 0;
 
 export function Demo({ title, children }: { title?: string; children: ReactNode }) {
   const [resetKey, setResetKey] = useState(0);
-  const [figureNum] = useState(() => nextFigureNum());
+  const [figureNum, setFigureNum] = useState<number | null>(null);
+
+  useEffect(() => {
+    clientCounter = (clientCounter % 99) + 1;
+    setFigureNum(clientCounter);
+  }, []);
+
   const child =
     isValidElement(children)
       ? cloneElement(children, { key: resetKey } as Record<string, unknown>)
@@ -22,8 +29,14 @@ export function Demo({ title, children }: { title?: string; children: ReactNode 
           <span className="plate-caption-left">
             <span className="plate-tag">Live</span>
             <span className="plate-figure-num">
-              Figure {String(figureNum).padStart(2, '0')}
-              {title ? <> — <em>{title}</em></> : null}
+              {figureNum !== null ? (
+                <>
+                  Figure {String(figureNum).padStart(2, '0')}
+                  {title ? <> — <em>{title}</em></> : null}
+                </>
+              ) : title ? (
+                <em>{title}</em>
+              ) : null}
             </span>
           </span>
           <button

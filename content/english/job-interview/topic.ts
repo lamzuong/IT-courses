@@ -8,6 +8,8 @@ export const topic: EnglishTopic = {
     'Tự giới thiệu, kinh nghiệm, điểm yếu, câu hỏi cho nhà tuyển dụng, lương & bước tiếp theo — tiếng Anh phỏng vấn cho người Việt level B2+.',
   level: 'B2+',
   variant: 'work',
+  memoryTip:
+    'Mọi câu hỏi behavioral đi theo **STAR**: **S**ituation (1 câu) → **T**ask (1 câu) → **A**ction (2–3 câu) → **R**esult (1 câu, có số). 80% thời gian rơi vào **A & R** — luyện kể về hành động cụ thể của **BẠN**, không phải team. "Tell me about yourself" = **3 phần Past–Present–Future** trong 90 giây. Đàm phán lương: **"Based on my research, I was thinking in the range of X to Y."**',
   lessons: [
     {
       slug: '01-self-intro-and-tell-me-about-yourself',

@@ -29,6 +29,15 @@ function formatReadTime(minutes: number): string {
   return `~${h % 1 === 0 ? h : h.toFixed(1)} giờ đọc`;
 }
 
+function renderMemoryTip(tip: string) {
+  return tip.split(/(\*\*[^*]+\*\*)/).map((chunk, i) => {
+    if (chunk.startsWith('**') && chunk.endsWith('**')) {
+      return <strong key={i}>{chunk.slice(2, -2)}</strong>;
+    }
+    return <span key={i}>{chunk}</span>;
+  });
+}
+
 export default async function EnglishTopicPage({
   params,
 }: {
@@ -56,6 +65,13 @@ export default async function EnglishTopicPage({
       </header>
 
       <hr className="agenda-rule" />
+
+      {topic.memoryTip && (
+        <aside className="memory-tip" aria-label="Gợi ý cách ghi nhớ nhanh">
+          <p className="memory-tip-label">Gợi ý cách ghi nhớ nhanh</p>
+          <p className="memory-tip-body">{renderMemoryTip(topic.memoryTip)}</p>
+        </aside>
+      )}
 
       <section aria-label="Topic lessons">
         <ol className="agenda-list">

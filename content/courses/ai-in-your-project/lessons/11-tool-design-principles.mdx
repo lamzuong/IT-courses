@@ -1,6 +1,7 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { Term } from '@/components/mdx/term';
+import { ScopingStrategiesDemo } from '@/components/demos/ai-in-your-project/scoping-strategies-demo';
 
 <Callout type="note" title="In this lesson">
 - Four design rules for tools: narrow > broad, idempotent by default, description-as-prompt, typed errors.
@@ -102,6 +103,16 @@ async function chargeOrder({ orderId, amountCents, requestKey }) {
 
 Same signature plus one `requestKey` argument; the customer is no longer at risk of being double-charged when the model retries.
 
+**Where does `requestKey` come from?**
+
+It is *not* a fresh UUID the model picks each time — that would defeat the whole pattern, since a retry would generate a different key and miss the dedup. Three places it can come from, in rough order of how often you'll use them:
+
+- **The orchestrator (runtime layer above the tool).** A small wrapper sees `(toolName, args, turnId)` and produces a stable key — typically a UUID minted once per logical operation and reused across retries. This is the default; the tool body just receives `requestKey` as an argument.
+- **The tool itself, derived from inputs.** When the args naturally identify the operation (`charge:${orderId}:${amountCents}`), the tool can hash them into a key. Cheap and good enough for most write tools.
+- **The model, via the schema.** The schema declares `requestKey: z.string().uuid()` so the orchestrator can fill it before invocation. The model *sees* the field but doesn't pick its value — the wrapper writes the key into args before the tool runs.
+
+The full pattern, including the `INSERT … ON CONFLICT` race-safe variant, is the subject of lesson 13. For now, every write tool you design should have a `requestKey` slot; treat it as the safety belt that makes retries cost nothing.
+
 ## 03 — The description IS the prompt
 
 The single highest-leverage thing you'll write in your AI codebase is the description string on each tool. It is sent to the model on every turn. It is what the model uses to decide *whether* to call the tool, *when* to call it, and *what arguments* to send. A vague description guarantees a confused model.
@@ -176,6 +187,340 @@ When the system is genuinely big, three escape hatches in order of complexity:
 - **Scope per session.** Bind only the tools relevant to the current task. A *support* agent gets 8 tools; a *billing* agent gets a different 8. Same codebase, different `.bindTools()` call at construction time.
 - **Tool retrieval.** Index tool descriptions in a vector store, retrieve the top 10 per user message, bind those for that turn. Useful past ~50 tools where scoping isn't enough.
 - **Sub-agents.** A router agent delegates to a `BillingAgent` whose internal tools are hidden from the parent. This is the LangGraph pattern in Part IV — each agent stays inside its own 5–15 sweet spot.
+
+**See it on a 50-tool catalog**
+
+Pick a strategy, pick a user prompt, and watch which tools actually get bound for that turn. The bind-all baseline shows what *not* to do.
+
+<Demo title="Three escape hatches on a 50-tool catalog">
+  <ScopingStrategiesDemo />
+</Demo>
+
+A few things worth noticing as you flip between strategies:
+
+- **Bind all 50** sends every tool definition on every turn. The model has to discriminate between near-siblings and the prompt is heavy.
+- **Scope per session** is a one-line change at construction (`.bindTools(billingTools)`). The model sees ten clean choices instead of fifty noisy ones. No new infrastructure.
+- **Tool retrieval** scores every tool against the user prompt and binds the top ten. Note the *adjacent* domain (e.g. support tools when the task is billing) gets moderate scores too — that's the realistic case where retrieval recovers from a slightly off classifier.
+- **Sub-agents** pays a small fixed cost (the router's five delegate tools) but the sub-agent then runs in its own 5–15 sweet spot. Use it when one task can span domains and you still want each domain to be tight.
+
+**How to implement each one**
+
+Working LangChain sketches for every strategy in the demo. The shared starting point is a tool catalog organised by domain.
+
+```ts
+// Shared setup — same for every strategy
+import { ChatAnthropic } from '@langchain/anthropic';
+import { tool } from '@langchain/core/tools';
+
+const billingTools  = [refundsCreate, chargesCreate, /* ... 10 total */];
+const supportTools  = [ticketsCreate, ticketsAssign,  /* ... 10 total */];
+const scheduleTools = [calendarCreate, availabilityCheck, /* ... 10 total */];
+const invTools      = [productsList, stockAdjust,      /* ... 10 total */];
+const reportTools   = [reportDaily, exportsCsv,        /* ... 10 total */];
+const ALL_TOOLS = [...billingTools, ...supportTools, ...scheduleTools, ...invTools, ...reportTools];
+
+const baseModel = new ChatAnthropic({ model: 'claude-sonnet-4', temperature: 0 });
+```
+
+*Bind all 50 — the baseline (don't do this past ~15 tools)*
+
+```ts
+const agent = baseModel.bindTools(ALL_TOOLS);
+
+// Every user message now sends ~3,000 tokens of tool definitions before the
+// prompt even starts. The model has to discriminate between near-siblings
+// (e.g. support.tickets.create vs support.tickets.assign) on every turn.
+await agent.invoke([new HumanMessage(userMessage)]);
+```
+
+*Scope per session — one extra line at construction*
+
+```ts
+const TOOLS_BY_DOMAIN = {
+  billing:  billingTools,
+  support:  supportTools,
+  schedule: scheduleTools,
+  inv:      invTools,
+  report:   reportTools,
+} as const;
+type Domain = keyof typeof TOOLS_BY_DOMAIN;
+
+function agentForSession(session: { domain: Domain }) {
+  return baseModel.bindTools(TOOLS_BY_DOMAIN[session.domain]);
+}
+```
+
+The crucial detail: **`domain` is *not* derived from the user's prompt.** Scope-per-session works precisely because something else — the session itself — already tells you which domain you're in. Four signals, in priority order:
+
+```ts
+// 1. Route / URL — the request hit /admin/billing/...
+function pathToDomain(pathname: string): Domain {
+  if (pathname.startsWith('/admin/billing'))  return 'billing';
+  if (pathname.startsWith('/admin/support'))  return 'support';
+  if (pathname.startsWith('/admin/schedule')) return 'schedule';
+  if (pathname.startsWith('/admin/inventory')) return 'inv';
+  if (pathname.startsWith('/admin/reports'))  return 'report';
+  throw new Error(`No domain mapping for ${pathname}`);
+}
+
+// 2. User role — a "Billing Specialist" never sees support tools, even if they ask
+const ROLE_TO_DOMAIN: Record<UserRole, Domain> = {
+  billing_specialist: 'billing',
+  support_agent:      'support',
+  ops_manager:        'schedule',
+  inventory_clerk:    'inv',
+  analyst:            'report',
+};
+
+// 3. Workspace / tenant config — a finance tenant binds finance tools
+const domainFromTenant = (tenant: Tenant): Domain => tenant.assistantDomain;
+
+// 4. Explicit UI affordance — user picks "What can I help with? [Billing | Support | …]"
+const domainFromPicker = (selected: Domain): Domain => selected;
+```
+
+Putting it together at the request boundary:
+
+```ts
+// app/api/chat/route.ts
+export async function POST(req: NextRequest) {
+  const { messages, tenantId } = await req.json();
+  const user = await getCurrentUser(req);
+
+  // Pick the domain from session signals. Try them in priority order.
+  const domain: Domain =
+    pathToDomain(req.nextUrl.pathname) ??
+    ROLE_TO_DOMAIN[user.role]          ??
+    domainFromTenant(await getTenant(tenantId));
+
+  const agent = agentForSession({ domain });
+  return agent.stream(messages);  // model only ever sees its 10 tools
+}
+```
+
+No classifier call, no embedding lookup, no extra round-trip. The route handler already knows the domain by the time it constructs the agent.
+
+**When scope-per-session is *not* the right strategy.** If the same chat box has to handle anything the user types — billing one minute, scheduling the next, no UI cue between them — then session signals can't tell you the domain. You've left the *scope* zone and entered the *retrieval* (read the prompt) or *sub-agents* (let a router LLM read the prompt) zone, both of which appear below.
+
+**If you really do have to classify the prompt**
+
+Sometimes there is no session signal — a single chat box, anonymous-ish user, no panel context. You can still scope-per-session, but you need a `prompt → domain` classifier in front of the agent factory. Three ways, picked by latency, accuracy, and cost.
+
+*Approach A — keyword heuristic (fastest, brittle)*
+
+Zero round-trips. A regex per domain, vote-counts decide. Good enough as a prototype or fallback.
+
+```ts
+const DOMAIN_KEYWORDS: Record<Domain, RegExp> = {
+  billing:  /\b(refund|charge|invoice|subscription|payment|dispute)\b/i,
+  support:  /\b(ticket|bug|complaint|escalat|csat|customer|issue)\b/i,
+  schedule: /\b(meeting|calendar|availability|book|invite|time off)\b/i,
+  inv:      /\b(product|stock|inventory|supplier|sku|warehouse)\b/i,
+  report:   /\b(report|chart|kpi|export|dashboard|trend)\b/i,
+};
+
+function domainFromPrompt(message: string): Domain | null {
+  const matches = (Object.entries(DOMAIN_KEYWORDS) as [Domain, RegExp][])
+    .map(([d, re]) => [d, (message.match(re) || []).length] as const)
+    .filter(([, n]) => n > 0)
+    .sort(([, a], [, b]) => b - a);
+  return matches[0]?.[0] ?? null;
+}
+
+domainFromPrompt('Refund customer 7041\'s last charge of $48');
+// → 'billing'  (matched: refund, charge)
+```
+
+*Approach B — cheap LLM classifier (one extra round-trip)*
+
+A small fast model classifies the message before the main agent runs. ~50–150 ms, very accurate, easy to test.
+
+```ts
+import { ChatAnthropic } from '@langchain/anthropic';
+import { z } from 'zod';
+
+// Use a cheap fast model — NOT the same model running the agent.
+const classifier = new ChatAnthropic({ model: 'claude-haiku-4-5', temperature: 0 })
+  .withStructuredOutput(
+    z.object({
+      domain: z.enum(['billing', 'support', 'schedule', 'inv', 'report']),
+      confidence: z.number().min(0).max(1),
+    }),
+  );
+
+async function domainFromPromptLLM(message: string): Promise<Domain> {
+  const { domain } = await classifier.invoke([
+    {
+      role: 'system',
+      content: [
+        'Classify the user task into one domain.',
+        'billing  — refunds, charges, invoices, subscriptions, payments, disputes',
+        'support  — tickets, customer issues, escalations, CSAT',
+        'schedule — meetings, calendar, availability, time off',
+        'inv      — products, stock, suppliers, purchase orders',
+        'report   — analytics, dashboards, exports, KPIs',
+      ].join('\n'),
+    },
+    { role: 'user', content: message },
+  ]);
+  return domain;
+}
+
+// Wired into the route handler:
+export async function POST(req: NextRequest) {
+  const { messages } = await req.json();
+  const lastUser = messages.findLast((m) => m.role === 'user').content;
+
+  const domain = await domainFromPromptLLM(lastUser); // ~80ms
+  const agent = agentForSession({ domain });
+  return agent.stream(messages);
+}
+```
+
+Two round-trips per turn (classifier + main agent), but the main agent now sees only its 10 tools — usually a net token saving.
+
+*Approach C — embedding similarity (no LLM call)*
+
+Pre-compute one embedding per domain (a description of what it handles). Embed the user message at request time and pick the closest. ~30–80 ms, no per-turn LLM charge.
+
+```ts
+import { OpenAIEmbeddings } from '@langchain/openai';
+
+const embeddings = new OpenAIEmbeddings({ model: 'text-embedding-3-small' });
+
+const DOMAIN_DESCRIPTIONS: Record<Domain, string> = {
+  billing:  'Refunds, charges, invoices, subscriptions, payment methods, disputes.',
+  support:  'Support tickets, complaints, bug reports, escalations, CSAT.',
+  schedule: 'Meetings, calendar events, availability, time-off requests.',
+  inv:      'Products, stock, suppliers, purchase orders, SKU lookups.',
+  report:   'Analytics reports, dashboards, KPI charts, CSV exports.',
+};
+
+// Pre-computed once at boot.
+const DOMAIN_VECTORS: Promise<Record<Domain, number[]>> = (async () => {
+  const entries = Object.entries(DOMAIN_DESCRIPTIONS) as [Domain, string][];
+  const vectors = await embeddings.embedDocuments(entries.map(([, d]) => d));
+  return Object.fromEntries(entries.map(([d], i) => [d, vectors[i]])) as Record<Domain, number[]>;
+})();
+
+function cosine(a: number[], b: number[]): number {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+async function domainFromPromptEmbedding(message: string): Promise<Domain> {
+  const [vec, vectors] = await Promise.all([embeddings.embedQuery(message), DOMAIN_VECTORS]);
+  const ranked = (Object.entries(vectors) as [Domain, number[]][])
+    .map(([d, v]) => [d, cosine(vec, v)] as const)
+    .sort(([, a], [, b]) => b - a);
+  return ranked[0][0];
+}
+```
+
+**Pick a classifier by latency, accuracy, cost**
+
+| Approach | Latency | Accuracy | Cost | Use when |
+| --- | --- | --- | --- | --- |
+| Keyword heuristic | ~0 ms | Brittle (misses paraphrases) | Free | Prototype, or fallback when other paths fail |
+| Cheap LLM classifier | ~50–150 ms | Very high | $/turn | Production default; you already have an LLM provider |
+| Embedding similarity | ~30–80 ms | High | ≈1/30 of an LLM call | When you also need similarity for tool retrieval — reuse the store |
+
+**The deeper point**
+
+Once you're classifying the prompt to pick a toolset, you've effectively built a tiny *router*. At that point the **sub-agents** strategy below is the same idea written more cleanly: instead of a separate classifier call, the router *is* an LLM agent whose tools are `delegate.<domain>(task)`. One round-trip, one model, the routing logic lives in the system prompt and the delegate descriptions instead of in your TS code.
+
+The migration path most teams walk:
+
+```text
+session signal       →   pure scope-per-session (no prompt classification)
+↓ no session signal
+keyword fallback     →   scope-per-session + regex classifier   (cheap to start)
+↓ keywords miss too often
+cheap LLM classifier →   scope-per-session + LLM classifier     (still classical)
+↓ prompts span domains in one turn
+sub-agents (router)  →   no separate classifier; one LLM picks the delegate
+```
+
+*Tool retrieval — vector index of tool descriptions, top-K per turn*
+
+```ts
+import { MemoryVectorStore } from 'langchain/vectorstores/memory';
+import { OpenAIEmbeddings } from '@langchain/openai';
+import { Document } from '@langchain/core/documents';
+
+// Indexed once at boot. Re-index when tool descriptions change.
+const vectorStore = await MemoryVectorStore.fromDocuments(
+  ALL_TOOLS.map((t) =>
+    new Document({
+      pageContent: `${t.name}: ${t.description}`,
+      metadata: { name: t.name },
+    }),
+  ),
+  new OpenAIEmbeddings({ model: 'text-embedding-3-small' }),
+);
+
+async function agentForMessage(userMessage: string) {
+  const hits = await vectorStore.similaritySearch(userMessage, 10);
+  const names = new Set(hits.map((h) => h.metadata.name as string));
+  const subset = ALL_TOOLS.filter((t) => names.has(t.name));
+  return baseModel.bindTools(subset);
+}
+
+// Per turn:
+const agent = await agentForMessage(latestUserMessage);
+await agent.invoke(messages);
+```
+
+The vector store is the new piece. `MemoryVectorStore` is fine for a few hundred tools; for thousands use Chroma, pgvector, or any production store — the call shape is identical.
+
+*Sub-agents — a router with delegate tools*
+
+```ts
+import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { z } from 'zod';
+
+// Each sub-agent stays in its own 5–15 sweet spot.
+const billingAgent  = createReactAgent({ llm: baseModel, tools: billingTools,  systemPrompt: 'You handle billing only.' });
+const supportAgent  = createReactAgent({ llm: baseModel, tools: supportTools,  systemPrompt: 'You handle support only.' });
+const scheduleAgent = createReactAgent({ llm: baseModel, tools: scheduleTools, systemPrompt: 'You handle scheduling only.' });
+// ... one per domain
+
+// One delegate tool per sub-agent. The router's whole catalog is these five.
+const delegateBilling = tool(
+  async ({ task }) => {
+    const result = await billingAgent.invoke({ messages: [new HumanMessage(task)] });
+    return String(result.messages.at(-1)?.content ?? '');
+  },
+  {
+    name: 'router.delegate.billing',
+    description:
+      'Delegate billing tasks — refunds, charges, invoices, subscriptions, payment methods, disputes — to the billing specialist.',
+    schema: z.object({ task: z.string() }),
+  },
+);
+// ... delegateSupport, delegateSchedule, delegateInv, delegateReport
+
+const router = createReactAgent({
+  llm: baseModel,
+  tools: [delegateBilling, delegateSupport, delegateSchedule, delegateInv, delegateReport],
+  systemPrompt: 'You are a router. Pick the right specialist and forward the task.',
+});
+
+// Top-level call:
+await router.invoke({ messages: [new HumanMessage(userMessage)] });
+```
+
+The delegate's `description` is what the router reads to decide. Spend real time on those five strings — they're the entire UX of the routing layer.
+
+**Pick by total tool count, not by aesthetics**
+
+| Tools | Use |
+| --- | --- |
+| 5–15 | Bind all. Simplest is best. |
+| 15–30 | Scope per session if sessions naturally split by domain. |
+| 30–80 | Tool retrieval. The vector index is one new dep and a small per-turn latency hit. |
+| 80+ or genuine cross-domain tasks | Sub-agents. The router's delegate descriptions become the new UX. |
 
 The deciding question for any tool you're tempted to add: *"would a fresh user prompt ever trigger this, and would the model pick it over its five nearest neighbours from the name and description alone?"* If no, rename, merge, or delete it.
 

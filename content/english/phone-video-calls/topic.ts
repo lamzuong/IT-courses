@@ -8,6 +8,8 @@ export const topic: EnglishTopic = {
     'Mở/kết thúc cuộc gọi, để lại tin nhắn, xử lý kết nối kém, video-call etiquette — kỹ năng audio-only và video-call cho công việc và đời sống.',
   level: 'B1+',
   variant: 'daily-life',
+  memoryTip:
+    'Cuộc gọi có **3 chốt cố định**: **mở** — "Hi, this is X — is now a good time?", **giữa** — "Sorry, you\'re cutting out — could you repeat that?", **đóng** — "Thanks for your time — I\'ll send a quick summary by email." Học 3 chốt là dùng được 80% cuộc gọi. Voicemail nhớ **WHO–WHY–WHEN–NUMBER**: tên, lý do, khi nào tiện, số gọi lại — đọc số chậm 2 lần.',
   lessons: [
     {
       slug: '01-answering-and-opening',

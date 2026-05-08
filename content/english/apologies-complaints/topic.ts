@@ -8,6 +8,8 @@ export const topic: EnglishTopic = {
     'Xin lỗi nhẹ và xin lỗi thật, phàn nàn lịch sự, leo thang đúng mức, giải quyết mâu thuẫn — tiếng Anh để giữ và sửa quan hệ.',
   level: 'B1+',
   variant: 'daily-life',
+  memoryTip:
+    'Phân biệt **2 loại sorry**: **"Sorry"** nhẹ (va người, đến muộn 5 phút) vs **"I owe you an apology"** nặng (làm tổn thương, lỡ deadline). Phàn nàn lịch sự luôn mở bằng **"I think there\'s been a mistake"** — đặt vấn đề, không đặt người. Sửa quan hệ theo công thức **acknowledge → apologise → repair**: nhận → xin lỗi → đề xuất bù đắp.',
   lessons: [
     {
       slug: '01-light-apologies',

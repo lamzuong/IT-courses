@@ -8,6 +8,8 @@ export const topic: EnglishTopic = {
     'Hỏi giá, thử đồ, mặc cả nhẹ nhàng, thanh toán, đổi trả và xử lý phàn nàn — tất cả trong tiếng Anh tự nhiên với phong cách lịch sự phù hợp với cửa hàng phương Tây.',
   level: 'B1+',
   variant: 'daily-life',
+  memoryTip:
+    'Bộ ba cứu cánh: **"Just looking, thanks"** (chặn áp lực mua), **"Do you have this in [size/màu]?"** (hỏi hàng), **"Could I get a refund?"** (đổi trả). Lịch sự = thêm "please" + dùng quá khứ giả định: **"I was wondering if…"**, **"Would it be possible to…?"**. Khi cần leo thang: **"Could I speak with a manager, please?"** — không gắt giọng, chỉ đổi người.',
   lessons: [
     {
       slug: '01-browsing-and-asking',

@@ -8,6 +8,8 @@ export const topic: EnglishTopic = {
     'Đặt bàn, gọi món, hỏi về thực đơn, xử lý vấn đề và thanh toán — tất cả trong tiếng Anh tự nhiên, lịch sự.',
   level: 'B1+',
   variant: 'daily-life',
+  memoryTip:
+    'Hành trình **5 trạm**: **Seat → Order → Eat → Pay → Leave**. Mỗi trạm chỉ cần 1 mẫu lõi: **"Table for two, please"** → **"I\'ll have…"** → **"Could we get…?"** → **"Could I get the check?"** → **"Thanks, have a good one"**. Phàn nàn nhẹ: **"I think there might be a small mix-up with our order."**',
   lessons: [
     {
       slug: '01-getting-seated',

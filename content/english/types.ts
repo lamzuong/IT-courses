@@ -15,6 +15,11 @@ export type EnglishTopic = {
   level: 'B1+' | 'B2+';
   variant: EnglishVariant;
   lessons: EnglishLessonMeta[];
+  /**
+   * Vietnamese mnemonic / framework that lets a learner hold the whole topic
+   * in their head with one re-read. Use **double asterisks** to bold key cues.
+   */
+  memoryTip?: string;
   placeholder?: boolean;
   plannedLessonCount?: number; // shown on placeholder cards when lessons.length === 0
 };

@@ -8,6 +8,8 @@ export const topic: EnglishTopic = {
     'Mở đầu, cập nhật/đề xuất, đồng ý/không đồng ý lịch sự, ngắt lời, chốt action items — tiếng Anh để dẫn dắt và đóng góp trong cuộc họp.',
   level: 'B1+',
   variant: 'work',
+  memoryTip:
+    'Cuộc họp = **4 động từ**: **open → update → discuss → close**. Mỗi động từ có 1 cụm cứu cánh: **"Let\'s get started"** / **"Quick update from my side"** / **"I see it differently, but…"** / **"To wrap up — action items are…"**. Học 4 cụm là dẫn được họp. Update kiểu stand-up: **3 phần** — done / next / blockers, mỗi phần 1 câu.',
   lessons: [
     {
       slug: '01-meeting-openers',

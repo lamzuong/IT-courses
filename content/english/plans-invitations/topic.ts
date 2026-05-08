@@ -8,6 +8,8 @@ export const topic: EnglishTopic = {
     'Đề xuất kế hoạch, mời, nhận lời, từ chối lịch sự, đổi lịch — kỹ năng làm chủ lịch sinh hoạt xã hội bằng tiếng Anh.',
   level: 'B1+',
   variant: 'daily-life',
+  memoryTip:
+    'Thang **4 nấc**: **float** ("What if we…?") → **invite** ("Want to…?" / "Would you like to…?") → **confirm** ("Sounds great") hoặc **decline** ("I\'d love to but…") → **follow-up**. Bí mật giữ relationship nằm ở câu **"I\'d love to, but…"** — học thuộc nguyên cụm. Đổi lịch không gây áy náy: **"Something\'s come up — could we move it to [thời gian khác]?"**',
   lessons: [
     {
       slug: '01-floating-an-idea',

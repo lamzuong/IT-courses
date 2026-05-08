@@ -40,7 +40,53 @@ export const createPromo = tool(
 );
 ```
 
-The `requestKey` is part of the tool's schema, which means the model has to provide it. In practice your orchestrator generates it once per logical operation and passes it through every retry of the same call. The model never sees a fresh UUID for a retry — only for a genuinely new operation.
+The `requestKey` is part of the tool's schema, which means the call site has to provide it. The crucial detail: **the model does not pick the value on its own.** Three patterns for where the key comes from, in rough order of how often you'll reach for them.
+
+### Pattern A — the orchestrator supplies it (default)
+
+A small wrapper around `agent.invoke` (or your LangGraph `tools` node) intercepts every tool call. For each *logical operation* it mints a UUID once, stores it on the in-flight turn, and re-uses the same UUID across every retry the model emits. The tool body just receives `requestKey` as a normal argument.
+
+```ts
+async function withIdempotency(toolName: string, rawArgs: unknown, exec: (args: any) => Promise<unknown>) {
+  const args: any = rawArgs;
+  if (!args.requestKey) {
+    // One key per (turnId + toolName + stableHash(args)). Same args → same key,
+    // even if the model fires the tool three times in the same turn.
+    args.requestKey = sha256(`${currentTurnId()}:${toolName}:${stableStringify(args)}`);
+  }
+  return exec(args);
+}
+```
+
+The model can retry as much as it wants; the wrapper produces the same key for the same args, the dedup table catches duplicates, the user never sees a double-charge. This is the default and what `createPromo` above assumes.
+
+### Pattern B — the tool derives it from inputs
+
+When the args themselves are enough to identify *one* legitimate operation, the tool can build the key in the function body. No wrapper needed.
+
+```ts
+async function chargeOrder({ orderId, amountCents }) {
+  const requestKey = `charge:${orderId}:${amountCents}`;
+  const existing = await db.charges.findUnique({ where: { requestKey } });
+  if (existing) return existing;
+  return await db.charges.create({ data: { orderId, amountCents, requestKey } });
+}
+```
+
+This is fine when there is no realistic case where you want two of the same charge in quick succession. *"Charge order 7041 for $25"* should produce one row no matter how many times the model emits the call.
+
+### Pattern C — the model picks the value (anti-pattern)
+
+```ts
+schema: z.object({
+  // ❌ The model can fabricate a fresh UUID on every retry, defeating dedup.
+  requestKey: z.string().uuid(),
+}),
+```
+
+If the model is the one choosing the UUID and treats every retry as "a new attempt," each retry gets a fresh key, every key misses the dedup, and you write three rows for one user request. Avoid. The schema may *expose* the field (LangChain's `tool()` has no separate channel for non-model args), but the orchestrator must fill it before the tool runs — the model is allowed to see the slot, never to pick the value.
+
+**The rule of thumb.** If a retry should produce *the same row*, the key must be stable across retries. That stability comes from the orchestrator (Pattern A) or the args themselves (Pattern B). Anything that lets the model pick a fresh UUID on retry breaks the pattern.
 
 ## Idempotency at the database level
 
@@ -67,6 +113,7 @@ Generated dedup keys feel less rigorous than orchestrator-supplied ones — they
 <Recap>
 - The model will retry; build your write tools so retries are safe to call.
 - Pass a `requestKey` per logical operation. The first call inserts, retries see the key and return the existing row.
+- The orchestrator (or a derivation of the args) supplies the key — never the model picking a fresh UUID on retry.
 - Push dedup into the database where you can — unique indexes plus `ON CONFLICT DO NOTHING` close the race window.
 - For tools without an obvious orchestrator key, generate one from the args (customer + subject hash + hour bucket).
 - Idempotency is the discipline that makes confirmation gates possible — the gate dedupes pending UI, the dedup key dedupes committed rows. Both layers, every write.

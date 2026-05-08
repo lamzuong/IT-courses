@@ -8,6 +8,8 @@ export const topic: EnglishTopic = {
     'Đặt phòng, check-in, hỏi tiện nghi, xử lý vấn đề trong phòng và check-out — tiếng Anh khách sạn cho công tác và du lịch.',
   level: 'B1+',
   variant: 'daily-life',
+  memoryTip:
+    'Câu mở mọi cửa khách sạn: **"Hi, I have a reservation under [tên]."** Vấn đề trong phòng dùng cấu trúc **"There\'s a problem with the [thing] — could someone take a look?"** — mô tả vấn đề, không quy tội. Yêu cầu thêm: **"Could we get some extra towels, please?"**. Check-out: **"I\'d like to check out — could I get a copy of the bill?"**',
   lessons: [
     {
       slug: '01-booking-and-pre-arrival',

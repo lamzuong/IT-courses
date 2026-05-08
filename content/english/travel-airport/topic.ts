@@ -8,6 +8,8 @@ export const topic: EnglishTopic = {
     'Check-in, an ninh, lên máy bay, hải quan, hành lý thất lạc và delay — tiếng Anh đi máy bay từ khi đến sân bay tới khi nhận hành lý.',
   level: 'B1+',
   variant: 'daily-life',
+  memoryTip:
+    'Sân bay là một **timeline 6 chặng**: **check-in → security → boarding → onboard → arrival → baggage**. Mỗi chặng có một câu hỏi định mệnh — **"Window or aisle?"**, **"Anything to declare?"**, **"Is this seat taken?"** — học theo timeline dễ nhớ hơn theo từ vựng rời. Lỡ chuyến? Câu lõi: **"My connection got cancelled — what are my options?"**',
   lessons: [
     {
       slug: '01-checkin-and-baggage',
