@@ -6,6 +6,7 @@ import { FirstToolDemo } from '@/components/demos/ai-in-your-project/first-tool-
 - Define a tool with `tool()` from `@langchain/core/tools` — name, Zod schema, async function.
 - Bind tools to a model and read the `tool_call` payload it emits.
 - The two-call shape of one tool-using turn (model → tool → model) — the foundation everything in Part III and IV builds on.
+- Why the Zod schema isn't decoration: it's the contract that lets the model emit the right shape *and* lets your function trust what it receives.
 </Callout>
 
 A tool is a typed function the model can call. You define one with three things — a name, a Zod input schema, and a function that runs when the model decides to invoke it. The model never executes your code itself; it emits a structured request that says *"please call `customers.search` with these arguments"*, your runtime executes it, and the result goes back into the conversation as another message. The whole loop runs server-side, and your TypeScript is in charge from start to finish.
@@ -103,10 +104,118 @@ Three fields. The `id` is so you can route the result back to the right call whe
 
 Your runtime takes that array, runs each tool, and pushes a `ToolMessage` onto the conversation for each one with the matching `tool_call_id`. Then you call the model a second time, and it sees the results and continues. Two model invocations, one tool execution, one turn — that's the unit. Everything in this part of the course builds on it.
 
+## 05 — Why Zod (and what you lose without it)
+
+The Zod schema isn't decoration. It does two jobs at once: it tells the *model* what shape to emit, and it tells your *function* what it can trust. Drop the schema and you take both jobs back manually — and the result is messier than people expect on the first try.
+
+**With Zod (what you've been writing)**
+
+```ts
+export const listCustomers = tool(
+  async ({ cursor, limit }) => {
+    // cursor is string | null | undefined; limit is number ≤ 50. Guaranteed.
+    const rows = await db.customers.findMany({ take: limit ?? 25, cursor });
+    return JSON.stringify(rows);
+  },
+  {
+    name: 'customers.list',
+    description: 'List customers, 25 per page. Pass nextCursor to continue.',
+    schema: z.object({
+      cursor: z.string().nullable().optional(),
+      limit: z.number().int().min(1).max(50).optional(),
+    }),
+  },
+);
+```
+
+What the model emits, parsed and validated for you:
+
+```json
+{ "name": "customers.list", "args": { "cursor": "abc123", "limit": 25 } }
+```
+
+If the model tries `limit: 9999`, Zod throws *before* your DB call runs and the error becomes a recovery hint the model reads on the next turn. Your function body sees only valid input.
+
+**Without any schema — `DynamicTool`**
+
+```ts
+import { DynamicTool } from '@langchain/core/tools';
+
+export const listCustomers = new DynamicTool({
+  name: 'customers.list',
+  description: 'List customers, 25 per page. Pass cursor and limit.',
+  func: async (input: string) => {
+    // input is a single raw string — whatever the model put there.
+    // You parse it. You validate it. You apologise to your future self.
+    const parsed = JSON.parse(input); // may throw
+    const cursor = typeof parsed.cursor === 'string' ? parsed.cursor : null;
+    const limit = Number.isInteger(parsed.limit) && parsed.limit <= 50 ? parsed.limit : 25;
+    const rows = await db.customers.findMany({ take: limit, cursor });
+    return JSON.stringify(rows);
+  },
+});
+```
+
+Two consequences. The model has *no schema* to learn from — it guesses the format from the description alone, so one turn you get `'{"cursor":"abc","limit":25}'` and the next turn `'cursor=abc, limit=25'`. And nothing is validated: junk strings hit your DB code unless you write the checks yourself, every field, every time.
+
+**With JSON Schema instead of Zod — `DynamicStructuredTool`**
+
+```ts
+import { DynamicStructuredTool } from '@langchain/core/tools';
+
+export const listCustomers = new DynamicStructuredTool({
+  name: 'customers.list',
+  description: 'List customers, 25 per page.',
+  schema: {
+    type: 'object',
+    properties: {
+      cursor: { type: 'string' },
+      limit: { type: 'integer', maximum: 50 },
+    },
+  },
+  func: async ({ cursor, limit }) => {
+    const rows = await db.customers.findMany({ take: limit ?? 25, cursor });
+    return JSON.stringify(rows);
+  },
+});
+```
+
+You get the typed object back — the LLM provider enforces the JSON Schema on its side — but you lose Zod's TypeScript narrowing and richer constraints (`email()`, `regex()`, `refine()`, custom error messages). The model behaves the same; your code is less safe.
+
+**Side by side**
+
+| Approach | Model emits | Function receives | Validation |
+| --- | --- | --- | --- |
+| Zod schema (`tool()`) | typed JSON args | typed object — `{ cursor, limit }` | runtime + TS types |
+| JSON Schema (`DynamicStructuredTool`) | typed JSON args | typed object | runtime, weaker |
+| No schema (`DynamicTool`) | a single string | `string` you parse yourself | none |
+
+**Concretely: the same prompt, three responses**
+
+User asks *"List the next 25 customers after cursor abc123."*
+
+```ts
+// With Zod — function receives:
+{ cursor: 'abc123', limit: 25 }
+
+// With JSON Schema — function receives:
+{ cursor: 'abc123', limit: 25 }
+
+// Without schema (DynamicTool) — function receives the raw string. On a good run:
+'{"cursor":"abc123","limit":25}'
+// On a bad run, same prompt, next turn:
+'cursor: abc123, limit: 25'
+// Or:
+'List 25 customers after abc123'
+```
+
+That last column is why Zod isn't optional in this course. Every lesson from here forward — pagination cursors, filter objects, idempotency keys, structured tool errors — assumes the inputs your function sees have already been validated. Skip Zod and you spend the rest of Part III writing parsers instead of features.
+
 <Recap>
 - A tool is a typed function: name, Zod schema, and async function. `tool()` from `@langchain/core/tools` is the wrapper.
 - `model.bindTools([...])` exposes a list of tools to a model. The bound model emits `tool_calls` instead of a final answer when it wants to use one.
 - Tool descriptions are sent on every turn — they ARE part of the prompt. Write them carefully.
 - The protocol is small: `{ id, name, args }`. Run the call, return a `ToolMessage` with the matching `tool_call_id`, invoke again.
 - Two model calls + one tool execution = one turn. That's the loop the rest of Part III is built on.
+- Skip Zod and you take both jobs back yourself — `DynamicTool` hands you a raw string that the model formats differently on every turn. Use `tool()` + Zod by default; `DynamicStructuredTool` with JSON Schema only when you can't import Zod.
 </Recap>

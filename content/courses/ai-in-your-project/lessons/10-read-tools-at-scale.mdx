@@ -42,6 +42,127 @@ A few things to notice. The `limit` is bounded — `min(1).max(50)` means even a
 
 Models are good at multi-step reasoning when the protocol is consistent. If half your tools paginate with `cursor` and half with `page`, you'll see the model send `page: 2` to a cursor tool and stop. Pick one shape and apply it everywhere.
 
+### What `cursor` actually does
+
+`cursor` is not a Zod feature — it's a field name we picked for pagination. Zod is only describing its *shape*; the meaning comes from how the tool body uses it.
+
+The Zod part is saying three things about the field:
+
+- `z.string()` — must be a string when present.
+- `.nullable()` — `null` is also allowed (model can explicitly send "no cursor").
+- `.optional()` — the model can omit it on the first call.
+
+Zod doesn't know what a cursor is. The pagination behaviour is what your function does with the value:
+
+```text
+Turn 1 — first page, no cursor yet
+  model emits:   { args: { limit: 25 } }
+  tool returns:  { rows: [...25 customers...], nextCursor: "eyJpZCI6MTAwfQ" }
+
+Turn 2 — model wants more, hands the cursor back
+  model emits:   { args: { cursor: "eyJpZCI6MTAwfQ", limit: 25 } }
+  tool returns:  { rows: [...next 25...], nextCursor: "eyJpZCI6MTI1fQ" }
+
+Turn 3 — last page
+  model emits:   { args: { cursor: "eyJpZCI6MTI1fQ", limit: 25 } }
+  tool returns:  { rows: [...final 12...], nextCursor: null }
+```
+
+The model never *invents* a cursor — it just hands back whatever string the previous response gave it. That is why the tool body branches on presence:
+
+```ts
+cursor: cursor ? { id: parseInt(cursor, 10) } : undefined,
+```
+
+If a cursor is present, start from that ID. If not, start from the beginning. When `nextCursor` comes back as `null`, the model knows there are no more pages.
+
+**Why a cursor and not `page: 2`?**
+
+- **Stable under inserts.** Offset-based pagination (`OFFSET 25`) shifts every row when a new one is inserted between calls — you skip a customer. A cursor points at a specific row's ID, so concurrent inserts don't move the window.
+- **No total-count required.** The DB doesn't have to count all matching rows; it just walks forward from the cursor.
+- **Opaque and encodable.** You can pack multiple sort fields into one base64 string so the model can't fabricate a valid one by guessing the scheme.
+
+**A worked example: the offset-shift bug**
+
+Say there are 50 customers in the DB, ordered by `id`, and the model is paginating 25 per page.
+
+```text
+T₀ — initial state, 50 rows ordered by id
+  ids: [1, 2, 3, ..., 25, 26, 27, ..., 50]
+```
+
+*With `page: 2` (offset-based)*
+
+```ts
+// Tool body — bad
+const rows = await db.customers.findMany({
+  skip: (page - 1) * 25,
+  take: 25,
+  orderBy: { id: 'asc' },
+});
+
+// Turn 1: page = 1
+//   SQL: SELECT ... ORDER BY id ASC LIMIT 25 OFFSET 0
+//   returns ids [1..25]  ✅
+
+// Between turns: a new signup. id 51 inserted, but actually
+// the new row gets id 26 because the schema reuses gaps.
+// (Or imagine the order is by created_at and the new row
+// sorts into the middle — same effect.)
+
+// Turn 2: page = 2
+//   SQL: SELECT ... ORDER BY id ASC LIMIT 25 OFFSET 25
+//   returns ids [27..51]  ❌  id 26 was silently skipped.
+```
+
+*With `cursor` (id-based)*
+
+```ts
+// Tool body — good
+const PAGE_SIZE = 25;
+
+const rows = await db.customers.findMany({
+  take: PAGE_SIZE + 1, // 25 + 1 probe row to detect "more pages"
+  cursor: cursor ? { id: parseInt(cursor, 10) } : undefined,
+  skip: cursor ? 1 : 0, // skip the cursor row itself
+  orderBy: { id: 'asc' },
+});
+
+const hasMore = rows.length > PAGE_SIZE;
+const pageRows = rows.slice(0, PAGE_SIZE);              // drop the probe row
+const nextCursor = hasMore ? String(pageRows[PAGE_SIZE - 1].id) : null;
+
+return JSON.stringify({ rows: pageRows, nextCursor });
+```
+
+The query asks for **26** rows — `PAGE_SIZE + 1`. The tool only **returns 25** to the model. That extra row is a probe: if it came back, there's at least one more page, so we set `nextCursor` to the last id we're sending. If it didn't come back, we've hit the end and `nextCursor` is `null`. Cheaper than a separate `COUNT(*)` query and uses the index we're already walking.
+
+Watching it run on a 50-row table:
+
+```text
+Turn 1: cursor = null
+  DB returns 26 rows (probe came back) → ids [1..26]
+  hasMore  = true
+  pageRows = rows.slice(0, 25) = [1..25]
+  nextCursor = "25"   (last id in pageRows — not 26)
+  Tool returns: { rows: [1..25], nextCursor: "25" }
+
+Between turns: same insert as before, new row sorts as id 26.
+
+Turn 2: cursor = "25"
+  SQL: SELECT ... WHERE id > 25 ORDER BY id ASC LIMIT 26
+  DB returns 26 rows → ids [26..51]   ← id 26 is the inserted row, included naturally
+  hasMore  = true if there were more, false if these are the last
+  pageRows = [26..50]
+  nextCursor = "50" (or null if there were exactly 26 left)
+```
+
+The cursor is *"the last row I handed back"*, not *"the row I haven't shown yet"*. That's why on turn 2 the query is `WHERE id > 25` — start strictly *after* what the caller has already seen.
+
+The offset version skipped the new row because *position 26 in the ordered list moved* between turns. The cursor version anchored on `id > 25` instead of "row #26", so concurrent writes can't shift the window. Same bug also bites you with `created_at DESC` feeds, search results, audit logs — anywhere new rows appear during pagination, which is everywhere.
+
+The role split, in one line: *Zod validates what shape the cursor must be. Your tool function decides what the cursor means.*
+
 ## 02 — Filtering
 
 The second pattern is letting the model say *what* it wants instead of getting everything. The temptation is to expose a tool that takes a SQL string. Don't. The model does not need to learn SQL; it needs an object that describes intent.

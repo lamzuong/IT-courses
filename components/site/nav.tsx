@@ -62,7 +62,7 @@ export function SiteNav({ searchIndex }: { searchIndex: SearchRecord[] }) {
     <>
       <header className={`site-nav ${hidden ? 'site-nav--hidden' : ''}`}>
         <SkipLink />
-        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between gap-4">
+        <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between gap-4">
           <Link href="/" className="font-serif text-lg font-bold tracking-tight whitespace-nowrap">
             IT Courses
           </Link>

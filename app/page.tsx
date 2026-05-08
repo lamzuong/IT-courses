@@ -6,7 +6,6 @@ import type { ReactNode } from 'react';
 
 type CardProps = {
   variant: 'peach' | 'sage' | 'moss' | 'clay' | 'butter' | 'sky';
-  tag: string;
   title: string;
   summary: string;
   stats: { label: string; value: string }[];
@@ -18,13 +17,12 @@ type CardProps = {
 };
 
 function CourseCard({
-  variant, tag, title, summary, stats, pct, pctLabel, footerLeft, cta, illustration,
+  variant, title, summary, stats, pct, pctLabel, footerLeft, cta, illustration,
 }: CardProps) {
   const inner = (
     <article className={`course-card course-card--${variant}`}>
       <div className="course-card-fill">
         <div className="course-card-art" aria-hidden>{illustration}</div>
-        <span className="course-card-tag">{tag}</span>
         <h2 className="course-card-title">{title}</h2>
         <p className="course-card-summary">{summary}</p>
         <ul className="course-card-stats">
@@ -272,7 +270,6 @@ export default async function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           <CourseCard
             variant="peach"
-            tag="Complete"
             title={aiCourse.title}
             summary={aiCourse.summary}
             stats={[
@@ -289,7 +286,6 @@ export default async function Home() {
 
           <CourseCard
             variant="moss"
-            tag="Complete"
             title={lcCourse.title}
             summary={lcCourse.summary}
             stats={[
@@ -306,7 +302,6 @@ export default async function Home() {
 
           <CourseCard
             variant="clay"
-            tag="Complete"
             title={ceCourse.title}
             summary={ceCourse.summary}
             stats={[
@@ -323,7 +318,6 @@ export default async function Home() {
 
           <CourseCard
             variant="sage"
-            tag="Complete"
             title={dndCourse.title}
             summary={dndCourse.summary}
             stats={[
@@ -340,7 +334,6 @@ export default async function Home() {
 
           <CourseCard
             variant="butter"
-            tag={placeholderCourses[0].tag}
             title={placeholderCourses[0].title}
             summary={placeholderCourses[0].summary}
             stats={[
@@ -357,7 +350,6 @@ export default async function Home() {
 
           <CourseCard
             variant="sky"
-            tag={placeholderCourses[1].tag}
             title={placeholderCourses[1].title}
             summary={placeholderCourses[1].summary}
             stats={[

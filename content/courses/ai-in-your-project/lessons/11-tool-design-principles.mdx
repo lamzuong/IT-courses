@@ -3,6 +3,7 @@ import { Recap } from '@/components/mdx/recap';
 
 <Callout type="note" title="In this lesson">
 - Four design rules for tools: narrow > broad, idempotent by default, description-as-prompt, typed errors.
+- How many tools is enough — the 5–15 sweet spot, when 30+ starts to hurt, and three escape hatches (scoping, retrieval, sub-agents) for big systems.
 - Five anti-patterns to refactor before you ship: 12-arg tools, silent writes, free-form returns, recursive tools, implicit global state.
 - Why "could a model that has never seen my code call this correctly using only the name, description, and schema?" is the test you run on every tool.
 </Callout>
@@ -71,7 +72,28 @@ When something goes wrong inside a tool, the model receives the thrown error mes
 
 The shape that works: `<what failed>. <why>. <suggested next step>.` Treat error messages as part of the prompt — because that's what they are.
 
-## 05 — Common mistakes
+## 05 — How many tools is enough?
+
+There is no magic number, but there are clear failure modes at both ends. Too few and the model has to compose primitives it doesn't understand; too many and it confuses sibling tools that sound alike. The bands below are what shows up in practice across small and mid-sized agents:
+
+| Tool count | What you'll see |
+| --- | --- |
+| **5–15** | The sweet spot. The model picks confidently. Descriptions fit in context comfortably. |
+| **15–30** | Still fine if names are tight and tools cluster by domain (`customers.*`, `promotions.*`, `orders.*`). |
+| **30–50** | Starts to hurt. The model picks a near-sibling instead of the right tool, especially when two descriptions overlap. |
+| **50+** | Stop adding. Switch strategy. |
+
+**The unit is *intent*, not *endpoint*.** If your backend has 200 REST routes, you do not expose 200 tools. You expose the 10–20 things a user will actually ask the agent to do. A tool no real prompt ever triggers is just tokens you pay for on every turn — every turn — for the life of the agent.
+
+When the system is genuinely big, three escape hatches in order of complexity:
+
+- **Scope per session.** Bind only the tools relevant to the current task. A *support* agent gets 8 tools; a *billing* agent gets a different 8. Same codebase, different `.bindTools()` call at construction time.
+- **Tool retrieval.** Index tool descriptions in a vector store, retrieve the top 10 per user message, bind those for that turn. Useful past ~50 tools where scoping isn't enough.
+- **Sub-agents.** A router agent delegates to a `BillingAgent` whose internal tools are hidden from the parent. This is the LangGraph pattern in Part IV — each agent stays inside its own 5–15 sweet spot.
+
+The deciding question for any tool you're tempted to add: *"would a fresh user prompt ever trigger this, and would the model pick it over its five nearest neighbours from the name and description alone?"* If no, rename, merge, or delete it.
+
+## 06 — Common mistakes
 
 A short, brutal checklist. If your tool matches any of these, refactor before you ship:
 
@@ -88,5 +110,6 @@ A useful exercise after writing a tool: read it back and ask *"could a model tha
 - Idempotent by default. The model will retry, often invisibly. Build for that.
 - Tool descriptions are part of the prompt. Spend real time on them; cross-reference siblings.
 - Typed errors are recovery paths. *What failed. Why. What to do instead.* Three sentences, big leverage.
+- How many tools? 5–15 is the sweet spot, 30+ starts to hurt, 50+ needs scoping, retrieval, or sub-agents. Count intents, not endpoints.
 - Five anti-patterns to avoid: 12-arg tools, silent writes, free-form returns, recursive tools, implicit global state.
 </Recap>
