@@ -1,0 +1,1251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Deploy IT-Courses to AWS Lightsail — Flat $10/mo Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --green-50:  #f0fdf4;
+    --green-100: #dcfce7;
+    --green-200: #bbf7d0;
+    --green-500: #22c55e;
+    --green-600: #16a34a;
+    --green-700: #15803d;
+    --green-800: #166534;
+    --amber-50:  #fffbeb;
+    --amber-200: #fde68a;
+    --amber-700: #b45309;
+    --rose-50:   #fff1f2;
+    --rose-200:  #fecdd3;
+    --rose-700:  #be123c;
+    --sky-50:    #f0f9ff;
+    --sky-200:   #bae6fd;
+    --sky-700:   #0369a1;
+    --ink:       #0f1f17;
+    --ink-soft:  #475569;
+    --paper:     #fbfaf6;
+    --card:      #ffffff;
+    --line:      #e6e3da;
+    --code-bg:   #0f1f17;
+    --code-fg:   #e2e8f0;
+    --code-comment: #86efac;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 500;
+    line-height: 1.65;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  h1 { font-size: clamp(2rem, 4vw, 2.75rem); line-height: 1.15; }
+  h2 { font-size: 1.625rem; line-height: 1.25; margin: 0 0 1rem; }
+  h3 { font-size: 1.125rem; line-height: 1.35; margin: 1.5rem 0 0.5rem; }
+  p { margin: 0 0 1rem; }
+  a { color: var(--green-700); text-decoration: none; border-bottom: 1px solid var(--green-200); transition: 0.15s; }
+  a:hover { color: var(--green-800); border-bottom-color: var(--green-500); }
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    font-size: 0.9em;
+    background: var(--green-50);
+    color: var(--green-800);
+    padding: 0.1em 0.4em;
+    border-radius: 5px;
+    font-weight: 500;
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 1.1rem 1.25rem;
+    border-radius: 12px;
+    overflow-x: auto;
+    margin: 1rem 0 1.25rem;
+    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 6px 24px -8px rgba(15, 31, 23, 0.25);
+  }
+  pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+  }
+  pre .c { color: var(--code-comment); font-style: italic; }
+  pre .k { color: #fcd34d; }
+  pre .s { color: #fda4af; }
+  pre .p { color: #93c5fd; }
+
+  /* Layout */
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2.5rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 5rem;
+  }
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; gap: 1.5rem; }
+  }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, var(--green-50) 0%, #ffffff 60%, #fdf6e3 100%);
+    border-bottom: 1px solid var(--line);
+    padding: 3.5rem 1.5rem 3rem;
+  }
+  .hero-inner { max-width: 1200px; margin: 0 auto; }
+  .hero .eyebrow {
+    display: inline-block;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--green-700);
+    background: var(--green-100);
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .hero p.lede {
+    font-size: 1.1rem;
+    color: var(--ink-soft);
+    max-width: 640px;
+    margin-top: 0.75rem;
+  }
+  .hero .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+  .hero .meta .pill {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid var(--line);
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    color: var(--ink);
+  }
+  .hero .meta .pill strong { color: var(--green-700); font-weight: 700; margin-right: 0.4rem; }
+
+  /* Sidebar TOC */
+  aside.toc {
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+    font-size: 0.92rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 1.25rem 1rem;
+  }
+  aside.toc h4 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.85rem;
+  }
+  aside.toc ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    counter-reset: toc;
+  }
+  aside.toc li { margin: 0.25rem 0; counter-increment: toc; }
+  aside.toc a {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 8px;
+    border: none;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  aside.toc a::before {
+    content: counter(toc, decimal-leading-zero);
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--green-700);
+    background: var(--green-50);
+    padding: 0.2rem 0.45rem;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  aside.toc a:hover { background: var(--green-50); }
+  @media (max-width: 880px) {
+    aside.toc { position: static; }
+  }
+
+  /* Steps */
+  .step {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 2rem;
+    margin-bottom: 1.75rem;
+    box-shadow: 0 1px 0 rgba(15, 31, 23, 0.02);
+    transition: 0.2s;
+  }
+  .step:hover { box-shadow: 0 1px 0 rgba(15, 31, 23, 0.02), 0 12px 30px -16px rgba(22, 101, 52, 0.18); }
+  .step .step-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .step .num {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--green-500), var(--green-700));
+    color: white;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px -4px rgba(22, 163, 74, 0.5);
+  }
+  .step h2 { flex: 1; padding-top: 0.4rem; }
+
+  /* Substep */
+  .substep {
+    background: var(--green-50);
+    border-left: 3px solid var(--green-500);
+    border-radius: 8px;
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .substep h4 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    color: var(--green-800);
+    margin: 0 0 0.4rem;
+  }
+  .substep p:last-child { margin-bottom: 0; }
+
+  /* Callouts */
+  .callout {
+    border-radius: 12px;
+    padding: 1rem 1.15rem;
+    margin: 1.25rem 0;
+    border: 1px solid;
+    display: flex;
+    gap: 0.8rem;
+    align-items: flex-start;
+  }
+  .callout .ico {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+  }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: 0.5rem; }
+  .callout strong { font-weight: 700; }
+  .callout-tip { background: var(--green-50); border-color: var(--green-200); color: var(--green-800); }
+  .callout-tip .ico { background: var(--green-200); color: var(--green-800); }
+  .callout-warn { background: var(--amber-50); border-color: var(--amber-200); color: var(--amber-700); }
+  .callout-warn .ico { background: var(--amber-200); color: var(--amber-700); }
+  .callout-info { background: var(--sky-50); border-color: var(--sky-200); color: var(--sky-700); }
+  .callout-info .ico { background: var(--sky-200); color: var(--sky-700); }
+  .callout-stop { background: var(--rose-50); border-color: var(--rose-200); color: var(--rose-700); }
+  .callout-stop .ico { background: var(--rose-200); color: var(--rose-700); }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 0.93rem;
+  }
+  th, td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+  }
+  th {
+    background: var(--green-50);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--green-800);
+    letter-spacing: 0.02em;
+  }
+  tr:last-child td { border-bottom: none; }
+
+  /* Checklist */
+  ul.checklist {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+  }
+  ul.checklist li {
+    position: relative;
+    padding-left: 2rem;
+    margin: 0.5rem 0;
+  }
+  ul.checklist li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--green-600);
+    font-weight: 700;
+    background: var(--green-100);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    line-height: 1;
+  }
+
+  /* FAQ */
+  details {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    margin: 0.75rem 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  details[open] { border-color: var(--green-200); background: var(--green-50); }
+  summary {
+    cursor: pointer;
+    padding: 1rem 1.25rem;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    color: var(--ink);
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after {
+    content: "+";
+    font-size: 1.4rem;
+    color: var(--green-600);
+    font-weight: 400;
+    transition: 0.2s;
+  }
+  details[open] summary::after { transform: rotate(45deg); }
+  details > div { padding: 0 1.25rem 1.1rem; }
+  details > div p:last-child { margin-bottom: 0; }
+
+  /* Final card */
+  .final {
+    background: linear-gradient(135deg, var(--green-700), var(--green-500));
+    color: white;
+    border-radius: 18px;
+    padding: 2.25rem;
+    margin-top: 2rem;
+    text-align: center;
+  }
+  .final h2 { color: white; margin-bottom: 0.75rem; }
+  .final p { color: rgba(255,255,255,0.9); margin-bottom: 0; }
+
+  /* Cost card grid */
+  .price-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.85rem;
+    margin: 1rem 0;
+  }
+  .price-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+  }
+  .price-card.featured {
+    background: var(--green-50);
+    border: 2px solid var(--green-500);
+    position: relative;
+  }
+  .price-card.featured::before {
+    content: "Recommended";
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--green-700);
+    color: white;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+  }
+  .price-card .amount {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--green-800);
+    margin-top: 0.5rem;
+  }
+  .price-card .amount span { font-size: 0.8rem; font-weight: 500; color: var(--ink-soft); }
+  .price-card .specs {
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    margin-top: 0.5rem;
+    line-height: 1.4;
+  }
+
+  /* Top nav */
+  .navbar {
+    background: var(--ink);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.9rem;
+  }
+  .navbar-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .navbar a { color: var(--green-200); border: none; }
+  .navbar .badge { background: var(--green-600); color: white; padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-inner">
+    <span><strong>IT-Courses</strong> · AWS Lightsail Deployment</span>
+    <span class="badge">$10/month flat · Beginner</span>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Step-by-step · ~90 min total · Flat-rate billing</span>
+    <h1>Ship your Next.js site to AWS&nbsp;Lightsail</h1>
+    <p class="lede">A flat-fee VPS deployment, end-to-end. You'll create a Lightsail server for $10/month, deploy your Next.js app on it, and wire up the domain you already bought — with auto-renewing HTTPS via Caddy. Predictable bill, no surprises.</p>
+    <div class="meta">
+      <span class="pill"><strong>Stack</strong> Next.js 16 · Node 22 · PM2 · Caddy</span>
+      <span class="pill"><strong>Service</strong> AWS Lightsail Instance</span>
+      <span class="pill"><strong>Billing</strong> $10 / month flat</span>
+      <span class="pill"><strong>Headroom</strong> $5 / month under your $15 cap</span>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <aside class="toc">
+    <h4>On this page</h4>
+    <ol>
+      <li><a href="#why-lightsail">Why Lightsail</a></li>
+      <li><a href="#prep">Prep checklist</a></li>
+      <li><a href="#aws-account">AWS account &amp; billing alarm</a></li>
+      <li><a href="#github">Push project to GitHub</a></li>
+      <li><a href="#create-instance">Create the Lightsail instance</a></li>
+      <li><a href="#static-ip">Free static IP</a></li>
+      <li><a href="#firewall">Open ports 80 &amp; 443</a></li>
+      <li><a href="#ssh">SSH into the server</a></li>
+      <li><a href="#install-runtime">Install Node 22, Git, build tools</a></li>
+      <li><a href="#deploy-app">Clone &amp; build the app</a></li>
+      <li><a href="#pm2">Run with PM2 (auto-restart)</a></li>
+      <li><a href="#caddy">Caddy reverse proxy + HTTPS</a></li>
+      <li><a href="#domain">Point your domain at the IP</a></li>
+      <li><a href="#updates">Deploy updates (the daily flow)</a></li>
+      <li><a href="#snapshots">Snapshots &amp; backups</a></li>
+      <li><a href="#monitor">Monitor &amp; cost summary</a></li>
+      <li><a href="#troubleshoot">Troubleshooting</a></li>
+      <li><a href="#what-next">What to learn next</a></li>
+    </ol>
+  </aside>
+
+  <main>
+
+    <!-- ─────────── 1. WHY ─────────── -->
+    <section id="why-lightsail" class="step">
+      <div class="step-head">
+        <div class="num">1</div>
+        <h2>Why Lightsail (and what's actually flat-rate)</h2>
+      </div>
+      <p>Most AWS services bill per-request. Lightsail is the exception — you pick a plan, you pay that amount on the 1st of every month, full stop. The bill arrives the same shape every time.</p>
+
+      <h3>Lightsail Linux instance plans (Singapore region, 2026 pricing)</h3>
+      <div class="price-grid">
+        <div class="price-card">
+          <div>Nano</div>
+          <div class="amount">$3.50<span>/mo</span></div>
+          <div class="specs">512 MB · 2 vCPU · 20 GB SSD · 1 TB</div>
+        </div>
+        <div class="price-card">
+          <div>Micro</div>
+          <div class="amount">$5<span>/mo</span></div>
+          <div class="specs">1 GB · 2 vCPU · 40 GB SSD · 2 TB</div>
+        </div>
+        <div class="price-card featured">
+          <div>Small</div>
+          <div class="amount">$10<span>/mo</span></div>
+          <div class="specs">2 GB · 2 vCPU · 60 GB SSD · 3 TB</div>
+        </div>
+        <div class="price-card">
+          <div>Medium</div>
+          <div class="amount">$20<span>/mo</span></div>
+          <div class="specs">4 GB · 2 vCPU · 80 GB SSD · 4 TB</div>
+        </div>
+      </div>
+
+      <p><strong>The "Small" plan ($10/mo) is the one to pick</strong> — Next.js builds need ~1.5 GB of RAM, the Micro at 1 GB will swap and time out during <code>next build</code>. The Small leaves comfortable headroom for the app to run plus rebuild at the same time.</p>
+
+      <h3>What's included (no per-request fees)</h3>
+      <ul class="checklist">
+        <li>The instance itself, running 24/7</li>
+        <li>One free static IP (so your IP doesn't change on reboots)</li>
+        <li>3 free DNS hosted zones (you can manage your domain right from Lightsail)</li>
+        <li>3 TB outbound data transfer per month (huge — most small sites use under 50 GB)</li>
+        <li>Built-in firewall and metrics</li>
+      </ul>
+
+      <div class="callout callout-tip">
+        <span class="ico">★</span>
+        <p><strong>You can stop paying any month by deleting the instance.</strong> Unlike a yearly contract, Lightsail is month-to-month. Hourly billing if you delete mid-month means you only pay for what you used.</p>
+      </div>
+    </section>
+
+    <!-- ─────────── 2. PREP ─────────── -->
+    <section id="prep" class="step">
+      <div class="step-head">
+        <div class="num">2</div>
+        <h2>Prep checklist</h2>
+      </div>
+      <p>Before clicking anything in AWS, make sure these are true:</p>
+      <ul class="checklist">
+        <li>Your project builds locally — run <code>npm run build</code> from PowerShell, no errors.</li>
+        <li>You have a <strong>GitHub account</strong> at <a href="https://github.com">github.com</a>.</li>
+        <li><strong>Git is installed</strong> on Windows — <code>git --version</code> in PowerShell should print a version. If not, install from <a href="https://git-scm.com">git-scm.com</a>.</li>
+        <li>You have a <strong>credit/debit card</strong> for AWS sign-up (won't be charged until you create the instance).</li>
+        <li>You have your <strong>domain registrar login</strong> ready (Namecheap, GoDaddy, Hostinger, wherever you bought it).</li>
+        <li>Modern Windows 10/11 — your <strong>SSH client is built-in</strong> (no PuTTY needed). Confirm with <code>ssh -V</code>.</li>
+      </ul>
+    </section>
+
+    <!-- ─────────── 3. AWS ACCOUNT ─────────── -->
+    <section id="aws-account" class="step">
+      <div class="step-head">
+        <div class="num">3</div>
+        <h2>Create AWS account &amp; set the billing alarm</h2>
+      </div>
+
+      <div class="substep">
+        <h4>3.1 — Sign up (skip if done)</h4>
+        <p>Go to <a href="https://aws.amazon.com">aws.amazon.com</a> → <strong>Create an AWS Account</strong>. Email, password, card, phone for SMS, pick the <strong>Basic Support — Free</strong> plan.</p>
+      </div>
+
+      <div class="substep">
+        <h4>3.2 — Turn on MFA on the root account</h4>
+        <p>Top-right account name → <strong>Security credentials</strong> → <strong>Assign MFA device</strong>. Use Google Authenticator, Authy, or 1Password. Do this before anything else.</p>
+      </div>
+
+      <div class="substep">
+        <h4>3.3 — Set a $15 budget alarm (your safety net)</h4>
+        <p>Console → search <strong>Billing and Cost Management</strong> → <strong>Budgets</strong> → <strong>Create budget</strong>:</p>
+        <ul class="checklist">
+          <li>Choose <em>Customize (advanced)</em> → <strong>Cost budget</strong></li>
+          <li>Period: Monthly</li>
+          <li>Budget amount: <strong>$15</strong></li>
+          <li>Alert at 80% threshold ($12) — email yourself</li>
+          <li>Alert at 100% threshold ($15) — email yourself again</li>
+        </ul>
+        <p>Save. AWS now emails you the moment your bill is on track to exceed $15. With Lightsail-only at $10/mo, this should never fire — but the alarm is the proof that it can't.</p>
+      </div>
+    </section>
+
+    <!-- ─────────── 4. GITHUB ─────────── -->
+    <section id="github" class="step">
+      <div class="step-head">
+        <div class="num">4</div>
+        <h2>Push your project to GitHub</h2>
+      </div>
+      <p>You'll <code>git clone</code> from GitHub onto the server. Make sure the project is up there first.</p>
+
+      <h3>4.1 — Create a new GitHub repo</h3>
+      <p>Go to <a href="https://github.com/new">github.com/new</a>. Name it <code>it-courses</code>. Pick <strong>Private</strong> (you'll set up a deploy key later for SSH). Do not check any init options.</p>
+
+      <h3>4.2 — Push from PowerShell</h3>
+<pre><code><span class="c"># From your project folder</span>
+cd C:\Users\ADMIN\Desktop\claude-demo\IT-courses
+
+git status
+git add .
+git commit -m <span class="s">"prepare for Lightsail deploy"</span>
+
+<span class="c"># Paste your repo's URL after `origin`</span>
+git remote add origin https://github.com/YOUR-USERNAME/it-courses.git
+git branch -M main
+git push -u origin main</code></pre>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <p>If GitHub asks you to log in, the modern flow opens a browser window. Approve there. The old "type your password" flow was deprecated in 2021.</p>
+      </div>
+    </section>
+
+    <!-- ─────────── 5. CREATE INSTANCE ─────────── -->
+    <section id="create-instance" class="step">
+      <div class="step-head">
+        <div class="num">5</div>
+        <h2>Create the Lightsail instance</h2>
+      </div>
+
+      <div class="substep">
+        <h4>5.1 — Open Lightsail</h4>
+        <p>Go to <a href="https://lightsail.aws.amazon.com">lightsail.aws.amazon.com</a> (it's a separate console from the main AWS one). Top-right region picker: pick the one closest to your visitors. <strong>Singapore (ap-southeast-1)</strong> for SE Asia, <strong>Mumbai</strong> for South Asia, <strong>N. Virginia</strong> for US/global.</p>
+      </div>
+
+      <div class="substep">
+        <h4>5.2 — Click "Create instance"</h4>
+        <p>Choose:</p>
+        <ul class="checklist">
+          <li><strong>Instance location</strong> — the region you just picked. Pick any availability zone (a, b, or c — doesn't matter for one instance).</li>
+          <li><strong>Platform</strong> — Linux/Unix.</li>
+          <li><strong>Blueprint</strong> — <strong>OS Only</strong> → <strong>Ubuntu 24.04 LTS</strong>. Don't pick the "Node.js" pre-built blueprint — it ships with old Apache config that fights Caddy.</li>
+          <li><strong>Instance plan</strong> — the <strong>$10/month — 2 GB RAM</strong> Linux plan (the "Small" tier you saw earlier).</li>
+          <li><strong>Identify your instance</strong> — name it <code>it-courses-prod</code>.</li>
+        </ul>
+        <p>Click <strong>Create instance</strong>. After ~30 seconds the instance state goes from <em>Pending</em> to <em>Running</em>.</p>
+      </div>
+
+      <div class="callout callout-tip">
+        <span class="ico">★</span>
+        <p><strong>Why Ubuntu 24.04?</strong> It's the latest LTS — supported until 2029. Modern Node.js installers, modern Caddy package, less troubleshooting than older Ubuntu LTS releases.</p>
+      </div>
+    </section>
+
+    <!-- ─────────── 6. STATIC IP ─────────── -->
+    <section id="static-ip" class="step">
+      <div class="step-head">
+        <div class="num">6</div>
+        <h2>Attach a free static IP</h2>
+      </div>
+      <p>Without this, your instance's public IP changes every time you reboot — which means your domain stops working until you update DNS again. The static IP pins the address forever (and it's free as long as it's attached to a running instance).</p>
+
+      <ul class="checklist">
+        <li>Lightsail console → <strong>Networking</strong> tab → <strong>Create static IP</strong></li>
+        <li>Region: same as your instance</li>
+        <li>Attach to: <code>it-courses-prod</code></li>
+        <li>Name it: <code>it-courses-ip</code></li>
+        <li><strong>Create</strong></li>
+      </ul>
+
+      <p>You'll see something like <code>13.250.xxx.xxx</code> — <strong>copy this address, you'll need it for DNS later</strong>. Paste it in a sticky note or wherever you keep these.</p>
+
+      <div class="callout callout-warn">
+        <span class="ico">!</span>
+        <p>If you ever <em>detach</em> a static IP from a running instance, Lightsail starts charging $0.005/hour (~$3.65/mo) for it as an unused IP. Either keep it attached or delete it — never just unlink and leave it floating.</p>
+      </div>
+    </section>
+
+    <!-- ─────────── 7. FIREWALL ─────────── -->
+    <section id="firewall" class="step">
+      <div class="step-head">
+        <div class="num">7</div>
+        <h2>Open ports 80 and 443</h2>
+      </div>
+      <p>By default Lightsail only opens port 22 (SSH). Web traffic uses 80 (HTTP) and 443 (HTTPS), so you need to add those.</p>
+
+      <ul class="checklist">
+        <li>Lightsail console → click your instance → <strong>Networking</strong> tab</li>
+        <li>Scroll to <strong>IPv4 Firewall</strong></li>
+        <li>Click <strong>Add rule</strong> → Application: <strong>HTTP</strong> (port 80) → <strong>Create</strong></li>
+        <li>Click <strong>Add rule</strong> again → Application: <strong>HTTPS</strong> (port 443) → <strong>Create</strong></li>
+      </ul>
+
+      <p>Your firewall now has three rules: SSH (22), HTTP (80), HTTPS (443). That's all you need.</p>
+    </section>
+
+    <!-- ─────────── 8. SSH ─────────── -->
+    <section id="ssh" class="step">
+      <div class="step-head">
+        <div class="num">8</div>
+        <h2>SSH into the server</h2>
+      </div>
+
+      <h3>8.1 — Download the SSH key</h3>
+      <p>Lightsail console → <strong>Account</strong> (top right) → <strong>SSH keys</strong> tab → find the default key for your region → <strong>Download</strong>. You get a file like <code>LightsailDefaultKey-ap-southeast-1.pem</code>.</p>
+      <p>Move it somewhere safe — the standard place on Windows is <code>C:\Users\ADMIN\.ssh\</code> (create the folder if it doesn't exist):</p>
+
+<pre><code><span class="c"># In PowerShell, from your Downloads folder</span>
+mkdir <span class="s">$env:USERPROFILE\.ssh</span> -Force
+Move-Item LightsailDefaultKey-ap-southeast-1.pem <span class="s">$env:USERPROFILE\.ssh\</span>
+
+<span class="c"># Lock down permissions (Windows will refuse to use a key that's too open)</span>
+icacls <span class="s">"$env:USERPROFILE\.ssh\LightsailDefaultKey-ap-southeast-1.pem"</span> /inheritance:r
+icacls <span class="s">"$env:USERPROFILE\.ssh\LightsailDefaultKey-ap-southeast-1.pem"</span> /grant:r <span class="s">"$env:USERNAME:R"</span></code></pre>
+
+      <h3>8.2 — Connect</h3>
+      <p>Replace <code>YOUR.STATIC.IP.HERE</code> with the static IP you copied:</p>
+
+<pre><code>ssh -i <span class="s">"$env:USERPROFILE\.ssh\LightsailDefaultKey-ap-southeast-1.pem"</span> ubuntu@YOUR.STATIC.IP.HERE</code></pre>
+
+      <p>First time you connect, type <code>yes</code> when asked about the host fingerprint. You should land at a prompt like <code>ubuntu@ip-172-26-x-x:~$</code> — that's the server. <strong>You're inside the box now.</strong> Every command from here until step 12 runs there.</p>
+
+      <div class="callout callout-tip">
+        <span class="ico">★</span>
+        <p><strong>The browser-SSH shortcut.</strong> Lightsail console → click your instance → orange <strong>Connect using SSH</strong> button at the top opens an in-browser terminal. No keys, no setup. Use it for one-off commands; use real SSH from PowerShell for actual work because copy-paste is friendlier.</p>
+      </div>
+    </section>
+
+    <!-- ─────────── 9. INSTALL ─────────── -->
+    <section id="install-runtime" class="step">
+      <div class="step-head">
+        <div class="num">9</div>
+        <h2>Install Node 22, Git, &amp; build tools</h2>
+      </div>
+      <p>You're SSH'd into the Ubuntu instance. Run these in order. Lines starting with <code>#</code> are comments you can skip — paste the actual commands.</p>
+
+<pre><code><span class="c"># Update the package index and upgrade</span>
+sudo apt update
+sudo apt upgrade -y
+
+<span class="c"># Install Node.js 22 LTS via NodeSource (official Node packages)</span>
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+
+<span class="c"># Verify (you should see v22.x and a matching npm)</span>
+node --version
+npm --version
+
+<span class="c"># Install git and basic build tools (some npm packages need them)</span>
+sudo apt install -y git build-essential
+
+<span class="c"># Install PM2 globally (process manager — keeps Next.js running)</span>
+sudo npm install -g pm2</code></pre>
+
+      <p>Why Node 22? Next.js 16 + React 19 needs Node 18.18 or newer. Node 22 LTS is supported through April 2027 — install it once and stop thinking about it.</p>
+    </section>
+
+    <!-- ─────────── 10. DEPLOY ─────────── -->
+    <section id="deploy-app" class="step">
+      <div class="step-head">
+        <div class="num">10</div>
+        <h2>Clone &amp; build the app</h2>
+      </div>
+
+      <h3>10.1 — Generate an SSH key for the server-to-GitHub connection</h3>
+      <p>Your repo is private, so the server needs to authenticate with GitHub. Easiest path: deploy keys.</p>
+
+<pre><code><span class="c"># Still on the server. Generate a key pair.</span>
+ssh-keygen -t ed25519 -C <span class="s">"lightsail-it-courses"</span> -f ~/.ssh/github -N <span class="s">""</span>
+
+<span class="c"># Print the public key so you can copy it</span>
+cat ~/.ssh/github.pub</code></pre>
+
+      <p>Copy the entire <code>ssh-ed25519 AAAA…</code> line that prints. Then in your browser:</p>
+      <ul class="checklist">
+        <li>GitHub → your <code>it-courses</code> repo → <strong>Settings</strong> → <strong>Deploy keys</strong> → <strong>Add deploy key</strong></li>
+        <li>Title: <code>lightsail</code> · Key: paste · Allow write access: <strong>NO</strong> (read-only is what we want)</li>
+        <li><strong>Add key</strong></li>
+      </ul>
+
+      <p>Now tell SSH on the server to use this key for GitHub:</p>
+
+<pre><code>cat &gt;&gt; ~/.ssh/config &lt;&lt;'EOF'
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/github
+  IdentitiesOnly yes
+EOF
+chmod 600 ~/.ssh/config
+
+<span class="c"># Test it</span>
+ssh -T git@github.com
+<span class="c"># You should see: "Hi YOUR-USERNAME/it-courses! You've successfully authenticated..."</span></code></pre>
+
+      <h3>10.2 — Clone, install, build</h3>
+
+<pre><code><span class="c"># Clone (use the SSH URL, not HTTPS)</span>
+cd ~
+git clone git@github.com:YOUR-USERNAME/it-courses.git
+cd it-courses
+
+<span class="c"># Install dependencies (ci is faster + reproducible)</span>
+npm ci
+
+<span class="c"># Build the production bundle (this is the longest step, ~2-4 min)</span>
+npm run build
+
+<span class="c"># Quick sanity check — run it manually for 5 seconds</span>
+npm start &amp;
+sleep 5
+curl -s http://localhost:3000 | head -c 200
+<span class="c"># You should see the start of your homepage HTML.</span>
+<span class="c"># Stop the foreground process:</span>
+kill %1</code></pre>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <p>If <code>npm run build</code> fails with "JavaScript heap out of memory," the instance ran out of RAM during the build. Fix on the next line:</p>
+      </div>
+
+      <h3>10.3 — Add swap (only if build OOM'd)</h3>
+<pre><code><span class="c"># Skip if build worked. Otherwise, add 2 GB of swap.</span>
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo <span class="s">'/swapfile none swap sw 0 0'</span> | sudo tee -a /etc/fstab</code></pre>
+      <p>Then re-run <code>npm run build</code>. The swap is "fake RAM" backed by disk — slower but enough to push past the spike during build.</p>
+    </section>
+
+    <!-- ─────────── 11. PM2 ─────────── -->
+    <section id="pm2" class="step">
+      <div class="step-head">
+        <div class="num">11</div>
+        <h2>Run the app under PM2 (auto-restart forever)</h2>
+      </div>
+      <p>If you just <code>npm start</code> and close your SSH session, the app dies. PM2 keeps it running, restarts it on crash, and brings it back automatically when the server reboots.</p>
+
+<pre><code><span class="c"># From the project folder</span>
+cd ~/it-courses
+
+<span class="c"># Start Next.js under PM2, named "it-courses"</span>
+pm2 start npm --name <span class="s">"it-courses"</span> -- start
+
+<span class="c"># See it running</span>
+pm2 status
+
+<span class="c"># Save the current process list so it auto-resurrects on reboot</span>
+pm2 save
+
+<span class="c"># Generate the startup hook (PM2 prints a sudo command — copy and run it)</span>
+pm2 startup
+<span class="c"># Example output: "sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u ubuntu --hp /home/ubuntu"</span>
+<span class="c"># Run that exact command back. PM2 is now wired into systemd.</span></code></pre>
+
+      <p>Verify everything's working:</p>
+<pre><code>curl -s http://localhost:3000 | head -c 100
+<span class="c"># → first 100 chars of your HTML homepage. The app is live on port 3000 inside the box.</span>
+
+pm2 logs it-courses --lines 20
+<span class="c"># → last 20 lines of stdout/stderr. Hit Ctrl+C to exit the log view.</span></code></pre>
+
+      <div class="callout callout-tip">
+        <span class="ico">★</span>
+        <p>PM2 also gives you <code>pm2 monit</code> — a live dashboard inside the terminal showing CPU/memory per process. Useful when troubleshooting.</p>
+      </div>
+    </section>
+
+    <!-- ─────────── 12. CADDY ─────────── -->
+    <section id="caddy" class="step">
+      <div class="step-head">
+        <div class="num">12</div>
+        <h2>Caddy as the public-facing reverse proxy</h2>
+      </div>
+      <p>Right now Next.js listens on <code>localhost:3000</code>, which only the server itself can see. You need something on port 80 / 443 that takes web traffic and forwards it to Next.js. That's a "reverse proxy."</p>
+      <p><strong>Use Caddy, not Nginx.</strong> Caddy automatically issues and renews a free Let's Encrypt SSL certificate for your domain. One config line, no Certbot, no cron jobs, no annual cert renewal anxiety.</p>
+
+      <h3>12.1 — Install Caddy</h3>
+<pre><code><span class="c"># From the official Caddy install script (Ubuntu)</span>
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf <span class="s">'https://dl.cloudsmith.io/public/caddy/stable/gpg.key'</span> \
+  | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf <span class="s">'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt'</span> \
+  | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+
+sudo apt update
+sudo apt install -y caddy
+
+<span class="c"># Verify</span>
+caddy version</code></pre>
+
+      <h3>12.2 — Write the Caddyfile</h3>
+      <p>Replace <code>yourname.com</code> with your actual domain in the lines below.</p>
+
+<pre><code>sudo nano /etc/caddy/Caddyfile</code></pre>
+
+      <p>Wipe the default content and replace with exactly this (use Ctrl+K repeatedly in nano to clear lines, then paste):</p>
+
+<pre><code>yourname.com, www.yourname.com {
+  reverse_proxy localhost:3000
+
+  encode gzip zstd
+
+  header {
+    Strict-Transport-Security <span class="s">"max-age=31536000; includeSubDomains"</span>
+    X-Frame-Options DENY
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+  }
+}</code></pre>
+
+      <p>Save: <strong>Ctrl+O</strong>, <strong>Enter</strong>, then <strong>Ctrl+X</strong> to exit nano.</p>
+
+      <h3>12.3 — Reload Caddy</h3>
+<pre><code><span class="c"># Validate the file first (catches typos before Caddy crashes)</span>
+sudo caddy validate --config /etc/caddy/Caddyfile
+
+<span class="c"># Apply</span>
+sudo systemctl reload caddy
+
+<span class="c"># Make sure it's running</span>
+sudo systemctl status caddy
+<span class="c"># Look for: "active (running)" in green. Press q to exit.</span></code></pre>
+
+      <p>Caddy is now waiting on ports 80 and 443. The moment your domain points here, it'll auto-fetch a Let's Encrypt cert. (We do that in the next step.)</p>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <p>Caddy stores its acquired certificates in <code>/var/lib/caddy/.local/share/caddy/certificates/</code>. They auto-renew 30 days before expiry, every 60 days. You'll never touch them.</p>
+      </div>
+    </section>
+
+    <!-- ─────────── 13. DOMAIN ─────────── -->
+    <section id="domain" class="step">
+      <div class="step-head">
+        <div class="num">13</div>
+        <h2>Point your domain at the static IP</h2>
+      </div>
+      <p>Open a new tab, log in to wherever you bought the domain (Namecheap, GoDaddy, Hostinger, etc.). Find the <strong>DNS</strong> or <strong>Advanced DNS</strong> section and add these two records:</p>
+
+      <table>
+        <thead><tr><th>Type</th><th>Name / Host</th><th>Value</th><th>TTL</th></tr></thead>
+        <tbody>
+          <tr><td>A</td><td><code>@</code> (or empty / <code>yourname.com</code>)</td><td><code>YOUR.STATIC.IP.HERE</code></td><td>5 min (300s)</td></tr>
+          <tr><td>A</td><td><code>www</code></td><td><code>YOUR.STATIC.IP.HERE</code></td><td>5 min (300s)</td></tr>
+        </tbody>
+      </table>
+
+      <p>Two records, same IP, both type A. The <code>@</code> covers <code>yourname.com</code>; the <code>www</code> covers <code>www.yourname.com</code>. Both will redirect-and-render through Caddy.</p>
+
+      <h3>13.1 — Wait for propagation</h3>
+      <p>Back in PowerShell on your Windows machine, check periodically:</p>
+
+<pre><code>nslookup yourname.com
+nslookup www.yourname.com</code></pre>
+
+      <p>You're waiting for both to resolve to your static IP. Usually under 10 minutes; sometimes up to 30 minutes; almost never the full 48 hours people warn about.</p>
+
+      <h3>13.2 — Watch Caddy fetch the cert</h3>
+      <p>The moment DNS resolves, Caddy notices and contacts Let's Encrypt. Watch it happen:</p>
+
+<pre><code><span class="c"># On the server</span>
+sudo journalctl -u caddy -f
+<span class="c"># Press Ctrl+C to exit when you see "certificate obtained successfully" lines.</span></code></pre>
+
+      <p>Now visit <code>https://yourname.com</code> in your browser. Padlock in the address bar. Page loads. <strong>You shipped.</strong></p>
+
+      <div class="callout callout-warn">
+        <span class="ico">!</span>
+        <p>If you see <em>"Caddy can't reach Let's Encrypt"</em> in the logs, port 80 isn't open. Re-check step 7 — both 80 and 443 must be in the firewall.</p>
+      </div>
+    </section>
+
+    <!-- ─────────── 14. UPDATES ─────────── -->
+    <section id="updates" class="step">
+      <div class="step-head">
+        <div class="num">14</div>
+        <h2>Deploy updates — the daily flow</h2>
+      </div>
+      <p>You make changes locally, push to GitHub, then SSH in and pull-build-reload. Here's the full update flow:</p>
+
+      <h3>On your Windows machine</h3>
+<pre><code>cd C:\Users\ADMIN\Desktop\claude-demo\IT-courses
+
+<span class="c"># Make changes, test with: npm run dev</span>
+
+git add .
+git commit -m <span class="s">"fix typo in lesson 11"</span>
+git push</code></pre>
+
+      <h3>On the server (SSH in, then)</h3>
+<pre><code>cd ~/it-courses
+git pull
+npm ci
+npm run build
+pm2 reload it-courses
+
+<span class="c"># 5-second verification</span>
+curl -s -o /dev/null -w <span class="s">"%{http_code}\n"</span> https://yourname.com
+<span class="c"># Should print 200</span></code></pre>
+
+      <h3>Make it one command — write a deploy script</h3>
+      <p>Save yourself five steps. On the server:</p>
+
+<pre><code>nano ~/deploy.sh</code></pre>
+
+      <p>Paste this:</p>
+<pre><code><span class="c">#!/usr/bin/env bash</span>
+set -e
+cd ~/it-courses
+echo <span class="s">"Pulling..."</span>     &amp;&amp; git pull
+echo <span class="s">"Installing..."</span>  &amp;&amp; npm ci
+echo <span class="s">"Building..."</span>    &amp;&amp; npm run build
+echo <span class="s">"Reloading..."</span>   &amp;&amp; pm2 reload it-courses
+echo <span class="s">"Done."</span></code></pre>
+
+      <p>Save (Ctrl+O, Enter, Ctrl+X). Make it executable:</p>
+
+<pre><code>chmod +x ~/deploy.sh</code></pre>
+
+      <p>Now from any future SSH session, your full deploy is just:</p>
+
+<pre><code>~/deploy.sh</code></pre>
+
+      <div class="callout callout-tip">
+        <span class="ico">★</span>
+        <p><strong>Want fully-auto deploys on every push?</strong> Set up a GitHub Actions workflow that SSHs into your Lightsail box and runs <code>~/deploy.sh</code>. There's a popular action — <code>appleboy/ssh-action</code> — that does this in 15 lines of YAML. Worth doing once you're comfortable with the manual flow.</p>
+      </div>
+    </section>
+
+    <!-- ─────────── 15. SNAPSHOTS ─────────── -->
+    <section id="snapshots" class="step">
+      <div class="step-head">
+        <div class="num">15</div>
+        <h2>Snapshots &amp; backups (recommended)</h2>
+      </div>
+      <p>A snapshot is a full image of your instance — disk + config — saved into Lightsail's storage. If you ever break something badly (bad <code>sudo</code>, deleted the wrong folder, ransomware), you restore from the most recent snapshot in 5 minutes and your site is back.</p>
+
+      <h3>Manual snapshot</h3>
+      <p>Lightsail console → your instance → <strong>Snapshots</strong> tab → <strong>Create snapshot</strong>. Takes ~2 minutes. Storage is $0.05/GB/mo. A 60 GB Small instance using ~20 GB → ~$1/month per snapshot kept.</p>
+
+      <h3>Automatic daily snapshots</h3>
+      <p>Same tab → <strong>Enable automatic snapshots</strong> → pick a time (early morning when traffic is low). Lightsail keeps the last 7 daily snapshots automatically.</p>
+
+      <p><strong>Cost calculation:</strong> 7 daily snapshots × ~$1/each = ~$7/month. Combined with your $10 instance, that's $17/month — over your $15 budget.</p>
+
+      <p>Three ways to fit under the cap:</p>
+      <ul class="checklist">
+        <li><strong>Manual weekly snapshot only</strong> — keep one snapshot, delete the older one when you make a new one. ~$1/mo total. <strong>Good enough for a portfolio site.</strong></li>
+        <li><strong>Automatic snapshots, retention reduced to 3 days</strong> — ~$3/mo. Still under your budget at $13/mo total.</li>
+        <li><strong>Skip snapshots entirely</strong> — your code is in GitHub, your config files are in this guide. You can rebuild from scratch in 90 minutes if disaster strikes. $0/mo extra.</li>
+      </ul>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <p><strong>Recommended starter posture:</strong> manual weekly snapshot before any risky change. Take one right now (after your first successful deploy) so you have a clean baseline to roll back to.</p>
+      </div>
+    </section>
+
+    <!-- ─────────── 16. MONITOR ─────────── -->
+    <section id="monitor" class="step">
+      <div class="step-head">
+        <div class="num">16</div>
+        <h2>Monitor &amp; cost summary</h2>
+      </div>
+
+      <h3>Final cost breakdown</h3>
+      <table>
+        <thead><tr><th>Item</th><th>What it covers</th><th>Monthly</th></tr></thead>
+        <tbody>
+          <tr><td>Lightsail Instance "Small"</td><td>2 GB RAM, 60 GB SSD, 3 TB transfer, running 24/7</td><td><strong>$10.00</strong></td></tr>
+          <tr><td>Static IP (attached)</td><td>Permanent IP for DNS</td><td>Free</td></tr>
+          <tr><td>Outbound data transfer</td><td>3 TB included; portfolio sites use under 50 GB</td><td>Free (well under)</td></tr>
+          <tr><td>SSL certificate (Let's Encrypt)</td><td>Auto-renewed by Caddy</td><td>Free</td></tr>
+          <tr><td>DNS at your registrar</td><td>You bought the domain — uses their DNS</td><td>$0 (bundled with domain)</td></tr>
+          <tr><td>Manual weekly snapshot</td><td>One ~20 GB snapshot kept at a time</td><td>~$1.00</td></tr>
+          <tr><td><strong>Total committed monthly</strong></td><td></td><td><strong>~$11.00 / mo flat</strong></td></tr>
+          <tr><td><strong>Your $15 budget</strong></td><td>Headroom for the unexpected</td><td><strong>$4 / mo</strong></td></tr>
+        </tbody>
+      </table>
+
+      <h3>Server health checks (occasional)</h3>
+<pre><code><span class="c"># Memory and CPU</span>
+htop
+<span class="c"># Press F10 to exit</span>
+
+<span class="c"># Disk space</span>
+df -h
+<span class="c"># Watch the / partition — alarms when over 80% full</span>
+
+<span class="c"># Process status</span>
+pm2 status
+
+<span class="c"># Recent app logs</span>
+pm2 logs it-courses --lines 50
+
+<span class="c"># Caddy logs (HTTPS issues)</span>
+sudo journalctl -u caddy -n 100 --no-pager</code></pre>
+
+      <h3>Lightsail's built-in metrics</h3>
+      <p>Lightsail console → your instance → <strong>Metrics</strong> tab. Shows CPU utilization, network in/out, status checks for the last 2 weeks. Free, no setup.</p>
+    </section>
+
+    <!-- ─────────── 17. TROUBLESHOOT ─────────── -->
+    <section id="troubleshoot" class="step">
+      <div class="step-head">
+        <div class="num">17</div>
+        <h2>Troubleshooting — things that bite beginners</h2>
+      </div>
+
+      <details>
+        <summary><code>npm run build</code> dies with "JavaScript heap out of memory"</summary>
+        <div>
+          <p>The build briefly needs more than 2 GB of RAM. You have two fixes:</p>
+          <ol>
+            <li>Add 2 GB of swap (step 10.3 in this guide). Free; works fine for occasional builds.</li>
+            <li>Bump <code>NODE_OPTIONS</code> for the build only:</li>
+          </ol>
+<pre><code>NODE_OPTIONS=<span class="s">"--max-old-space-size=4096"</span> npm run build</code></pre>
+          <p>Add this to <code>~/deploy.sh</code> if it happens regularly.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>I can't SSH — "Permission denied (publickey)"</summary>
+        <div>
+          <p>Three things to verify:</p>
+          <ul class="checklist">
+            <li>The key file path in <code>ssh -i</code> is correct and the file actually exists.</li>
+            <li>The username is <code>ubuntu</code> (not <code>root</code> or <code>ec2-user</code> — those are other Linux distros).</li>
+            <li>The key file's permissions on Windows aren't too open. The <code>icacls</code> commands in step 8.1 fix this.</li>
+          </ul>
+          <p>Still stuck? Use Lightsail console's browser SSH (orange button on the instance page) to get in, then debug from there.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Caddy logs say "no certificate available" or "tls: handshake failure"</summary>
+        <div>
+          <p>Three checks, in order:</p>
+          <ol>
+            <li><code>nslookup yourname.com</code> from your Windows machine — does it return your static IP? If not, DNS hasn't propagated. Wait.</li>
+            <li>Lightsail firewall — both port 80 AND port 443 must be open. (Caddy needs port 80 to complete the Let's Encrypt challenge.)</li>
+            <li>Caddyfile typo — run <code>sudo caddy validate --config /etc/caddy/Caddyfile</code>. Fix anything it complains about, then <code>sudo systemctl reload caddy</code>.</li>
+          </ol>
+        </div>
+      </details>
+
+      <details>
+        <summary>Site loads on the IP but not on the domain (or vice versa)</summary>
+        <div>
+          <p>If <code>http://YOUR.STATIC.IP.HERE</code> works but <code>https://yourname.com</code> doesn't: DNS isn't pointing at the IP yet. Wait for propagation, then <code>sudo systemctl reload caddy</code> to retry the cert.</p>
+          <p>If the domain works but the IP doesn't: that's expected and correct. Caddy now redirects all non-domain traffic, which is good security hygiene — leave it.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>PM2 says it's running but the site shows "Bad Gateway"</summary>
+        <div>
+          <p>Caddy can't reach Next.js on localhost:3000. Check:</p>
+<pre><code>pm2 logs it-courses --lines 50
+<span class="c"># If the app crashed at startup, the error is here.</span>
+
+curl -v http://localhost:3000
+<span class="c"># Should print HTML. If "connection refused", Next.js isn't actually listening.</span>
+
+ss -tlnp | grep 3000
+<span class="c"># Confirms a process owns port 3000.</span></code></pre>
+          <p>Most common: <code>npm run build</code> wasn't run (or failed) before <code>pm2 start</code>. PM2 ran <code>npm start</code>, which crashed because there's no <code>.next</code> directory. Build first, then PM2.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>The instance got slow and unresponsive</summary>
+        <div>
+          <p>Almost always one of:</p>
+          <ul class="checklist">
+            <li><strong>Out of disk</strong> — <code>df -h</code> shows / at 100%. Usually <code>node_modules</code> from old build attempts. <code>npm cache clean --force</code> and <code>rm -rf ~/it-courses/.next</code> then re-build.</li>
+            <li><strong>Out of memory</strong> — <code>free -h</code> shows everything in swap. Stop PM2, build, restart PM2: <code>pm2 stop all &amp;&amp; npm run build &amp;&amp; pm2 start all</code>.</li>
+            <li><strong>Runaway log</strong> — <code>du -sh ~/.pm2/logs/*</code>. If any log is over 100 MB, truncate: <code>pm2 flush</code>.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details>
+        <summary>I want to roll back a bad deploy</summary>
+        <div>
+          <p>Two paths, depending on what broke:</p>
+          <ol>
+            <li><strong>Bad code commit</strong> — on the server: <code>cd ~/it-courses &amp;&amp; git log --oneline -10</code> shows recent commits. Revert with <code>git reset --hard PREVIOUS_HASH</code> then re-run <code>~/deploy.sh</code>.</li>
+            <li><strong>Bad system change</strong> (broken Caddyfile, package install gone wrong) — Lightsail console → <strong>Snapshots</strong> tab → <strong>Restore</strong> the most recent good snapshot. Creates a new instance from that point. Detach the static IP from the broken one, attach to the new one, done.</li>
+          </ol>
+        </div>
+      </details>
+
+      <details>
+        <summary>I'm getting a higher Lightsail bill than expected</summary>
+        <div>
+          <p>Lightsail bills are flat per plan. If yours is higher than $10/mo, the extras come from:</p>
+          <ul class="checklist">
+            <li><strong>Snapshots</strong> — every kept snapshot is ~$0.05/GB/mo. Delete old ones from the Snapshots tab.</li>
+            <li><strong>Detached static IPs</strong> — anything not attached to a running instance is ~$3.65/mo. Lightsail console → Networking → check for orphans, delete them.</li>
+            <li><strong>Data transfer overage</strong> — only matters if you exceed 3 TB/month. A small site is nowhere near. Verify on the Metrics tab.</li>
+            <li><strong>An accidentally created second instance</strong> — yes, this happens. Lightsail console homepage → check the Instances list.</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+
+    <!-- ─────────── 18. NEXT ─────────── -->
+    <section id="what-next" class="step">
+      <div class="step-head">
+        <div class="num">18</div>
+        <h2>What to learn next</h2>
+      </div>
+      <p>You've done the hardest deployment a beginner does. From here, in order of "next worth learning":</p>
+
+      <ul class="checklist">
+        <li><strong>GitHub Actions auto-deploy</strong> — push to <code>main</code>, GitHub SSHs into your box and runs <code>~/deploy.sh</code>. 15 lines of YAML. Removes the manual SSH step.</li>
+        <li><strong>fail2ban</strong> — auto-bans IPs that hammer your SSH port with bad credentials. <code>sudo apt install fail2ban</code>, default config is fine.</li>
+        <li><strong>UFW firewall as a second layer</strong> — Lightsail's firewall blocks at the network edge; UFW blocks at the OS level. Belt-and-braces.</li>
+        <li><strong>A real database</strong> — when your site needs persistence, Lightsail also has managed databases at flat rates ($15/mo for the smallest Postgres or MySQL). Or run SQLite right on the instance for free.</li>
+        <li><strong>Lightsail Distribution (CDN)</strong> — $2.50/mo for 50 GB of cached delivery. Speeds up image-heavy sites globally. Add later if you have international traffic.</li>
+        <li><strong>Multiple sites on one instance</strong> — your $10 box can host 3–5 small Next.js sites. Each gets its own folder, port, PM2 process, and Caddy block. Same hardware, no extra cost.</li>
+      </ul>
+    </section>
+
+    <div class="final">
+      <h2>You shipped.</h2>
+      <p>Next.js is running on a box you control, behind your own domain, with auto-renewing HTTPS. The bill is $10–11/month, every month, with no surprise spikes. That's the whole job — you can leave it alone for a year and it'll keep working.</p>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>

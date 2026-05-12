@@ -17,17 +17,17 @@ You won't change the agent node. You won't change the model. You'll split one no
 Pick any tool you've built and ask: *if the model called this twenty times in a row by mistake, would the cleanup take five minutes or five hours?* If five minutes (it's a search), it's a read tool. If five hours (it's a refund), it's a write tool. There's no middle. Categorise every tool in your registry that way.
 
 ```ts
-const READ_TOOLS = ['customers.search', 'orders.totals', 'products.list'] as const;
-const WRITE_TOOLS = ['promotions.create', 'emails.draft_bulk', 'customers.tag_bulk'] as const;
+const READ_TOOLS = ['customers.search', 'orders.totals', 'products.list'] as const; // → readonly tuple of read tool names
+const WRITE_TOOLS = ['promotions.create', 'emails.draft_bulk', 'customers.tag_bulk'] as const; // → readonly tuple of write tool names
 
-type ReadName = (typeof READ_TOOLS)[number];
-type WriteName = (typeof WRITE_TOOLS)[number];
+type ReadName = (typeof READ_TOOLS)[number];      // → 'customers.search' | 'orders.totals' | 'products.list'
+type WriteName = (typeof WRITE_TOOLS)[number];    // → 'promotions.create' | 'emails.draft_bulk' | 'customers.tag_bulk'
 
 function isReadTool(name: string): name is ReadName {
-  return (READ_TOOLS as readonly string[]).includes(name);
+  return (READ_TOOLS as readonly string[]).includes(name); // → true if name is in READ_TOOLS
 }
 function isWriteTool(name: string): name is WriteName {
-  return (WRITE_TOOLS as readonly string[]).includes(name);
+  return (WRITE_TOOLS as readonly string[]).includes(name); // → true if name is in WRITE_TOOLS
 }
 ```
 
@@ -38,22 +38,22 @@ Now your tools registry has two halves, and the graph can have two nodes: `read_
 In LangGraph, an `addConditionalEdges` call is a router: a function that looks at state and returns the name of the next node. The agent node already produces an `AIMessage` with optional `tool_calls`; the router's job is to classify those calls and pick a destination.
 
 ```ts
-import { StateGraph, END } from '@langchain/langgraph';
+import { StateGraph, END } from '@langchain/langgraph'; // → builder + END sentinel
 
 graph
-  .addNode('agent', agentNode)
-  .addNode('read_tools', readToolsNode)
-  .addNode('await_confirmation', awaitConfirmationNode)
-  .addNode('write_tools', writeToolsNode)
-  .setEntryPoint('agent')
+  .addNode('agent', agentNode)                    // → registers 'agent'
+  .addNode('read_tools', readToolsNode)           // → auto-running read pile
+  .addNode('await_confirmation', awaitConfirmationNode) // → pauses for human approval
+  .addNode('write_tools', writeToolsNode)         // → only entered after Approve
+  .setEntryPoint('agent')                         // → graph starts at 'agent'
   .addConditionalEdges('agent', routeByToolType, {
-    read: 'read_tools',
-    write: 'await_confirmation',
-    done: END,
+    read: 'read_tools',                           // → router said reads-only → run them now
+    write: 'await_confirmation',                  // → router said writes → pause first
+    done: END,                                    // → no tool_calls → halt
   })
-  .addEdge('read_tools', 'agent')
-  .addEdge('await_confirmation', 'write_tools')
-  .addEdge('write_tools', 'agent');
+  .addEdge('read_tools', 'agent')                 // → after reads, loop back
+  .addEdge('await_confirmation', 'write_tools')   // → on Approve, run writes
+  .addEdge('write_tools', 'agent');               // → after writes, loop back
 ```
 
 Read that wiring out loud. From `agent`, the router can go three places: into the read pile, into the confirmation pause before the write pile, or out to `END`. From `read_tools` and `write_tools`, the graph always loops back to `agent` so the model can react to the new `ToolMessages`. The `await_confirmation` node sits between `agent` and `write_tools` precisely so that no write happens without a human deciding it should.
@@ -63,24 +63,24 @@ Read that wiring out loud. From `agent`, the router can go three places: into th
 The router is small and deterministic. It looks at the last message; if it's an `AIMessage` with tool calls, it classifies them.
 
 ```ts
-import { isAIMessage } from '@langchain/core/messages';
+import { isAIMessage } from '@langchain/core/messages'; // → AIMessage type guard
 
-type Route = 'read' | 'write' | 'done';
+type Route = 'read' | 'write' | 'done';            // → keys in the conditional-edges map
 
 function routeByToolType(state: GraphState): Route {
-  const last = state.messages.at(-1);
-  if (!last || !isAIMessage(last)) return 'done';
+  const last = state.messages.at(-1);             // → newest message
+  if (!last || !isAIMessage(last)) return 'done'; // → not an AIMessage → halt
 
-  const calls = last.tool_calls ?? [];
-  if (calls.length === 0) return 'done';
+  const calls = last.tool_calls ?? [];            // → ToolCall[] (possibly empty)
+  if (calls.length === 0) return 'done';          // → final assistant text → halt
 
   // If *any* call is a write, route through confirmation. Reads are batched
   // into the next agent turn — confirmation pauses the entire batch.
-  if (calls.some((c) => isWriteTool(c.name))) return 'write';
-  if (calls.every((c) => isReadTool(c.name))) return 'read';
+  if (calls.some((c) => isWriteTool(c.name))) return 'write'; // → any write present → 'write'
+  if (calls.every((c) => isReadTool(c.name))) return 'read';  // → all reads → 'read'
 
   // A tool the registry doesn't classify is treated as a write — fail safe.
-  return 'write';
+  return 'write';                                 // → unknown tool → safer to gate
 }
 ```
 

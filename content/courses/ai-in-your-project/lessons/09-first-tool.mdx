@@ -18,34 +18,35 @@ That separation is the entire point. Up until now the model has been a paragraph
 LangChain ships a thin wrapper that turns a function into something the model can call. The whole shape is one call:
 
 ```ts
-import { tool } from '@langchain/core/tools';
-import { z } from 'zod';
-import { db } from '@/lib/db';
+import { tool } from '@langchain/core/tools';   // → tool() factory imported
+import { z } from 'zod';                          // → Zod schema builder imported
+import { db } from '@/lib/db';                   // → Prisma-like client imported
 
-export const searchCustomers = tool(
-  async ({ filter }) => {
-    const rows = await db.customers.findMany({
+export const searchCustomers = tool(             // → StructuredTool { name: 'customers.search' }
+  async ({ filter }) => {                        // → handler called only when model picks this tool
+    const rows = await db.customers.findMany({   // → Customer[] from DB
       where: {
-        lastOrderAt: filter.lapsedDays
-          ? { lt: daysAgo(filter.lapsedDays) }
-          : undefined,
-        tags: filter.tagIn ? { hasSome: filter.tagIn } : undefined,
+        lastOrderAt: filter.lapsedDays           // → branch: only when lapsedDays is set
+          ? { lt: daysAgo(filter.lapsedDays) }   // → e.g. { lt: 2026-03-10T00:00:00Z } if lapsedDays=60
+          : undefined,                           // → undefined → Prisma skips this filter
+        tags: filter.tagIn ? { hasSome: filter.tagIn } : undefined, // → { hasSome: ['vip'] } or undefined
       },
-      take: 25,
+      take: 25,                                  // → cap result set at 25 rows
     });
-    return JSON.stringify(rows);
+    return JSON.stringify(rows);                 // → '[{"id":"c_01","email":"..."}, ...]' (string for model)
   },
   {
-    name: 'customers.search',
-    description: 'Search customers by lapsed-days threshold or by tag. Returns up to 25 rows.',
-    schema: z.object({
+    name: 'customers.search',                    // → identifier the model uses in tool_calls
+    description: 'Search customers by lapsed-days threshold or by tag. Returns up to 25 rows.', // → injected into prompt every turn
+    schema: z.object({                           // → ZodObject — enforced before handler runs
       filter: z.object({
-        lapsedDays: z.number().int().positive().optional(),
-        tagIn: z.array(z.string()).optional(),
+        lapsedDays: z.number().int().positive().optional(), // → integer > 0 or omitted
+        tagIn: z.array(z.string()).optional(),   // → string[] or omitted
       }),
     }),
   },
 );
+// → searchCustomers is now a tool the model can call by name 'customers.search'
 ```
 
 Four things to notice. The `name` is the identifier the model uses when calling it — keep it dotted and namespaced (`customers.search`, not `searchCustomers`) so a directory of tools reads like an API surface. The `description` is what the model actually reads to decide *whether* to call this tool; we'll come back to it. The `schema` is a Zod object that constrains the arguments — the model is forced to fit its call into this shape, so your function body never has to defend against malformed input. The function itself is plain TypeScript; it returns a string (or anything stringifiable) which becomes the tool's reply.
@@ -55,15 +56,16 @@ Four things to notice. The `name` is the identifier the model uses when calling 
 Defining a tool doesn't expose it. You bind a list of tools to a model and the bound model is what you invoke:
 
 ```ts
-import { ChatOpenAI } from '@langchain/openai';
+import { ChatOpenAI } from '@langchain/openai';  // → ChatOpenAI class imported
 
-const model = new ChatOpenAI({ model: 'gpt-4o-mini' })
-  .bindTools([searchCustomers, listProducts, getOrderTotals]);
+const model = new ChatOpenAI({ model: 'gpt-4o-mini' }) // → ChatOpenAI instance (not yet bound)
+  .bindTools([searchCustomers, listProducts, getOrderTotals]); // → Runnable bound with 3 tools
 
-const response = await model.invoke([
-  { role: 'system', content: 'You are an operator assistant for a small e-commerce shop.' },
-  { role: 'user', content: 'Who hasn\'t ordered in the last two months?' },
+const response = await model.invoke([            // → AIMessage { content: '', tool_calls: [...] }
+  { role: 'system', content: 'You are an operator assistant for a small e-commerce shop.' }, // → SystemMessage
+  { role: 'user', content: 'Who hasn\'t ordered in the last two months?' },                  // → HumanMessage
 ]);
+// → response.tool_calls = [{ id: 'call_abc', name: 'customers.search', args: { filter: { lapsedDays: 60 } } }]
 ```
 
 The response will not be a finished answer this time. It'll come back with a `tool_calls` array — the model has decided that `customers.search` is the right next step, and it's asking your runtime to run it. Your job is to execute each call, append the result as a `ToolMessage`, and invoke the model again. The second call is where it sees the result and writes the prose answer.
@@ -90,14 +92,15 @@ The shape the model emits is small and well-specified. After your bound model ru
 
 ```ts
 {
-  tool_calls: [
+  tool_calls: [                                  // → array — model can request several at once
     {
-      id: 'call_abc123',
-      name: 'customers.search',
-      args: { filter: { lapsedDays: 60 } },
+      id: 'call_abc123',                         // → unique per call; pair with ToolMessage.tool_call_id
+      name: 'customers.search',                  // → matches a bound tool's name
+      args: { filter: { lapsedDays: 60 } },      // → already Zod-validated against the tool's schema
     },
   ],
 }
+// → this is what response.tool_calls looks like after model.invoke(...)
 ```
 
 Three fields. The `id` is so you can route the result back to the right call when the model asks for several at once (we'll see that in lesson 10). The `name` matches a tool you bound. The `args` are already parsed and Zod-validated against your schema — if the model produced something invalid, the whole turn fails and you handle the retry, rather than your tool body having to cope with junk.
@@ -111,21 +114,21 @@ The Zod schema isn't decoration. It does two jobs at once: it tells the *model* 
 **With Zod (what you've been writing)**
 
 ```ts
-export const listCustomers = tool(
-  async ({ cursor, limit }) => {
-    // cursor is string | null | undefined; limit is number ≤ 50. Guaranteed.
-    const rows = await db.customers.findMany({ take: limit ?? 25, cursor });
-    return JSON.stringify(rows);
+export const listCustomers = tool(               // → StructuredTool { name: 'customers.list' }
+  async ({ cursor, limit }) => {                 // → cursor: string|null|undefined, limit: number≤50 — Zod-guaranteed
+    const rows = await db.customers.findMany({ take: limit ?? 25, cursor }); // → Customer[] of size ≤ limit
+    return JSON.stringify(rows);                 // → '[{"id":"c_01",...}]' string handed back to model
   },
   {
-    name: 'customers.list',
-    description: 'List customers, 25 per page. Pass nextCursor to continue.',
-    schema: z.object({
-      cursor: z.string().nullable().optional(),
-      limit: z.number().int().min(1).max(50).optional(),
+    name: 'customers.list',                      // → identifier the model uses
+    description: 'List customers, 25 per page. Pass nextCursor to continue.', // → injected into prompt
+    schema: z.object({                           // → ZodObject — invalid args throw before handler runs
+      cursor: z.string().nullable().optional(),  // → string | null | undefined
+      limit: z.number().int().min(1).max(50).optional(), // → integer in [1,50] or undefined
     }),
   },
 );
+// → listCustomers is now callable by the model as 'customers.list'
 ```
 
 What the model emits, parsed and validated for you:
@@ -139,21 +142,22 @@ If the model tries `limit: 9999`, Zod throws *before* your DB call runs and the 
 **Without any schema — `DynamicTool`**
 
 ```ts
-import { DynamicTool } from '@langchain/core/tools';
+import { DynamicTool } from '@langchain/core/tools'; // → DynamicTool class imported (no schema)
 
-export const listCustomers = new DynamicTool({
-  name: 'customers.list',
-  description: 'List customers, 25 per page. Pass cursor and limit.',
-  func: async (input: string) => {
+export const listCustomers = new DynamicTool({   // → DynamicTool instance — model sees only the description
+  name: 'customers.list',                        // → identifier the model uses
+  description: 'List customers, 25 per page. Pass cursor and limit.', // → only hint the model has about shape
+  func: async (input: string) => {               // → input is one raw string, format unknown
     // input is a single raw string — whatever the model put there.
     // You parse it. You validate it. You apologise to your future self.
-    const parsed = JSON.parse(input); // may throw
-    const cursor = typeof parsed.cursor === 'string' ? parsed.cursor : null;
-    const limit = Number.isInteger(parsed.limit) && parsed.limit <= 50 ? parsed.limit : 25;
-    const rows = await db.customers.findMany({ take: limit, cursor });
-    return JSON.stringify(rows);
+    const parsed = JSON.parse(input);            // → object on a good run; throws SyntaxError on a bad one
+    const cursor = typeof parsed.cursor === 'string' ? parsed.cursor : null; // → string | null
+    const limit = Number.isInteger(parsed.limit) && parsed.limit <= 50 ? parsed.limit : 25; // → 1..50 (default 25)
+    const rows = await db.customers.findMany({ take: limit, cursor }); // → Customer[]
+    return JSON.stringify(rows);                 // → '[{"id":"c_01",...}]'
   },
 });
+// → listCustomers works, but every turn you might get a different input format
 ```
 
 Two consequences. The model has *no schema* to learn from — it guesses the format from the description alone, so one turn you get `'{"cursor":"abc","limit":25}'` and the next turn `'cursor=abc, limit=25'`. And nothing is validated: junk strings hit your DB code unless you write the checks yourself, every field, every time.
@@ -161,23 +165,24 @@ Two consequences. The model has *no schema* to learn from — it guesses the for
 **With JSON Schema instead of Zod — `DynamicStructuredTool`**
 
 ```ts
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { DynamicStructuredTool } from '@langchain/core/tools'; // → DynamicStructuredTool class imported
 
-export const listCustomers = new DynamicStructuredTool({
-  name: 'customers.list',
-  description: 'List customers, 25 per page.',
-  schema: {
+export const listCustomers = new DynamicStructuredTool({ // → DynamicStructuredTool instance
+  name: 'customers.list',                        // → identifier the model uses
+  description: 'List customers, 25 per page.',  // → injected into prompt every turn
+  schema: {                                      // → raw JSON Schema — provider enforces, but no TS narrowing
     type: 'object',
     properties: {
-      cursor: { type: 'string' },
-      limit: { type: 'integer', maximum: 50 },
+      cursor: { type: 'string' },                // → constrains cursor to a string
+      limit: { type: 'integer', maximum: 50 },   // → constrains limit to integer ≤ 50
     },
   },
-  func: async ({ cursor, limit }) => {
-    const rows = await db.customers.findMany({ take: limit ?? 25, cursor });
-    return JSON.stringify(rows);
+  func: async ({ cursor, limit }) => {           // → typed object, but TS infers loose `any` for fields
+    const rows = await db.customers.findMany({ take: limit ?? 25, cursor }); // → Customer[]
+    return JSON.stringify(rows);                 // → '[{"id":"c_01",...}]'
   },
 });
+// → listCustomers behaves like the Zod version at runtime, but TS won't catch typos
 ```
 
 You get the typed object back — the LLM provider enforces the JSON Schema on its side — but you lose Zod's TypeScript narrowing and richer constraints (`email()`, `regex()`, `refine()`, custom error messages). The model behaves the same; your code is less safe.

@@ -37,15 +37,15 @@ Same model, same answer, same wall-clock cost. Only the user's experience change
 You wrote this handler in lesson 3. Read it again with streaming in mind:
 
 ```ts
-const stream = await model.stream(message);
+const stream = await model.stream(message);     // → AsyncIterable<AIMessageChunk>
 
-const body = new ReadableStream({
+const body = new ReadableStream({                // → Web ReadableStream we'll attach to Response
   async start(controller) {
-    for await (const chunk of stream) {
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk.content)}\n\n`));
+    for await (const chunk of stream) {          // → each chunk: AIMessageChunk { content: 'Hi' }
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk.content)}\n\n`)); // → wire frame: 'data: "Hi"\n\n'
     }
-    controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-    controller.close();
+    controller.enqueue(encoder.encode('data: [DONE]\n\n')); // → terminator the client looks for
+    controller.close();                          // → closes the stream cleanly
   },
 });
 ```
@@ -67,36 +67,36 @@ The browser side is shorter than people expect. `fetch` returns a `Response` who
 import { useState } from 'react';
 
 export function useStream() {
-  const [text, setText] = useState('');
-  const [running, setRunning] = useState(false);
+  const [text, setText] = useState('');          // → '' initially; grows as chunks arrive
+  const [running, setRunning] = useState(false); // → false; flips true while a request is in flight
 
   async function send(message: string) {
-    setText('');
-    setRunning(true);
-    const res = await fetch('/api/chat', {
+    setText('');                                 // → clears any prior reply
+    setRunning(true);                            // → UI shows "running" state
+    const res = await fetch('/api/chat', {       // → Response with streaming body
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message }),         // → '{"message":"..."}'
     });
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    let buf = '';
+    const reader = res.body!.getReader();        // → ReadableStreamDefaultReader<Uint8Array>
+    const decoder = new TextDecoder();           // → utf-8 decoder
+    let buf = '';                                // → accumulates leftover bytes between reads
     while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      for (const line of buf.split('\n\n')) {
-        if (!line.startsWith('data: ')) continue;
-        const payload = line.slice(6);
-        if (payload === '[DONE]') break;
-        setText((t) => t + JSON.parse(payload));
+      const { value, done } = await reader.read(); // → { value: Uint8Array, done: boolean }
+      if (done) break;                           // → stream finished — exit loop
+      buf += decoder.decode(value, { stream: true }); // → buf now contains 'data: "Hi"\n\ndata: "!"\n\n...'
+      for (const line of buf.split('\n\n')) {    // → split into individual SSE frames
+        if (!line.startsWith('data: ')) continue;// → skip blank/keepalive lines
+        const payload = line.slice(6);           // → '"Hi"' (the JSON-encoded chunk)
+        if (payload === '[DONE]') break;         // → stop on terminator
+        setText((t) => t + JSON.parse(payload)); // → append decoded string ('Hi') to UI text
       }
-      buf = buf.split('\n\n').slice(-1)[0];
+      buf = buf.split('\n\n').slice(-1)[0];      // → keep the unfinished tail for the next read
     }
-    setRunning(false);
+    setRunning(false);                           // → UI exits "running" state
   }
 
-  return { text, running, send };
+  return { text, running, send };                // → consumer reads `text`, calls `send(msg)`
 }
 ```
 

@@ -35,29 +35,29 @@ The trajectory in pseudocode, just so the inevitability is concrete:
 
 ```ts
 // Day 1 — the lesson 14 loop
-while (lastMessage.tool_calls?.length) {
-  const results = await runToolCalls(lastMessage.tool_calls);
-  messages.push(...results);
-  lastMessage = await model.invoke(messages);
+while (lastMessage.tool_calls?.length) {           // → keep looping while the model keeps requesting tools
+  const results = await runToolCalls(lastMessage.tool_calls); // → ToolMessage[] from the executions
+  messages.push(...results);                       // → append tool results to the transcript
+  lastMessage = await model.invoke(messages);      // → next AIMessage (may have more tool_calls or be final)
 }
 
 // Day 7 — "we need to ask before writes"
 while (lastMessage.tool_calls?.length) {
-  const writes = lastMessage.tool_calls.filter(isWrite);
+  const writes = lastMessage.tool_calls.filter(isWrite); // → ToolCall[] that mutate state
   if (writes.length) {
-    const decision = await askUser(writes);   // ← but how do you save state if the user closes the tab?
-    if (!decision.approve) break;
+    const decision = await askUser(writes);   // ← but how do you save state if the user closes the tab?  // → { approve: boolean }
+    if (!decision.approve) break;                  // → user said no — abort the loop
   }
   // ...
 
 // Day 21 — pausable, with state, branching, retries, persistence
 type State = { messages: BaseMessage[]; pending?: ToolCall[]; phase: 'plan' | 'confirm' | 'execute' };
-const checkpoint = await loadCheckpoint(threadId);
-let state = checkpoint ?? { messages: [], phase: 'plan' };
+const checkpoint = await loadCheckpoint(threadId); // → State | null
+let state = checkpoint ?? { messages: [], phase: 'plan' }; // → resume or start fresh
 while (state.phase !== 'done') {
-  state = await STEP_FUNCTIONS[state.phase](state);
-  await saveCheckpoint(threadId, state);
-  if (state.phase === 'confirm') return { interrupt: state.pending };
+  state = await STEP_FUNCTIONS[state.phase](state); // → next State
+  await saveCheckpoint(threadId, state);           // → persist so the user can close the tab and come back
+  if (state.phase === 'confirm') return { interrupt: state.pending }; // → return to UI; resume after Approve
 }
 ```
 

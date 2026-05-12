@@ -1,0 +1,993 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Deploy IT-Courses to Vercel — Flat $20/mo Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --green-50:  #f0fdf4;
+    --green-100: #dcfce7;
+    --green-200: #bbf7d0;
+    --green-500: #22c55e;
+    --green-600: #16a34a;
+    --green-700: #15803d;
+    --green-800: #166534;
+    --amber-50:  #fffbeb;
+    --amber-200: #fde68a;
+    --amber-700: #b45309;
+    --rose-50:   #fff1f2;
+    --rose-200:  #fecdd3;
+    --rose-700:  #be123c;
+    --sky-50:    #f0f9ff;
+    --sky-200:   #bae6fd;
+    --sky-700:   #0369a1;
+    --ink:       #0f1f17;
+    --ink-soft:  #475569;
+    --paper:     #fbfaf6;
+    --card:      #ffffff;
+    --line:      #e6e3da;
+    --code-bg:   #0f1f17;
+    --code-fg:   #e2e8f0;
+    --code-comment: #86efac;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 500;
+    line-height: 1.65;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  h1 { font-size: clamp(2rem, 4vw, 2.75rem); line-height: 1.15; }
+  h2 { font-size: 1.625rem; line-height: 1.25; margin: 0 0 1rem; }
+  h3 { font-size: 1.125rem; line-height: 1.35; margin: 1.5rem 0 0.5rem; }
+  p { margin: 0 0 1rem; }
+  a { color: var(--green-700); text-decoration: none; border-bottom: 1px solid var(--green-200); transition: 0.15s; }
+  a:hover { color: var(--green-800); border-bottom-color: var(--green-500); }
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    font-size: 0.9em;
+    background: var(--green-50);
+    color: var(--green-800);
+    padding: 0.1em 0.4em;
+    border-radius: 5px;
+    font-weight: 500;
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 1.1rem 1.25rem;
+    border-radius: 12px;
+    overflow-x: auto;
+    margin: 1rem 0 1.25rem;
+    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 6px 24px -8px rgba(15, 31, 23, 0.25);
+  }
+  pre code { background: transparent; color: inherit; padding: 0; border-radius: 0; font-size: inherit; }
+  pre .c { color: var(--code-comment); font-style: italic; }
+  pre .k { color: #fcd34d; }
+  pre .s { color: #fda4af; }
+  pre .p { color: #93c5fd; }
+
+  /* Layout */
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2.5rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 5rem;
+  }
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; gap: 1.5rem; }
+  }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, var(--green-50) 0%, #ffffff 60%, #fdf6e3 100%);
+    border-bottom: 1px solid var(--line);
+    padding: 3.5rem 1.5rem 3rem;
+  }
+  .hero-inner { max-width: 1200px; margin: 0 auto; }
+  .hero .eyebrow {
+    display: inline-block;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--green-700);
+    background: var(--green-100);
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .hero p.lede {
+    font-size: 1.1rem;
+    color: var(--ink-soft);
+    max-width: 640px;
+    margin-top: 0.75rem;
+  }
+  .hero .meta { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
+  .hero .meta .pill {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid var(--line);
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    color: var(--ink);
+  }
+  .hero .meta .pill strong { color: var(--green-700); font-weight: 700; margin-right: 0.4rem; }
+
+  /* Sidebar TOC */
+  aside.toc {
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+    font-size: 0.92rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 1.25rem 1rem;
+  }
+  aside.toc h4 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.85rem;
+  }
+  aside.toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  aside.toc li { margin: 0.25rem 0; counter-increment: toc; }
+  aside.toc a {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 8px;
+    border: none;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  aside.toc a::before {
+    content: counter(toc, decimal-leading-zero);
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--green-700);
+    background: var(--green-50);
+    padding: 0.2rem 0.45rem;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  aside.toc a:hover { background: var(--green-50); }
+  @media (max-width: 880px) { aside.toc { position: static; } }
+
+  /* Steps */
+  .step {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 2rem;
+    margin-bottom: 1.75rem;
+    box-shadow: 0 1px 0 rgba(15, 31, 23, 0.02);
+    transition: 0.2s;
+  }
+  .step:hover { box-shadow: 0 1px 0 rgba(15, 31, 23, 0.02), 0 12px 30px -16px rgba(22, 101, 52, 0.18); }
+  .step .step-head { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
+  .step .num {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--green-500), var(--green-700));
+    color: white;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px -4px rgba(22, 163, 74, 0.5);
+  }
+  .step h2 { flex: 1; padding-top: 0.4rem; }
+
+  /* Substep */
+  .substep {
+    background: var(--green-50);
+    border-left: 3px solid var(--green-500);
+    border-radius: 8px;
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .substep h4 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    color: var(--green-800);
+    margin: 0 0 0.4rem;
+  }
+  .substep p:last-child { margin-bottom: 0; }
+
+  /* Callouts */
+  .callout {
+    border-radius: 12px;
+    padding: 1rem 1.15rem;
+    margin: 1.25rem 0;
+    border: 1px solid;
+    display: flex;
+    gap: 0.8rem;
+    align-items: flex-start;
+  }
+  .callout .ico {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+  }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: 0.5rem; }
+  .callout strong { font-weight: 700; }
+  .callout-tip { background: var(--green-50); border-color: var(--green-200); color: var(--green-800); }
+  .callout-tip .ico { background: var(--green-200); color: var(--green-800); }
+  .callout-warn { background: var(--amber-50); border-color: var(--amber-200); color: var(--amber-700); }
+  .callout-warn .ico { background: var(--amber-200); color: var(--amber-700); }
+  .callout-info { background: var(--sky-50); border-color: var(--sky-200); color: var(--sky-700); }
+  .callout-info .ico { background: var(--sky-200); color: var(--sky-700); }
+  .callout-stop { background: var(--rose-50); border-color: var(--rose-200); color: var(--rose-700); }
+  .callout-stop .ico { background: var(--rose-200); color: var(--rose-700); }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 0.93rem;
+  }
+  th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--line); }
+  th {
+    background: var(--green-50);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--green-800);
+    letter-spacing: 0.02em;
+  }
+  tr:last-child td { border-bottom: none; }
+
+  /* Checklist */
+  ul.checklist { list-style: none; padding: 0; margin: 1rem 0; }
+  ul.checklist li { position: relative; padding-left: 2rem; margin: 0.5rem 0; }
+  ul.checklist li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--green-600);
+    font-weight: 700;
+    background: var(--green-100);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    line-height: 1;
+  }
+
+  /* FAQ */
+  details {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    margin: 0.75rem 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  details[open] { border-color: var(--green-200); background: var(--green-50); }
+  summary {
+    cursor: pointer;
+    padding: 1rem 1.25rem;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    color: var(--ink);
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after {
+    content: "+";
+    font-size: 1.4rem;
+    color: var(--green-600);
+    font-weight: 400;
+    transition: 0.2s;
+  }
+  details[open] summary::after { transform: rotate(45deg); }
+  details > div { padding: 0 1.25rem 1.1rem; }
+  details > div p:last-child { margin-bottom: 0; }
+
+  /* Final card */
+  .final {
+    background: linear-gradient(135deg, var(--green-700), var(--green-500));
+    color: white;
+    border-radius: 18px;
+    padding: 2.25rem;
+    margin-top: 2rem;
+    text-align: center;
+  }
+  .final h2 { color: white; margin-bottom: 0.75rem; }
+  .final p { color: rgba(255,255,255,0.9); margin-bottom: 0; }
+
+  /* Price grid */
+  .price-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.85rem;
+    margin: 1rem 0;
+  }
+  .price-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1rem;
+  }
+  .price-card .label { font-family: 'Outfit', sans-serif; font-size: 0.8rem; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.05em; }
+  .price-card .amt { font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--green-700); margin-top: 0.3rem; }
+  .price-card .desc { font-size: 0.85rem; color: var(--ink-soft); margin-top: 0.3rem; }
+
+  /* Compare table for Hobby vs Pro */
+  .tier-compare th:first-child { width: 40%; }
+  .tier-compare .tier-name { font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--green-800); }
+  .tier-compare .badge {
+    display: inline-block;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: var(--green-600);
+    color: white;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    margin-left: 0.4rem;
+    letter-spacing: 0.04em;
+  }
+
+  /* Inline kbd */
+  kbd {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.82em;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 0.1em 0.45em;
+    color: var(--ink);
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Beginner's End-to-End Guide</span>
+    <h1>Deploy IT-Courses to Vercel</h1>
+    <p class="lede">A patient walkthrough for hosting your Next.js course site on Vercel — flat <strong>$20/month</strong> on the Pro plan, with your own domain, automatic deploys, and zero servers to babysit.</p>
+    <div class="meta">
+      <span class="pill"><strong>Stack</strong> Next.js 16 + MDX</span>
+      <span class="pill"><strong>Provider</strong> Vercel Pro</span>
+      <span class="pill"><strong>Budget</strong> $20/mo flat</span>
+      <span class="pill"><strong>Time</strong> ~30 minutes</span>
+      <span class="pill"><strong>Terminal</strong> Almost none</span>
+    </div>
+  </div>
+</header>
+
+<main class="layout">
+
+  <aside class="toc">
+    <h4>On this page</h4>
+    <ol>
+      <li><a href="#step-1">Why Vercel?</a></li>
+      <li><a href="#step-2">Prep checklist</a></li>
+      <li><a href="#step-3">Push to GitHub</a></li>
+      <li><a href="#step-4">Sign up for Vercel</a></li>
+      <li><a href="#step-5">Import the project</a></li>
+      <li><a href="#step-6">First deploy</a></li>
+      <li><a href="#step-7">Upgrade to Pro</a></li>
+      <li><a href="#step-8">Add your domain</a></li>
+      <li><a href="#step-9">Configure DNS</a></li>
+      <li><a href="#step-10">Env vars (if any)</a></li>
+      <li><a href="#step-11">Auto-deploys &amp; previews</a></li>
+      <li><a href="#step-12">Analytics</a></li>
+      <li><a href="#step-13">Update flow</a></li>
+      <li><a href="#step-14">Rollback safely</a></li>
+      <li><a href="#step-15">Cost &amp; monitoring</a></li>
+      <li><a href="#step-16">Troubleshooting</a></li>
+      <li><a href="#step-17">What to learn next</a></li>
+    </ol>
+  </aside>
+
+  <article>
+
+    <!-- 01 -->
+    <section class="step" id="step-1">
+      <div class="step-head">
+        <span class="num">01</span>
+        <h2>Why Vercel for this project</h2>
+      </div>
+      <p>Vercel is the company behind <strong>Next.js</strong>, the framework your IT-courses site is built with. Hosting Next.js on Vercel is a bit like running an Apple app on an iPhone — the platform is designed around the framework, so there is no configuration, no <code>PM2</code>, no <code>Caddy</code>, no <code>nginx</code>, no SSH keys, no server to keep patched. You connect a GitHub repository, you click <em>Deploy</em>, and a minute later your site is live on the internet with HTTPS already turned on.</p>
+
+      <div class="price-grid">
+        <div class="price-card">
+          <div class="label">Plan</div>
+          <div class="amt">$20<span style="font-size:0.9rem;color:var(--ink-soft);font-weight:500;">/mo</span></div>
+          <div class="desc">Vercel Pro — flat recurring</div>
+        </div>
+        <div class="price-card">
+          <div class="label">Setup time</div>
+          <div class="amt">~30 min</div>
+          <div class="desc">First deploy is &lt; 2 min</div>
+        </div>
+        <div class="price-card">
+          <div class="label">Servers</div>
+          <div class="amt">0</div>
+          <div class="desc">Fully managed</div>
+        </div>
+        <div class="price-card">
+          <div class="label">Re-deploy</div>
+          <div class="amt"><code>git push</code></div>
+          <div class="desc">Auto in &lt; 60s</div>
+        </div>
+      </div>
+
+      <h3>Hobby vs Pro — which one do you actually need?</h3>
+      <p>Vercel has two relevant plans. Both deploy the same way. The difference is mostly about <em>limits</em> and <em>commercial use</em>.</p>
+
+      <table class="tier-compare">
+        <thead>
+          <tr><th>Feature</th><th class="tier-name">Hobby (free)</th><th class="tier-name">Pro <span class="badge">$20/mo</span></th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Commercial use</td><td>❌ personal / non-commercial only</td><td>✅ allowed</td></tr>
+          <tr><td>Bandwidth / mo</td><td>100 GB</td><td>1 TB included</td></tr>
+          <tr><td>Build minutes / mo</td><td>6,000</td><td>24,000</td></tr>
+          <tr><td>Team members</td><td>1 (you only)</td><td>up to 10</td></tr>
+          <tr><td>Password-protected deploys</td><td>❌</td><td>✅</td></tr>
+          <tr><td>Advanced analytics</td><td>basic</td><td>full + Speed Insights</td></tr>
+          <tr><td>Email support</td><td>community forum</td><td>email (24h SLA)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-tip">
+        <span class="ico">★</span>
+        <div>
+          <p><strong>Recommendation for your IT-courses site.</strong> Since you mentioned a $20/mo recurring budget, go straight to <strong>Pro</strong>. It lets you monetize the courses later (Hobby's terms forbid commercial use, even ads), gives you Speed Insights and Web Analytics, and you'll never run into the 100 GB bandwidth wall on a growing course site.</p>
+          <p>If you'd rather start free and upgrade only when you need it, you can deploy on Hobby first and bump to Pro from the dashboard — no migration involved.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 -->
+    <section class="step" id="step-2">
+      <div class="step-head">
+        <span class="num">02</span>
+        <h2>What you need before starting</h2>
+      </div>
+      <p>Five things. Most you already have.</p>
+      <ul class="checklist">
+        <li>The <code>IT-courses</code> project on your laptop, building cleanly. Test with <code>npm run build</code> in PowerShell first — fix any error before continuing.</li>
+        <li>A <a href="https://github.com">GitHub</a> account. Free is fine.</li>
+        <li>A <a href="https://vercel.com">Vercel</a> account. You'll create it in Step 04 by signing in with GitHub.</li>
+        <li>Your domain (you said you already bought one — perfect). Have the registrar's DNS settings page open in a tab.</li>
+        <li>A credit / debit card for the Pro plan. Vercel accepts most cards globally including Vietnamese ones.</li>
+      </ul>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <div>
+          <p><strong>Build it locally first.</strong> Open PowerShell at the project root and run:</p>
+          <pre><code><span class="c"># in C:\Users\ADMIN\Desktop\claude-demo\IT-courses</span>
+npm install
+npm run build</code></pre>
+          <p>If this finishes with zero errors and a <code>.next/</code> folder is created, you're ready. If it fails locally, it will fail on Vercel — fix it now.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 -->
+    <section class="step" id="step-3">
+      <div class="step-head">
+        <span class="num">03</span>
+        <h2>Push your project to GitHub</h2>
+      </div>
+      <p>Vercel deploys <em>from a Git repository</em>. You need one. If you already have your project on GitHub, skip this step and head straight to Step 04.</p>
+
+      <div class="substep">
+        <h4>3.1 — Create a new repo on GitHub</h4>
+        <p>Go to <a href="https://github.com/new">github.com/new</a>. Name it <code>it-courses</code> (or anything). Set it to <strong>Private</strong> — there's no downside; Vercel reads private repos just fine. Don't add a README, .gitignore, or license — your project already has them.</p>
+      </div>
+
+      <div class="substep">
+        <h4>3.2 — Connect your local project</h4>
+        <p>In PowerShell, from the project root:</p>
+        <pre><code><span class="c"># initialize git if not already done</span>
+git init
+git add .
+git commit -m <span class="s">"initial commit"</span>
+
+<span class="c"># point at your new GitHub repo (replace YOUR-USERNAME)</span>
+git branch -M main
+git remote add origin https://github.com/YOUR-USERNAME/it-courses.git
+git push -u origin main</code></pre>
+        <p>GitHub will probably ask you to authenticate. The easiest path: install <a href="https://cli.github.com/">GitHub CLI</a> and run <code>gh auth login</code> once; it handles the credentials for you across all future pushes.</p>
+      </div>
+
+      <div class="callout callout-warn">
+        <span class="ico">!</span>
+        <div><p><strong>Never commit secrets.</strong> Your <code>.gitignore</code> already excludes <code>.env*</code> files — keep it that way. API keys go into Vercel's environment variable UI in Step 10, never into the repo.</p></div>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section class="step" id="step-4">
+      <div class="step-head">
+        <span class="num">04</span>
+        <h2>Create your Vercel account</h2>
+      </div>
+      <p>Go to <a href="https://vercel.com/signup">vercel.com/signup</a>. Click <strong>Continue with GitHub</strong>. This is the easiest path because Vercel can read your repo list directly — no manual integration setup later.</p>
+
+      <ul class="checklist">
+        <li>Pick a username (lowercase, hyphens — this becomes the URL prefix for your free <code>*.vercel.app</code> deployments).</li>
+        <li>Pick your country and select <strong>Hobby</strong> at signup. You can upgrade to Pro in Step 07 once the first deploy works.</li>
+        <li>Email verification — check your inbox, click the link.</li>
+      </ul>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <div><p>You can also sign in with GitLab, Bitbucket, SAML SSO, or email. GitHub is just the smoothest for first-timers because we're using GitHub as the source repo.</p></div>
+      </div>
+    </section>
+
+    <!-- 05 -->
+    <section class="step" id="step-5">
+      <div class="step-head">
+        <span class="num">05</span>
+        <h2>Import the project</h2>
+      </div>
+      <p>From your Vercel dashboard, click <strong>Add New… → Project</strong>. You'll see a list of your GitHub repositories. Find <code>it-courses</code> and click <strong>Import</strong>.</p>
+
+      <div class="substep">
+        <h4>5.1 — First-time GitHub authorization</h4>
+        <p>If this is your first import, GitHub will pop a permission screen asking which repos Vercel can read. Pick <strong>Only select repositories</strong> and tick just <code>it-courses</code>. This way Vercel only sees the one repo, not your entire GitHub account.</p>
+      </div>
+
+      <div class="substep">
+        <h4>5.2 — Configure project (already auto-detected)</h4>
+        <p>Vercel reads your <code>package.json</code> and auto-detects:</p>
+        <table>
+          <thead><tr><th>Field</th><th>Auto-detected value</th><th>Change it?</th></tr></thead>
+          <tbody>
+            <tr><td>Framework</td><td><code>Next.js</code></td><td>No</td></tr>
+            <tr><td>Build command</td><td><code>next build</code></td><td>No</td></tr>
+            <tr><td>Output directory</td><td><code>.next</code></td><td>No</td></tr>
+            <tr><td>Install command</td><td><code>npm install</code></td><td>No</td></tr>
+            <tr><td>Node.js version</td><td><code>22.x</code> or <code>24.x</code></td><td>Leave default</td></tr>
+            <tr><td>Root directory</td><td><code>./</code></td><td>No</td></tr>
+          </tbody>
+        </table>
+        <p>Every field is correct. Don't touch anything.</p>
+      </div>
+    </section>
+
+    <!-- 06 -->
+    <section class="step" id="step-6">
+      <div class="step-head">
+        <span class="num">06</span>
+        <h2>First deploy</h2>
+      </div>
+      <p>Click the big <strong>Deploy</strong> button. Watch the build logs scroll. You should see, in order:</p>
+      <pre><code>Cloning github.com/YOUR-USERNAME/it-courses
+Installing dependencies (npm install)
+Building (next build)
+Uploading deployment outputs
+Assigning aliases
+✓ Production deployment ready</code></pre>
+      <p>Total time on first deploy: usually 60-90 seconds. When it finishes, Vercel gives you a URL like <code>it-courses-yourname.vercel.app</code>. Click it — your site is now live on the internet, with HTTPS already configured, on a global CDN. No server. No config files. No DNS yet.</p>
+
+      <div class="callout callout-tip">
+        <span class="ico">✓</span>
+        <div><p><strong>That's the hardest part done.</strong> Everything from here is polish — your own domain, environment variables, analytics. The site is already shipped.</p></div>
+      </div>
+    </section>
+
+    <!-- 07 -->
+    <section class="step" id="step-7">
+      <div class="step-head">
+        <span class="num">07</span>
+        <h2>Upgrade to Pro ($20/mo)</h2>
+      </div>
+      <p>Now that the site is deployed and you've seen it work, upgrade to Pro to unlock commercial use, Speed Insights, and the higher bandwidth ceiling.</p>
+
+      <div class="substep">
+        <h4>7.1 — Open billing</h4>
+        <p>Top-right avatar → <strong>Settings</strong> → <strong>Billing</strong> in the left sidebar. Click <strong>Upgrade to Pro</strong>.</p>
+      </div>
+      <div class="substep">
+        <h4>7.2 — Pick a payment method</h4>
+        <p>Enter your card details. Vercel charges $20 immediately and again on the same calendar day each month. You'll get an email receipt every cycle. Vietnamese-issued cards work — Vercel uses Stripe under the hood.</p>
+      </div>
+      <div class="substep">
+        <h4>7.3 — Set a spend cap (very important)</h4>
+        <p>Pro is "$20 base + metered overage" if you blow past the included quotas. The cap is the safety wire that prevents that:</p>
+        <p><strong>Settings → Billing → Spend management → Pause projects when limit is reached</strong>. Set the cap to <strong>$20</strong>. Now even in the unlikely case of a traffic spike, Vercel pauses serving rather than charging you more.</p>
+      </div>
+
+      <div class="callout callout-warn">
+        <span class="ico">!</span>
+        <div>
+          <p><strong>The cap is not optional.</strong> Without it, a viral moment or a misconfigured loop could push your bill past your budget. With it, the worst case is "the site went down for the rest of the month" — annoying, but never expensive.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 -->
+    <section class="step" id="step-8">
+      <div class="step-head">
+        <span class="num">08</span>
+        <h2>Connect your custom domain</h2>
+      </div>
+      <p>You bought a domain — let's wire it up.</p>
+
+      <div class="substep">
+        <h4>8.1 — Add the domain in Vercel</h4>
+        <p>From your project dashboard: <strong>Settings → Domains</strong>. Type your domain (e.g. <code>yourname.com</code>) and click <strong>Add</strong>.</p>
+        <p>If you want both the root <code>yourname.com</code> and the <code>www.yourname.com</code> subdomain, add both. Vercel will offer to auto-redirect one to the other — pick your preferred canonical version (most people pick the bare domain).</p>
+      </div>
+
+      <div class="substep">
+        <h4>8.2 — Vercel shows you the DNS records to add</h4>
+        <p>The screen will show one of two things depending on what you typed:</p>
+        <table>
+          <thead><tr><th>If you added…</th><th>Record type</th><th>Value to set at your registrar</th></tr></thead>
+          <tbody>
+            <tr><td><code>yourname.com</code> (root)</td><td><code>A</code></td><td><code>76.76.21.21</code></td></tr>
+            <tr><td><code>www.yourname.com</code></td><td><code>CNAME</code></td><td><code>cname.vercel-dns.com</code></td></tr>
+          </tbody>
+        </table>
+        <p>Copy these — you'll paste them at your registrar in the next step.</p>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section class="step" id="step-9">
+      <div class="step-head">
+        <span class="num">09</span>
+        <h2>Add DNS records at your registrar</h2>
+      </div>
+      <p>Where you bought the domain (Namecheap, GoDaddy, Cloudflare, Tenten.vn, Mat Bao, P.A. Việt Nam, etc.), log in and find the <strong>DNS</strong> or <strong>Manage Records</strong> page for your domain.</p>
+
+      <div class="substep">
+        <h4>9.1 — Delete the placeholder records first</h4>
+        <p>Most registrars start you with a default "parking page" A record. Delete it. Otherwise it will conflict with Vercel's.</p>
+      </div>
+
+      <div class="substep">
+        <h4>9.2 — Add the records Vercel gave you</h4>
+        <table>
+          <thead><tr><th>Type</th><th>Name / Host</th><th>Value</th><th>TTL</th></tr></thead>
+          <tbody>
+            <tr><td><code>A</code></td><td><code>@</code> (or blank, depending on registrar)</td><td><code>76.76.21.21</code></td><td>Auto / 3600</td></tr>
+            <tr><td><code>CNAME</code></td><td><code>www</code></td><td><code>cname.vercel-dns.com</code></td><td>Auto / 3600</td></tr>
+          </tbody>
+        </table>
+        <p>Save. DNS propagation usually takes 5-30 minutes; sometimes a few hours globally, but Vercel will pick it up almost immediately.</p>
+      </div>
+
+      <div class="substep">
+        <h4>9.3 — Verify in Vercel</h4>
+        <p>Back in <strong>Settings → Domains</strong>, your domain will go from a yellow ⚠ <em>"Invalid Configuration"</em> to a green ✓ <em>"Valid Configuration"</em> once it sees the record. SSL certificates are generated automatically — no manual action needed. Visit <code>https://yourname.com</code> and your site loads.</p>
+      </div>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <div><p><strong>Cloudflare users:</strong> if your registrar is Cloudflare and you're proxying (orange cloud), switch the proxy to <strong>DNS only</strong> (grey cloud) for both records — Vercel handles its own CDN, double-proxying breaks things.</p></div>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section class="step" id="step-10">
+      <div class="step-head">
+        <span class="num">10</span>
+        <h2>Environment variables (skip if you have none)</h2>
+      </div>
+      <p>Your IT-courses site is mostly static MDX content — it probably doesn't need any secrets to build or run. But the AI-in-your-project course content references env vars like <code>ANTHROPIC_API_KEY</code>. If you ever wire up a live demo that calls an API, this is where you'd add the key.</p>
+
+      <div class="substep">
+        <h4>10.1 — Where to add them</h4>
+        <p><strong>Settings → Environment Variables</strong>. For each variable:</p>
+        <ul class="checklist">
+          <li><strong>Name</strong>: e.g. <code>ANTHROPIC_API_KEY</code></li>
+          <li><strong>Value</strong>: paste the secret</li>
+          <li><strong>Environments</strong>: tick <em>Production</em>, <em>Preview</em>, and optionally <em>Development</em>. Use different keys per environment — never reuse a production key in preview.</li>
+        </ul>
+      </div>
+      <div class="substep">
+        <h4>10.2 — Pull them locally with Vercel CLI</h4>
+        <p>If you want the same env vars on your laptop, install the CLI once: <code>npm i -g vercel</code>, then in the project root run <code>vercel link</code> (once), then <code>vercel env pull .env.local</code> any time you change a value. The file is in your <code>.gitignore</code> — it stays off GitHub.</p>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section class="step" id="step-11">
+      <div class="step-head">
+        <span class="num">11</span>
+        <h2>How auto-deploys work</h2>
+      </div>
+      <p>This is the part that feels like magic the first time you see it. Vercel watches your GitHub repo. Every push triggers a build.</p>
+
+      <table>
+        <thead><tr><th>Action in GitHub</th><th>What Vercel does</th><th>Resulting URL</th></tr></thead>
+        <tbody>
+          <tr><td>Push to <code>main</code></td><td>Builds and promotes to production</td><td><code>yourname.com</code> (overwritten)</td></tr>
+          <tr><td>Push to any other branch</td><td>Builds a Preview deployment</td><td><code>it-courses-git-feature-abc.vercel.app</code></td></tr>
+          <tr><td>Open a Pull Request</td><td>Builds a Preview + posts the URL as a PR comment</td><td>Unique per PR, isolated</td></tr>
+        </tbody>
+      </table>
+
+      <p>Preview URLs are the killer feature. You can ship a draft course on a branch, share the preview link with a friend, get feedback, merge to main only when it's ready. No more "is this what the live site will look like" guesswork — the preview <em>is</em> the live site, on a different URL.</p>
+
+      <div class="callout callout-tip">
+        <span class="ico">★</span>
+        <div><p><strong>Workflow you'll fall into.</strong> Edit a lesson locally → <code>git checkout -b draft-new-lesson</code> → push → Vercel comments a preview URL on the PR → review on your phone → merge → production updates in 60 seconds. That's it.</p></div>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section class="step" id="step-12">
+      <div class="step-head">
+        <span class="num">12</span>
+        <h2>Turn on Analytics &amp; Speed Insights</h2>
+      </div>
+      <p>Pro includes Vercel's privacy-friendly analytics and a Core Web Vitals dashboard. Enable them in two clicks.</p>
+
+      <div class="substep">
+        <h4>12.1 — Web Analytics</h4>
+        <p><strong>Project → Analytics → Enable</strong>. Vercel automatically injects the tracking — no code change needed for most Next.js projects. You'll see page views, top pages, top referrers, top countries, all without cookies.</p>
+      </div>
+      <div class="substep">
+        <h4>12.2 — Speed Insights</h4>
+        <p><strong>Project → Speed Insights → Enable</strong>. This measures real users' Core Web Vitals (LCP, INP, CLS) from their actual browsers. If a lesson is slow on mobile in Vietnam, you'll see it here within hours.</p>
+      </div>
+
+      <p>If Vercel asks you to install the package: <code>npm i @vercel/analytics @vercel/speed-insights</code>, then add <code>&lt;Analytics /&gt;</code> and <code>&lt;SpeedInsights /&gt;</code> to your root layout. Five lines total.</p>
+    </section>
+
+    <!-- 13 -->
+    <section class="step" id="step-13">
+      <div class="step-head">
+        <span class="num">13</span>
+        <h2>Updating your site after launch</h2>
+      </div>
+      <p>This is the whole update flow.</p>
+      <pre><code><span class="c"># Edit lessons in your editor, then:</span>
+git add .
+git commit -m <span class="s">"add new lesson on Zustand"</span>
+git push</code></pre>
+      <p>Vercel rebuilds and your changes are live in about a minute. There is no "deploy" command, no SSH, no SCP, no PM2 restart. Just <code>git push</code>.</p>
+
+      <div class="substep">
+        <h4>Working in branches (recommended)</h4>
+        <pre><code>git checkout -b draft-pricing-lesson
+<span class="c"># make changes</span>
+git add .
+git commit -m <span class="s">"draft new pricing lesson"</span>
+git push -u origin draft-pricing-lesson
+<span class="c"># Open a PR on GitHub. Vercel posts a preview link in the PR.</span>
+<span class="c"># Review the preview. Merge when happy. Production updates automatically.</span></code></pre>
+      </div>
+    </section>
+
+    <!-- 14 -->
+    <section class="step" id="step-14">
+      <div class="step-head">
+        <span class="num">14</span>
+        <h2>Rollback when something breaks</h2>
+      </div>
+      <p>Shipped a broken commit? Don't panic. Don't <code>git revert</code> first. Roll back to the previous deployment in three clicks:</p>
+      <ul class="checklist">
+        <li>Vercel dashboard → <strong>Deployments</strong> tab</li>
+        <li>Find the last known-good deployment (green checkmark)</li>
+        <li>Click <strong>⋯ → Promote to Production</strong></li>
+      </ul>
+      <p>Your domain points at the old build within seconds. The bad deployment isn't deleted — it stays in the list so you can debug it. Once you've fixed the code, push the fix and the new build automatically becomes production.</p>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <div><p><strong>Why this matters.</strong> The instant-rollback button is what makes shipping feel safe. On AWS Lightsail you'd be SSHing into a server at 11pm rolling back PM2; here you're three clicks away from the previous version, no matter how badly the latest commit broke things.</p></div>
+      </div>
+    </section>
+
+    <!-- 15 -->
+    <section class="step" id="step-15">
+      <div class="step-head">
+        <span class="num">15</span>
+        <h2>Cost tracking &amp; monitoring</h2>
+      </div>
+      <p>Bookmark this page: <strong>Settings → Usage</strong>. It shows live usage for the current billing cycle:</p>
+      <ul class="checklist">
+        <li>Bandwidth used (out of 1 TB)</li>
+        <li>Build minutes used (out of 24,000)</li>
+        <li>Function invocations and execution time</li>
+        <li>Image optimizations</li>
+      </ul>
+      <p>For a courses site with normal traffic (say, 5,000 visitors/month), you'll typically use 2-5% of each limit. The $20/mo is essentially fixed.</p>
+
+      <div class="price-grid">
+        <div class="price-card">
+          <div class="label">Pro plan</div>
+          <div class="amt">$20<span style="font-size:0.9rem;color:var(--ink-soft);font-weight:500;">/mo</span></div>
+          <div class="desc">Flat, recurring</div>
+        </div>
+        <div class="price-card">
+          <div class="label">Bandwidth</div>
+          <div class="amt">1 TB</div>
+          <div class="desc">≈ 5M page views/mo for a typical site</div>
+        </div>
+        <div class="price-card">
+          <div class="label">Build min</div>
+          <div class="amt">24k</div>
+          <div class="desc">≈ 200 deploys/day before extra charge</div>
+        </div>
+        <div class="price-card">
+          <div class="label">SSL + CDN</div>
+          <div class="amt">Free</div>
+          <div class="desc">Included on all plans</div>
+        </div>
+      </div>
+
+      <p>If you ever do start to approach a limit, Vercel emails you at 50%, 75%, and 100%. Combined with the spend cap from Step 07, surprises are essentially impossible.</p>
+    </section>
+
+    <!-- 16 -->
+    <section class="step" id="step-16">
+      <div class="step-head">
+        <span class="num">16</span>
+        <h2>Troubleshooting</h2>
+      </div>
+
+      <details>
+        <summary>Build fails on Vercel but works locally</summary>
+        <div>
+          <p>Almost always one of three things:</p>
+          <ul class="checklist">
+            <li><strong>Different Node version.</strong> Check <strong>Settings → Build &amp; Development Settings → Node.js Version</strong>. Set it to match your local: run <code>node -v</code> on your laptop, then pick the matching version (e.g. <code>22.x</code>) in Vercel.</li>
+            <li><strong>Missing env var.</strong> The build references <code>process.env.SOMETHING</code> that you didn't add in Step 10. Add it and redeploy.</li>
+            <li><strong>Case-sensitive imports.</strong> Windows is case-insensitive; Linux (Vercel's build environment) is not. <code>import x from './Foo'</code> works locally but fails on Vercel if the file is actually <code>foo.tsx</code>. Match the casing exactly.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details>
+        <summary>Domain shows "Invalid Configuration" forever</summary>
+        <div>
+          <p>DNS hasn't propagated yet, OR your records are slightly wrong. Open PowerShell and run:</p>
+          <pre><code>nslookup yourname.com</code></pre>
+          <p>If it returns <code>76.76.21.21</code>, DNS is correct — wait 10 more minutes and refresh Vercel. If it returns something else, fix the A record at your registrar. Some registrars also need the <code>www</code> CNAME entered without the trailing dot.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>I pushed but the site didn't update</summary>
+        <div>
+          <p>Check the <strong>Deployments</strong> tab. If you don't see a new deployment after a push, the GitHub integration isn't wired correctly. Go to <strong>Settings → Git</strong>, click <strong>Disconnect</strong>, then re-connect the repository. Future pushes will trigger builds again.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>The site loads but a specific page 404s</summary>
+        <div>
+          <p>For Next.js App Router (which IT-courses uses), every URL must correspond to a folder under <code>app/</code> or a route under <code>content/</code>. If a lesson was added but the dynamic route isn't picking it up, check that the MDX file is being read at build time — look at the build logs in Vercel for "Generated X static pages" and confirm your lesson is in that count.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Will my Vietnamese-issued bank card work?</summary>
+        <div>
+          <p>Yes. Vercel uses Stripe, which accepts cards from every major Vietnamese bank (Vietcombank, Techcombank, MB Bank, ACB, VPBank, etc.) as long as they're enabled for international online payments. If a charge fails, your bank usually sends an OTP to confirm — approve it and retry. Vercel also accepts PayPal in some regions.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>How do I add a teammate later?</summary>
+        <div>
+          <p><strong>Settings → Members → Invite</strong>. Type their email, pick their role (Member is usually right), they get an invite, they sign in with GitHub, done. Pro includes up to 10 members at no extra cost.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Can I keep both AWS Lightsail and Vercel guides for learning?</summary>
+        <div>
+          <p>Absolutely — they teach different things. AWS teaches you Linux, PM2, Caddy, SSH, system administration; Vercel teaches you the modern "platform-as-a-service" model. For a beginner shipping a Next.js site, Vercel is the obvious answer. For understanding how websites actually work under the hood, going through the Lightsail guide once is invaluable.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>How do I cancel and stop being charged?</summary>
+        <div>
+          <p><strong>Settings → Billing → Downgrade to Hobby</strong>. Your $20/mo stops at the end of the current cycle. Your site keeps running on Hobby limits — bandwidth drops to 100 GB but the URL and domain stay live. To delete the project entirely: <strong>Project Settings → General → Delete Project</strong>.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- 17 -->
+    <section class="step" id="step-17">
+      <div class="step-head">
+        <span class="num">17</span>
+        <h2>What to learn next</h2>
+      </div>
+      <p>You now have a production Next.js site behind a real domain, with HTTPS, a global CDN, automatic deploys, preview URLs, and analytics — at a flat $20/month. From here, three good directions to grow into:</p>
+
+      <h3>Vercel-specific</h3>
+      <ul class="checklist">
+        <li><strong>Branch protection.</strong> Configure GitHub so PRs must be reviewed before merging to <code>main</code> — prevents accidental production pushes.</li>
+        <li><strong>Vercel CLI.</strong> Install <code>npm i -g vercel</code> for <code>vercel logs</code>, <code>vercel env pull</code>, and <code>vercel deploy</code> from your terminal.</li>
+        <li><strong>Web Analytics dashboards.</strong> Set up an alert when bandwidth use crosses 70% of the included quota.</li>
+        <li><strong>Vercel Marketplace.</strong> If you ever need a database (e.g. Neon Postgres for user accounts), add it through the marketplace and Vercel auto-wires the env vars.</li>
+      </ul>
+
+      <h3>Performance</h3>
+      <ul class="checklist">
+        <li><strong>Image optimization.</strong> Next.js's <code>&lt;Image&gt;</code> component is already optimized on Vercel — use it everywhere instead of raw <code>&lt;img&gt;</code>.</li>
+        <li><strong>Static MDX.</strong> Your lessons are static — make sure they're being statically generated at build time (you'll see them in the build log under "○ Static" rather than "ƒ Dynamic").</li>
+      </ul>
+
+      <h3>Beyond a course site</h3>
+      <ul class="checklist">
+        <li><strong>User accounts.</strong> When you want sign-ups, add Clerk or Auth0 through Vercel Marketplace — five minutes from "I want users to log in" to "users are logging in."</li>
+        <li><strong>Course progress tracking.</strong> A Neon Postgres database + a single API route in your Next.js app, and you can save which lessons each user has completed.</li>
+        <li><strong>AI features.</strong> Lesson 24 of your AI course teaches the deployment side. With this guide done, you're ready to actually ship one.</li>
+      </ul>
+
+      <div class="final">
+        <h2>You shipped it. 🎉</h2>
+        <p>Your IT-courses site is live at <code style="background:rgba(255,255,255,0.15);color:#fff;">https://yourname.com</code>, on a real domain, with HTTPS, on a CDN, auto-deploying on every push. Total moving parts you maintain: <strong>zero</strong>.</p>
+      </div>
+    </section>
+
+  </article>
+</main>
+
+</body>
+</html>

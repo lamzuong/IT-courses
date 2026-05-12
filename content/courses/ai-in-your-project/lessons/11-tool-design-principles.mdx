@@ -25,27 +25,28 @@ A practical rule: if you find yourself writing *"to do X, set field A to Y and f
 **The broad version (the temptation)**
 
 ```ts
-export const createPromotion = tool(
-  async (args) => { /* ... */ },
+export const createPromotion = tool(             // → StructuredTool { name: 'promotions.create' }
+  async (args) => { /* ... */ },                 // → handler receives 16-field object, must branch on `type`+`audience`
   {
-    name: 'promotions.create',
-    description: 'Create a promotion. See schema for all options.',
+    name: 'promotions.create',                   // → one identifier covering 4 promo types × 5 audiences
+    description: 'Create a promotion. See schema for all options.', // → vague — model must guess valid combos
     schema: z.object({
-      type: z.enum(['percent', 'fixed', 'bogo', 'free_shipping']),
-      value: z.number().optional(),
-      audience: z.enum(['all', 'lapsed', 'vip', 'new', 'tag']).optional(),
-      audienceTag: z.string().optional(),
-      lapsedDays: z.number().optional(),
-      minOrderCents: z.number().optional(),
-      validFrom: z.string().datetime().optional(),
-      validUntil: z.string().datetime().optional(),
-      code: z.string().optional(),
-      maxUses: z.number().optional(),
-      stackable: z.boolean().optional(),
+      type: z.enum(['percent', 'fixed', 'bogo', 'free_shipping']), // → 4 disjoint promo kinds
+      value: z.number().optional(),              // → meaning depends on `type` — model has to know that
+      audience: z.enum(['all', 'lapsed', 'vip', 'new', 'tag']).optional(), // → 5 segments
+      audienceTag: z.string().optional(),        // → required when audience='tag', else ignored
+      lapsedDays: z.number().optional(),         // → required when audience='lapsed'
+      minOrderCents: z.number().optional(),      // → optional gate
+      validFrom: z.string().datetime().optional(), // → ISO 8601
+      validUntil: z.string().datetime().optional(),// → ISO 8601
+      code: z.string().optional(),               // → the promo code string
+      maxUses: z.number().optional(),            // → optional cap
+      stackable: z.boolean().optional(),         // → can it combine with other promos
       // ...four more fields
     }),
   },
 );
+// → one tool the model picks for any promotion — high failure rate on 60s-lapsed-15%-off prompts
 ```
 
 When the user asks *"15% off for customers who haven't ordered in 60 days"*, the model has to derive a sixteen-field shape: `type: 'percent'`, `value: 15`, `audience: 'lapsed'`, `audienceTag: undefined`, `lapsedDays: 60`, plus a default code. It will get this right most of the time and wrong some of the time, and the failures look like *"audience is 'tag' but audienceTag is missing"* — silent semantic errors, not validation errors.
@@ -53,22 +54,23 @@ When the user asks *"15% off for customers who haven't ordered in 60 days"*, the
 **The narrow version (the right move)**
 
 ```ts
-export const createLapsedCustomerPromo = tool(
-  async ({ discountPercent, lapsedDays, code }) => { /* ... */ },
+export const createLapsedCustomerPromo = tool(   // → StructuredTool — name encodes the use case
+  async ({ discountPercent, lapsedDays, code }) => { /* ... */ }, // → 3 required fields, all bounded
   {
-    name: 'promotions.create_for_lapsed_customers',
-    description: 'Create a percentage-off promo code targeted at customers who have not ordered in N days.',
+    name: 'promotions.create_for_lapsed_customers', // → model picks this by reading the directory
+    description: 'Create a percentage-off promo code targeted at customers who have not ordered in N days.', // → one job, one sentence
     schema: z.object({
-      discountPercent: z.number().int().min(1).max(75),
-      lapsedDays: z.number().int().min(7).max(365),
-      code: z.string().regex(/^[A-Z0-9]{4,16}$/),
+      discountPercent: z.number().int().min(1).max(75), // → integer 1..75 (no 0%, no 90%)
+      lapsedDays: z.number().int().min(7).max(365),     // → integer 7..365
+      code: z.string().regex(/^[A-Z0-9]{4,16}$/),       // → uppercase alnum, 4-16 chars
     }),
   },
 );
 
-export const createVipThankYouPromo = tool(/* ... */);
-export const createFlashSale = tool(/* ... */);
-export const createFreeShippingPromo = tool(/* ... */);
+export const createVipThankYouPromo = tool(/* ... */);   // → StructuredTool 'promotions.create_vip_thank_you'
+export const createFlashSale = tool(/* ... */);          // → StructuredTool 'promotions.create_flash_sale'
+export const createFreeShippingPromo = tool(/* ... */);  // → StructuredTool 'promotions.create_free_shipping'
+// → 4 narrow tools the model picks by name; failure mode is "no tool matched" (catchable), not "wrong combo" (silent)
 ```
 
 Three fields, all required, all bounded. The name *is* the use case — the model picks `promotions.create_for_lapsed_customers` from the directory the same way you'd pick a function from autocomplete. Six tools instead of one, but each is twenty lines, each is independently testable, and the model never has to compose a sixteen-field call from scratch.
@@ -86,19 +88,20 @@ A concrete sketch of the difference (full treatment in lesson 13):
 ```ts
 // ❌ Not idempotent — every retry charges again
 async function chargeOrder({ orderId, amountCents }) {
-  return await stripe.charges.create({ amount: amountCents, ... });
+  return await stripe.charges.create({ amount: amountCents, ... }); // → new Charge each call (retry = double-charge)
 }
 
 // ✅ Idempotent — second call returns the first call's result
 async function chargeOrder({ orderId, amountCents, requestKey }) {
-  const existing = await db.charges.findUnique({ where: { requestKey } });
-  if (existing) return existing;
-  const charge = await stripe.charges.create({
+  const existing = await db.charges.findUnique({ where: { requestKey } }); // → Charge | null
+  if (existing) return existing;                 // → fast-path: retry hits here, returns first result
+  const charge = await stripe.charges.create({   // → Stripe Charge (only on first call)
     amount: amountCents,
-    idempotency_key: requestKey,
+    idempotency_key: requestKey,                 // → Stripe also dedups server-side via this header
   });
-  return await db.charges.create({ data: { ...charge, requestKey } });
+  return await db.charges.create({ data: { ...charge, requestKey } }); // → persisted Charge row
 }
+// → second call with same requestKey returns the first Charge; customer charged exactly once
 ```
 
 Same signature plus one `requestKey` argument; the customer is no longer at risk of being double-charged when the model retries.
@@ -125,32 +128,32 @@ The good version: `"Search customers by lapsed-days threshold, tag membership, o
 
 ```ts
 // ❌ Vague — the model guesses what's searchable and what comes back
-description: 'Search customers.';
+description: 'Search customers.';                // → 17 chars; model invents fields and shape
 
 // ⚠ Better, but missing the boundary
-description: 'Search customers by tag, email, or lapsed days.';
+description: 'Search customers by tag, email, or lapsed days.'; // → fields named, but no return shape, no sibling hint
 
 // ✅ Tells the model what it filters on, what it returns,
 //    how many, and which sibling to use when this isn't right
 description: [
-  'Search customers by lapsed-days threshold, tag membership, or email domain.',
-  'Returns up to 25 rows ordered by last_order_at descending.',
-  'Use customers.list for unfiltered listing or customers.byId for a single lookup.',
-].join(' ');
+  'Search customers by lapsed-days threshold, tag membership, or email domain.', // → what it filters on
+  'Returns up to 25 rows ordered by last_order_at descending.',                  // → what it returns + cap
+  'Use customers.list for unfiltered listing or customers.byId for a single lookup.', // → sibling pointers
+].join(' ');                                     // → "Search customers by ... 25 rows ... Use customers.list ..."
 ```
 
 A second example for a write tool, where stakes are higher and the description does double duty as a guard rail:
 
 ```ts
 // ❌ Tells the model nothing about side effects
-description: 'Send an email.';
+description: 'Send an email.';                   // → 14 chars; model assumes it actually sends — dangerous
 
 // ✅ States the side effect, the safety net, and the boundary
 description: [
-  'Draft an email to a single customer and save it as a DRAFT.',
-  'Does NOT send — a human reviews drafts before they go out.',
-  'For bulk drafts use email_drafts.create_for_segment.',
-].join(' ');
+  'Draft an email to a single customer and save it as a DRAFT.',  // → what it does (saves a draft)
+  'Does NOT send — a human reviews drafts before they go out.',   // → safety net (no surprise sends)
+  'For bulk drafts use email_drafts.create_for_segment.',         // → sibling pointer for the bulk case
+].join(' ');                                     // → "Draft an email ... Does NOT send ... For bulk ..."
 ```
 
 The pattern that holds across all good descriptions: *what it does · what it returns / what its side effect is · which sibling to pick if this isn't the right one*. Three sentences, big leverage.
@@ -209,45 +212,46 @@ Working LangChain sketches for every strategy in the demo. The shared starting p
 
 ```ts
 // Shared setup — same for every strategy
-import { ChatAnthropic } from '@langchain/anthropic';
-import { tool } from '@langchain/core/tools';
+import { ChatAnthropic } from '@langchain/anthropic'; // → ChatAnthropic class imported
+import { tool } from '@langchain/core/tools';         // → tool() factory imported
 
-const billingTools  = [refundsCreate, chargesCreate, /* ... 10 total */];
-const supportTools  = [ticketsCreate, ticketsAssign,  /* ... 10 total */];
-const scheduleTools = [calendarCreate, availabilityCheck, /* ... 10 total */];
-const invTools      = [productsList, stockAdjust,      /* ... 10 total */];
-const reportTools   = [reportDaily, exportsCsv,        /* ... 10 total */];
-const ALL_TOOLS = [...billingTools, ...supportTools, ...scheduleTools, ...invTools, ...reportTools];
+const billingTools  = [refundsCreate, chargesCreate, /* ... 10 total */];      // → StructuredTool[10]
+const supportTools  = [ticketsCreate, ticketsAssign,  /* ... 10 total */];     // → StructuredTool[10]
+const scheduleTools = [calendarCreate, availabilityCheck, /* ... 10 total */]; // → StructuredTool[10]
+const invTools      = [productsList, stockAdjust,      /* ... 10 total */];    // → StructuredTool[10]
+const reportTools   = [reportDaily, exportsCsv,        /* ... 10 total */];    // → StructuredTool[10]
+const ALL_TOOLS = [...billingTools, ...supportTools, ...scheduleTools, ...invTools, ...reportTools]; // → StructuredTool[50]
 
-const baseModel = new ChatAnthropic({ model: 'claude-sonnet-4', temperature: 0 });
+const baseModel = new ChatAnthropic({ model: 'claude-sonnet-4', temperature: 0 }); // → ChatAnthropic instance, no tools yet
 ```
 
 *Bind all 50 — the baseline (don't do this past ~15 tools)*
 
 ```ts
-const agent = baseModel.bindTools(ALL_TOOLS);
+const agent = baseModel.bindTools(ALL_TOOLS);    // → Runnable bound with all 50 tools
 
 // Every user message now sends ~3,000 tokens of tool definitions before the
 // prompt even starts. The model has to discriminate between near-siblings
 // (e.g. support.tickets.create vs support.tickets.assign) on every turn.
-await agent.invoke([new HumanMessage(userMessage)]);
+await agent.invoke([new HumanMessage(userMessage)]); // → AIMessage; ~3,000 tool-def tokens billed every turn
 ```
 
 *Scope per session — one extra line at construction*
 
 ```ts
-const TOOLS_BY_DOMAIN = {
-  billing:  billingTools,
-  support:  supportTools,
-  schedule: scheduleTools,
-  inv:      invTools,
-  report:   reportTools,
+const TOOLS_BY_DOMAIN = {                        // → Record<Domain, StructuredTool[]>
+  billing:  billingTools,                        // → 10 tools
+  support:  supportTools,                        // → 10 tools
+  schedule: scheduleTools,                       // → 10 tools
+  inv:      invTools,                            // → 10 tools
+  report:   reportTools,                         // → 10 tools
 } as const;
-type Domain = keyof typeof TOOLS_BY_DOMAIN;
+type Domain = keyof typeof TOOLS_BY_DOMAIN;      // → 'billing' | 'support' | 'schedule' | 'inv' | 'report'
 
 function agentForSession(session: { domain: Domain }) {
-  return baseModel.bindTools(TOOLS_BY_DOMAIN[session.domain]);
+  return baseModel.bindTools(TOOLS_BY_DOMAIN[session.domain]); // → Runnable bound with that domain's 10 tools
 }
+// → call agentForSession({ domain: 'billing' }) → agent that sees 10 tools, not 50
 ```
 
 The crucial detail: **`domain` is *not* derived from the user's prompt.** Scope-per-session works precisely because something else — the session itself — already tells you which domain you're in. Four signals, in priority order:
@@ -255,28 +259,28 @@ The crucial detail: **`domain` is *not* derived from the user's prompt.** Scope-
 ```ts
 // 1. Route / URL — the request hit /admin/billing/...
 function pathToDomain(pathname: string): Domain {
-  if (pathname.startsWith('/admin/billing'))  return 'billing';
-  if (pathname.startsWith('/admin/support'))  return 'support';
-  if (pathname.startsWith('/admin/schedule')) return 'schedule';
-  if (pathname.startsWith('/admin/inventory')) return 'inv';
-  if (pathname.startsWith('/admin/reports'))  return 'report';
-  throw new Error(`No domain mapping for ${pathname}`);
+  if (pathname.startsWith('/admin/billing'))  return 'billing';   // → 'billing'  for /admin/billing/...
+  if (pathname.startsWith('/admin/support'))  return 'support';   // → 'support'  for /admin/support/...
+  if (pathname.startsWith('/admin/schedule')) return 'schedule';  // → 'schedule' for /admin/schedule/...
+  if (pathname.startsWith('/admin/inventory')) return 'inv';      // → 'inv'      for /admin/inventory/...
+  if (pathname.startsWith('/admin/reports'))  return 'report';    // → 'report'   for /admin/reports/...
+  throw new Error(`No domain mapping for ${pathname}`);           // → throws on an unknown route
 }
 
 // 2. User role — a "Billing Specialist" never sees support tools, even if they ask
-const ROLE_TO_DOMAIN: Record<UserRole, Domain> = {
-  billing_specialist: 'billing',
-  support_agent:      'support',
-  ops_manager:        'schedule',
-  inventory_clerk:    'inv',
-  analyst:            'report',
+const ROLE_TO_DOMAIN: Record<UserRole, Domain> = {  // → Record<UserRole, Domain> lookup table
+  billing_specialist: 'billing',                    // → role → 'billing'
+  support_agent:      'support',                    // → role → 'support'
+  ops_manager:        'schedule',                   // → role → 'schedule'
+  inventory_clerk:    'inv',                        // → role → 'inv'
+  analyst:            'report',                     // → role → 'report'
 };
 
 // 3. Workspace / tenant config — a finance tenant binds finance tools
-const domainFromTenant = (tenant: Tenant): Domain => tenant.assistantDomain;
+const domainFromTenant = (tenant: Tenant): Domain => tenant.assistantDomain; // → reads pre-configured Domain off the tenant row
 
 // 4. Explicit UI affordance — user picks "What can I help with? [Billing | Support | …]"
-const domainFromPicker = (selected: Domain): Domain => selected;
+const domainFromPicker = (selected: Domain): Domain => selected; // → identity — UI already gave us a Domain
 ```
 
 Putting it together at the request boundary:
@@ -284,17 +288,17 @@ Putting it together at the request boundary:
 ```ts
 // app/api/chat/route.ts
 export async function POST(req: NextRequest) {
-  const { messages, tenantId } = await req.json();
-  const user = await getCurrentUser(req);
+  const { messages, tenantId } = await req.json();    // → { messages: ChatMessage[], tenantId: string }
+  const user = await getCurrentUser(req);             // → User { role, ... }
 
   // Pick the domain from session signals. Try them in priority order.
   const domain: Domain =
-    pathToDomain(req.nextUrl.pathname) ??
-    ROLE_TO_DOMAIN[user.role]          ??
-    domainFromTenant(await getTenant(tenantId));
+    pathToDomain(req.nextUrl.pathname) ??             // → 'billing' if URL says so, else fall through
+    ROLE_TO_DOMAIN[user.role]          ??             // → role-based fallback
+    domainFromTenant(await getTenant(tenantId));      // → tenant-config fallback
 
-  const agent = agentForSession({ domain });
-  return agent.stream(messages);  // model only ever sees its 10 tools
+  const agent = agentForSession({ domain });          // → Runnable with this domain's 10 tools
+  return agent.stream(messages);  // → ReadableStream of AIMessage chunks; model sees 10 tools, not 50
 }
 ```
 
@@ -311,20 +315,20 @@ Sometimes there is no session signal — a single chat box, anonymous-ish user, 
 Zero round-trips. A regex per domain, vote-counts decide. Good enough as a prototype or fallback.
 
 ```ts
-const DOMAIN_KEYWORDS: Record<Domain, RegExp> = {
-  billing:  /\b(refund|charge|invoice|subscription|payment|dispute)\b/i,
-  support:  /\b(ticket|bug|complaint|escalat|csat|customer|issue)\b/i,
-  schedule: /\b(meeting|calendar|availability|book|invite|time off)\b/i,
-  inv:      /\b(product|stock|inventory|supplier|sku|warehouse)\b/i,
-  report:   /\b(report|chart|kpi|export|dashboard|trend)\b/i,
+const DOMAIN_KEYWORDS: Record<Domain, RegExp> = {  // → Record<Domain, RegExp> table
+  billing:  /\b(refund|charge|invoice|subscription|payment|dispute)\b/i, // → matches billing nouns/verbs
+  support:  /\b(ticket|bug|complaint|escalat|csat|customer|issue)\b/i,   // → matches support vocab
+  schedule: /\b(meeting|calendar|availability|book|invite|time off)\b/i, // → matches calendar vocab
+  inv:      /\b(product|stock|inventory|supplier|sku|warehouse)\b/i,     // → matches inventory vocab
+  report:   /\b(report|chart|kpi|export|dashboard|trend)\b/i,            // → matches reporting vocab
 };
 
 function domainFromPrompt(message: string): Domain | null {
-  const matches = (Object.entries(DOMAIN_KEYWORDS) as [Domain, RegExp][])
-    .map(([d, re]) => [d, (message.match(re) || []).length] as const)
-    .filter(([, n]) => n > 0)
-    .sort(([, a], [, b]) => b - a);
-  return matches[0]?.[0] ?? null;
+  const matches = (Object.entries(DOMAIN_KEYWORDS) as [Domain, RegExp][]) // → [['billing', /.../], ...]
+    .map(([d, re]) => [d, (message.match(re) || []).length] as const)    // → [['billing', 2], ['support', 0], ...]
+    .filter(([, n]) => n > 0)                                            // → keep domains with ≥1 hit
+    .sort(([, a], [, b]) => b - a);                                      // → highest-count first
+  return matches[0]?.[0] ?? null;                                        // → top domain or null
 }
 
 domainFromPrompt('Refund customer 7041\'s last charge of $48');
@@ -336,20 +340,20 @@ domainFromPrompt('Refund customer 7041\'s last charge of $48');
 A small fast model classifies the message before the main agent runs. ~50–150 ms, very accurate, easy to test.
 
 ```ts
-import { ChatAnthropic } from '@langchain/anthropic';
-import { z } from 'zod';
+import { ChatAnthropic } from '@langchain/anthropic'; // → ChatAnthropic class imported
+import { z } from 'zod';                              // → Zod schema builder imported
 
 // Use a cheap fast model — NOT the same model running the agent.
-const classifier = new ChatAnthropic({ model: 'claude-haiku-4-5', temperature: 0 })
-  .withStructuredOutput(
+const classifier = new ChatAnthropic({ model: 'claude-haiku-4-5', temperature: 0 }) // → Haiku instance, deterministic
+  .withStructuredOutput(                              // → Runnable that returns the typed object directly
     z.object({
-      domain: z.enum(['billing', 'support', 'schedule', 'inv', 'report']),
-      confidence: z.number().min(0).max(1),
+      domain: z.enum(['billing', 'support', 'schedule', 'inv', 'report']), // → 5-way enum
+      confidence: z.number().min(0).max(1),           // → 0..1 score
     }),
   );
 
 async function domainFromPromptLLM(message: string): Promise<Domain> {
-  const { domain } = await classifier.invoke([
+  const { domain } = await classifier.invoke([        // → { domain: Domain, confidence: number }
     {
       role: 'system',
       content: [
@@ -359,21 +363,21 @@ async function domainFromPromptLLM(message: string): Promise<Domain> {
         'schedule — meetings, calendar, availability, time off',
         'inv      — products, stock, suppliers, purchase orders',
         'report   — analytics, dashboards, exports, KPIs',
-      ].join('\n'),
+      ].join('\n'),                                   // → one system string with the domain rubric
     },
-    { role: 'user', content: message },
+    { role: 'user', content: message },               // → the actual user prompt
   ]);
-  return domain;
+  return domain;                                      // → 'billing' | 'support' | 'schedule' | 'inv' | 'report'
 }
 
 // Wired into the route handler:
 export async function POST(req: NextRequest) {
-  const { messages } = await req.json();
-  const lastUser = messages.findLast((m) => m.role === 'user').content;
+  const { messages } = await req.json();              // → ChatMessage[] from the client
+  const lastUser = messages.findLast((m) => m.role === 'user').content; // → newest user message text
 
-  const domain = await domainFromPromptLLM(lastUser); // ~80ms
-  const agent = agentForSession({ domain });
-  return agent.stream(messages);
+  const domain = await domainFromPromptLLM(lastUser); // → 'billing' (≈80ms classifier round-trip)
+  const agent = agentForSession({ domain });          // → Runnable with that domain's 10 tools
+  return agent.stream(messages);                      // → streamed AIMessage chunks
 }
 ```
 
@@ -384,37 +388,37 @@ Two round-trips per turn (classifier + main agent), but the main agent now sees 
 Pre-compute one embedding per domain (a description of what it handles). Embed the user message at request time and pick the closest. ~30–80 ms, no per-turn LLM charge.
 
 ```ts
-import { OpenAIEmbeddings } from '@langchain/openai';
+import { OpenAIEmbeddings } from '@langchain/openai'; // → OpenAIEmbeddings class imported
 
-const embeddings = new OpenAIEmbeddings({ model: 'text-embedding-3-small' });
+const embeddings = new OpenAIEmbeddings({ model: 'text-embedding-3-small' }); // → embedder instance, 1536 dims
 
 const DOMAIN_DESCRIPTIONS: Record<Domain, string> = {
-  billing:  'Refunds, charges, invoices, subscriptions, payment methods, disputes.',
-  support:  'Support tickets, complaints, bug reports, escalations, CSAT.',
-  schedule: 'Meetings, calendar events, availability, time-off requests.',
-  inv:      'Products, stock, suppliers, purchase orders, SKU lookups.',
-  report:   'Analytics reports, dashboards, KPI charts, CSV exports.',
+  billing:  'Refunds, charges, invoices, subscriptions, payment methods, disputes.', // → corpus for billing centroid
+  support:  'Support tickets, complaints, bug reports, escalations, CSAT.',          // → corpus for support centroid
+  schedule: 'Meetings, calendar events, availability, time-off requests.',           // → corpus for schedule centroid
+  inv:      'Products, stock, suppliers, purchase orders, SKU lookups.',             // → corpus for inv centroid
+  report:   'Analytics reports, dashboards, KPI charts, CSV exports.',               // → corpus for report centroid
 };
 
 // Pre-computed once at boot.
 const DOMAIN_VECTORS: Promise<Record<Domain, number[]>> = (async () => {
-  const entries = Object.entries(DOMAIN_DESCRIPTIONS) as [Domain, string][];
-  const vectors = await embeddings.embedDocuments(entries.map(([, d]) => d));
-  return Object.fromEntries(entries.map(([d], i) => [d, vectors[i]])) as Record<Domain, number[]>;
+  const entries = Object.entries(DOMAIN_DESCRIPTIONS) as [Domain, string][]; // → [['billing', '...'], ...]
+  const vectors = await embeddings.embedDocuments(entries.map(([, d]) => d)); // → number[][] (5 × 1536)
+  return Object.fromEntries(entries.map(([d], i) => [d, vectors[i]])) as Record<Domain, number[]>; // → { billing: number[1536], ... }
 })();
 
 function cosine(a: number[], b: number[]): number {
-  let dot = 0, na = 0, nb = 0;
-  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
-  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+  let dot = 0, na = 0, nb = 0;                       // → running sums
+  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; } // → dot, ||a||², ||b||²
+  return dot / (Math.sqrt(na) * Math.sqrt(nb));      // → cosine similarity in [-1, 1]
 }
 
 async function domainFromPromptEmbedding(message: string): Promise<Domain> {
-  const [vec, vectors] = await Promise.all([embeddings.embedQuery(message), DOMAIN_VECTORS]);
+  const [vec, vectors] = await Promise.all([embeddings.embedQuery(message), DOMAIN_VECTORS]); // → [number[1536], Record<Domain,number[]>]
   const ranked = (Object.entries(vectors) as [Domain, number[]][])
-    .map(([d, v]) => [d, cosine(vec, v)] as const)
-    .sort(([, a], [, b]) => b - a);
-  return ranked[0][0];
+    .map(([d, v]) => [d, cosine(vec, v)] as const)   // → [['billing', 0.83], ['support', 0.41], ...]
+    .sort(([, a], [, b]) => b - a);                  // → highest similarity first
+  return ranked[0][0];                               // → top Domain (e.g. 'billing')
 }
 ```
 
@@ -445,31 +449,31 @@ sub-agents (router)  →   no separate classifier; one LLM picks the delegate
 *Tool retrieval — vector index of tool descriptions, top-K per turn*
 
 ```ts
-import { MemoryVectorStore } from 'langchain/vectorstores/memory';
-import { OpenAIEmbeddings } from '@langchain/openai';
-import { Document } from '@langchain/core/documents';
+import { MemoryVectorStore } from 'langchain/vectorstores/memory'; // → in-process vector store class
+import { OpenAIEmbeddings } from '@langchain/openai';              // → OpenAIEmbeddings class
+import { Document } from '@langchain/core/documents';              // → Document wrapper
 
 // Indexed once at boot. Re-index when tool descriptions change.
-const vectorStore = await MemoryVectorStore.fromDocuments(
+const vectorStore = await MemoryVectorStore.fromDocuments(  // → MemoryVectorStore with 50 indexed tool docs
   ALL_TOOLS.map((t) =>
     new Document({
-      pageContent: `${t.name}: ${t.description}`,
-      metadata: { name: t.name },
+      pageContent: `${t.name}: ${t.description}`,           // → "billing.refunds.create: Issue a refund ..."
+      metadata: { name: t.name },                           // → { name: 'billing.refunds.create' }
     }),
   ),
-  new OpenAIEmbeddings({ model: 'text-embedding-3-small' }),
+  new OpenAIEmbeddings({ model: 'text-embedding-3-small' }), // → embedder used for indexing + queries
 );
 
 async function agentForMessage(userMessage: string) {
-  const hits = await vectorStore.similaritySearch(userMessage, 10);
-  const names = new Set(hits.map((h) => h.metadata.name as string));
-  const subset = ALL_TOOLS.filter((t) => names.has(t.name));
-  return baseModel.bindTools(subset);
+  const hits = await vectorStore.similaritySearch(userMessage, 10); // → Document[10] sorted by similarity
+  const names = new Set(hits.map((h) => h.metadata.name as string)); // → Set of 10 tool names
+  const subset = ALL_TOOLS.filter((t) => names.has(t.name));         // → StructuredTool[10]
+  return baseModel.bindTools(subset);                                // → Runnable bound with the top-10 tools
 }
 
 // Per turn:
-const agent = await agentForMessage(latestUserMessage);
-await agent.invoke(messages);
+const agent = await agentForMessage(latestUserMessage); // → Runnable customised to this message
+await agent.invoke(messages);                           // → AIMessage; only ~600 tokens of tool defs sent
 ```
 
 The vector store is the new piece. `MemoryVectorStore` is fine for a few hundred tools; for thousands use Chroma, pgvector, or any production store — the call shape is identical.
@@ -477,38 +481,38 @@ The vector store is the new piece. `MemoryVectorStore` is fine for a few hundred
 *Sub-agents — a router with delegate tools*
 
 ```ts
-import { createReactAgent } from '@langchain/langgraph/prebuilt';
-import { z } from 'zod';
+import { createReactAgent } from '@langchain/langgraph/prebuilt'; // → prebuilt ReAct agent factory
+import { z } from 'zod';                                          // → Zod schema builder
 
 // Each sub-agent stays in its own 5–15 sweet spot.
-const billingAgent  = createReactAgent({ llm: baseModel, tools: billingTools,  systemPrompt: 'You handle billing only.' });
-const supportAgent  = createReactAgent({ llm: baseModel, tools: supportTools,  systemPrompt: 'You handle support only.' });
-const scheduleAgent = createReactAgent({ llm: baseModel, tools: scheduleTools, systemPrompt: 'You handle scheduling only.' });
+const billingAgent  = createReactAgent({ llm: baseModel, tools: billingTools,  systemPrompt: 'You handle billing only.' });   // → CompiledStateGraph (10 tools)
+const supportAgent  = createReactAgent({ llm: baseModel, tools: supportTools,  systemPrompt: 'You handle support only.' });   // → CompiledStateGraph (10 tools)
+const scheduleAgent = createReactAgent({ llm: baseModel, tools: scheduleTools, systemPrompt: 'You handle scheduling only.' }); // → CompiledStateGraph (10 tools)
 // ... one per domain
 
 // One delegate tool per sub-agent. The router's whole catalog is these five.
-const delegateBilling = tool(
+const delegateBilling = tool(                          // → StructuredTool { name: 'router.delegate.billing' }
   async ({ task }) => {
-    const result = await billingAgent.invoke({ messages: [new HumanMessage(task)] });
-    return String(result.messages.at(-1)?.content ?? '');
+    const result = await billingAgent.invoke({ messages: [new HumanMessage(task)] }); // → { messages: BaseMessage[] }
+    return String(result.messages.at(-1)?.content ?? ''); // → final assistant message text
   },
   {
-    name: 'router.delegate.billing',
+    name: 'router.delegate.billing',                   // → identifier the router uses
     description:
-      'Delegate billing tasks — refunds, charges, invoices, subscriptions, payment methods, disputes — to the billing specialist.',
-    schema: z.object({ task: z.string() }),
+      'Delegate billing tasks — refunds, charges, invoices, subscriptions, payment methods, disputes — to the billing specialist.', // → router's only signal
+    schema: z.object({ task: z.string() }),            // → router passes a single freeform task string
   },
 );
 // ... delegateSupport, delegateSchedule, delegateInv, delegateReport
 
-const router = createReactAgent({
+const router = createReactAgent({                      // → CompiledStateGraph — the router itself
   llm: baseModel,
-  tools: [delegateBilling, delegateSupport, delegateSchedule, delegateInv, delegateReport],
+  tools: [delegateBilling, delegateSupport, delegateSchedule, delegateInv, delegateReport], // → 5 delegate tools, that's it
   systemPrompt: 'You are a router. Pick the right specialist and forward the task.',
 });
 
 // Top-level call:
-await router.invoke({ messages: [new HumanMessage(userMessage)] });
+await router.invoke({ messages: [new HumanMessage(userMessage)] }); // → final assistant message; sub-agent did the work
 ```
 
 The delegate's `description` is what the router reads to decide. Spend real time on those five strings — they're the entire UX of the routing layer.
@@ -542,8 +546,8 @@ A short, brutal checklist. If your tool matches any of these, refactor before yo
 // ❌ Returns void; the model can't reference the row it just created
 export const createDraft = tool(
   async ({ customerId, body }) => {
-    await db.emailDrafts.create({ data: { customerId, body } });
-    return 'OK';
+    await db.emailDrafts.create({ data: { customerId, body } }); // → row created (id discarded)
+    return 'OK';                                                 // → 'OK' — model has no draftId to reference
   },
   { name: 'email_drafts.create', /* ... */ },
 );
@@ -551,13 +555,14 @@ export const createDraft = tool(
 // ✅ Returns the row; the next turn can quote draftId, sentAt, etc.
 export const createDraft = tool(
   async ({ customerId, body }) => {
-    const draft = await db.emailDrafts.create({ data: { customerId, body } });
+    const draft = await db.emailDrafts.create({ data: { customerId, body } }); // → EmailDraft row
     return JSON.stringify({
-      draftId: draft.id,
-      customerId: draft.customerId,
-      createdAt: draft.createdAt.toISOString(),
-      status: 'draft',
+      draftId: draft.id,                                         // → 'draft_01HX...'
+      customerId: draft.customerId,                              // → 'cus_7041'
+      createdAt: draft.createdAt.toISOString(),                  // → '2026-05-09T13:42:11.000Z'
+      status: 'draft',                                           // → literal 'draft' so the model knows it didn't send
     });
+    // → '{"draftId":"draft_01HX...","customerId":"cus_7041","createdAt":"2026-05-09T...","status":"draft"}'
   },
   { name: 'email_drafts.create', /* ... */ },
 );
@@ -568,9 +573,11 @@ export const createDraft = tool(
 ```ts
 // ❌ The model has to parse English to find the values
 return `Sent the email to ${email} at ${new Date().toISOString()}.`;
+// → 'Sent the email to ana@example.com at 2026-05-09T13:42:11.000Z.'
 
 // ✅ The model quotes structured fields directly
 return JSON.stringify({ sentTo: email, sentAt: new Date().toISOString() });
+// → '{"sentTo":"ana@example.com","sentAt":"2026-05-09T13:42:11.000Z"}'
 ```
 
 *Recursive tools — surface the steps to the model instead*
@@ -579,46 +586,48 @@ return JSON.stringify({ sentTo: email, sentAt: new Date().toISOString() });
 // ❌ One tool hides three operations; the model can't reason about partial failure
 export const createPromoAndDraftEmail = tool(
   async ({ discount, lapsedDays }) => {
-    const promo = await createPromotion({ discount, lapsedDays });
-    const customers = await findLapsedCustomers({ lapsedDays });
-    const drafts = await Promise.all(customers.map((c) => createDraft({ customerId: c.id, /* ... */ })));
-    return JSON.stringify({ promo, draftCount: drafts.length });
+    const promo = await createPromotion({ discount, lapsedDays });   // → Promotion
+    const customers = await findLapsedCustomers({ lapsedDays });     // → Customer[] (could be 0 or 5,000)
+    const drafts = await Promise.all(customers.map((c) => createDraft({ customerId: c.id, /* ... */ }))); // → Draft[] (any one can fail mid-flight)
+    return JSON.stringify({ promo, draftCount: drafts.length });     // → '{"promo":{...},"draftCount":423}' — model can't see which customer failed
   },
   { /* ... */ },
 );
 
 // ✅ Three narrow tools the model orchestrates itself; each step is observable
-export const createPromotion = tool(/* ... */);
-export const customersLapsed = tool(/* ... */);
-export const createDraft = tool(/* ... */);
+export const createPromotion = tool(/* ... */);    // → StructuredTool 'promotions.create_for_lapsed_customers'
+export const customersLapsed = tool(/* ... */);    // → StructuredTool 'customers.lapsed'
+export const createDraft = tool(/* ... */);        // → StructuredTool 'email_drafts.create'
+// → model picks them in sequence; each step's result lands in the transcript and is debuggable
 ```
 
 *Implicit global state — pass the ID every time*
 
 ```ts
 // ❌ Relies on whatever was set on the last call
-let CURRENT_CUSTOMER: Customer | null = null;
+let CURRENT_CUSTOMER: Customer | null = null;        // → mutable module-level state, shared across requests in serverless
 
-export const setCustomer = tool(/* sets CURRENT_CUSTOMER */);
+export const setCustomer = tool(/* sets CURRENT_CUSTOMER */); // → StructuredTool — side-effects the global
 export const draftEmail = tool(
   async ({ body }) => {
-    if (!CURRENT_CUSTOMER) throw new Error('No customer selected');
-    return await createDraft({ customerId: CURRENT_CUSTOMER.id, body });
+    if (!CURRENT_CUSTOMER) throw new Error('No customer selected'); // → throws when caller forgot setCustomer first
+    return await createDraft({ customerId: CURRENT_CUSTOMER.id, body }); // → Draft for whichever customer happened to be set
   },
   /* ... */
 );
 
 // ✅ Pure: every call carries its own context
 export const draftEmail = tool(
-  async ({ customerId, body }) => createDraft({ customerId, body }),
+  async ({ customerId, body }) => createDraft({ customerId, body }), // → Draft, no globals read
   {
     schema: z.object({
-      customerId: z.string().uuid(),
-      body: z.string().min(20),
+      customerId: z.string().uuid(),                 // → UUID enforced; can't reach this with a bad id
+      body: z.string().min(20),                      // → at least 20 chars of body
     }),
     /* ... */
   },
 );
+// → call is reproducible from args alone; works the same in dev, prod, and serverless cold starts
 ```
 
 A useful exercise after writing a tool: read it back and ask *"could a model that has never seen my code call this correctly using only the name, description, and schema?"* If the answer is no, you have more work to do.

@@ -23,29 +23,30 @@ For a first ship, pick whichever one is fastest to wire and revisit later. The l
 If you don't want a third-party tool yet, write a callback into the model itself and log to your own database. LangChain's callback system lets you hook into the lifecycle of every LLM call:
 
 ```ts
-import { BaseCallbackHandler } from '@langchain/core/callbacks/base';
-import { db } from '@/lib/db';
+import { BaseCallbackHandler } from '@langchain/core/callbacks/base'; // → callback base class
+import { db } from '@/lib/db';                    // → Drizzle/Prisma client
 
 class CostLogger extends BaseCallbackHandler {
-  name = 'cost-logger';
+  name = 'cost-logger';                           // → required identifier
 
   async handleLLMEnd(output: LLMResult, runId: string) {
-    const usage = output.llmOutput?.tokenUsage;
-    if (!usage) return;
-    await db.insert(llmCalls).values({
-      runId,
-      model: output.llmOutput?.model_name ?? 'unknown',
-      promptTokens: usage.promptTokens,
-      completionTokens: usage.completionTokens,
-      totalTokens: usage.totalTokens,
-      timestamp: new Date(),
+    const usage = output.llmOutput?.tokenUsage;   // → { promptTokens, completionTokens, totalTokens } | undefined
+    if (!usage) return;                           // → some providers don't report — skip
+    await db.insert(llmCalls).values({            // → INSERT INTO llm_calls
+      runId,                                      // → 'run_01HX...'
+      model: output.llmOutput?.model_name ?? 'unknown', // → 'claude-sonnet-4'
+      promptTokens: usage.promptTokens,           // → e.g. 2_473
+      completionTokens: usage.completionTokens,   // → e.g. 215
+      totalTokens: usage.totalTokens,             // → e.g. 2_688
+      timestamp: new Date(),                      // → 2026-05-09T13:42:11.000Z
     });
+    // → one row added to llm_calls; available for SQL aggregates below
   }
 }
 
 const llm = new ChatAnthropic({
-  model: 'claude-sonnet-4',
-  callbacks: [new CostLogger()],
+  model: 'claude-sonnet-4',                       // → ChatAnthropic instance with cost logging
+  callbacks: [new CostLogger()],                  // → fires handleLLMEnd after every call
 });
 ```
 
@@ -71,24 +72,27 @@ Once the rows are landing in a table, the dashboards write themselves. Three que
 
 ```sql
 -- Yesterday's total spend, by model.
-SELECT model, SUM(total_tokens), SUM(estimated_usd)
+SELECT model, SUM(total_tokens), SUM(estimated_usd)   -- → one row per model
 FROM llm_calls
-WHERE timestamp >= now() - interval '1 day'
+WHERE timestamp >= now() - interval '1 day'           -- → last 24h window
 GROUP BY model;
+-- → e.g. ('claude-sonnet-4', 1_482_311, 4.45)
 
 -- Top spenders, last 7 days.
-SELECT user_id, COUNT(*) calls, SUM(estimated_usd) usd
+SELECT user_id, COUNT(*) calls, SUM(estimated_usd) usd  -- → per-user totals
 FROM llm_calls
-WHERE timestamp >= now() - interval '7 days'
+WHERE timestamp >= now() - interval '7 days'           -- → last 7d window
 GROUP BY user_id
-ORDER BY usd DESC
-LIMIT 20;
+ORDER BY usd DESC                                       -- → biggest spend first
+LIMIT 20;                                               -- → cap at 20 rows
+-- → e.g. ('u_42', 312 calls, $9.12)
 
 -- Daily spend trend.
-SELECT date_trunc('day', timestamp) day, SUM(estimated_usd)
+SELECT date_trunc('day', timestamp) day, SUM(estimated_usd)  -- → one row per day
 FROM llm_calls
 GROUP BY 1
-ORDER BY 1;
+ORDER BY 1;                                             -- → chronological
+-- → e.g. ('2026-05-08', 11.30), ('2026-05-09', 13.05)
 ```
 
 Build the queries first, then bolt on alerts: a per-user daily cap (most users will never hit it; the ones who do are either bots or stuck in a loop), a global daily cap (a kill-switch that pauses the agent if today's spend has 10×'d yesterday's), and a weekly review that emails you the top spenders so you spot patterns before the next bill.

@@ -18,23 +18,25 @@ Given a fixed prompt, fixed system prompt, and fixed tool definitions, the model
 
 ```ts
 test('lapsed-customer prompt produces a four-step plan', async () => {
-  const llm = new ChatAnthropic({ model: 'claude-sonnet-4', temperature: 0 });
-  const agent = createAgent({ llm, tools: allTools, systemPrompt: SYSTEM });
+  const llm = new ChatAnthropic({ model: 'claude-sonnet-4', temperature: 0 }); // → deterministic ChatAnthropic
+  const agent = createAgent({ llm, tools: allTools, systemPrompt: SYSTEM });   // → CompiledStateGraph
 
   const result = await agent.invoke({
     messages: [new HumanMessage('Create a 15% promo for customers who haven\'t ordered in 60 days.')],
   });
+  // → result: GraphState with full transcript
 
   const calls = result.messages.flatMap((m) =>
-    isAIMessage(m) ? m.tool_calls ?? [] : [],
+    isAIMessage(m) ? m.tool_calls ?? [] : [],     // → flatten tool_calls across every AIMessage
   );
+  // → calls: ToolCall[] in the order the agent emitted them
 
-  expect(calls.map((c) => c.name)).toEqual([
+  expect(calls.map((c) => c.name)).toEqual([      // → assertion: exact ordered tool names
     'promotions.create',
     'customers.lapsed',
     'email_drafts.create',
   ]);
-  expect(calls[0].args).toMatchObject({ discountValue: 15 });
+  expect(calls[0].args).toMatchObject({ discountValue: 15 }); // → first tool args contain { discountValue: 15 }
 });
 ```
 
@@ -46,13 +48,13 @@ Sometimes the model has to generate prose: an email body, an explanation, a summ
 
 ```ts
 test('email body has the expected shape', async () => {
-  const out = await agent.invoke({ messages: [new HumanMessage(PROMPT)] });
-  const body = out.draft.body;
+  const out = await agent.invoke({ messages: [new HumanMessage(PROMPT)] }); // → GraphState
+  const body = out.draft.body;                    // → string — the AI-drafted email body
 
-  expect(body.split(/[.!?]/).filter(Boolean).length).toBeGreaterThanOrEqual(3);
-  expect(body).toMatch(/15%/);
-  expect(body).toMatch(/code\s+LAPSED15/i);
-  expect(body).not.toMatch(/\{\{|<placeholder>/i);
+  expect(body.split(/[.!?]/).filter(Boolean).length).toBeGreaterThanOrEqual(3); // → at least 3 sentences
+  expect(body).toMatch(/15%/);                    // → mentions the discount
+  expect(body).toMatch(/code\s+LAPSED15/i);       // → mentions the promo code
+  expect(body).not.toMatch(/\{\{|<placeholder>/i); // → no leftover template placeholders
 });
 ```
 
@@ -63,24 +65,24 @@ Three sentences or more. Mentions the discount. Mentions the code. Has no leftov
 Your graph logic — routing, interrupts, retry loops — does not need a real model to be tested. Real models are slow and expensive and flaky in CI. Use a fake:
 
 ```ts
-import { FakeListChatModel } from '@langchain/core/utils/testing';
+import { FakeListChatModel } from '@langchain/core/utils/testing'; // → scriptable LLM stub
 
 test('graph routes write tool calls to await_confirmation', async () => {
-  const fake = new FakeListChatModel({
+  const fake = new FakeListChatModel({            // → returns its `responses` in order
     responses: [
       // The model "decides" to call promotions.create. Encoded as a
       // tool-call message your graph parses normally.
       JSON.stringify({
         tool_calls: [{ name: 'promotions.create', args: { code: 'TEST' }, id: '1' }],
-      }),
+      }),                                         // → scripted "first turn" — proposes one write
     ],
   });
 
-  const graph = buildGraph({ llm: fake });
-  const result = await graph.invoke({ messages: [new HumanMessage('go')] });
+  const graph = buildGraph({ llm: fake });        // → CompiledStateGraph wired to the fake LLM
+  const result = await graph.invoke({ messages: [new HumanMessage('go')] }); // → GraphState (paused on interrupt)
 
-  expect(result.__interrupt__).toBeDefined();
-  expect(result.__interrupt__[0].value.kind).toBe('confirm_writes');
+  expect(result.__interrupt__).toBeDefined();     // → graph hit the confirmation interrupt
+  expect(result.__interrupt__[0].value.kind).toBe('confirm_writes'); // → payload kind matches our shape
 });
 ```
 

@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Deploy IT-Courses to DigitalOcean — Flat $12/mo VPS Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --green-50:  #f0fdf4;
+    --green-100: #dcfce7;
+    --green-200: #bbf7d0;
+    --green-500: #22c55e;
+    --green-600: #16a34a;
+    --green-700: #15803d;
+    --green-800: #166534;
+    --amber-50:  #fffbeb;
+    --amber-200: #fde68a;
+    --amber-700: #b45309;
+    --rose-50:   #fff1f2;
+    --rose-200:  #fecdd3;
+    --rose-700:  #be123c;
+    --sky-50:    #f0f9ff;
+    --sky-200:   #bae6fd;
+    --sky-700:   #0369a1;
+    --ink:       #0f1f17;
+    --ink-soft:  #475569;
+    --paper:     #fbfaf6;
+    --card:      #ffffff;
+    --line:      #e6e3da;
+    --code-bg:   #0f1f17;
+    --code-fg:   #e2e8f0;
+    --code-comment: #86efac;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 500;
+    line-height: 1.65;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  h1 { font-size: clamp(2rem, 4vw, 2.75rem); line-height: 1.15; }
+  h2 { font-size: 1.625rem; line-height: 1.25; margin: 0 0 1rem; }
+  h3 { font-size: 1.125rem; line-height: 1.35; margin: 1.5rem 0 0.5rem; }
+  p { margin: 0 0 1rem; }
+  a { color: var(--green-700); text-decoration: none; border-bottom: 1px solid var(--green-200); transition: 0.15s; }
+  a:hover { color: var(--green-800); border-bottom-color: var(--green-500); }
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    font-size: 0.9em;
+    background: var(--green-50);
+    color: var(--green-800);
+    padding: 0.1em 0.4em;
+    border-radius: 5px;
+    font-weight: 500;
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 1.1rem 1.25rem;
+    border-radius: 12px;
+    overflow-x: auto;
+    margin: 1rem 0 1.25rem;
+    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 6px 24px -8px rgba(15, 31, 23, 0.25);
+  }
+  pre code { background: transparent; color: inherit; padding: 0; border-radius: 0; font-size: inherit; }
+  pre .c { color: var(--code-comment); font-style: italic; }
+  pre .k { color: #fcd34d; }
+  pre .s { color: #fda4af; }
+  pre .p { color: #93c5fd; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2.5rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 5rem;
+  }
+  @media (max-width: 880px) { .layout { grid-template-columns: 1fr; gap: 1.5rem; } }
+
+  .hero {
+    background: linear-gradient(135deg, var(--green-50) 0%, #ffffff 60%, #fdf6e3 100%);
+    border-bottom: 1px solid var(--line);
+    padding: 3.5rem 1.5rem 3rem;
+  }
+  .hero-inner { max-width: 1200px; margin: 0 auto; }
+  .hero .eyebrow {
+    display: inline-block;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--green-700);
+    background: var(--green-100);
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .hero p.lede { font-size: 1.1rem; color: var(--ink-soft); max-width: 640px; margin-top: 0.75rem; }
+  .hero .meta { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
+  .hero .meta .pill {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid var(--line);
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    color: var(--ink);
+  }
+  .hero .meta .pill strong { color: var(--green-700); font-weight: 700; margin-right: 0.4rem; }
+
+  aside.toc {
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+    font-size: 0.92rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 1.25rem 1rem;
+  }
+  aside.toc h4 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.85rem;
+  }
+  aside.toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  aside.toc li { margin: 0.25rem 0; counter-increment: toc; }
+  aside.toc a {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 8px;
+    border: none;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  aside.toc a::before {
+    content: counter(toc, decimal-leading-zero);
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--green-700);
+    background: var(--green-50);
+    padding: 0.2rem 0.45rem;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  aside.toc a:hover { background: var(--green-50); }
+  @media (max-width: 880px) { aside.toc { position: static; } }
+
+  .step {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 2rem;
+    margin-bottom: 1.75rem;
+    box-shadow: 0 1px 0 rgba(15, 31, 23, 0.02);
+    transition: 0.2s;
+  }
+  .step:hover { box-shadow: 0 1px 0 rgba(15, 31, 23, 0.02), 0 12px 30px -16px rgba(22, 101, 52, 0.18); }
+  .step .step-head { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
+  .step .num {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--green-500), var(--green-700));
+    color: white;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px -4px rgba(22, 163, 74, 0.5);
+  }
+  .step h2 { flex: 1; padding-top: 0.4rem; }
+
+  .substep {
+    background: var(--green-50);
+    border-left: 3px solid var(--green-500);
+    border-radius: 8px;
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .substep h4 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    color: var(--green-800);
+    margin: 0 0 0.4rem;
+  }
+  .substep p:last-child { margin-bottom: 0; }
+
+  .callout {
+    border-radius: 12px;
+    padding: 1rem 1.15rem;
+    margin: 1.25rem 0;
+    border: 1px solid;
+    display: flex;
+    gap: 0.8rem;
+    align-items: flex-start;
+  }
+  .callout .ico {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+  }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: 0.5rem; }
+  .callout strong { font-weight: 700; }
+  .callout-tip { background: var(--green-50); border-color: var(--green-200); color: var(--green-800); }
+  .callout-tip .ico { background: var(--green-200); color: var(--green-800); }
+  .callout-warn { background: var(--amber-50); border-color: var(--amber-200); color: var(--amber-700); }
+  .callout-warn .ico { background: var(--amber-200); color: var(--amber-700); }
+  .callout-info { background: var(--sky-50); border-color: var(--sky-200); color: var(--sky-700); }
+  .callout-info .ico { background: var(--sky-200); color: var(--sky-700); }
+  .callout-stop { background: var(--rose-50); border-color: var(--rose-200); color: var(--rose-700); }
+  .callout-stop .ico { background: var(--rose-200); color: var(--rose-700); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 0.93rem;
+  }
+  th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--line); }
+  th {
+    background: var(--green-50);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--green-800);
+    letter-spacing: 0.02em;
+  }
+  tr:last-child td { border-bottom: none; }
+
+  ul.checklist { list-style: none; padding: 0; margin: 1rem 0; }
+  ul.checklist li { position: relative; padding-left: 2rem; margin: 0.5rem 0; }
+  ul.checklist li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--green-600);
+    font-weight: 700;
+    background: var(--green-100);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    line-height: 1;
+  }
+
+  details {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    margin: 0.75rem 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  details[open] { border-color: var(--green-200); background: var(--green-50); }
+  summary {
+    cursor: pointer;
+    padding: 1rem 1.25rem;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    color: var(--ink);
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after {
+    content: "+";
+    font-size: 1.4rem;
+    color: var(--green-600);
+    font-weight: 400;
+    transition: 0.2s;
+  }
+  details[open] summary::after { transform: rotate(45deg); }
+  details > div { padding: 0 1.25rem 1.1rem; }
+  details > div p:last-child { margin-bottom: 0; }
+
+  .final {
+    background: linear-gradient(135deg, var(--green-700), var(--green-500));
+    color: white;
+    border-radius: 18px;
+    padding: 2.25rem;
+    margin-top: 2rem;
+    text-align: center;
+  }
+  .final h2 { color: white; margin-bottom: 0.75rem; }
+  .final p { color: rgba(255,255,255,0.9); margin-bottom: 0; }
+
+  .price-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.85rem;
+    margin: 1rem 0;
+  }
+  .price-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1rem;
+  }
+  .price-card .label { font-family: 'Outfit', sans-serif; font-size: 0.8rem; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.05em; }
+  .price-card .amt { font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--green-700); margin-top: 0.3rem; }
+  .price-card .desc { font-size: 0.85rem; color: var(--ink-soft); margin-top: 0.3rem; }
+
+  kbd {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.82em;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 0.1em 0.45em;
+    color: var(--ink);
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Beginner's End-to-End Guide</span>
+    <h1>Deploy IT-Courses to DigitalOcean</h1>
+    <p class="lede">A patient walkthrough for hosting your Next.js course site on a real VPS — a flat <strong>$12/month</strong> DigitalOcean Droplet, with your own domain, HTTPS, and zero risk of overage charges.</p>
+    <div class="meta">
+      <span class="pill"><strong>Stack</strong> Next.js 16 + MDX</span>
+      <span class="pill"><strong>Provider</strong> DigitalOcean</span>
+      <span class="pill"><strong>Plan</strong> $12/mo flat Droplet</span>
+      <span class="pill"><strong>Budget headroom</strong> ~$8 / mo</span>
+      <span class="pill"><strong>Time</strong> ~60 minutes</span>
+    </div>
+  </div>
+</header>
+
+<main class="layout">
+
+  <aside class="toc">
+    <h4>On this page</h4>
+    <ol>
+      <li><a href="#step-1">Why DigitalOcean</a></li>
+      <li><a href="#step-2">Prep checklist</a></li>
+      <li><a href="#step-3">Sign up &amp; add card</a></li>
+      <li><a href="#step-4">Push to GitHub</a></li>
+      <li><a href="#step-5">Create the Droplet</a></li>
+      <li><a href="#step-6">Reserve a static IP</a></li>
+      <li><a href="#step-7">Connect via SSH</a></li>
+      <li><a href="#step-8">Harden the server</a></li>
+      <li><a href="#step-9">Install Node, Git, PM2</a></li>
+      <li><a href="#step-10">Clone &amp; build the project</a></li>
+      <li><a href="#step-11">Run with PM2</a></li>
+      <li><a href="#step-12">Caddy + free HTTPS</a></li>
+      <li><a href="#step-13">DNS records</a></li>
+      <li><a href="#step-14">One-command updates</a></li>
+      <li><a href="#step-15">Backups (snapshots)</a></li>
+      <li><a href="#step-16">Monitoring &amp; cost</a></li>
+      <li><a href="#step-17">Troubleshooting</a></li>
+      <li><a href="#step-18">What to learn next</a></li>
+    </ol>
+  </aside>
+
+  <article>
+
+    <!-- 01 -->
+    <section class="step" id="step-1">
+      <div class="step-head">
+        <span class="num">01</span>
+        <h2>Why DigitalOcean (not AWS, not Vercel)</h2>
+      </div>
+      <p>You're choosing a <strong>real VPS</strong> — a small Linux computer in a data centre that you rent by the month at a fixed price. Unlike Vercel (where overage is technically possible if you skip the spend cap) and unlike AWS Lightsail (where new accounts get blocked by vCPU quotas), DigitalOcean simply charges your card $12 on day one and gives you a server. There is no quota approval, no "set a cap or risk a surprise bill," no spend management to configure. The price is the price.</p>
+
+      <div class="price-grid">
+        <div class="price-card">
+          <div class="label">Droplet</div>
+          <div class="amt">$12<span style="font-size:0.9rem;color:var(--ink-soft);font-weight:500;">/mo</span></div>
+          <div class="desc">2 GB RAM · 1 vCPU · 50 GB SSD</div>
+        </div>
+        <div class="price-card">
+          <div class="label">Bandwidth</div>
+          <div class="amt">2 TB</div>
+          <div class="desc">Included; overage is $0.01/GB but you won't hit it</div>
+        </div>
+        <div class="price-card">
+          <div class="label">Backups</div>
+          <div class="amt">+$2.40<span style="font-size:0.9rem;color:var(--ink-soft);font-weight:500;">/mo</span></div>
+          <div class="desc">Optional weekly auto-snapshots</div>
+        </div>
+        <div class="price-card">
+          <div class="label">Total</div>
+          <div class="amt">$12<span style="font-size:0.9rem;color:var(--ink-soft);font-weight:500;"> – $14.40</span></div>
+          <div class="desc">Flat, recurring. Well under your $20 budget.</div>
+        </div>
+      </div>
+
+      <h3>How DigitalOcean compares to the alternatives you considered</h3>
+      <table>
+        <thead><tr><th>Provider</th><th>Monthly</th><th>Surprise-bill risk</th><th>Beginner UX</th></tr></thead>
+        <tbody>
+          <tr><td>DigitalOcean Droplet</td><td>$12 flat</td><td>None — Droplet price is fixed</td><td>Excellent (best docs in industry)</td></tr>
+          <tr><td>AWS Lightsail</td><td>$10 flat</td><td>None, but new accounts hit quota holds</td><td>Good, when you can get in</td></tr>
+          <tr><td>Vercel Pro</td><td>$20 + metered</td><td>Yes unless you set a spend cap</td><td>Excellent</td></tr>
+          <tr><td>Linode / Vultr / Hetzner</td><td>$5–$12 flat</td><td>None</td><td>OK, but less guided</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-tip">
+        <span class="ico">★</span>
+        <div><p><strong>Why $12 and not the $6 entry tier?</strong> The $6 Droplet has only <strong>1 GB RAM</strong>. <code>next build</code> on a Next.js 16 site with MDX peaks above 1 GB and gets killed by the kernel's out-of-memory killer. You'd have to enable swap to limp through. The $12 tier just works.</p></div>
+      </div>
+    </section>
+
+    <!-- 02 -->
+    <section class="step" id="step-2">
+      <div class="step-head">
+        <span class="num">02</span>
+        <h2>What you need before starting</h2>
+      </div>
+      <ul class="checklist">
+        <li>Your IT-courses project building cleanly. Run <code>npm run build</code> in PowerShell first.</li>
+        <li>A <a href="https://github.com">GitHub</a> account (the Droplet will pull from there).</li>
+        <li>Your domain, with access to its DNS settings page at the registrar.</li>
+        <li>A credit / debit card for DigitalOcean. Vietnamese-issued cards work; PayPal also accepted.</li>
+        <li>About 60 minutes of focused time. The Droplet creation takes 60 seconds; most of the time is in setup.</li>
+      </ul>
+    </section>
+
+    <!-- 03 -->
+    <section class="step" id="step-3">
+      <div class="step-head">
+        <span class="num">03</span>
+        <h2>Sign up &amp; add your card</h2>
+      </div>
+      <p>Go to <a href="https://www.digitalocean.com/">digitalocean.com</a> and click <strong>Sign Up</strong>. Use email + password, or "Continue with Google".</p>
+
+      <div class="substep">
+        <h4>3.1 — Verify your email</h4>
+        <p>Check your inbox, click the verification link. Mandatory before you can create a Droplet.</p>
+      </div>
+      <div class="substep">
+        <h4>3.2 — Add a payment method</h4>
+        <p>You'll land on a "Payment Information" screen. Add your card. DigitalOcean places a temporary $1 authorization (instantly refunded) to verify the card works. Once that succeeds, you can create Droplets immediately — no waiting, no quota approval.</p>
+      </div>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <div><p><strong>Look for new-customer credit.</strong> DigitalOcean periodically offers $100–$200 in free credit for first 60 days through their referral program. Search "DigitalOcean referral credit" before signing up — if you find a valid link, your first month or two are free.</p></div>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section class="step" id="step-4">
+      <div class="step-head">
+        <span class="num">04</span>
+        <h2>Push your project to GitHub</h2>
+      </div>
+      <p>Skip this step if your project is already on GitHub. Otherwise:</p>
+
+      <pre><code><span class="c"># in C:\Users\ADMIN\Desktop\claude-demo\IT-courses</span>
+git init
+git add .
+git commit -m <span class="s">"initial commit"</span>
+git branch -M main
+git remote add origin https://github.com/YOUR-USERNAME/it-courses.git
+git push -u origin main</code></pre>
+
+      <p>Make the repo <strong>private</strong>. You'll give the Droplet a read-only deploy key in Step 10 so it can pull updates without storing your personal GitHub credentials.</p>
+    </section>
+
+    <!-- 05 -->
+    <section class="step" id="step-5">
+      <div class="step-head">
+        <span class="num">05</span>
+        <h2>Create the Droplet</h2>
+      </div>
+      <p>From the DigitalOcean dashboard, click <strong>Create → Droplets</strong> in the top right. Configure these fields exactly:</p>
+
+      <table>
+        <thead><tr><th>Field</th><th>Value</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Choose region</td><td><strong>Singapore</strong> (SGP1)</td><td>Closest to Vietnam; ~30ms latency from Ho Chi Minh City</td></tr>
+          <tr><td>Datacenter</td><td>SGP1 (default)</td><td>Only one in Singapore</td></tr>
+          <tr><td>OS image</td><td>Ubuntu <strong>24.04 LTS x64</strong></td><td>Long-term support, matches the AWS guide</td></tr>
+          <tr><td>Size — Droplet Type</td><td><strong>Basic</strong></td><td>Shared CPU; right tier for a courses site</td></tr>
+          <tr><td>Size — CPU options</td><td><strong>Regular (Intel)</strong> with SSD</td><td>Cheapest reliable option</td></tr>
+          <tr><td>Plan</td><td><strong>$12/mo</strong> — 2 GB / 1 CPU / 50 GB / 2 TB</td><td>RAM is the constraint for Next.js build</td></tr>
+          <tr><td>Authentication</td><td><strong>SSH Key</strong> (not Password)</td><td>Far more secure; add your public key</td></tr>
+          <tr><td>Hostname</td><td><code>it-courses-prod</code></td><td>Anything readable — used in dashboard listing</td></tr>
+          <tr><td>Backups</td><td>✅ Enable Backups (+$2.40/mo)</td><td>Weekly auto-snapshot; total still $14.40 ≤ $20</td></tr>
+        </tbody>
+      </table>
+
+      <div class="substep">
+        <h4>5.1 — Generate an SSH key on Windows</h4>
+        <p>Open PowerShell on your laptop:</p>
+        <pre><code><span class="c"># Generate a key pair if you don't have one yet</span>
+ssh-keygen -t ed25519 -C <span class="s">"vuonglam@itcourses"</span>
+<span class="c"># Press Enter for default path. Choose a passphrase or leave blank.</span>
+
+<span class="c"># Print the public key — copy this entire line</span>
+cat $env:USERPROFILE\.ssh\id_ed25519.pub</code></pre>
+        <p>Paste the output (one line starting with <code>ssh-ed25519 AAAA...</code>) into DigitalOcean's <strong>SSH Key</strong> field. Name it "Windows laptop" or similar.</p>
+      </div>
+
+      <p>Click <strong>Create Droplet</strong>. A progress bar runs for ~60 seconds and then you see a green "Active" indicator. The Droplet is alive. Note its IP address — you'll use it in a moment.</p>
+    </section>
+
+    <!-- 06 -->
+    <section class="step" id="step-6">
+      <div class="step-head">
+        <span class="num">06</span>
+        <h2>Reserve a static IP (free, important)</h2>
+      </div>
+      <p>The Droplet's IP can technically change if you ever destroy and recreate it. A <strong>Reserved IP</strong> (DigitalOcean's name for a static IP) pins an address to your account so future moves don't break your DNS. It's free while attached to a running Droplet.</p>
+
+      <ul class="checklist">
+        <li>Left sidebar → <strong>Networking</strong></li>
+        <li>Tab: <strong>Reserved IPs</strong></li>
+        <li>Click <strong>Assign Reserved IP</strong></li>
+        <li>Pick your Droplet from the dropdown</li>
+        <li>Click <strong>Assign</strong></li>
+      </ul>
+
+      <p>The page now shows a Reserved IP like <code>165.22.xxx.xxx</code>. <strong>This is the IP you point your domain at</strong> — not the original Droplet IP. Write it down.</p>
+    </section>
+
+    <!-- 07 -->
+    <section class="step" id="step-7">
+      <div class="step-head">
+        <span class="num">07</span>
+        <h2>Connect via SSH from PowerShell</h2>
+      </div>
+      <p>Time to log into your server for the first time. Replace <code>165.22.xxx.xxx</code> with your Reserved IP.</p>
+
+      <pre><code>ssh root@165.22.xxx.xxx</code></pre>
+
+      <p>First connection asks you to confirm the fingerprint — type <code>yes</code>. You're in. The prompt becomes something like <code>root@it-courses-prod:~#</code>. From now on, anything in a code block runs on the Droplet unless explicitly marked "PowerShell".</p>
+
+      <div class="callout callout-warn">
+        <span class="ico">!</span>
+        <div>
+          <p><strong>"Permissions are too open" error?</strong> Windows occasionally hands SSH a private key with overly permissive ACLs. Fix in PowerShell:</p>
+          <pre><code>icacls $env:USERPROFILE\.ssh\id_ed25519 /inheritance:r
+icacls $env:USERPROFILE\.ssh\id_ed25519 /grant:r <span class="s">"$env:USERNAME:F"</span></code></pre>
+          <p>Then retry the <code>ssh</code> command.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 -->
+    <section class="step" id="step-8">
+      <div class="step-head">
+        <span class="num">08</span>
+        <h2>Harden the server (10 minutes, do it once)</h2>
+      </div>
+      <p>Don't run your site as <code>root</code>. Create a regular user with sudo rights, then disable root SSH.</p>
+
+      <pre><code><span class="c"># on the Droplet, as root</span>
+adduser deploy
+<span class="c"># Set a strong password when prompted. Leave the other prompts blank.</span>
+usermod -aG sudo deploy
+
+<span class="c"># Copy your SSH key to the new user so you can log in as them</span>
+rsync --archive --chown=deploy:deploy ~/.ssh /home/deploy
+
+<span class="c"># Open a NEW PowerShell window and test:</span>
+<span class="c">#   ssh deploy@165.22.xxx.xxx</span>
+<span class="c"># It should work without a password. Keep the root session open until you confirm.</span></code></pre>
+
+      <p>Once you can log in as <code>deploy</code>, disable root SSH and password auth:</p>
+      <pre><code><span class="c"># as deploy, sudo edit the SSH config</span>
+sudo nano /etc/ssh/sshd_config
+<span class="c"># Find and set:</span>
+<span class="c">#   PermitRootLogin no</span>
+<span class="c">#   PasswordAuthentication no</span>
+<span class="c"># Save (Ctrl+O, Enter, Ctrl+X)</span>
+
+sudo systemctl restart ssh</code></pre>
+
+      <p>Enable the firewall to allow only SSH, HTTP, and HTTPS:</p>
+      <pre><code>sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+<span class="c"># type "y" to confirm</span></code></pre>
+
+      <div class="callout callout-stop">
+        <span class="ico">✕</span>
+        <div><p><strong>Test before you trust.</strong> Open one more PowerShell window and try <code>ssh deploy@165.22.xxx.xxx</code> — confirm it still works. If not, you still have the original root session open as a fallback. Only close that one after the new <code>deploy</code> login is confirmed.</p></div>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section class="step" id="step-9">
+      <div class="step-head">
+        <span class="num">09</span>
+        <h2>Install Node.js, Git, and PM2</h2>
+      </div>
+      <p>All as the <code>deploy</code> user (use <code>sudo</code> where needed):</p>
+
+      <pre><code><span class="c"># Update packages</span>
+sudo apt update &amp;&amp; sudo apt upgrade -y
+
+<span class="c"># Install Node 22 LTS from NodeSource (Ubuntu's apt version is older)</span>
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+
+<span class="c"># Confirm version</span>
+node -v   <span class="c"># → v22.x.x</span>
+npm -v    <span class="c"># → 10.x</span>
+
+<span class="c"># Git, build tools (some npm deps need them), unzip, ufw helpers</span>
+sudo apt install -y git build-essential
+
+<span class="c"># PM2 — keeps your Next.js app running and restarts on boot</span>
+sudo npm install -g pm2</code></pre>
+
+      <p>If <code>next build</code> ever runs short on memory on a tiny instance, add a 2 GB swapfile:</p>
+      <pre><code>sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo <span class="s">'/swapfile none swap sw 0 0'</span> | sudo tee -a /etc/fstab</code></pre>
+      <p>On the $12 (2 GB) tier you probably don't need this, but it's a cheap insurance policy.</p>
+    </section>
+
+    <!-- 10 -->
+    <section class="step" id="step-10">
+      <div class="step-head">
+        <span class="num">10</span>
+        <h2>Clone &amp; build the project</h2>
+      </div>
+      <p>Your private GitHub repo needs a way to authenticate from the Droplet. Use a <strong>Deploy Key</strong> — a read-only SSH key bound to just this one repo.</p>
+
+      <div class="substep">
+        <h4>10.1 — Generate a deploy key on the Droplet</h4>
+        <pre><code>ssh-keygen -t ed25519 -C <span class="s">"droplet-it-courses"</span> -f ~/.ssh/it_courses_deploy -N <span class="s">""</span>
+
+<span class="c"># Print the public part</span>
+cat ~/.ssh/it_courses_deploy.pub</code></pre>
+        <p>Copy the printed line.</p>
+      </div>
+
+      <div class="substep">
+        <h4>10.2 — Add the deploy key on GitHub</h4>
+        <p>Open your <code>it-courses</code> repo on GitHub → <strong>Settings → Deploy keys → Add deploy key</strong>. Title: "DO Droplet". Paste the key. Leave "Allow write access" <strong>off</strong>. Save.</p>
+      </div>
+
+      <div class="substep">
+        <h4>10.3 — Tell SSH to use that key for github.com</h4>
+        <pre><code>cat &gt;&gt; ~/.ssh/config &lt;&lt;EOF
+Host github.com
+  IdentityFile ~/.ssh/it_courses_deploy
+  IdentitiesOnly yes
+EOF
+chmod 600 ~/.ssh/config
+
+<span class="c"># Confirm</span>
+ssh -T git@github.com   <span class="c"># → "Hi YOUR-USERNAME/it-courses! You've successfully authenticated..."</span></code></pre>
+      </div>
+
+      <div class="substep">
+        <h4>10.4 — Clone and build</h4>
+        <pre><code>cd ~
+git clone git@github.com:YOUR-USERNAME/it-courses.git
+cd it-courses
+
+npm ci
+npm run build
+<span class="c"># Should complete in ~2-4 minutes on the $12 tier.</span></code></pre>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section class="step" id="step-11">
+      <div class="step-head">
+        <span class="num">11</span>
+        <h2>Run with PM2</h2>
+      </div>
+      <p>PM2 starts your Next.js app and keeps it running across crashes, restarts, and reboots.</p>
+
+      <pre><code><span class="c"># in ~/it-courses</span>
+pm2 start npm --name it-courses -- start
+pm2 save
+
+<span class="c"># Make PM2 start on boot. Run the command it prints:</span>
+pm2 startup
+<span class="c"># Copy-paste the "sudo env PATH=..." command it outputs. Run that, then:</span>
+pm2 save</code></pre>
+
+      <p>Check it's alive:</p>
+      <pre><code>pm2 status
+<span class="c"># You should see "it-courses" in green, "online", port 3000</span>
+
+curl http://localhost:3000
+<span class="c"># Should print the HTML of your homepage</span></code></pre>
+    </section>
+
+    <!-- 12 -->
+    <section class="step" id="step-12">
+      <div class="step-head">
+        <span class="num">12</span>
+        <h2>Caddy: reverse proxy + free auto-HTTPS</h2>
+      </div>
+      <p>Your Next.js app is on port 3000 inside the server. You want it reachable on <code>https://yourname.com</code>. Caddy is the simplest web server in the world and the only one that handles HTTPS certificates with zero config.</p>
+
+      <pre><code><span class="c"># Install Caddy from the official repo</span>
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf <span class="s">'https://dl.cloudsmith.io/public/caddy/stable/gpg.key'</span> | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf <span class="s">'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt'</span> | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update
+sudo apt install -y caddy</code></pre>
+
+      <p>Write the Caddyfile (replace <code>yourname.com</code> with your real domain):</p>
+      <pre><code>sudo nano /etc/caddy/Caddyfile</code></pre>
+      <pre><code><span class="c"># /etc/caddy/Caddyfile</span>
+yourname.com, www.yourname.com {
+    reverse_proxy localhost:3000
+    encode gzip zstd
+}</code></pre>
+
+      <p>Save (Ctrl+O, Enter, Ctrl+X), then reload Caddy:</p>
+      <pre><code>sudo systemctl reload caddy</code></pre>
+
+      <p>That's it. Once your DNS points at the Droplet (next step), Caddy automatically requests a Let's Encrypt SSL certificate, installs it, and renews it forever. You write zero lines of certificate config.</p>
+    </section>
+
+    <!-- 13 -->
+    <section class="step" id="step-13">
+      <div class="step-head">
+        <span class="num">13</span>
+        <h2>DNS records at your registrar</h2>
+      </div>
+      <p>Log into wherever you bought the domain (Namecheap, GoDaddy, Tenten.vn, Mat Bao, P.A. Việt Nam, Cloudflare, etc.) and find the DNS management page.</p>
+
+      <div class="substep">
+        <h4>13.1 — Delete any default parking record</h4>
+        <p>Most registrars start with a placeholder A record. Delete it.</p>
+      </div>
+
+      <div class="substep">
+        <h4>13.2 — Add these two records</h4>
+        <table>
+          <thead><tr><th>Type</th><th>Name / Host</th><th>Value</th><th>TTL</th></tr></thead>
+          <tbody>
+            <tr><td><code>A</code></td><td><code>@</code> (or blank)</td><td>Your Reserved IP, e.g. <code>165.22.xxx.xxx</code></td><td>3600</td></tr>
+            <tr><td><code>A</code></td><td><code>www</code></td><td>Your Reserved IP, e.g. <code>165.22.xxx.xxx</code></td><td>3600</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Save. DNS propagation is usually 5–30 minutes. Test from PowerShell:</p>
+      <pre><code>nslookup yourname.com
+<span class="c"># Should return your Reserved IP within an hour</span></code></pre>
+
+      <p>Once it resolves, visit <code>https://yourname.com</code> — Caddy will silently fetch a cert from Let's Encrypt on first request (takes 5–10 seconds), then serve your site over HTTPS forever. Your site is live.</p>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <div><p><strong>Cloudflare users:</strong> if your registrar is Cloudflare and the orange-cloud proxy is on, set it to <strong>DNS only</strong> (grey cloud) for both records. Caddy needs to talk to Let's Encrypt directly for certificate issuance.</p></div>
+      </div>
+    </section>
+
+    <!-- 14 -->
+    <section class="step" id="step-14">
+      <div class="step-head">
+        <span class="num">14</span>
+        <h2>One-command updates</h2>
+      </div>
+      <p>Now that everything's wired, deploying a change is three commands. Write them once as a script.</p>
+
+      <pre><code>nano ~/deploy.sh</code></pre>
+      <pre><code><span class="c">#!/bin/bash</span>
+<span class="c"># ~/deploy.sh — pull, build, restart</span>
+set -e
+cd ~/it-courses
+git pull
+npm ci
+npm run build
+pm2 restart it-courses
+echo <span class="s">"✓ Deployed at $(date)"</span></code></pre>
+
+      <pre><code>chmod +x ~/deploy.sh</code></pre>
+
+      <p>Update flow on your laptop:</p>
+      <pre><code><span class="c"># in PowerShell, after editing lessons locally</span>
+git add .
+git commit -m <span class="s">"add new lesson"</span>
+git push</code></pre>
+
+      <p>Then SSH in and run one command:</p>
+      <pre><code>ssh deploy@165.22.xxx.xxx
+./deploy.sh</code></pre>
+
+      <p>Total update time: 2–4 minutes. The site stays online during build because PM2 only restarts the app at the very end.</p>
+
+      <div class="callout callout-tip">
+        <span class="ico">★</span>
+        <div><p><strong>Want auto-deploy on push?</strong> Add a GitHub Actions workflow that SSHes in and runs <code>./deploy.sh</code> on every push to <code>main</code>. Out of scope for this guide, but search "GitHub Actions ssh deploy" once you're comfortable with the manual flow.</p></div>
+      </div>
+    </section>
+
+    <!-- 15 -->
+    <section class="step" id="step-15">
+      <div class="step-head">
+        <span class="num">15</span>
+        <h2>Backups (snapshots)</h2>
+      </div>
+      <p>You enabled DigitalOcean's automated weekly backups in Step 05 (+$2.40/mo). These are full Droplet snapshots — restore-able in a single click if anything ever goes catastrophically wrong.</p>
+
+      <p>You can also take a manual snapshot before any risky change:</p>
+      <ul class="checklist">
+        <li>DigitalOcean dashboard → your Droplet → <strong>Snapshots</strong> tab</li>
+        <li>Click <strong>Take Snapshot</strong> (note: Droplet powers off briefly during snapshot — ~30s downtime)</li>
+        <li>Manual snapshots cost $0.06/GB/month — for a 50 GB Droplet that's ~$3 each per month, so delete old ones</li>
+      </ul>
+    </section>
+
+    <!-- 16 -->
+    <section class="step" id="step-16">
+      <div class="step-head">
+        <span class="num">16</span>
+        <h2>Monitoring &amp; cost</h2>
+      </div>
+
+      <h3>Your monthly bill</h3>
+      <div class="price-grid">
+        <div class="price-card"><div class="label">Droplet</div><div class="amt">$12.00</div><div class="desc">2 GB / 1 vCPU / 50 GB SSD</div></div>
+        <div class="price-card"><div class="label">Auto-backups</div><div class="amt">$2.40</div><div class="desc">Weekly snapshots</div></div>
+        <div class="price-card"><div class="label">Reserved IP</div><div class="amt">$0.00</div><div class="desc">Free while attached</div></div>
+        <div class="price-card"><div class="label">Bandwidth</div><div class="amt">$0.00</div><div class="desc">2 TB included; you'll use ~5 GB</div></div>
+        <div class="price-card"><div class="label">Total</div><div class="amt">$14.40<span style="font-size:0.9rem;color:var(--ink-soft);font-weight:500;">/mo</span></div><div class="desc">≤ $20 budget. Flat.</div></div>
+      </div>
+
+      <p>DigitalOcean's billing page (<strong>Billing → Usage</strong>) shows the prorated charge to date for the current month. You can set up an optional spend alert (not a hard cap — just a notification) under <strong>Billing → Billing alerts</strong>, e.g. "email me if monthly use exceeds $20."</p>
+
+      <h3>Server health</h3>
+      <p>The free Droplet Metrics view (left sidebar → your Droplet → <strong>Graphs</strong>) shows CPU, memory, disk, and bandwidth in real time. Bookmark it. If you ever see memory permanently above 80%, you've outgrown the $12 tier — resize to $18/mo (2 vCPU, 4 GB) from the dashboard in one click.</p>
+
+      <h3>App logs</h3>
+      <pre><code>pm2 logs it-courses          <span class="c"># live tail</span>
+pm2 logs it-courses --lines 200  <span class="c"># last 200 lines</span>
+pm2 monit                    <span class="c"># live CPU/RAM per process</span></code></pre>
+    </section>
+
+    <!-- 17 -->
+    <section class="step" id="step-17">
+      <div class="step-head">
+        <span class="num">17</span>
+        <h2>Troubleshooting</h2>
+      </div>
+
+      <details>
+        <summary>Site shows "502 Bad Gateway" through Caddy</summary>
+        <div>
+          <p>Caddy is up but Next.js on port 3000 isn't responding. Check PM2:</p>
+          <pre><code>pm2 status
+pm2 logs it-courses --lines 100</code></pre>
+          <p>If the app is "errored" or "stopped", a runtime error crashed it. Read the logs, fix the code, push, run <code>./deploy.sh</code>.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>SSL certificate doesn't get issued</summary>
+        <div>
+          <p>Caddy can only fetch a Let's Encrypt cert if (a) DNS already resolves to your IP, and (b) ports 80 and 443 are open in the firewall. Verify:</p>
+          <pre><code>nslookup yourname.com       <span class="c"># should match your Reserved IP</span>
+sudo ufw status              <span class="c"># should list 80/tcp ALLOW, 443/tcp ALLOW</span>
+sudo journalctl -u caddy --since <span class="s">"10 minutes ago"</span></code></pre>
+          <p>The journal tells you exactly why Let's Encrypt refused (most commonly: DNS hasn't fully propagated yet — wait 30 min and run <code>sudo systemctl reload caddy</code> again).</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>npm run build is killed mid-build</summary>
+        <div>
+          <p>OOM killer. On the $12 (2 GB) tier this is rare but possible with large builds. Enable swap (Step 09 final code block) and retry. If it still fails, upgrade the Droplet to $18/mo from the dashboard — one click, ~60s downtime.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>I can't SSH in anymore</summary>
+        <div>
+          <p>Use DigitalOcean's <strong>Recovery Console</strong>: dashboard → your Droplet → <strong>Console</strong>. It logs you in as root through the browser, no SSH needed. From there you can fix whatever broke (usually a wrong line in <code>/etc/ssh/sshd_config</code>). Then restart SSH: <code>sudo systemctl restart ssh</code>.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>The site is slow for users in Vietnam</summary>
+        <div>
+          <p>You're already in Singapore, which is the closest data center to Vietnam — latency is ~30ms. If it still feels slow, the bottleneck is your code, not the network. Run Lighthouse on the live URL; common culprits are unoptimized images and unminified JS. Both fix automatically when you use Next.js's <code>&lt;Image&gt;</code> component and build in production mode (which you are).</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Will Vietnamese cards work?</summary>
+        <div>
+          <p>Yes. DigitalOcean accepts most Vietnamese-issued Visa/Mastercard for international online payments. PayPal is also available as a backup. The $1 verification charge runs immediately on signup; the first real charge is at the end of the first calendar month, prorated.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>How do I cancel and stop being charged?</summary>
+        <div>
+          <p>Dashboard → your Droplet → <strong>Destroy → Destroy this Droplet</strong>. Billing stops immediately — you only pay for hours used to date. The Reserved IP becomes free-while-unattached for a short period, then is auto-released; release it manually if you don't plan to redeploy.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Can I upgrade the Droplet later without losing data?</summary>
+        <div>
+          <p>Yes. Dashboard → your Droplet → <strong>Resize</strong>. Pick the new tier. ~60 seconds of downtime, then you're on the bigger box with all data intact. You can resize both up and down.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- 18 -->
+    <section class="step" id="step-18">
+      <div class="step-head">
+        <span class="num">18</span>
+        <h2>What to learn next</h2>
+      </div>
+
+      <h3>Right away</h3>
+      <ul class="checklist">
+        <li><strong>GitHub Actions auto-deploy.</strong> Replace the manual <code>ssh + ./deploy.sh</code> step with a workflow that triggers on push to <code>main</code>.</li>
+        <li><strong>Fail2ban.</strong> One <code>sudo apt install fail2ban</code> and SSH brute-force attempts get auto-banned for 10 minutes. Tiny config, huge security upgrade.</li>
+        <li><strong>Caddy access logs.</strong> Add <code>log { output file /var/log/caddy/access.log }</code> to the Caddyfile for visitor logs.</li>
+      </ul>
+
+      <h3>Soon</h3>
+      <ul class="checklist">
+        <li><strong>UptimeRobot.</strong> Free 5-minute uptime monitoring with email/Telegram alerts when the site goes down.</li>
+        <li><strong>Plausible or Umami analytics</strong> self-hosted on the same Droplet — privacy-friendly visitor stats, zero cookies, no per-event pricing.</li>
+        <li><strong>Cloudflare in front of Caddy.</strong> Free CDN + DDoS protection. Set DNS proxy to "on" (orange cloud) and set Cloudflare's SSL mode to <em>Full (strict)</em>. Adds caching and a layer of edge protection.</li>
+      </ul>
+
+      <h3>Bigger picture</h3>
+      <ul class="checklist">
+        <li><strong>A separate database Droplet</strong> (or managed Postgres on DigitalOcean for $15/mo) when you start storing user accounts or course progress.</li>
+        <li><strong>Two Droplets + a load balancer</strong> when traffic grows past what one box can handle (you'll feel it long before $12 stops being enough).</li>
+        <li><strong>Infrastructure as code.</strong> Once you've manually built one server, learn Terraform or Pulumi so the next one is a single command instead of an afternoon.</li>
+      </ul>
+
+      <div class="final">
+        <h2>You shipped it. 🎉</h2>
+        <p>Your IT-courses site runs on a real VPS at <code style="background:rgba(255,255,255,0.15);color:#fff;">https://yourname.com</code>, with HTTPS, auto-restart, weekly backups, and a flat <strong>$14.40/month</strong> bill. No spend caps to configure, no quotas to request. You own the server.</p>
+      </div>
+    </section>
+
+  </article>
+</main>
+
+</body>
+</html>

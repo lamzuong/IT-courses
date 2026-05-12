@@ -22,11 +22,12 @@ What "permissive default" looks like in code:
 
 ```ts
 // All three tools live at the same trust level. The model picks freely.
-const model = chat.bindTools([searchCustomers, createPromo, sendEmail]);
+const model = chat.bindTools([searchCustomers, createPromo, sendEmail]); // → Runnable bound with 3 tools (one read, two writes)
 
 await model.invoke([
-  { role: 'user', content: 'Email LAPSED15 to everyone who hasn\'t ordered in 60d.' },
+  { role: 'user', content: 'Email LAPSED15 to everyone who hasn\'t ordered in 60d.' }, // → HumanMessage
 ]);
+// → AIMessage; the loop fires all 3 tool calls before returning
 
 // What just happened, in order:
 //   1. searchCustomers({ lapsedDays: 60 })   ← read, fine

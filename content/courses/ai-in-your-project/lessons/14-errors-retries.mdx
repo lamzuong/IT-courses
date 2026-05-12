@@ -39,13 +39,14 @@ The pattern is the same shape: catch the error in your function body, return a s
 
 ```ts
 catch (e) {
-  if (isUniqueConstraint(e, 'code')) {
+  if (isUniqueConstraint(e, 'code')) {            // → true if DB threw on a UNIQUE on `code`
     return JSON.stringify({
       ok: false,
       error: `promo code "${args.code}" already exists. Pick a different code (e.g. "${args.code}-V2").`
     });
+    // → '{"ok":false,"error":"promo code \\"WELCOME10\\" already exists. Pick a different code (e.g. \\"WELCOME10-V2\\")."}'
   }
-  throw e; // unrecoverable, let it propagate
+  throw e; // unrecoverable, let it propagate     // → orchestrator handles unknown errors
 }
 ```
 
@@ -64,20 +65,20 @@ A full handler with the three categories side by side:
 ```ts
 async function createPromoTool(args) {
   try {
-    const parsed = promoSchema.parse(args);              // category 1: validation
-    const row = await db.insert(promotions).values(parsed).returning();
-    return { ok: true, data: row };
+    const parsed = promoSchema.parse(args);              // category 1: validation  // → typed Promo or throws ZodError
+    const row = await db.insert(promotions).values(parsed).returning(); // → newly inserted Promotion row
+    return { ok: true, data: row };                       // → { ok: true, data: { id, code, ... } } on success
   } catch (e) {
     if (e instanceof z.ZodError) {
-      return { ok: false, error: zodToHint(e) };          // model retries with fix
+      return { ok: false, error: zodToHint(e) };          // → { ok: false, error: 'discountValue must be ≤ 100, you sent 150' }
     }
     if (isUniqueConstraint(e, 'code')) {                   // category 2: business rule
-      return { ok: false, error: `code "${args.code}" exists. Try "${args.code}-V2".` };
+      return { ok: false, error: `code "${args.code}" exists. Try "${args.code}-V2".` }; // → hint with fix
     }
     if (isTimeoutOr5xx(e)) {                               // category 3: infra
-      return { ok: false, error: 'TransientError: DB timeout. Retry safe.', retriable: true };
+      return { ok: false, error: 'TransientError: DB timeout. Retry safe.', retriable: true }; // → orchestrator retries
     }
-    throw e;                                               // unknown — bubble up
+    throw e;                                               // → unknown error — orchestrator/log catches it
   }
 }
 ```

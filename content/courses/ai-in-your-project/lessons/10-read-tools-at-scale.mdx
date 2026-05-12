@@ -17,22 +17,22 @@ This lesson is the read-side playbook. Three patterns will cover most of what yo
 The simplest mistake is the most common: a tool that returns *all* matching rows. The right shape is cursor-based — the tool returns a fixed page plus an opaque cursor the model can hand back to ask for the next page:
 
 ```ts
-export const listCustomers = tool(
-  async ({ cursor, limit = 25 }) => {
-    const rows = await db.customers.findMany({
-      take: limit + 1,
-      cursor: cursor ? { id: parseInt(cursor, 10) } : undefined,
-      orderBy: { id: 'asc' },
+export const listCustomers = tool(                // → StructuredTool { name: 'customers.list' }
+  async ({ cursor, limit = 25 }) => {             // → cursor: string|null|undefined, limit defaults to 25
+    const rows = await db.customers.findMany({    // → Customer[] of size up to limit+1
+      take: limit + 1,                            // → fetch one probe row to detect "has more"
+      cursor: cursor ? { id: parseInt(cursor, 10) } : undefined, // → resume from cursor or start at top
+      orderBy: { id: 'asc' },                     // → stable ordering for cursor walking
     });
-    const nextCursor = rows.length > limit ? String(rows[limit].id) : null;
-    return JSON.stringify({ rows: rows.slice(0, limit), nextCursor });
+    const nextCursor = rows.length > limit ? String(rows[limit].id) : null; // → '101' or null on last page
+    return JSON.stringify({ rows: rows.slice(0, limit), nextCursor });      // → '{"rows":[...25 rows...],"nextCursor":"101"}'
   },
   {
-    name: 'customers.list',
+    name: 'customers.list',                       // → identifier the model uses
     description: 'List customers, 25 per page. Pass nextCursor from the previous page to continue.',
     schema: z.object({
-      cursor: z.string().nullable().optional(),
-      limit: z.number().int().min(1).max(50).optional(),
+      cursor: z.string().nullable().optional(),   // → string | null | undefined
+      limit: z.number().int().min(1).max(50).optional(), // → integer in [1, 50] or undefined
     }),
   },
 );
@@ -71,7 +71,7 @@ Turn 3 — last page
 The model never *invents* a cursor — it just hands back whatever string the previous response gave it. That is why the tool body branches on presence:
 
 ```ts
-cursor: cursor ? { id: parseInt(cursor, 10) } : undefined,
+cursor: cursor ? { id: parseInt(cursor, 10) } : undefined, // → { id: 100 } when cursor present; undefined on first call
 ```
 
 If a cursor is present, start from that ID. If not, start from the beginning. When `nextCursor` comes back as `null`, the model knows there are no more pages.
@@ -96,9 +96,9 @@ T₀ — initial state, 50 rows ordered by id
 ```ts
 // Tool body — bad
 const rows = await db.customers.findMany({
-  skip: (page - 1) * 25,
-  take: 25,
-  orderBy: { id: 'asc' },
+  skip: (page - 1) * 25,                          // → SQL OFFSET; shifts when rows insert/delete
+  take: 25,                                       // → SQL LIMIT
+  orderBy: { id: 'asc' },                         // → 1, 2, 3, ...
 });
 
 // Turn 1: page = 1
@@ -119,20 +119,20 @@ const rows = await db.customers.findMany({
 
 ```ts
 // Tool body — good
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 25;                             // → page size constant
 
-const rows = await db.customers.findMany({
-  take: PAGE_SIZE + 1, // 25 + 1 probe row to detect "more pages"
-  cursor: cursor ? { id: parseInt(cursor, 10) } : undefined,
-  skip: cursor ? 1 : 0, // skip the cursor row itself
-  orderBy: { id: 'asc' },
+const rows = await db.customers.findMany({        // → Customer[] of size up to 26
+  take: PAGE_SIZE + 1, // 25 + 1 probe row to detect "more pages"   // → SQL LIMIT 26
+  cursor: cursor ? { id: parseInt(cursor, 10) } : undefined,        // → resume key, or undefined on first call
+  skip: cursor ? 1 : 0, // skip the cursor row itself               // → don't redeliver the cursor row
+  orderBy: { id: 'asc' },                         // → stable ordering for cursor walks
 });
 
-const hasMore = rows.length > PAGE_SIZE;
-const pageRows = rows.slice(0, PAGE_SIZE);              // drop the probe row
-const nextCursor = hasMore ? String(pageRows[PAGE_SIZE - 1].id) : null;
+const hasMore = rows.length > PAGE_SIZE;          // → true if probe row came back, else false
+const pageRows = rows.slice(0, PAGE_SIZE);              // → first 25 rows (drop the probe)
+const nextCursor = hasMore ? String(pageRows[PAGE_SIZE - 1].id) : null; // → '25' on first page, null at end
 
-return JSON.stringify({ rows: pageRows, nextCursor });
+return JSON.stringify({ rows: pageRows, nextCursor });  // → '{"rows":[...25 rows...],"nextCursor":"25"}'
 ```
 
 The query asks for **26** rows — `PAGE_SIZE + 1`. The tool only **returns 25** to the model. That extra row is a probe: if it came back, there's at least one more page, so we set `nextCursor` to the last id we're sending. If it didn't come back, we've hit the end and `nextCursor` is `null`. Cheaper than a separate `COUNT(*)` query and uses the index we're already walking.
@@ -168,27 +168,27 @@ The role split, in one line: *Zod validates what shape the cursor must be. Your 
 The second pattern is letting the model say *what* it wants instead of getting everything. The temptation is to expose a tool that takes a SQL string. Don't. The model does not need to learn SQL; it needs an object that describes intent.
 
 ```ts
-const filterSchema = z.object({
-  lapsedDays: z.number().int().positive().max(3650).optional(),
-  tagIn: z.array(z.string().max(40)).max(10).optional(),
-  emailDomain: z.string().max(80).optional(),
-  createdAfter: z.string().datetime().optional(),
+const filterSchema = z.object({                   // → ZodObject describing the allowed filter fields
+  lapsedDays: z.number().int().positive().max(3650).optional(), // → integer 1..3650 or undefined
+  tagIn: z.array(z.string().max(40)).max(10).optional(),        // → up to 10 tag strings (each ≤40 chars)
+  emailDomain: z.string().max(80).optional(),     // → string ≤80 chars or undefined
+  createdAfter: z.string().datetime().optional(), // → ISO 8601 string or undefined
 });
 
-export const searchCustomers = tool(
+export const searchCustomers = tool(              // → StructuredTool { name: 'customers.search' }
   async ({ filter }) => {
-    const where: Prisma.CustomerWhereInput = {};
-    if (filter.lapsedDays) where.lastOrderAt = { lt: daysAgo(filter.lapsedDays) };
-    if (filter.tagIn) where.tags = { hasSome: filter.tagIn };
-    if (filter.emailDomain) where.email = { endsWith: '@' + filter.emailDomain };
-    if (filter.createdAfter) where.createdAt = { gte: new Date(filter.createdAfter) };
-    const rows = await db.customers.findMany({ where, take: 25 });
-    return JSON.stringify({ rows });
+    const where: Prisma.CustomerWhereInput = {};  // → start with empty where clause
+    if (filter.lapsedDays) where.lastOrderAt = { lt: daysAgo(filter.lapsedDays) }; // → { lt: Date 60d ago }
+    if (filter.tagIn) where.tags = { hasSome: filter.tagIn };                       // → { hasSome: ['vip'] }
+    if (filter.emailDomain) where.email = { endsWith: '@' + filter.emailDomain };   // → { endsWith: '@gmail.com' }
+    if (filter.createdAfter) where.createdAt = { gte: new Date(filter.createdAfter) }; // → { gte: Date }
+    const rows = await db.customers.findMany({ where, take: 25 }); // → Customer[] of size ≤ 25
+    return JSON.stringify({ rows });              // → '{"rows":[{"id":"c_01",...}, ...]}'
   },
   {
-    name: 'customers.search',
+    name: 'customers.search',                     // → identifier the model uses
     description: 'Search customers by lapsed-days, tags, email domain, or creation date.',
-    schema: z.object({ filter: filterSchema }),
+    schema: z.object({ filter: filterSchema }),   // → outer schema wrapping the filter object
   },
 );
 ```
@@ -204,28 +204,29 @@ The single largest class of AI security incidents in the last two years has been
 The third pattern is the one that saves the most tokens: when the model wants to know *about* the data rather than the data itself, expose a tool that pre-computes the answer.
 
 ```ts
-export const totalsBySegment = tool(
+export const totalsBySegment = tool(              // → StructuredTool { name: 'orders.totals_by_segment' }
   async ({ segment }) => {
-    const cohort = await db.customers.findMany({
-      where: segment === 'lapsed-pre-q4'
-        ? { lastOrderAt: { lt: daysAgo(60) } }
-        : { lastOrderAt: { gte: daysAgo(30) } },
-      select: { id: true },
+    const cohort = await db.customers.findMany({  // → Customer[] (id-only projection)
+      where: segment === 'lapsed-pre-q4'          // → branch on segment
+        ? { lastOrderAt: { lt: daysAgo(60) } }    // → 'lapsed' cohort: last order > 60d ago
+        : { lastOrderAt: { gte: daysAgo(30) } },  // → 'active' cohort: ordered in last 30d
+      select: { id: true },                       // → only need ids for the next step
     });
-    const ids = cohort.map((c) => c.id);
-    const orders = await db.orders.findMany({ where: { customerId: { in: ids } } });
-    const total = orders.reduce((s, o) => s + o.totalCents, 0);
+    const ids = cohort.map((c) => c.id);          // → ['c_01', 'c_02', ...]
+    const orders = await db.orders.findMany({ where: { customerId: { in: ids } } }); // → Order[] for those customers
+    const total = orders.reduce((s, o) => s + o.totalCents, 0); // → 318420 (sum of cents)
     return JSON.stringify({
-      customerCount: ids.length,
-      orderCount: orders.length,
-      totalRevenueCents: total,
-      avgOrderValueCents: orders.length ? Math.round(total / orders.length) : 0,
+      customerCount: ids.length,                  // → 47
+      orderCount: orders.length,                  // → 53
+      totalRevenueCents: total,                   // → 318420
+      avgOrderValueCents: orders.length ? Math.round(total / orders.length) : 0, // → 6008
     });
+    // → '{"customerCount":47,"orderCount":53,"totalRevenueCents":318420,"avgOrderValueCents":6008}'
   },
   {
     name: 'orders.totals_by_segment',
     description: 'Return revenue, order count, and average order value for a named customer segment.',
-    schema: z.object({ segment: z.enum(['lapsed-pre-q4', 'active-30d']) }),
+    schema: z.object({ segment: z.enum(['lapsed-pre-q4', 'active-30d']) }), // → only 2 allowed segments
   },
 );
 ```

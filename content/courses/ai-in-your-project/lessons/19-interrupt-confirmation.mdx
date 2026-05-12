@@ -17,24 +17,25 @@ This lesson covers the LangGraph `interrupt()` primitive — what it does, where
 `interrupt()` is a function call you make from inside a node. When the runtime hits it, three things happen: the graph pauses on that node, the value you passed to `interrupt()` is surfaced to your application as the "what is the graph waiting for?" payload, and the rest of the node — and the rest of the graph — does not run. Not "is queued and runs later". Does not run. Control returns to your caller (`graph.invoke(...)` or `graph.stream(...)`), which finishes with a payload describing the interrupt and a `thread_id` you'll use to resume.
 
 ```ts
-import { interrupt } from '@langchain/langgraph';
+import { interrupt } from '@langchain/langgraph'; // → suspension primitive
 
 async function awaitConfirmationNode(state: GraphState): Promise<Partial<GraphState>> {
-  const last = state.messages.at(-1);
-  const writeCalls = (last?.tool_calls ?? []).filter((c) => isWriteTool(c.name));
+  const last = state.messages.at(-1);             // → newest message (an AIMessage with write tool_calls)
+  const writeCalls = (last?.tool_calls ?? []).filter((c) => isWriteTool(c.name)); // → ToolCall[] only writes
 
   // The runtime suspends the graph here. The first arg is the payload your
   // UI receives; the return value is whatever your application passes back.
-  const decision = interrupt({
+  const decision = interrupt({                    // → graph PAUSES; resumes with whatever Command.resume passes
     kind: 'confirm_writes',
-    calls: writeCalls.map((c) => ({ id: c.id, name: c.name, args: c.args })),
+    calls: writeCalls.map((c) => ({ id: c.id, name: c.name, args: c.args })), // → payload your UI renders as a card
   });
+  // → on resume: decision === whatever the app sent back, e.g. { approve: true }
 
   // Execution only reaches this line when the graph is RESUMED.
   if (decision.approve === false) {
-    return { messages: [new AIMessage('Cancelled — no changes committed.')] };
+    return { messages: [new AIMessage('Cancelled — no changes committed.')] }; // → cancellation appended to transcript
   }
-  return {}; // pass-through; the next edge runs write_tools
+  return {}; // pass-through; the next edge runs write_tools // → empty partial = no state change
 }
 ```
 
@@ -55,20 +56,21 @@ The third rule is *one interrupt per pause*. Don't loop over the write calls and
 When the user clicks Approve in your UI, you call `graph.invoke` again on the same thread. The new arguments tell LangGraph two things: continue from where you paused, and here is the value to return from `interrupt()`.
 
 ```ts
-import { Command } from '@langchain/langgraph';
+import { Command } from '@langchain/langgraph'; // → resume command class
 
 // First call — runs until the interrupt fires.
 const first = await graph.invoke(
-  { messages: [new HumanMessage(prompt)] },
-  { configurable: { thread_id: 'op-2026-05-01-001' } },
+  { messages: [new HumanMessage(prompt)] },        // → seed transcript
+  { configurable: { thread_id: 'op-2026-05-01-001' } }, // → keys this conversation in the checkpointer
 );
-// first.__interrupt__ === [{ value: { kind: 'confirm_writes', ... } }]
+// first.__interrupt__ === [{ value: { kind: 'confirm_writes', ... } }]   // → payload your UI renders
 
 // User clicks Approve in the UI. Resume the graph with their decision:
 const final = await graph.invoke(
-  new Command({ resume: { approve: true } }),
-  { configurable: { thread_id: 'op-2026-05-01-001' } },
+  new Command({ resume: { approve: true } }),      // → returned to the awaiting interrupt() call
+  { configurable: { thread_id: 'op-2026-05-01-001' } }, // → same thread, continues from the pause
 );
+// → final: completed GraphState (writes have committed; transcript ends with assistant summary)
 ```
 
 `Command({ resume })` is the API for "here is what `interrupt()` should return on the resumed run." The `thread_id` is what makes this *the same graph state* — without a checkpointer keying state by `thread_id`, there's nowhere to resume *from*.

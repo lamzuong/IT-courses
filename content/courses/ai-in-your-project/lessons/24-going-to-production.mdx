@@ -17,16 +17,17 @@ Ollama was the right choice for development: free, local, fast iteration, no rat
 
 ```ts
 // Before: dev on your laptop
-import { ChatOllama } from '@langchain/ollama';
-const llm = new ChatOllama({ model: 'llama3.1:8b', temperature: 0 });
+import { ChatOllama } from '@langchain/ollama';   // → local Ollama adapter
+const llm = new ChatOllama({ model: 'llama3.1:8b', temperature: 0 }); // → ChatOllama instance hitting localhost
 
 // After: production
-import { ChatAnthropic } from '@langchain/anthropic';
+import { ChatAnthropic } from '@langchain/anthropic'; // → hosted Anthropic adapter
 const llm = new ChatAnthropic({
-  model: 'claude-sonnet-4',
-  apiKey: process.env.ANTHROPIC_API_KEY,
-  temperature: 0,
+  model: 'claude-sonnet-4',                       // → hosted frontier model
+  apiKey: process.env.ANTHROPIC_API_KEY,          // → secret loaded from env
+  temperature: 0,                                 // → deterministic for tool calling
 });
+// → llm: same BaseChatModel interface — every downstream call site is unchanged
 ```
 
 The interface is the same. Your graph code does not change. Your tools do not change. Your tests, if you wrote them with `FakeListChatModel`, also do not change. This is the payoff for sticking to the LangChain abstraction the whole way through — the swap is a one-line edit and a re-deploy.
@@ -37,11 +38,11 @@ The interface is the same. Your graph code does not change. Your tools do not ch
 
 ```bash
 # .env.local for development
-ANTHROPIC_API_KEY=sk-ant-api03-...
+ANTHROPIC_API_KEY=sk-ant-api03-...                # → loaded into process.env by Next.js / dotenv
 
 # Vercel: project settings → environment variables
-# Add ANTHROPIC_API_KEY for the Production environment.
-# Optionally add LANGSMITH_API_KEY and LANGSMITH_TRACING=true.
+# Add ANTHROPIC_API_KEY for the Production environment.   # → injected at build/runtime
+# Optionally add LANGSMITH_API_KEY and LANGSMITH_TRACING=true.  # → flips on tracing
 ```
 
 Two rules. Never commit a real key to git — your editor probably has a hook that complains; trust it. Never reuse the same key across dev and prod — rotate dev keys liberally and keep the prod key tightly scoped. Most providers let you set per-key rate limits in their dashboard; a dev key with a $5/day cap stays out of trouble even if you accidentally `console.log` it on a Tuesday.
@@ -49,18 +50,19 @@ Two rules. Never commit a real key to git — your editor probably has a hook th
 ## 03 — Deploy
 
 ```bash
-vercel deploy --prod
+vercel deploy --prod                              # → builds and promotes the deployment to the production URL
 ```
 
 That's the command. The interesting parts happen around it. Vercel's Functions are stateless; your in-memory `MemorySaver` checkpointer (lesson 20) does not survive between requests. Switch it to a Postgres-backed checkpointer before the first deploy, or your interrupts will lose state every time the function cold-starts:
 
 ```ts
-import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
+import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres'; // → durable graph checkpointer
 
-const checkpointer = PostgresSaver.fromConnString(process.env.POSTGRES_URL!);
-await checkpointer.setup();
+const checkpointer = PostgresSaver.fromConnString(process.env.POSTGRES_URL!); // → PostgresSaver instance
+await checkpointer.setup();                       // → ensures checkpoint tables exist (idempotent)
 
-const graph = builder.compile({ checkpointer });
+const graph = builder.compile({ checkpointer });  // → CompiledStateGraph that persists state to Postgres
+// → interrupts now survive Vercel Function cold starts and tab closes
 ```
 
 Your audit log table from lesson 12 lives in the same Postgres. Reuse the connection. One database is enough for a small app.

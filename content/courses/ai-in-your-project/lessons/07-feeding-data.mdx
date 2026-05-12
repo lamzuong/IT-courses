@@ -189,29 +189,31 @@ Picture a support assistant that helps an operator answer questions about *one s
 
 ```ts
 // app/api/assist/route.ts
-const customer = await db.customers.findUnique({ where: { id: customerId } });
+const customer = await db.customers.findUnique({ where: { id: customerId } }); // → full Customer row, all 50 fields
 
 const systemPrompt = `
 You are a support assistant. The customer you are helping:
 
-  id: ${customer.id}
-  name: ${customer.name}
-  email: ${customer.email}
-  phone: ${customer.phone}
-  date_of_birth: ${customer.dateOfBirth}
-  address: ${JSON.stringify(customer.address)}
-  payment_method_last4: ${customer.paymentLast4}
-  last_order_at: ${customer.lastOrderAt}
-  tags: ${customer.tags.join(', ')}
-  internal_notes: ${customer.internalNotes}
+  id: ${customer.id}                              // → 'c_001'
+  name: ${customer.name}                          // → 'Phuoc Luu'           (PII)
+  email: ${customer.email}                        // → 'phuoc@gmail.com'     (PII)
+  phone: ${customer.phone}                        // → '+84-901-234-567'     (PII!)
+  date_of_birth: ${customer.dateOfBirth}          // → '1988-03-12'          (PII!)
+  address: ${JSON.stringify(customer.address)}    // → '{"street":"...",...}' (PII!)
+  payment_method_last4: ${customer.paymentLast4}  // → '4242'                (sensitive)
+  last_order_at: ${customer.lastOrderAt}          // → '2026-02-14'
+  tags: ${customer.tags.join(', ')}               // → 'vip, newsletter'
+  internal_notes: ${customer.internalNotes}       // → 'flagged for review'  (private)
 
 Answer the operator's questions about this customer.
 `;
+// → systemPrompt now contains ~250 tokens of PII, sent on every turn
 
 const result = await model.invoke([
-  { role: 'system', content: systemPrompt },
-  { role: 'user', content: operatorMessage },
+  { role: 'system', content: systemPrompt },     // → SystemMessage with all PII inlined
+  { role: 'user', content: operatorMessage },    // → HumanMessage
 ]);
+// → result: AIMessage (and a copy of all those PII fields just landed in the provider's logs)
 ```
 
 What just went wrong, even though the code "works":
@@ -231,29 +233,31 @@ Use customers.get(id) to fetch their non-sensitive profile.
 Use orders.list({ customerId }) for order history.
 Never ask the user for their phone or address — fetch from the database if needed.
 `;
+// → systemPrompt now ~30 tokens. The id 'c_001' is the only handle the model gets.
 
 // Tool definition (lesson 09 covers tool() in depth)
-const getCustomer = tool(
+const getCustomer = tool(                         // → StructuredTool { name: 'customers.get' }
   async ({ id }) => {
-    const c = await db.customers.findUnique({ where: { id } });
-    if (!c) return { ok: false, error: `customer ${id} not found` };
+    const c = await db.customers.findUnique({ where: { id } }); // → full Customer | null
+    if (!c) return { ok: false, error: `customer ${id} not found` }; // → typed error for the model
     return {
       ok: true,
       data: {
-        id: c.id,
-        name: c.name,
-        emailDomain: c.email.split('@')[1],   // domain only, not the address
-        segment: c.segment,
-        lastOrderAt: c.lastOrderAt,
-        tags: c.tags,
+        id: c.id,                                 // → 'c_001'
+        name: c.name,                             // → 'Phuoc Luu'
+        emailDomain: c.email.split('@')[1],       // → 'gmail.com'   (domain only — full address never leaves the server)
+        segment: c.segment,                       // → 'vip' | 'lapsed' | 'new'
+        lastOrderAt: c.lastOrderAt,               // → '2026-02-14'
+        tags: c.tags,                             // → ['vip', 'newsletter']
         // phone, address, DOB, payment data — deliberately NOT returned
       },
     };
+    // → returned object: { ok: true, data: { id, name, emailDomain, segment, lastOrderAt, tags } }
   },
   {
-    name: 'customers.get',
+    name: 'customers.get',                        // → identifier the model uses
     description: 'Fetch the non-sensitive profile of a customer by id.',
-    schema: z.object({ id: z.string() }),
+    schema: z.object({ id: z.string() }),         // → ZodObject — id is required
   },
 );
 ```

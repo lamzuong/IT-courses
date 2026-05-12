@@ -38,22 +38,24 @@ Two things to notice. First, the read step is in the *middle* — step 2 produce
 The graph starts at `agent`. The model emits its first `tool_call`: `promotions.create`. The router (lesson 18) classifies it as a write and routes to `await_confirmation`. The interrupt (lesson 19) fires; the UI shows the confirmation card. The user clicks Approve. The resume value flows back into the node, the graph routes onward to `write_tools`, and a single Drizzle insert runs:
 
 ```ts
-await db.insert(promotions).values({
-  code: 'LAPSED15',
-  discountType: 'pct',
-  discountValue: 15,
-  audienceFilter: { lapsedDays: 60 },
-  active: true,
-  createdBy: 'ai',
+await db.insert(promotions).values({              // → INSERT INTO promotions (...) VALUES (...)
+  code: 'LAPSED15',                               // → unique promo code
+  discountType: 'pct',                            // → percentage discount
+  discountValue: 15,                              // → 15%
+  audienceFilter: { lapsedDays: 60 },             // → JSON column — "lapsed for 60+ days"
+  active: true,                                   // → live immediately
+  createdBy: 'ai',                                // → audit field — distinguishes AI from human creates
 });
+// → one Promotion row committed; audit log gains a 'promotions.create' entry
 ```
 
 The audit log (lesson 12) records the row. The graph loops back to `agent`. The model emits its next call: `customers.lapsed({ days: 60 })`. The router classifies it as a read. No interrupt — it goes straight to `read_tools`, which runs the Drizzle query and returns rows:
 
 ```ts
-return await db.select()
-  .from(customers)
-  .where(lt(customers.lastOrderAt, sql`now() - interval '60 days'`));
+return await db.select()                          // → SELECT *
+  .from(customers)                                // → FROM customers
+  .where(lt(customers.lastOrderAt, sql`now() - interval '60 days'`)); // → WHERE last_order_at < now() - 60 days
+// → Customer[] — the 7 lapsed rows from the seed data
 ```
 
 Seven rows come back. The graph loops to `agent` again. The model now has the recipient list and emits `emails.draft_bulk` with the seven customer IDs. The router classifies it as a write — back to `await_confirmation`. The UI shows a confirmation card with the recipient names visible so the operator can spot a wrong audience before it ships. Approve. The graph runs the bulk insert, audits seven new rows in `email_drafts`, and loops once more.

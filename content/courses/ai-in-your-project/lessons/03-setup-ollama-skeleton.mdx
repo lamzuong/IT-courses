@@ -15,10 +15,10 @@ Ollama is a tiny local server that loads open-weight models and exposes an HTTP 
 
 ```bash
 # macOS
-brew install ollama
+brew install ollama                              # → installs the `ollama` CLI to /opt/homebrew/bin/ollama
 
 # Linux
-curl -fsSL https://ollama.com/install.sh | sh
+curl -fsSL https://ollama.com/install.sh | sh    # → fetches and runs the installer; binary at /usr/local/bin/ollama
 
 # Windows: download the installer from https://ollama.com/download
 ```
@@ -26,7 +26,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 Then start the server in a terminal you'll leave open:
 
 ```bash
-ollama serve
+ollama serve                                     # → starts HTTP server on 127.0.0.1:11434 (leave this terminal open)
 ```
 
 You should see logs like `Listening on 127.0.0.1:11434`.
@@ -39,7 +39,7 @@ Open another terminal and pull a model. Two reasonable starting points:
 - **`llama3.1:8b`** — ~5 GB, smarter, also supports tool calling. Pick this if you have at least 16 GB RAM.
 
 ```bash
-ollama pull qwen2.5:3b
+ollama pull qwen2.5:3b                           # → downloads ~2 GB of weights; cached at ~/.ollama/models
 ```
 
 Most open-weight models *don't* support tool calling reliably. The two above are picked because they do — which matters from lesson 9 onwards. Don't substitute without testing.
@@ -49,11 +49,11 @@ Most open-weight models *don't* support tool calling reliably. The two above are
 In a fresh directory:
 
 ```bash
-npx create-next-app@latest ai-operator --typescript --app --tailwind --no-src-dir --eslint
-cd ai-operator
-npm install @langchain/core @langchain/langgraph @langchain/ollama zod
-npm install drizzle-orm better-sqlite3
-npm install -D drizzle-kit
+npx create-next-app@latest ai-operator --typescript --app --tailwind --no-src-dir --eslint  # → scaffolds ./ai-operator
+cd ai-operator                                                                              # → cwd is now ./ai-operator
+npm install @langchain/core @langchain/langgraph @langchain/ollama zod                      # → adds 4 LangChain deps to package.json
+npm install drizzle-orm better-sqlite3                                                      # → adds Drizzle ORM + SQLite driver
+npm install -D drizzle-kit                                                                  # → adds drizzle-kit as devDep (CLI for migrations)
 ```
 
 Your `package.json` should now include the LangChain packages and Drizzle. We won't use Drizzle until lesson 9 (when we wire tools to the database), but installing it up front saves you from a context switch later.
@@ -63,37 +63,37 @@ Your `package.json` should now include the LangChain packages and Drizzle. We wo
 Create `app/api/chat/route.ts`:
 
 ```ts
-import { ChatOllama } from '@langchain/ollama';
+import { ChatOllama } from '@langchain/ollama';  // → ChatOllama class imported
 
-export const runtime = 'nodejs';
+export const runtime = 'nodejs';                 // → opts this Route Handler into the Node.js runtime (not Edge)
 
 export async function POST(req: Request) {
-  const { message } = await req.json();
+  const { message } = await req.json();          // → string from the client request body
 
-  const model = new ChatOllama({
-    model: 'qwen2.5:3b',
-    baseUrl: 'http://localhost:11434',
-    temperature: 0,
+  const model = new ChatOllama({                 // → ChatOllama instance pointed at local Ollama
+    model: 'qwen2.5:3b',                         // → use the 3B model we just pulled
+    baseUrl: 'http://localhost:11434',           // → default Ollama endpoint
+    temperature: 0,                              // → deterministic output
   });
 
-  const stream = await model.stream(message);
+  const stream = await model.stream(message);    // → AsyncIterable<AIMessageChunk>
 
-  const encoder = new TextEncoder();
-  const body = new ReadableStream({
+  const encoder = new TextEncoder();             // → TextEncoder for utf-8 → Uint8Array
+  const body = new ReadableStream({              // → Web ReadableStream we'll hand to Response
     async start(controller) {
-      for await (const chunk of stream) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk.content)}\n\n`));
+      for await (const chunk of stream) {        // → each chunk: AIMessageChunk { content: 'Hi' }
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk.content)}\n\n`)); // → wire format: 'data: "Hi"\n\n'
       }
-      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-      controller.close();
+      controller.enqueue(encoder.encode('data: [DONE]\n\n')); // → terminator chunk for the client
+      controller.close();                        // → closes the stream cleanly
     },
   });
 
-  return new Response(body, {
+  return new Response(body, {                    // → Response { status: 200, body: ReadableStream }
     headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
+      'Content-Type': 'text/event-stream',       // → tells the browser this is SSE
+      'Cache-Control': 'no-cache',               // → don't cache the live token stream
+      Connection: 'keep-alive',                  // → keep the socket open while streaming
     },
   });
 }
@@ -114,9 +114,10 @@ Lower temperature = more deterministic outputs. For tool calling (lessons 9+) yo
 In one terminal: `npm run dev`. In another:
 
 ```bash
-curl -N -X POST http://localhost:3000/api/chat \
-  -H 'Content-Type: application/json' \
-  -d '{"message":"Say hi in one short sentence."}'
+curl -N -X POST http://localhost:3000/api/chat \              # → -N disables curl's buffering so SSE chunks print live
+  -H 'Content-Type: application/json' \                       # → sets the request content type
+  -d '{"message":"Say hi in one short sentence."}'            # → POST body the route reads as `message`
+# → emits SSE chunks one at a time until 'data: [DONE]'
 ```
 
 You should see SSE chunks drip in:

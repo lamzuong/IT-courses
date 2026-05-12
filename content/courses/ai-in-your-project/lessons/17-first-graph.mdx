@@ -17,14 +17,14 @@ This is the canonical *ReAct* shape — Reason, Act, Reason, Act, until the mode
 The simplest possible state is a transcript. Just messages.
 
 ```ts
-import { StateGraph, END } from '@langchain/langgraph';
-import { HumanMessage, type BaseMessage } from '@langchain/core/messages';
+import { StateGraph, END } from '@langchain/langgraph';      // → graph builder + END sentinel
+import { HumanMessage, type BaseMessage } from '@langchain/core/messages'; // → message types
 
-type GraphState = { messages: BaseMessage[] };
+type GraphState = { messages: BaseMessage[] };    // → state shape: just a transcript
 
-const graph = new StateGraph<GraphState>({
+const graph = new StateGraph<GraphState>({        // → empty StateGraph<GraphState>
   channels: {
-    messages: { reducer: (a, b) => a.concat(b), default: () => [] },
+    messages: { reducer: (a, b) => a.concat(b), default: () => [] }, // → append-merge with [] default
   },
 });
 ```
@@ -37,8 +37,8 @@ The agent node is one model call. Bind the tools, invoke against the current mes
 
 ```ts
 async function agentNode(state: GraphState): Promise<Partial<GraphState>> {
-  const reply = await model.bindTools(allTools).invoke(state.messages);
-  return { messages: [reply] };
+  const reply = await model.bindTools(allTools).invoke(state.messages); // → AIMessage (may have tool_calls)
+  return { messages: [reply] };                   // → reducer appends to state.messages
 }
 ```
 
@@ -49,18 +49,18 @@ If the reply has tool calls, the router will send us to the tools node next. If 
 The tools node looks at the most recent message — which the agent just appended — and runs each tool call it finds. Each result is a `ToolMessage` keyed back to the original call's `id`, so the model can match results to requests on the next turn.
 
 ```ts
-import { ToolMessage } from '@langchain/core/messages';
+import { ToolMessage } from '@langchain/core/messages'; // → ToolMessage class for tool results
 
 async function toolsNode(state: GraphState): Promise<Partial<GraphState>> {
-  const last = state.messages.at(-1);
-  const calls = last?.tool_calls ?? [];
-  const out: ToolMessage[] = [];
+  const last = state.messages.at(-1);             // → last AIMessage from agent node
+  const calls = last?.tool_calls ?? [];           // → ToolCall[] (may be empty if router misfired)
+  const out: ToolMessage[] = [];                  // → accumulator for results
   for (const call of calls) {
-    const tool = TOOL_REGISTRY[call.name];
-    const result = await tool.invoke(call.args);
-    out.push(new ToolMessage({ tool_call_id: call.id, content: result }));
+    const tool = TOOL_REGISTRY[call.name];        // → StructuredTool registered at boot
+    const result = await tool.invoke(call.args);  // → string result of the tool execution
+    out.push(new ToolMessage({ tool_call_id: call.id, content: result })); // → matches result back to call.id
   }
-  return { messages: out };
+  return { messages: out };                       // → ToolMessage[] appended to transcript
 }
 ```
 
@@ -71,26 +71,27 @@ async function toolsNode(state: GraphState): Promise<Partial<GraphState>> {
 A graph this small has exactly one decision: *should we loop, or should we stop?* That's the conditional edge attached to the agent node.
 
 ```ts
-import { isAIMessage } from '@langchain/core/messages';
+import { isAIMessage } from '@langchain/core/messages'; // → type guard for AIMessage
 
 function shouldContinue(state: GraphState): 'tools' | typeof END {
-  const last = state.messages.at(-1);
-  if (last && isAIMessage(last) && (last.tool_calls?.length ?? 0) > 0) return 'tools';
-  return END;
+  const last = state.messages.at(-1);             // → last message (AIMessage if agent just ran)
+  if (last && isAIMessage(last) && (last.tool_calls?.length ?? 0) > 0) return 'tools'; // → loop back if pending calls
+  return END;                                     // → otherwise stop
 }
 
 graph
-  .addNode('agent', agentNode)
-  .addNode('tools', toolsNode)
-  .setEntryPoint('agent')
-  .addConditionalEdges('agent', shouldContinue, { tools: 'tools', [END]: END })
-  .addEdge('tools', 'agent');
+  .addNode('agent', agentNode)                    // → registers 'agent'
+  .addNode('tools', toolsNode)                    // → registers 'tools'
+  .setEntryPoint('agent')                         // → graph starts here
+  .addConditionalEdges('agent', shouldContinue, { tools: 'tools', [END]: END }) // → branch on shouldContinue
+  .addEdge('tools', 'agent');                     // → after tools, always loop back
 
-const app = graph.compile();
+const app = graph.compile();                      // → CompiledStateGraph — runnable
 
-const final = await app.invoke({
-  messages: [new HumanMessage('Who hasn’t ordered in 60 days?')],
+const final = await app.invoke({                  // → final GraphState
+  messages: [new HumanMessage('Who hasn’t ordered in 60 days?')], // → seed transcript
 });
+// → final.messages.at(-1) is the AIMessage with the prose answer
 ```
 
 Read the wiring out loud and you have your answer to *what is this thing?* The graph starts at `agent`. After `agent`, it asks `shouldContinue`; if there are tool calls, it goes to `tools`; otherwise it ends. After `tools`, it always loops back to `agent`. That's the entire ReAct pattern in nine lines of edge declarations.
