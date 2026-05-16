@@ -4,15 +4,13 @@ import { useRouter } from 'next/navigation';
 import { sha256Hex } from '@/lib/client-hash';
 
 export function LessonLockGate({
-  courseSlug,
-  lessonSlug,
-  lessonTitle,
-  courseTitle,
+  scopeKey,
+  title,
+  subtitle,
 }: {
-  courseSlug: string;
-  lessonSlug: string;
-  lessonTitle: string;
-  courseTitle: string;
+  scopeKey: string;
+  title: string;
+  subtitle?: string;
 }) {
   const router = useRouter();
   const [password, setPassword] = useState('');
@@ -26,14 +24,11 @@ export function LessonLockGate({
     setErr(null);
     try {
       const passwordHash = await sha256Hex(password);
-      const res = await fetch(
-        `/api/course/${courseSlug}/lessons/${lessonSlug}/unlock`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ passwordHash }),
-        },
-      );
+      const res = await fetch('/api/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: scopeKey, passwordHash }),
+      });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         setErr(body.error === 'wrong_password' ? 'Sai password.' : 'Mở khoá thất bại.');
@@ -48,11 +43,15 @@ export function LessonLockGate({
   return (
     <main id="main-content" className="lock-gate-shell">
       <div className="lock-gate-icon" aria-hidden>🔒</div>
-      <h1 className="lock-gate-title">Bài học đang khoá</h1>
+      <h1 className="lock-gate-title">Nội dung đang khoá</h1>
       <p className="lock-gate-deck">
-        <strong>{lessonTitle}</strong>
-        <br />
-        <span style={{ fontSize: '0.85rem', opacity: 0.7 }}>{courseTitle}</span>
+        <strong>{title}</strong>
+        {subtitle && (
+          <>
+            <br />
+            <span style={{ fontSize: '0.85rem', opacity: 0.7 }}>{subtitle}</span>
+          </>
+        )}
       </p>
       <form className="lock-gate-form" onSubmit={submit}>
         <input

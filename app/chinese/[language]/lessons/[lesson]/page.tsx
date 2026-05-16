@@ -6,6 +6,8 @@ import {
   getAllChineseLessons,
 } from '@/content/chinese';
 import { Breadcrumb } from '@/components/site/breadcrumb';
+import { firstBlockingScope } from '@/lib/locks';
+import { LessonLockGate } from '@/components/site/lesson-lock-gate';
 
 export function generateStaticParams() {
   return getAllChineseLessons().map(({ language, lesson }) => ({
@@ -34,6 +36,28 @@ export default async function ChineseLessonPage({
   const { language, lesson } = await params;
   const ctx = findChineseLesson(language, lesson);
   if (!ctx) notFound();
+
+  const blocking = await firstBlockingScope([
+    { kind: 'chinese', id: language },
+    { kind: 'chinese-lesson', id: `${language}/${lesson}` },
+  ]);
+  if (blocking) {
+    return (
+      <LessonLockGate
+        scopeKey={`${blocking.kind}/${blocking.id}`}
+        title={
+          blocking.kind === 'chinese'
+            ? `${ctx.language.title} (${ctx.language.vietnameseName})`
+            : ctx.lesson.title
+        }
+        subtitle={
+          blocking.kind === 'chinese'
+            ? 'Cả phần ngôn ngữ đang khoá'
+            : `${ctx.language.title} · ${ctx.topic.title}`
+        }
+      />
+    );
+  }
 
   let MDXContent: React.ComponentType;
   try {

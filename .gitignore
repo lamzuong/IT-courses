@@ -34,7 +34,8 @@ yarn-error.log*
 .env*
 !.env.example
 
-# admin-managed lesson lock store contains bcrypt password hashes
+# admin-managed lock store contains bcrypt password hashes
+/data/locks.json
 /data/lesson-locks.json
 
 # vercel

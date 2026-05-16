@@ -8,7 +8,7 @@ import { PrevNext } from '@/components/site/prev-next';
 import { ReadingProgress } from '@/components/site/reading-progress';
 import { BookmarkButton } from '@/components/site/bookmark-button';
 import { LanguageToggle } from '@/components/site/language-toggle';
-import { hasLessonAccess } from '@/lib/lesson-locks';
+import { firstBlockingScope } from '@/lib/locks';
 import { LessonLockGate } from '@/components/site/lesson-lock-gate';
 
 export async function generateStaticParams() {
@@ -36,13 +36,16 @@ export default async function LessonPage({ params }: { params: Promise<Params> }
   const ctx = getLesson(courseSlug, lessonSlug);
   if (!ctx) notFound();
 
-  if (!(await hasLessonAccess(courseSlug, lessonSlug))) {
+  const blocking = await firstBlockingScope([
+    { kind: 'course', id: courseSlug },
+    { kind: 'lesson', id: `${courseSlug}/${lessonSlug}` },
+  ]);
+  if (blocking) {
     return (
       <LessonLockGate
-        courseSlug={courseSlug}
-        lessonSlug={lessonSlug}
-        lessonTitle={ctx.lesson.title}
-        courseTitle={ctx.course.title}
+        scopeKey={`${blocking.kind}/${blocking.id}`}
+        title={blocking.kind === 'course' ? ctx.course.title : ctx.lesson.title}
+        subtitle={blocking.kind === 'course' ? 'Cả khoá học đang khoá' : ctx.course.title}
       />
     );
   }

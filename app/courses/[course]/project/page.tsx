@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 import { getAllCourses, getCourse } from '@/lib/courses';
 import { LessonSidebar } from '@/components/site/lesson-sidebar';
 import { Breadcrumb } from '@/components/site/breadcrumb';
+import { hasScopeAccess } from '@/lib/locks';
+import { LessonLockGate } from '@/components/site/lesson-lock-gate';
 
 export async function generateStaticParams() {
   return getAllCourses().map((c) => ({ course: c.slug }));
@@ -21,6 +23,10 @@ export default async function ProjectPage({ params }: { params: Promise<{ course
   const { course: slug } = await params;
   const course = getCourse(slug);
   if (!course) notFound();
+
+  if (!(await hasScopeAccess({ kind: 'course', id: slug }))) {
+    return <LessonLockGate scopeKey={`course/${slug}`} title={course.title} subtitle="Cả khoá học đang khoá" />;
+  }
 
   let MDXContent: React.ComponentType;
   try {

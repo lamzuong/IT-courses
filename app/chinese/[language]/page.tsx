@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { CHINESE_LANGUAGES, getChineseLanguage } from '@/content/chinese';
 import { Breadcrumb } from '@/components/site/breadcrumb';
+import { hasScopeAccess } from '@/lib/locks';
+import { LessonLockGate } from '@/components/site/lesson-lock-gate';
 
 export function generateStaticParams() {
   return CHINESE_LANGUAGES.map((lang) => ({ language: lang.slug }));
@@ -28,6 +30,16 @@ export default async function ChineseLanguagePage({
   const { language } = await params;
   const lang = getChineseLanguage(language);
   if (!lang) notFound();
+
+  if (!(await hasScopeAccess({ kind: 'chinese', id: language }))) {
+    return (
+      <LessonLockGate
+        scopeKey={`chinese/${language}`}
+        title={`${lang.title} (${lang.vietnameseName})`}
+        subtitle="Phần tiếng Trung đang khoá"
+      />
+    );
+  }
 
   const lessonCount = lang.topics.reduce((acc, t) => acc + t.lessons.length, 0);
 

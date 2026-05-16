@@ -11,6 +11,8 @@ import { EnglishTopicSidebar } from '@/components/site/english-topic-sidebar';
 import { Breadcrumb } from '@/components/site/breadcrumb';
 import { ReadingProgress } from '@/components/site/reading-progress';
 import { BookmarkButton } from '@/components/site/bookmark-button';
+import { firstBlockingScope } from '@/lib/locks';
+import { LessonLockGate } from '@/components/site/lesson-lock-gate';
 
 export async function generateStaticParams() {
   return getAllEnglishTopics()
@@ -45,6 +47,20 @@ export default async function EnglishLessonPage({
   const { topic: topicSlug, lesson: lessonSlug } = await params;
   const ctx = getEnglishLesson(topicSlug, lessonSlug);
   if (!ctx) notFound();
+
+  const blocking = await firstBlockingScope([
+    { kind: 'english', id: topicSlug },
+    { kind: 'english-lesson', id: `${topicSlug}/${lessonSlug}` },
+  ]);
+  if (blocking) {
+    return (
+      <LessonLockGate
+        scopeKey={`${blocking.kind}/${blocking.id}`}
+        title={blocking.kind === 'english' ? ctx.topic.title : ctx.lesson.title}
+        subtitle={blocking.kind === 'english' ? 'Cả chủ đề đang khoá' : ctx.topic.title}
+      />
+    );
+  }
 
   let MDXContent: React.ComponentType;
   try {

@@ -4,6 +4,8 @@ import type { Metadata } from 'next';
 import { getAllEnglishTopics, getEnglishTopic, flattenEnglishLessons } from '@/lib/english';
 import { getEnglishTopicStats } from '@/lib/english-stats';
 import { BookmarkIndicator } from '@/components/site/bookmark-indicator';
+import { hasScopeAccess } from '@/lib/locks';
+import { LessonLockGate } from '@/components/site/lesson-lock-gate';
 
 export async function generateStaticParams() {
   return getAllEnglishTopics()
@@ -46,6 +48,16 @@ export default async function EnglishTopicPage({
   const { topic: slug } = await params;
   const topic = getEnglishTopic(slug);
   if (!topic || topic.placeholder) notFound();
+
+  if (!(await hasScopeAccess({ kind: 'english', id: slug }))) {
+    return (
+      <LessonLockGate
+        scopeKey={`english/${slug}`}
+        title={topic.title}
+        subtitle="Chủ đề tiếng Anh đang khoá"
+      />
+    );
+  }
 
   const { totalMinutes, perLesson } = await getEnglishTopicStats(topic);
   const lessons = flattenEnglishLessons(topic);

@@ -2937,6 +2937,41 @@
   .admin-lesson-actions { min-width: 0; width: 100%; }
 }
 
+.admin-course-group.is-locked > .admin-course-group-summary {
+  background: color-mix(in oklab, #f97316, transparent 92%);
+}
+.admin-course-overlock {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid var(--color-rule);
+  border-bottom: 1px solid var(--color-rule);
+  background: color-mix(in oklab, #f97316, transparent 96%);
+  font-size: 0.88rem;
+}
+.admin-course-overlock strong {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #c2410c;
+  padding-top: 0.55rem;
+  white-space: nowrap;
+}
+.admin-course-overlock .admin-lesson-actions { min-width: 280px; }
+@media (max-width: 720px) {
+  .admin-course-overlock {
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 1rem 1.1rem 1.1rem;
+  }
+  .admin-course-overlock strong { padding-top: 0; }
+  .admin-course-overlock .admin-lesson-actions { min-width: 0; width: 100%; }
+}
+
 /* ── Admin setup / hash generator ────────────────────────────────────── */
 .hash-gen { display: flex; flex-direction: column; gap: 1.25rem; }
 .hash-gen-card {

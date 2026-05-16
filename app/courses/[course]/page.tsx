@@ -4,6 +4,8 @@ import type { Metadata } from 'next';
 import { getAllCourses, getCourse, flattenLessons, lessonNumberFromSlug } from '@/lib/courses';
 import { getCourseStats, toRoman } from '@/lib/lesson-stats';
 import { BookmarkIndicator } from '@/components/site/bookmark-indicator';
+import { hasScopeAccess } from '@/lib/locks';
+import { LessonLockGate } from '@/components/site/lesson-lock-gate';
 
 export async function generateStaticParams() {
   return getAllCourses().map((c) => ({ course: c.slug }));
@@ -32,6 +34,10 @@ export default async function CoursePage({ params }: { params: Promise<{ course:
   const { course: slug } = await params;
   const course = getCourse(slug);
   if (!course) notFound();
+
+  if (!(await hasScopeAccess({ kind: 'course', id: slug }))) {
+    return <LessonLockGate scopeKey={`course/${slug}`} title={course.title} subtitle="Cả khoá học đang khoá" />;
+  }
 
   const { totalMinutes, perLesson } = await getCourseStats(slug, course.parts);
   const lessons = flattenLessons(course);
