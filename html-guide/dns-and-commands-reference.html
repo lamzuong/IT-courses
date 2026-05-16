@@ -1,0 +1,1669 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bức tranh tổng thể · DNS &amp; Lệnh Deploy — IT-Courses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --green-50:  #f0fdf4;
+    --green-100: #dcfce7;
+    --green-200: #bbf7d0;
+    --green-500: #22c55e;
+    --green-600: #16a34a;
+    --green-700: #15803d;
+    --green-800: #166534;
+    --amber-50:  #fffbeb;
+    --amber-200: #fde68a;
+    --amber-700: #b45309;
+    --sky-50:    #f0f9ff;
+    --sky-200:   #bae6fd;
+    --sky-700:   #0369a1;
+    --rose-50:   #fff1f2;
+    --rose-200:  #fecdd3;
+    --rose-700:  #be123c;
+    --violet-50: #faf5ff;
+    --violet-200:#e9d5ff;
+    --violet-700:#7e22ce;
+    --ink:       #0f1f17;
+    --ink-soft:  #475569;
+    --paper:     #fbfaf6;
+    --card:      #ffffff;
+    --line:      #e6e3da;
+    --code-bg:   #0f1f17;
+    --code-fg:   #e2e8f0;
+    --code-comment: #86efac;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 500;
+    line-height: 1.7;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  h1 { font-size: clamp(2rem, 4vw, 2.75rem); line-height: 1.15; }
+  h2 { font-size: 1.625rem; line-height: 1.25; margin: 0 0 1rem; }
+  h3 { font-size: 1.15rem; line-height: 1.35; margin: 1.75rem 0 0.5rem; }
+  h4 { font-size: 0.98rem; line-height: 1.4; margin: 1rem 0 0.4rem; }
+  p { margin: 0 0 1rem; }
+  a { color: var(--green-700); text-decoration: none; border-bottom: 1px solid var(--green-200); transition: 0.15s; }
+  a:hover { color: var(--green-800); border-bottom-color: var(--green-500); }
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    font-size: 0.9em;
+    background: var(--green-50);
+    color: var(--green-800);
+    padding: 0.1em 0.4em;
+    border-radius: 5px;
+    font-weight: 500;
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 1.1rem 1.25rem;
+    border-radius: 12px;
+    overflow-x: auto;
+    margin: 0.75rem 0 0.5rem;
+    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 6px 24px -8px rgba(15, 31, 23, 0.25);
+  }
+  pre code { background: transparent; color: inherit; padding: 0; border-radius: 0; font-size: inherit; }
+  pre .c  { color: var(--code-comment); font-style: italic; }
+  pre .k  { color: #fcd34d; }
+  pre .s  { color: #fda4af; }
+  pre .p  { color: #93c5fd; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2.5rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 5rem;
+  }
+  @media (max-width: 880px) { .layout { grid-template-columns: 1fr; gap: 1.5rem; } }
+
+  .hero {
+    background: linear-gradient(135deg, var(--green-50) 0%, #ffffff 60%, #fdf6e3 100%);
+    border-bottom: 1px solid var(--line);
+    padding: 3.5rem 1.5rem 3rem;
+  }
+  .hero-inner { max-width: 1200px; margin: 0 auto; }
+  .hero .eyebrow {
+    display: inline-block;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--green-700);
+    background: var(--green-100);
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .hero p.lede { font-size: 1.1rem; color: var(--ink-soft); max-width: 720px; margin-top: 0.75rem; }
+
+  aside.toc {
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+    max-height: calc(100vh - 3rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    font-size: 0.92rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 1.25rem 1rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--green-200) transparent;
+  }
+  aside.toc::-webkit-scrollbar { width: 6px; }
+  aside.toc::-webkit-scrollbar-thumb { background: var(--green-200); border-radius: 3px; }
+  aside.toc::-webkit-scrollbar-thumb:hover { background: var(--green-500); }
+  aside.toc::-webkit-scrollbar-track { background: transparent; }
+  aside.toc h4 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.85rem;
+  }
+  aside.toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  aside.toc li { margin: 0.25rem 0; counter-increment: toc; }
+  aside.toc a {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 8px;
+    border: none;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  aside.toc a::before {
+    content: counter(toc, decimal-leading-zero);
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--green-700);
+    background: var(--green-50);
+    padding: 0.2rem 0.45rem;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  aside.toc a:hover { background: var(--green-50); }
+  @media (max-width: 880px) {
+    aside.toc { position: static; max-height: none; overflow: visible; }
+  }
+
+  .section {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 2rem;
+    margin-bottom: 1.75rem;
+    box-shadow: 0 1px 0 rgba(15, 31, 23, 0.02);
+  }
+
+  .section-num {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--green-500), var(--green-700));
+    color: white;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px -4px rgba(22, 163, 74, 0.5);
+  }
+  .section-head { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
+  .section-head h2 { flex: 1; padding-top: 0.4rem; }
+  .section-head .vi {
+    display: block;
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 500;
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+    margin-top: 0.2rem;
+    letter-spacing: 0;
+  }
+
+  /* Café analogy hero box */
+  .cafe {
+    background: linear-gradient(135deg, #fffaf0 0%, #f0fdf4 100%);
+    border: 1px solid var(--amber-200);
+    border-radius: 16px;
+    padding: 1.5rem 1.75rem;
+    margin: 1rem 0 1.5rem;
+  }
+  .cafe h3 {
+    margin: 0 0 0.5rem;
+    color: var(--amber-700);
+    font-size: 1.05rem;
+  }
+  .cafe p { color: var(--ink); margin-bottom: 0.5rem; }
+
+  /* DNS flow diagram */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    margin: 1.5rem 0 0.5rem;
+  }
+  .flow-node {
+    width: 100%;
+    max-width: 560px;
+    background: var(--card);
+    border: 2px solid var(--green-200);
+    border-radius: 14px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 6px 18px -10px rgba(22, 101, 52, 0.25);
+    position: relative;
+  }
+  .flow-node .role {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--green-700);
+    background: var(--green-50);
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: inline-block;
+    margin-bottom: 0.5rem;
+  }
+  .flow-node .title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--ink);
+    margin-bottom: 0.25rem;
+  }
+  .flow-node .desc { font-size: 0.88rem; color: var(--ink-soft); margin: 0; }
+  .flow-arrow {
+    width: 2px;
+    height: 40px;
+    background: linear-gradient(to bottom, var(--green-500), var(--green-200));
+    position: relative;
+  }
+  .flow-arrow::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid var(--green-500);
+  }
+  .flow-arrow .label {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.78rem;
+    color: var(--green-700);
+    background: var(--paper);
+    padding: 0.1rem 0.45rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .fanout {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  @media (max-width: 700px) { .fanout { grid-template-columns: 1fr; } }
+  .fanout .mini {
+    background: var(--green-50);
+    border: 1px solid var(--green-200);
+    border-radius: 10px;
+    padding: 0.75rem 0.85rem;
+    text-align: center;
+  }
+  .fanout .mini .who {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--green-800);
+    margin-bottom: 0.15rem;
+  }
+  .fanout .mini .what { font-size: 0.78rem; color: var(--ink-soft); }
+
+  .vps-node {
+    width: 100%;
+    max-width: 560px;
+    background: linear-gradient(135deg, #0f1f17 0%, #1a3d2e 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 1.25rem;
+    border: 2px solid var(--green-600);
+    box-shadow: 0 16px 40px -16px rgba(22, 101, 52, 0.45);
+  }
+  .vps-node .role {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--green-200);
+    background: rgba(34, 197, 94, 0.18);
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: inline-block;
+    margin-bottom: 0.5rem;
+  }
+  .vps-node .title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+  }
+  .vps-layer {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(187, 247, 208, 0.25);
+    border-radius: 10px;
+    padding: 0.7rem 0.9rem;
+    margin: 0.4rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .vps-layer .port {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--green-200);
+    background: rgba(34, 197, 94, 0.2);
+    padding: 0.2rem 0.5rem;
+    border-radius: 5px;
+    flex-shrink: 0;
+  }
+  .vps-layer .name {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .vps-layer .role-text {
+    font-size: 0.8rem;
+    color: rgba(187, 247, 208, 0.7);
+    margin-left: auto;
+    text-align: right;
+  }
+  .vps-arrow {
+    color: var(--green-200);
+    text-align: center;
+    font-size: 1rem;
+    margin: 0.2rem 0;
+    opacity: 0.6;
+  }
+
+  /* Glossary chip-grid */
+  .glossary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0.85rem;
+    margin: 1rem 0;
+  }
+  .gloss-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+  }
+  .gloss-card .term {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.02rem;
+    color: var(--green-800);
+    margin-bottom: 0.15rem;
+  }
+  .gloss-card .term .en {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    font-weight: 500;
+    margin-left: 0.4rem;
+  }
+  .gloss-card .analogy {
+    font-size: 0.88rem;
+    color: var(--ink);
+    margin: 0.35rem 0;
+  }
+  .gloss-card .tech {
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    border-top: 1px dashed var(--line);
+    padding-top: 0.4rem;
+    margin-top: 0.4rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 0.92rem;
+  }
+  th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    background: var(--green-50);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--green-800);
+    letter-spacing: 0.02em;
+  }
+  tr:last-child td { border-bottom: none; }
+
+  .callout {
+    border-radius: 12px;
+    padding: 1rem 1.15rem;
+    margin: 1.25rem 0;
+    border: 1px solid;
+    display: flex;
+    gap: 0.8rem;
+    align-items: flex-start;
+  }
+  .callout .ico {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+  }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: 0.5rem; }
+  .callout-info { background: var(--sky-50); border-color: var(--sky-200); color: var(--sky-700); }
+  .callout-info .ico { background: var(--sky-200); color: var(--sky-700); }
+  .callout-tip { background: var(--green-50); border-color: var(--green-200); color: var(--green-800); }
+  .callout-tip .ico { background: var(--green-200); color: var(--green-800); }
+  .callout-warn { background: var(--amber-50); border-color: var(--amber-200); color: var(--amber-700); }
+  .callout-warn .ico { background: var(--amber-200); color: var(--amber-700); }
+  .callout-story { background: var(--violet-50); border-color: var(--violet-200); color: var(--violet-700); }
+  .callout-story .ico { background: var(--violet-200); color: var(--violet-700); }
+
+  .cmd { margin: 1.25rem 0; }
+  .cmd .explain {
+    background: var(--green-50);
+    border-left: 3px solid var(--green-500);
+    border-radius: 0 8px 8px 0;
+    padding: 0.7rem 0.95rem 0.75rem 1rem;
+    font-size: 0.92rem;
+    color: var(--ink);
+    margin: 0 0 1rem;
+  }
+  .cmd .explain p { margin: 0 0 0.5rem; }
+  .cmd .explain p:last-child { margin-bottom: 0; }
+  .cmd .explain ul { margin: 0.25rem 0 0.5rem; padding-left: 1.2rem; }
+  .cmd .explain li { margin: 0.2rem 0; }
+  .cmd .explain code { font-size: 0.85em; }
+  .cmd .why {
+    background: #fffbeb;
+    border-left: 3px solid var(--amber-200);
+    border-radius: 0 8px 8px 0;
+    padding: 0.5rem 0.95rem;
+    font-size: 0.88rem;
+    color: var(--amber-700);
+    margin: 0 0 0.5rem;
+  }
+  .cmd .why strong { color: var(--amber-700); }
+
+  /* Cache cascade row */
+  .cache-cascade {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.6rem;
+    margin: 1rem 0 1.25rem;
+  }
+  @media (max-width: 700px) { .cache-cascade { grid-template-columns: 1fr 1fr; gap: 0.5rem; } }
+  .cache-cell {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0.85rem 0.7rem;
+    text-align: center;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    position: relative;
+  }
+  .cache-cell:not(:last-child)::after {
+    content: "→";
+    position: absolute;
+    right: -0.55rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--green-500);
+    font-weight: 700;
+    z-index: 2;
+    background: var(--card);
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    border: 1px solid var(--green-200);
+  }
+  @media (max-width: 700px) { .cache-cell:not(:last-child)::after { content: none; } }
+  .cache-cell .layer {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    color: var(--green-700);
+    font-size: 0.92rem;
+    margin-bottom: 0.25rem;
+  }
+  .cache-cell .time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--green-700);
+    background: var(--green-50);
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    margin-top: 0.45rem;
+  }
+
+  /* Handshake exchange */
+  .handshake {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 1rem 0 1.25rem;
+    padding: 1rem 1.1rem 1.15rem;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .handshake .parties {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--green-700);
+    padding: 0 0.25rem 0.5rem;
+    border-bottom: 1px dashed var(--line);
+    margin-bottom: 0.4rem;
+  }
+  .handshake .parties span:last-child { color: var(--sky-700); }
+  .handshake .msg {
+    padding: 0.65rem 0.9rem;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    max-width: 85%;
+    color: var(--ink);
+  }
+  .handshake .msg.lr {
+    align-self: flex-start;
+    background: var(--green-50);
+    border: 1px solid var(--green-200);
+    border-bottom-left-radius: 3px;
+  }
+  .handshake .msg.rl {
+    align-self: flex-end;
+    background: var(--sky-50);
+    border: 1px solid var(--sky-200);
+    border-bottom-right-radius: 3px;
+  }
+  .handshake .msg .proto {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--green-700);
+    font-weight: 700;
+    display: block;
+    margin-bottom: 0.3rem;
+    letter-spacing: 0.02em;
+  }
+  .handshake .msg.rl .proto { color: var(--sky-700); }
+
+  /* Sub-headers within a section */
+  .section h3.step-h {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.1rem;
+    color: var(--green-800);
+    margin: 1.75rem 0 0.6rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 2px solid var(--green-100);
+  }
+  .section h3.step-h .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: white;
+    background: var(--green-600);
+    padding: 0.15rem 0.5rem;
+    border-radius: 5px;
+    margin-right: 0.55rem;
+    vertical-align: 0.1em;
+  }
+
+  kbd {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.82em;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 0.1em 0.45em;
+    color: var(--ink);
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Tài liệu đồng hành · Beginner-friendly</span>
+    <h1>Bức tranh tổng thể · DNS &amp; Bảng tra lệnh</h1>
+    <p class="lede">
+      Trước khi gõ lệnh đầu tiên, bạn cần nhìn toàn bộ hệ thống như một bức tranh. Tài liệu này giải thích từ đầu đến cuối <em>cái gì kết nối với cái gì</em>, <em>tại sao mỗi thứ tồn tại</em>, và mỗi câu lệnh shell trong 4 hướng dẫn deploy (AWS · Vercel · DigitalOcean · Cloudfly) thực sự làm gì — bằng tiếng Việt, với phép so sánh đời thường.
+    </p>
+  </div>
+</header>
+
+<main class="layout">
+
+  <aside class="toc">
+    <h4>Mục lục</h4>
+    <ol>
+      <li><a href="#big-picture">Bức tranh tổng thể</a></li>
+      <li><a href="#glossary">Từ điển khái niệm</a></li>
+      <li><a href="#dns-flow">Luồng DNS chi tiết</a></li>
+      <li><a href="#layers">Ba lớp bạn cấu hình</a></li>
+      <li><a href="#cmd-git">Lệnh · push code lên GitHub</a></li>
+      <li><a href="#cmd-ssh">Lệnh · kết nối SSH</a></li>
+      <li><a href="#cmd-harden">Lệnh · siết bảo mật server</a></li>
+      <li><a href="#cmd-node">Lệnh · cài Node, Git, PM2</a></li>
+      <li><a href="#cmd-clone">Lệnh · clone &amp; build</a></li>
+      <li><a href="#cmd-pm2">Lệnh · chạy với PM2</a></li>
+      <li><a href="#cmd-caddy">Lệnh · cài Caddy + HTTPS</a></li>
+      <li><a href="#cmd-deploy">Lệnh · script deploy</a></li>
+      <li><a href="#cmd-diag">Lệnh · chẩn đoán &amp; theo dõi</a></li>
+    </ol>
+  </aside>
+
+  <article>
+
+    <!-- 01 BIG PICTURE -->
+    <section class="section" id="big-picture">
+      <div class="section-head">
+        <span class="section-num">01</span>
+        <h2>Bức tranh tổng thể<span class="vi">The big picture, with one consistent analogy</span></h2>
+      </div>
+
+      <p>Hãy tưởng tượng website của bạn là <strong>một quán cà phê</strong>. Mỗi thành phần kỹ thuật trong deploy đều có một vai trò y hệt một bộ phận của quán. Khi nắm được phép so sánh này, bạn sẽ tự đoán được vai trò của hầu hết các lệnh trước khi đọc chi tiết.</p>
+
+      <div class="cafe">
+        <h3>Quán cà phê = Website</h3>
+        <p><strong>Domain (tên miền)</strong> là <em>tấm biển hiệu ngoài đường</em> — khách dễ nhớ "Cà phê Tuấn Anh" hơn là "Số nhà 103/124 đường Lê Văn Sỹ".</p>
+        <p><strong>IP công khai</strong> là <em>số nhà thật</em> trên bản đồ — duy nhất, không trùng ai.</p>
+        <p><strong>DNS</strong> là <em>tổng đài 1080</em> — khách đọc tên quán, tổng đài tra ra số nhà.</p>
+        <p><strong>VPS</strong> là <em>mặt bằng bạn thuê</em> — một căn phòng trong tòa nhà của Cloudfly ở quận 1.</p>
+        <p><strong>Port (cổng)</strong> là <em>các cánh cửa</em> trong căn phòng đó, đánh số 0–65535. SSH ở cửa 22, web HTTPS ở cửa 443, Next.js nội bộ ở cửa 3000.</p>
+        <p><strong>UFW</strong> là <em>anh bảo vệ ở cổng chính</em> — chỉ mở vài cửa được phép, còn lại khóa kín.</p>
+        <p><strong>Caddy</strong> là <em>cô tiếp tân</em> — đón khách bằng giấy tờ chính thức (chứng chỉ HTTPS), rồi đưa khách vào trong cho nhân viên xử lý.</p>
+        <p><strong>Next.js + PM2</strong> là <em>nhân viên pha chế và quản lý ca</em> — PM2 đảm bảo nếu nhân viên ngất xỉu (process crash), nó dựng dậy ngay.</p>
+        <p><strong>GitHub</strong> là <em>cuốn sổ ghi công thức chính</em> — bạn viết công thức ở nhà, chép lên sổ, rồi mang sổ đến quán cho nhân viên đọc.</p>
+        <p style="margin-bottom:0;"><strong>Let's Encrypt</strong> là <em>cơ quan cấp giấy phép kinh doanh miễn phí</em> — Caddy tự đi xin và tự gia hạn giúp bạn.</p>
+      </div>
+
+      <h3>Khi một khách mở <code>https://yourname.com</code> — chuyện gì xảy ra?</h3>
+
+      <ol>
+        <li>Trình duyệt hỏi DNS: <em>"Tên miền này đang ở đâu?"</em></li>
+        <li>DNS trả lời: <em>"Số nhà <code>103.124.95.42</code>"</em></li>
+        <li>Trình duyệt gõ cửa số 443 (HTTPS) của số nhà đó.</li>
+        <li>UFW kiểm tra: <em>"Cửa 443? Được phép. Mời vào."</em></li>
+        <li>Caddy đón: <em>"Xin chào, đây là chứng chỉ HTTPS của tôi."</em> Trình duyệt thấy cert hợp lệ → ổ khóa trên thanh URL chuyển xanh.</li>
+        <li>Caddy chuyển yêu cầu vào trong cho Next.js ở cửa 3000.</li>
+        <li>Next.js render trang (đọc file MDX, dựng HTML), trả ngược ra cho Caddy.</li>
+        <li>Caddy mã hóa HTML rồi gửi về trình duyệt.</li>
+        <li>Trang hiển thị trên màn hình khách — thường mất 30–60 ms nếu cả hai đều ở Việt Nam.</li>
+      </ol>
+
+      <div class="callout callout-story">
+        <span class="ico">★</span>
+        <div>
+          <p><strong>Toàn bộ 4 hướng dẫn deploy chỉ là dựng từng bộ phận của quán theo thứ tự:</strong> mua mặt bằng (VPS) → siết cửa nẻo (UFW + SSH key) → thuê người (Node + PM2) → in công thức (clone + build) → mở cửa cho khách (Caddy + HTTPS) → treo biển hiệu (DNS).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 GLOSSARY -->
+    <section class="section" id="glossary">
+      <div class="section-head">
+        <span class="section-num">02</span>
+        <h2>Từ điển khái niệm<span class="vi">Mỗi thuật ngữ với một phép so sánh đời thường</span></h2>
+      </div>
+      <p>Bảng này giải thích mọi thuật ngữ kỹ thuật xuất hiện trong các hướng dẫn deploy. Đọc lướt cũng đủ — khi gặp lại từ nào trong phần lệnh, quay về đây tra.</p>
+
+      <div class="glossary">
+
+        <div class="gloss-card">
+          <div class="term">Tên miền <span class="en">Domain</span></div>
+          <div class="analogy">Tấm biển hiệu của quán. Người ta đọc tên, không đọc số nhà.</div>
+          <div class="tech">Chuỗi ký tự như <code>yourname.com</code> được đăng ký qua nhà cung cấp (Namecheap, Cloudflare, Mat Bao, PA Vietnam…).</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">DNS</div>
+          <div class="analogy">Tổng đài 1080. Cho tên, trả ra số nhà.</div>
+          <div class="tech">Hệ thống phân tán toàn cầu dịch tên miền → địa chỉ IP. Câu trả lời được cache lại theo TTL.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">IP công khai <span class="en">Public IP</span></div>
+          <div class="analogy">Số nhà thật của quán trên bản đồ.</div>
+          <div class="tech">Địa chỉ duy nhất trên Internet, ví dụ <code>103.124.95.42</code>. VPS có một IP cố định gắn liền.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">Bản ghi A <span class="en">A record</span></div>
+          <div class="analogy">Dòng trong sổ tổng đài: "Tên này → Số nhà này".</div>
+          <div class="tech">Bản ghi DNS gắn một tên miền với một địa chỉ IPv4. Bạn tạo ở giao diện nhà cung cấp domain.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">Port <span class="en">Cổng</span></div>
+          <div class="analogy">Mỗi cánh cửa trong căn phòng, đánh số 0–65535.</div>
+          <div class="tech">Số phân biệt dịch vụ trên cùng một máy. SSH=22, HTTP=80, HTTPS=443, Next.js mặc định=3000.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">VPS</div>
+          <div class="analogy">Mặt bằng thuê — một căn phòng trong tòa nhà của nhà cung cấp.</div>
+          <div class="tech">Virtual Private Server: máy ảo Linux có CPU/RAM/đĩa riêng, có IP công khai, bạn toàn quyền điều khiển.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">SSH</div>
+          <div class="analogy">Bộ đàm bảo mật cho phép bạn ngồi nhà mà gõ phím vào máy trong căn phòng kia.</div>
+          <div class="tech">Secure Shell — kênh mã hóa để mở terminal từ xa. Xác thực bằng password hoặc (an toàn hơn) cặp khóa public/private.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">SSH Key</div>
+          <div class="analogy">Một bộ chìa khóa: phần công khai để cho người gác cổng, phần riêng tư bạn giữ.</div>
+          <div class="tech">Cặp khóa toán học. Public key đặt trên server (<code>~/.ssh/authorized_keys</code>), private key giữ trên máy bạn. Server chỉ chấp nhận login nếu bạn có khóa riêng tương ứng.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">Firewall (UFW)</div>
+          <div class="analogy">Bảo vệ ở cổng tòa nhà. "Cửa 443? Được. Cửa 4444? Khóa."</div>
+          <div class="tech">Uncomplicated Firewall — lớp lọc gói tin theo port. Mặc định deny-all, bạn mở từng port cần thiết.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">Caddy</div>
+          <div class="analogy">Cô tiếp tân — đón khách HTTPS, kiểm cert, đẩy yêu cầu vào trong.</div>
+          <div class="tech">Reverse proxy nhẹ. Tự động xin chứng chỉ Let's Encrypt và tự gia hạn. Cấu hình bằng file <code>Caddyfile</code> chỉ vài dòng.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">TLS / HTTPS</div>
+          <div class="analogy">Phong bì có dán seal — nội dung bên trong không ai đọc trộm được trên đường đi.</div>
+          <div class="tech">Lớp mã hóa giữa trình duyệt và server. Cần một <em>chứng chỉ</em> hợp lệ do CA cấp.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">Let's Encrypt</div>
+          <div class="analogy">Cơ quan cấp giấy phép kinh doanh miễn phí — gia hạn tự động.</div>
+          <div class="tech">Tổ chức Certificate Authority phi lợi nhuận cấp cert HTTPS miễn phí, hạn 90 ngày. Caddy tự xin và tự gia hạn.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">Process</div>
+          <div class="analogy">Một nhân viên đang đứng quầy.</div>
+          <div class="tech">Một chương trình đang chạy. Khi bạn gõ <code>npm start</code>, Linux tạo một process Node để chạy Next.js.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">PM2</div>
+          <div class="analogy">Giám sát ca trực — nhân viên ngất, PM2 dựng dậy ngay.</div>
+          <div class="tech">Process manager cho Node. Tự restart khi crash, log tập trung, khởi động lại khi server reboot.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">Git</div>
+          <div class="analogy">Máy chụp ảnh code — mỗi commit là một bức ảnh.</div>
+          <div class="tech">Hệ thống quản lý phiên bản phân tán. Lưu lịch sử thay đổi từng dòng, cho phép quay về bất kỳ trạng thái cũ.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">GitHub</div>
+          <div class="analogy">Album ảnh online — chỗ lưu repo Git để đồng bộ giữa các máy.</div>
+          <div class="tech">Dịch vụ hosting Git phổ biến nhất. VPS sẽ pull code về từ đây thay vì copy thủ công.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">Deploy key</div>
+          <div class="analogy">Chìa khóa chỉ-đọc, mở được tủ tài liệu nhưng không sửa được.</div>
+          <div class="tech">SSH key gán vào riêng một repo trên GitHub, mặc định chỉ có quyền read (<code>git pull</code>), không có quyền write (<code>git push</code>).</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">Build</div>
+          <div class="analogy">Đóng gói nguyên liệu thành món sẵn sàng phục vụ.</div>
+          <div class="tech"><code>next build</code> — type-check, compile TypeScript/MDX, tối ưu, tạo bundle production trong thư mục <code>.next/</code>.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">systemd</div>
+          <div class="analogy">Trưởng phòng nhân sự của Linux — quản lý mọi dịch vụ chạy nền.</div>
+          <div class="tech">Init system của Linux hiện đại. Chạy/dừng/restart các service (caddy, ssh, ufw…), điều khiển qua <code>systemctl</code>.</div>
+        </div>
+
+        <div class="gloss-card">
+          <div class="term">apt</div>
+          <div class="analogy">Cửa hàng tạp hóa trung tâm của Ubuntu.</div>
+          <div class="tech">Trình quản lý package của Debian/Ubuntu. <code>apt install</code> cài, <code>apt update</code> làm mới danh sách, <code>apt upgrade</code> nâng cấp.</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 03 DNS FLOW -->
+    <section class="section" id="dns-flow">
+      <div class="section-head">
+        <span class="section-num">03</span>
+        <h2>Luồng DNS chi tiết<span class="vi">Mỗi bước, mỗi mili-giây — từ tên miền tới pixel đầu tiên</span></h2>
+      </div>
+      <p>Phần này phóng to bức tranh ở section 01, chi tiết tới mức bạn có thể trả lời <em>"đoạn nào mất bao lâu? ai nói chuyện với ai? trao đổi cái gì?"</em>. Toàn bộ chuyến đi từ lúc gõ Enter đến khi trang hiện ra mất khoảng <strong>120–450 ms</strong> ở Việt Nam — chia cho 7 giai đoạn nhỏ dưới đây.</p>
+
+      <h3 class="step-h"><span class="num">3.1</span>Trước cả khi hỏi DNS — chuỗi cache 4 tầng</h3>
+      <p>Trình duyệt không "ngu". Nó không hỏi DNS mỗi lần — nó tra theo chuỗi cache, dừng ngay khi tìm thấy. Đây là vì sao lần thứ hai mở site luôn cảm giác nhanh hơn.</p>
+
+      <div class="cache-cascade">
+        <div class="cache-cell">
+          <div class="layer">1. Browser</div>
+          <div>Cache trong RAM của Chrome / Firefox / Edge</div>
+          <div class="time">~0 ms</div>
+        </div>
+        <div class="cache-cell">
+          <div class="layer">2. OS</div>
+          <div>Windows DNS Client hoặc systemd-resolved</div>
+          <div class="time">~1 ms</div>
+        </div>
+        <div class="cache-cell">
+          <div class="layer">3. Router</div>
+          <div>Modem nhà mạng đôi khi cũng cache</div>
+          <div class="time">~5 ms</div>
+        </div>
+        <div class="cache-cell">
+          <div class="layer">4. Resolver</div>
+          <div>DNS của VNPT/FPT, hoặc 1.1.1.1, 8.8.8.8</div>
+          <div class="time">~20 ms</div>
+        </div>
+      </div>
+
+      <p>Hết cache mới phải đi tra "thực sự" — là phần dưới.</p>
+
+      <h3 class="step-h"><span class="num">3.2</span>DNS recursion — gõ cửa 3 nơi theo thứ tự</h3>
+      <p>Resolver không có sẵn câu trả lời cho <code>yourname.com</code>. Nó phải đi hỏi 3 cấp theo thứ tự, mỗi cấp chỉ trả lại một mảnh ghép.</p>
+
+      <div class="flow">
+        <div class="flow-node">
+          <span class="role">Bước 1 · Root server</span>
+          <div class="title">"Cho tôi nameserver của <code>.com</code>"</div>
+          <p class="desc">Có 13 cụm root server toàn cầu (<code>a.root-servers.net</code> … <code>m.root-servers.net</code>), được anycast khắp thế giới — tức là trả lời bạn từ cụm gần nhất. Root <em>không</em> biết <code>yourname.com</code> là gì, nhưng biết ai quản lý <code>.com</code>. <strong>Trả về:</strong> "Hỏi <code>a.gtld-servers.net</code>" (~5–10 ms).</p>
+        </div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node">
+          <span class="role">Bước 2 · TLD server (.com)</span>
+          <div class="title">"Cho tôi nameserver của <code>yourname.com</code>"</div>
+          <p class="desc">Server cho TLD <code>.com</code> không lưu bản ghi A, nhưng biết ai có. <strong>Trả về:</strong> "Hỏi <code>ns1.cloudflare.com</code> hoặc nameserver bạn đã chọn ở nhà đăng ký domain" (~10–20 ms).</p>
+        </div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node">
+          <span class="role">Bước 3 · Authoritative nameserver</span>
+          <div class="title">"Bản ghi A của <code>yourname.com</code> là gì?"</div>
+          <p class="desc">Đây là server thực sự lưu bản ghi bạn đã tạo (ở Cloudflare DNS, Mat Bao DNS, Namecheap…). <strong>Trả về:</strong> "<code>103.124.95.42</code>, TTL=300". Resolver cache câu trả lời trong 300 giây — tức là khách thứ hai sẽ bỏ qua hoàn toàn bước 1, 2, 3 này.</p>
+        </div>
+      </div>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <div>
+          <p><strong>Tổng DNS recursion ~40–80 ms khi miss cache, ~0 ms khi hit.</strong> TTL thấp (300s) tốt cho cập nhật nhanh khi đổi IP; TTL cao (86400s) tốt cho hiệu năng nhưng đổi IP sẽ mất tới 1 ngày mới lan hết. Lúc setup ban đầu, giữ TTL thấp; sau khi ổn định có thể nâng lên.</p>
+        </div>
+      </div>
+
+      <h3 class="step-h"><span class="num">3.3</span>TCP 3-way handshake — bắt tay 3 nhịp</h3>
+      <p>Có IP rồi, trình duyệt mở kết nối TCP đến <code>103.124.95.42:443</code>. Trước khi truyền dữ liệu, hai bên phải đồng bộ "số thứ tự" (sequence number) bằng 3 gói tin liên tiếp.</p>
+
+      <div class="handshake">
+        <div class="parties"><span>Trình duyệt</span><span>VPS · Caddy</span></div>
+        <div class="msg lr">
+          <span class="proto">SYN · seq=1000</span>
+          "Chào, tôi muốn mở kết nối. Số thứ tự của tôi bắt đầu là 1000."
+        </div>
+        <div class="msg rl">
+          <span class="proto">SYN-ACK · seq=5000, ack=1001</span>
+          "OK, đã nhận. Số thứ tự của tôi là 5000. Tôi ghi nhận 1001 (= 1000 + 1) là byte tiếp theo tôi mong từ bạn."
+        </div>
+        <div class="msg lr">
+          <span class="proto">ACK · ack=5001</span>
+          "Tốt, ghi nhận 5001. Kết nối thiết lập. Bắt đầu thôi."
+        </div>
+      </div>
+
+      <p>3 gói tin × thời gian một chiều ≈ <strong>20–40 ms</strong> ở Việt Nam. Đây là chi phí cố định — mọi kết nối HTTPS đều phải đi qua đoạn này, không thể bỏ.</p>
+
+      <div class="callout callout-tip">
+        <span class="ico">★</span>
+        <div>
+          <p>HTTP/2 cho phép <em>nhiều</em> request đi chung một kết nối TCP. Nên một trang load 30 file CSS/JS/ảnh chỉ tốn 1 lần TCP handshake, chứ không phải 30 lần. Đây là vì sao Next.js có rất nhiều chunk JavaScript mà vẫn nhanh.</p>
+        </div>
+      </div>
+
+      <h3 class="step-h"><span class="num">3.4</span>TLS handshake — chứng minh danh tính, đổi khóa mã hóa</h3>
+      <p>Có kênh TCP rồi, nhưng vẫn là plaintext — ISP có thể đọc trộm. TLS biến kênh đó thành kênh mã hóa. <strong>TLS 1.3</strong> (chuẩn hiện đại, Caddy bật mặc định) chỉ cần <em>1 round-trip</em>:</p>
+
+      <div class="handshake">
+        <div class="parties"><span>Trình duyệt</span><span>VPS · Caddy</span></div>
+        <div class="msg lr">
+          <span class="proto">ClientHello</span>
+          "Tôi hỗ trợ TLS 1.3, các cipher suite này (AES-256-GCM, ChaCha20…), tên miền tôi muốn truy cập là <code>yourname.com</code> (SNI). Đây là phần khóa công khai tạm thời của tôi (key share)."
+        </div>
+        <div class="msg rl">
+          <span class="proto">ServerHello + Certificate + key share + Finished</span>
+          "Chọn TLS 1.3 + AES-256-GCM. Đây là chứng chỉ HTTPS do Let's Encrypt cấp cho <code>yourname.com</code>, hết hạn 2026-08-12. Đây là khóa công khai của tôi. Tôi sẵn sàng."
+        </div>
+        <div class="msg lr">
+          <span class="proto">Verify cert + Finished (đã mã hóa)</span>
+          Trình duyệt kiểm tra: chứng chỉ còn hạn? ký bởi CA tin cậy? tên trong cert khớp <code>yourname.com</code>? Sau khi OK, tính khóa đối xứng chung từ hai key share, gửi tin Finished đầu tiên bằng khóa mới.
+        </div>
+      </div>
+
+      <p>Từ giây phút này, mọi byte tiếp theo đều mã hóa AES-256. Người ngồi giữa (ISP, Wi-Fi quán cà phê, kẻ tấn công) chỉ thấy "có giao tiếp đến IP này" nhưng không đọc được nội dung. Thêm <strong>15–40 ms</strong> nữa.</p>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <div>
+          <p><strong>TLS 1.2 cần 2 round-trip, TLS 1.3 chỉ 1.</strong> Caddy mặc định bật cả hai và ưu tiên 1.3 — bạn được lợi miễn phí. Trên kết nối đã từng nói chuyện trước (TLS resumption), thậm chí 0-RTT là khả dụng → request đầu tiên đi cùng với handshake.</p>
+        </div>
+      </div>
+
+      <h3 class="step-h"><span class="num">3.5</span>Bên trong VPS — request đi qua 3 lớp</h3>
+      <p>Lúc này gói tin HTTPS đã tới cửa số 443 của VPS. Bên trong, nó vẫn còn 3 bước nữa trước khi chạm tới code Next.js của bạn.</p>
+
+      <div class="flow">
+        <div class="vps-node">
+          <span class="role">Request HTTPS đến :443</span>
+          <div class="title">VPS · Cloudfly · HCM</div>
+
+          <div class="vps-layer">
+            <span class="port">UFW</span>
+            <span class="name">Firewall lọc theo port</span>
+            <span class="role-text">443 được phép → đi tiếp</span>
+          </div>
+          <div class="vps-arrow">▼</div>
+          <div class="vps-layer">
+            <span class="port">Caddy</span>
+            <span class="name">Giải mã TLS · parse HTTP</span>
+            <span class="role-text">→ reverse_proxy</span>
+          </div>
+          <div class="vps-arrow">▼ <code style="background:rgba(255,255,255,0.08);color:var(--green-200);">HTTP plaintext qua loopback :3000</code></div>
+          <div class="vps-layer">
+            <span class="port">Node</span>
+            <span class="name">Next.js server</span>
+            <span class="role-text">render MDX → HTML</span>
+          </div>
+        </div>
+      </div>
+
+      <p>Bên trong VPS, mỗi tầng chỉ mất <strong>~1 ms</strong> — vì chỉ là chuyển buffer trong RAM, không qua mạng. Khâu duy nhất tốn thời gian là Next.js render: tùy độ phức tạp của trang, từ <strong>5 ms</strong> (trang static) đến <strong>50 ms</strong> (trang MDX nhiều component).</p>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <div>
+          <p><strong>Vì sao Caddy giải mã TLS rồi gửi HTTP plaintext nội bộ?</strong> Vì kênh từ Caddy đến Node là <em>loopback</em> — đi qua interface ảo <code>lo</code> trong cùng một máy, không bao giờ ra Internet. Mã hóa lại sẽ tốn CPU vô ích. Đây là pattern chuẩn cho mọi reverse proxy.</p>
+        </div>
+      </div>
+
+      <h3 class="step-h"><span class="num">3.6</span>Đường về — HTML đi ngược ra Internet</h3>
+      <p>Phần này thường bị quên, nhưng nó tốn thời gian tương đương lúc đi.</p>
+
+      <ol>
+        <li>Next.js trả buffer HTML cho Caddy qua TCP loopback (~1 ms).</li>
+        <li>Caddy đóng gói HTML vào HTTP response, mã hóa qua TLS bằng khóa AES đã thiết lập ở bước 3.4, chia thành nhiều TCP segment (~1500 byte/segment).</li>
+        <li>Mỗi segment đi qua mạng từ HCM về máy khách (~15–40 ms một chiều).</li>
+        <li>Trình duyệt nhận, lắp ráp segment, giải mã, parse HTML.</li>
+        <li>Parser thấy <code>&lt;link rel="stylesheet"&gt;</code> và <code>&lt;script src="..."&gt;</code> → ngay lập tức tải tài nguyên đó <strong>trên cùng kết nối TCP</strong>, song song (HTTP/2 multiplexing). Không cần TCP handshake mới, không cần TLS handshake mới.</li>
+        <li>Render engine (Blink, Gecko…) bố cục lại, tính toán, vẽ ra màn hình. Lần đầu mất <strong>50–200 ms</strong>, lần sau nhanh hơn nhờ HTTP cache + JS đã JIT compile.</li>
+      </ol>
+
+      <h3 class="step-h"><span class="num">3.7</span>Timeline tổng kết — bao nhiêu ms cho mỗi giai đoạn?</h3>
+      <p>Đây là số liệu điển hình cho một khách ở TP.HCM mở site host trên VPS Cloudfly HCM, qua Wi-Fi nhà mạng nội địa:</p>
+
+      <table>
+        <thead><tr><th>Giai đoạn</th><th>Cache hit</th><th>Cache miss</th></tr></thead>
+        <tbody>
+          <tr><td>Cache cascade (browser → OS → router)</td><td>0–1 ms</td><td>1–5 ms</td></tr>
+          <tr><td>DNS recursion (3 truy vấn root → TLD → NS)</td><td>~0 ms (resolver đã cache)</td><td>40–80 ms</td></tr>
+          <tr><td>TCP 3-way handshake</td><td>20–40 ms</td><td>20–40 ms</td></tr>
+          <tr><td>TLS 1.3 handshake</td><td>15–40 ms</td><td>15–40 ms</td></tr>
+          <tr><td>Trong VPS (UFW → Caddy → Node)</td><td>~2 ms</td><td>~2 ms</td></tr>
+          <tr><td>Next.js render MDX → HTML</td><td>5–50 ms</td><td>5–50 ms</td></tr>
+          <tr><td>Response về trình duyệt</td><td>15–40 ms</td><td>15–40 ms</td></tr>
+          <tr><td>Browser parse + paint (FCP)</td><td>50–200 ms</td><td>50–200 ms</td></tr>
+          <tr><td><strong>Tổng đến First Contentful Paint</strong></td><td><strong>~110–370 ms</strong></td><td><strong>~150–450 ms</strong></td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <div>
+          <p><strong>Vì sao con số này quan trọng?</strong> Google PageSpeed coi <strong>1.8s</strong> là ngưỡng "Good" cho FCP. Bạn đang ở khoảng <strong>0.15–0.45s</strong> — dư địa rất lớn cho hình ảnh, font, JavaScript của trang.</p>
+          <p>Ngược lại, nếu host ở Mỹ thay vì HCM, mỗi round-trip đội thêm ~200 ms. Với ~4 round-trip (TCP + TLS + request + response), tổng đội ~800 ms — vào sát ngưỡng "Needs Improvement" (1.8–3.0s). Đó là lý do số 1 để chọn datacenter Việt Nam cho người dùng Việt Nam.</p>
+        </div>
+      </div>
+
+      <div class="callout callout-tip">
+        <span class="ico">★</span>
+        <div>
+          <p><strong>Mẹo tối ưu tiếp:</strong> Khi đã ổn định, bật Cloudflare đứng trước domain (free plan). Cloudflare cache cả HTML lẫn tài sản tĩnh ở edge khắp thế giới → khách ở Mỹ vẫn được phục vụ từ datacenter Cloudflare gần họ, không phải đi tới HCM. VPS chỉ bị gọi khi cache miss.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 LAYERS -->
+    <section class="section" id="layers">
+      <div class="section-head">
+        <span class="section-num">04</span>
+        <h2>Ba lớp bạn cấu hình, ở đâu, sống bao lâu<span class="vi">The three layers — who configures, where, lifetime</span></h2>
+      </div>
+      <p>Toàn bộ deploy chỉ là dựng ba lớp này theo đúng thứ tự. Khi có sự cố, nhìn vào dấu hiệu là biết lớp nào đang hỏng.</p>
+
+      <table>
+        <thead>
+          <tr><th>Lớp</th><th>Ai cấu hình</th><th>Sống ở đâu</th><th>Tuổi thọ</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Bản ghi A</strong><br><small>(domain → IP)</small></td>
+            <td>Bạn, làm một lần</td>
+            <td>Giao diện DNS của nhà đăng ký domain (Cloudflare, Namecheap, Mat Bao, PA Vietnam…)</td>
+            <td>TTL bạn đặt, thường 300 giây</td>
+          </tr>
+          <tr>
+            <td><strong>Chứng chỉ HTTPS</strong></td>
+            <td>Caddy, tự động</td>
+            <td>Trên VPS, trong <code>/var/lib/caddy</code></td>
+            <td>90 ngày, Caddy tự gia hạn trước hạn 30 ngày</td>
+          </tr>
+          <tr>
+            <td><strong>Process Next.js</strong></td>
+            <td>PM2 + bản build</td>
+            <td>Trên VPS, port 3000 trên <code>localhost</code></td>
+            <td>Luôn bật; PM2 dựng lại khi crash hoặc reboot</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-info">
+        <span class="ico">i</span>
+        <div>
+          <p><strong>Cách đọc lỗi nhanh:</strong></p>
+          <p>• <em>"Không thể truy cập trang web này"</em> → DNS chưa trỏ, hoặc firewall chặn.</p>
+          <p>• <em>"Kết nối của bạn không phải là kết nối riêng tư"</em> → TLS / Caddy chưa lấy được cert.</p>
+          <p>• <em>"502 Bad Gateway"</em> → Caddy còn sống nhưng Node/PM2 không lắng nghe ở port 3000.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 GIT -->
+    <section class="section" id="cmd-git">
+      <div class="section-head">
+        <span class="section-num">05</span>
+        <h2>Lệnh · push code lên GitHub<span class="vi">Đẩy "cuốn sổ công thức" lên server trung tâm</span></h2>
+      </div>
+      <p><strong>Bối cảnh:</strong> Bạn vừa code xong dự án trên laptop. VPS chưa biết gì về code. Việc đầu tiên là đẩy code lên GitHub, để sau này VPS có thể "pull" về.</p>
+
+      <div class="cmd">
+        <pre><code>git init</code></pre>
+        <div class="explain">
+          <p>Tạo một thư mục ẩn <code>.git/</code> trong thư mục hiện tại. Từ giờ Git sẽ theo dõi mọi thay đổi file trong thư mục này.</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Không có <code>.git/</code> thì Git không biết đây là dự án của nó.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>git add .</code></pre>
+        <div class="explain">
+          <p>Đưa toàn bộ file đang có vào "khu vực chuẩn bị commit" (staging area). Dấu chấm <code>.</code> nghĩa là "tất cả file trong thư mục này trở xuống".</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Git chỉ commit những gì đã được stage. Đây là cơ hội để bạn chọn lọc — nhưng ở lần đầu, ta lấy hết.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>git commit -m <span class="s">"initial commit"</span></code></pre>
+        <div class="explain">
+          <p>Chụp một "bức ảnh" tất cả file đã stage, kèm dòng mô tả trong <code>-m</code>. Bức ảnh này được lưu vào lịch sử local — chưa đụng gì đến GitHub.</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Bạn có thể commit nhiều lần local trước khi đẩy lên — mỗi commit là một mốc có thể quay lại.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>git branch -M main</code></pre>
+        <div class="explain">
+          <p>Đổi tên branch hiện tại thành <code>main</code>. <code>-M</code> bắt đổi tên dù có branch trùng tên (ép buộc, không hỏi).</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Git mặc định đặt tên <code>master</code>; chuẩn cộng đồng hiện tại là <code>main</code>. GitHub tạo repo mới cũng dùng <code>main</code>.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>git remote add origin git@github.com:YOU/IT-courses.git</code></pre>
+        <div class="explain">
+          <p>Đăng ký URL của GitHub dưới biệt danh <code>origin</code>. Sau này khi gõ <code>git push</code>, Git biết "origin" là chỗ nào.</p>
+          <ul>
+            <li><code>git@github.com:...</code> là URL dạng SSH — bạn cần đã thiết lập SSH key với GitHub. Có thể dùng dạng HTTPS thay thế.</li>
+            <li>Tên <code>origin</code> chỉ là quy ước; có thể đặt tên khác, nhưng chuẩn cộng đồng dùng <code>origin</code>.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Repo local của bạn không biết gì về GitHub cho đến khi bạn đăng ký remote.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>git push -u origin main</code></pre>
+        <div class="explain">
+          <p>Đẩy branch <code>main</code> lên remote <code>origin</code>. Cờ <code>-u</code> (viết tắt của <code>--set-upstream</code>) ghi nhớ liên kết, để lần sau chỉ cần gõ <code>git push</code> trống không cũng biết đẩy đi đâu.</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Đây là khoảnh khắc code từ máy bạn lên đám mây. Sau lệnh này, bạn có thể xem code trên giao diện github.com.</div>
+      </div>
+    </section>
+
+    <!-- 06 SSH -->
+    <section class="section" id="cmd-ssh">
+      <div class="section-head">
+        <span class="section-num">06</span>
+        <h2>Lệnh · kết nối SSH<span class="vi">Ngồi nhà mà gõ phím trên VPS</span></h2>
+      </div>
+      <p><strong>Bối cảnh:</strong> Bạn vừa mua VPS, có một IP và mật khẩu root. SSH là cách bạn mở "cửa sổ dòng lệnh" tới máy đó qua một kênh mã hóa.</p>
+
+      <div class="cmd">
+        <pre><code>ssh root@YOUR.SERVER.IP</code></pre>
+        <div class="explain">
+          <p>Mở một phiên shell mã hóa đến VPS, đăng nhập với tên người dùng <code>root</code>.</p>
+          <p>Lần kết nối đầu tiên, SSH in một <em>fingerprint</em> dài dòng và hỏi <em>"Bạn có chắc muốn tin server này không?"</em>. Bạn gõ <code>yes</code>, fingerprint được lưu vào <code>~/.ssh/known_hosts</code>. Lần sau SSH so sánh fingerprint — nếu khác, nó cảnh báo có thể bị tấn công man-in-the-middle.</p>
+        </div>
+        <div class="why"><strong>Tại sao là root?</strong> Lần đầu chưa có user nào khác. Ngay sau khi vào, ta sẽ tạo user thường và <em>cấm</em> đăng nhập root để an toàn (xem section 07).</div>
+      </div>
+
+      <div class="callout callout-warn">
+        <span class="ico">!</span>
+        <div>
+          <p><strong>"Permission denied" / "Connection refused"?</strong> Đợi 1–2 phút sau khi tạo VPS, dịch vụ SSH cần thời gian khởi động. Nếu sau 5 phút vẫn vậy: kiểm tra lại IP, kiểm tra mạng nhà có chặn port 22 (một số ISP gia đình chặn).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 HARDEN -->
+    <section class="section" id="cmd-harden">
+      <div class="section-head">
+        <span class="section-num">07</span>
+        <h2>Lệnh · siết bảo mật server<span class="vi">Đổi khóa, dựng hàng rào</span></h2>
+      </div>
+      <p><strong>Bối cảnh:</strong> VPS mới có IP công khai, lập tức bị bot quét tìm mật khẩu yếu. Ta phải: cập nhật hệ điều hành, tạo user thường, dùng SSH key thay password, bật firewall.</p>
+
+      <div class="cmd">
+        <pre><code>apt update &amp;&amp; apt upgrade -y</code></pre>
+        <div class="explain">
+          <p>Hai lệnh nối nhau bằng <code>&amp;&amp;</code>:</p>
+          <ul>
+            <li><code>apt update</code> — làm mới danh sách package mà VPS biết tới (kiểu "duyệt lại catalog của cửa hàng tạp hóa").</li>
+            <li><code>&amp;&amp;</code> — chỉ chạy lệnh sau nếu lệnh trước thành công.</li>
+            <li><code>apt upgrade -y</code> — cài bản mới hơn cho mọi package đã có. <code>-y</code> tự trả lời "yes" cho các câu hỏi xác nhận.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Bản OS gốc có thể đã có vài tháng tuổi và chứa lỗ hổng đã được vá. Cập nhật ngay từ đầu là vệ sinh cơ bản.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>adduser deploy
+usermod -aG sudo deploy</code></pre>
+        <div class="explain">
+          <p><code>adduser deploy</code> — tạo user thường tên <code>deploy</code>, có thư mục home riêng, có shell riêng. Lệnh sẽ hỏi password và một số thông tin (Full Name, Room Number… bỏ trống cũng được).</p>
+          <p><code>usermod -aG sudo deploy</code> — thêm user <code>deploy</code> vào nhóm <code>sudo</code>:</p>
+          <ul>
+            <li><code>-a</code> = append (thêm vào, không thay thế nhóm hiện có).</li>
+            <li><code>-G sudo</code> = nhóm cần thêm là <code>sudo</code>.</li>
+            <li>Nhóm này có quyền chạy lệnh với tiền tố <code>sudo</code> để tạm mượn quyền root.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Đăng nhập trực tiếp bằng root là rất nguy hiểm. User thường + sudo là chuẩn bảo mật: bot quét root password sẽ không tìm thấy gì.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>ssh-keygen -t ed25519 -C <span class="s">"deploy@cloudfly"</span></code></pre>
+        <div class="explain">
+          <p>Tạo một cặp khóa SSH trên máy Windows của bạn (chạy trong PowerShell).</p>
+          <ul>
+            <li><code>-t ed25519</code> — chọn thuật toán Ed25519 (hiện đại, ngắn, nhanh, an toàn). Đừng dùng RSA 2048 nữa nếu có lựa chọn.</li>
+            <li><code>-C "deploy@cloudfly"</code> — gắn một bình luận để sau này bạn nhận ra đây là khóa nào.</li>
+          </ul>
+          <p>Khi chạy, nó hỏi:</p>
+          <ul>
+            <li><em>"Enter file in which to save the key"</em> — bấm Enter để chấp nhận đường dẫn mặc định <code>~/.ssh/id_ed25519</code>.</li>
+            <li><em>"Enter passphrase"</em> — đặt mật khẩu cho file khóa riêng (an toàn hơn) hoặc bỏ trống (tiện hơn).</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Password có thể đoán; cặp khóa toán học 256-bit thì gần như không thể. Đây là tiêu chuẩn industry.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>mkdir -p ~/.ssh &amp;&amp; chmod 700 ~/.ssh</code></pre>
+        <div class="explain">
+          <ul>
+            <li><code>mkdir -p ~/.ssh</code> — tạo thư mục <code>.ssh</code> trong home của user <code>deploy</code>. <code>-p</code> = không lỗi nếu đã tồn tại.</li>
+            <li><code>chmod 700</code> — quyền: chỉ owner đọc/ghi/vào. Group và others không có quyền gì.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> SSH <em>từ chối</em> dùng thư mục <code>.ssh</code> nếu permission quá lỏng (người khác đọc được). Đây là kiểm tra an toàn của chính SSH.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>chmod 600 ~/.ssh/authorized_keys</code></pre>
+        <div class="explain">
+          <p>Đặt quyền <code>600</code> cho file chứa public key của bạn: <em>chỉ owner đọc/ghi, không ai khác</em>.</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Tương tự thư mục — file lỏng quyền sẽ bị SSH bỏ qua, dẫn đến bạn không login được mà không hiểu vì sao.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>systemctl reload ssh</code></pre>
+        <div class="explain">
+          <p>Bảo dịch vụ SSH đọc lại file cấu hình (<code>/etc/ssh/sshd_config</code>) mà <em>không ngắt</em> các phiên SSH đang mở.</p>
+          <ul>
+            <li><code>reload</code> ≠ <code>restart</code>: reload không kill process, restart thì có. Khi bạn đang config SSH thông qua chính SSH, dùng reload tránh tự cắt mạng.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Sau khi sửa file cấu hình (ví dụ tắt PermitRootLogin), thay đổi chỉ có hiệu lực khi daemon đọc lại.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>ufw allow OpenSSH
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw enable</code></pre>
+        <div class="explain">
+          <p>UFW khởi đầu ở chế độ <em>deny-all</em>. Mỗi <code>allow</code> là mở một cánh cửa:</p>
+          <ul>
+            <li><code>OpenSSH</code> — alias dựng sẵn, mở port 22.</li>
+            <li><code>80/tcp</code> — HTTP, Caddy cần để Let's Encrypt thực hiện challenge và để redirect HTTP→HTTPS.</li>
+            <li><code>443/tcp</code> — HTTPS, kênh chính để khách truy cập.</li>
+            <li><code>ufw enable</code> — bật firewall, gõ <code>y</code> để xác nhận.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Mỗi port không cần thiết để mở là một cánh cửa cho bot. Đóng mặc định, mở chính xác — đó là quy tắc least privilege.</div>
+      </div>
+
+      <div class="callout callout-warn">
+        <span class="ico">!</span>
+        <div>
+          <p><strong>Thứ tự cực kỳ quan trọng:</strong> chỉ tắt <code>PasswordAuthentication no</code> sau khi đã test thành công login bằng SSH key. Nếu tắt trước khi key hoạt động, bạn sẽ tự khóa mình ngoài, phải dùng VNC console của Cloudfly/DigitalOcean để vào lại.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 NODE GIT PM2 -->
+    <section class="section" id="cmd-node">
+      <div class="section-head">
+        <span class="section-num">08</span>
+        <h2>Lệnh · cài Node, Git, PM2<span class="vi">Thuê nhân viên, đưa giáo trình</span></h2>
+      </div>
+      <p><strong>Bối cảnh:</strong> VPS mới chỉ có hệ điều hành Ubuntu trống trơn. Phải cài runtime để chạy Next.js, công cụ để pull code, và quản lý process.</p>
+
+      <div class="cmd">
+        <pre><code>curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -</code></pre>
+        <div class="explain">
+          <p>Lệnh phức tạp nhất trong cả hướng dẫn — hãy bóc tách:</p>
+          <ul>
+            <li><code>curl</code> — công cụ tải dữ liệu từ URL.</li>
+            <li><code>-f</code> = fail silently khi server trả HTTP error.</li>
+            <li><code>-s</code> = silent (không in progress bar).</li>
+            <li><code>-S</code> = nhưng vẫn show lỗi nếu có (đi đôi với <code>-s</code>).</li>
+            <li><code>-L</code> = follow redirect (URL có thể chuyển hướng).</li>
+            <li><code>|</code> = pipe — đẩy output của curl vào input của lệnh tiếp theo, không lưu ra file.</li>
+            <li><code>sudo -E</code> = chạy với quyền root, <em>giữ nguyên biến môi trường</em>.</li>
+            <li><code>bash -</code> = chạy bash, đọc script từ stdin (dấu <code>-</code>).</li>
+          </ul>
+          <p>Nội dung script (do NodeSource cung cấp) thêm repo NodeSource vào danh sách apt — sau bước này, <code>apt install nodejs</code> sẽ tìm được phiên bản 22.</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Repo mặc định của Ubuntu chỉ có Node phiên bản cũ. NodeSource cung cấp bản LTS mới nhất.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>sudo apt install -y nodejs</code></pre>
+        <div class="explain">
+          <p>Cài package <code>nodejs</code> (đã bao gồm cả <code>npm</code>). <code>-y</code> tự trả lời yes.</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Next.js chạy trên Node — không có Node, không có gì để chạy.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>sudo npm install -g pm2</code></pre>
+        <div class="explain">
+          <p>Cài PM2 globally:</p>
+          <ul>
+            <li><code>-g</code> = global, vào <code>/usr/lib/node_modules</code> với symlink trong <code>/usr/bin/pm2</code>.</li>
+            <li>Không có <code>-g</code> thì PM2 chỉ tồn tại trong một project, không gọi được từ shell.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Bạn muốn <code>pm2 status</code>, <code>pm2 logs</code> chạy được ở bất kỳ đâu, không phải trong một project cụ thể.</div>
+      </div>
+
+      <div class="callout callout-tip">
+        <span class="ico">★</span>
+        <div>
+          <p><strong>Mẹo:</strong> Sau khi cài, gõ <code>node -v</code>, <code>npm -v</code>, <code>pm2 -v</code> để xác nhận cả ba đều in ra số phiên bản. Nếu một lệnh báo "command not found", có gì đó sai ở bước cài tương ứng.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 CLONE BUILD -->
+    <section class="section" id="cmd-clone">
+      <div class="section-head">
+        <span class="section-num">09</span>
+        <h2>Lệnh · clone &amp; build dự án<span class="vi">Lấy công thức về quán, dọn nguyên liệu sẵn sàng</span></h2>
+      </div>
+      <p><strong>Bối cảnh:</strong> Code đã ở GitHub (private), VPS cần một cách an toàn để kéo về. Ta tạo một "deploy key" — chìa khóa SSH chỉ-đọc gán riêng cho repo này.</p>
+
+      <div class="cmd">
+        <pre><code>ssh-keygen -t ed25519 -f ~/.ssh/it_courses_deploy -N <span class="s">""</span> -C <span class="s">"vps-deploy"</span></code></pre>
+        <div class="explain">
+          <p>Lại tạo cặp khóa SSH, nhưng có ba điểm khác lệnh ở section 07:</p>
+          <ul>
+            <li><code>-f ~/.ssh/it_courses_deploy</code> — lưu vào đường dẫn cụ thể (không ghi đè khóa cá nhân).</li>
+            <li><code>-N ""</code> — passphrase rỗng. Khóa này dùng cho server tự động pull code, không có người gõ password.</li>
+            <li><code>-C "vps-deploy"</code> — bình luận để phân biệt.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao tách khóa riêng?</strong> Theo nguyên tắc least privilege: khóa này <em>chỉ</em> được phép pull repo IT-courses, không có quyền gì khác. Nếu lộ ra, hậu quả nhỏ hơn rất nhiều so với lộ khóa cá nhân.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>cat ~/.ssh/it_courses_deploy.pub</code></pre>
+        <div class="explain">
+          <p><code>cat</code> = đọc file ra màn hình. <code>.pub</code> = phần khóa công khai (an toàn để chia sẻ).</p>
+          <p>Copy chuỗi này, dán vào GitHub: <strong>Settings → Deploy keys → Add deploy key</strong>. <em>Không tick</em> "Allow write access".</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> GitHub cần biết public key để xác minh khi VPS pull. Không add key → không pull được.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>chmod 600 ~/.ssh/config</code></pre>
+        <div class="explain">
+          <p>File <code>~/.ssh/config</code> chứa luật "khi truy cập github.com, dùng khóa này" — phải đặt quyền chặt như mọi file SSH khác.</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> SSH từ chối đọc file config quá lỏng, dẫn đến git pull báo "permission denied" mà không rõ lý do.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>git clone git@github.com:YOU/IT-courses.git it-courses</code></pre>
+        <div class="explain">
+          <p>Tải về toàn bộ repo:</p>
+          <ul>
+            <li><code>git@github.com:...</code> = URL SSH. Git tự dùng deploy key nhờ luật trong <code>~/.ssh/config</code>.</li>
+            <li>Tham số cuối <code>it-courses</code> = tên thư mục đích trên VPS. Bỏ trống thì Git dùng tên repo.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Đây là lần đầu code "có mặt" trên VPS. Sau lệnh này, <code>ls ~/it-courses</code> sẽ thấy đầy đủ source.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>npm ci</code></pre>
+        <div class="explain">
+          <p><code>ci</code> = clean install — khác <code>npm install</code> ở chỗ:</p>
+          <ul>
+            <li>Xóa sạch <code>node_modules/</code> trước khi cài.</li>
+            <li>Cài <em>chính xác</em> phiên bản trong <code>package-lock.json</code>, không tự nâng cấp.</li>
+            <li>Nhanh hơn và xác định (deterministic) hơn — production lúc nào cũng nên dùng cái này.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Để build chạy được, phải có thư viện. <code>node_modules</code> không nằm trong git (do <code>.gitignore</code>) nên phải cài lại sau khi clone.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>npm run build</code></pre>
+        <div class="explain">
+          <p>Chạy script tên <code>build</code> trong <code>package.json</code>. Với Next.js, đó là <code>next build</code>:</p>
+          <ul>
+            <li>Type-check TypeScript</li>
+            <li>Compile MDX → React components</li>
+            <li>Tối ưu, tách bundle theo route</li>
+            <li>Ghi kết quả vào thư mục <code>.next/</code></li>
+          </ul>
+          <p>Quá trình này tốn CPU và RAM — VPS 1GB sẽ bị Linux kill vì OOM. VPS 2GB an toàn.</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Source TypeScript/MDX không chạy trực tiếp được; phải build thành JavaScript thuần và HTML/JSON tĩnh trước.</div>
+      </div>
+    </section>
+
+    <!-- 10 PM2 -->
+    <section class="section" id="cmd-pm2">
+      <div class="section-head">
+        <span class="section-num">10</span>
+        <h2>Lệnh · chạy với PM2<span class="vi">Đưa nhân viên lên ca, có giám sát</span></h2>
+      </div>
+      <p><strong>Bối cảnh:</strong> Build đã xong, giờ phải chạy nó như một dịch vụ luôn-bật. Nếu chỉ gõ <code>npm start</code> rồi đóng SSH, process sẽ chết theo. PM2 giải quyết bài toán đó.</p>
+
+      <div class="cmd">
+        <pre><code>pm2 start npm --name it-courses -- start</code></pre>
+        <div class="explain">
+          <p>Đọc nguyên văn: "PM2, khởi chạy chương trình <code>npm</code>, đặt tên process là <code>it-courses</code>, mọi thứ sau <code>--</code> là argument cho npm".</p>
+          <ul>
+            <li><code>npm</code> — file thực thi PM2 sẽ chạy.</li>
+            <li><code>--name it-courses</code> — biệt danh, dùng cho <code>pm2 logs it-courses</code>, <code>pm2 restart it-courses</code>…</li>
+            <li><code>--</code> — vách ngăn. Cái gì bên trái là cho PM2, cái gì bên phải là cho npm.</li>
+            <li><code>start</code> — npm subcommand, gọi <code>"start"</code> trong <code>package.json</code> → <code>next start</code>.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao không gõ thẳng <code>npm start</code>?</strong> Vì process sẽ chết khi bạn đóng SSH. PM2 daemon hóa nó, theo dõi, restart khi crash, ghi log riêng.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>pm2 save</code></pre>
+        <div class="explain">
+          <p>Ghi danh sách process hiện đang chạy vào file <code>~/.pm2/dump.pm2</code>. Để PM2 biết "đây là những thứ cần khôi phục khi server reboot".</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Không save thì sau reboot, PM2 khởi động trắng — không tự bật lại Next.js.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>pm2 startup</code></pre>
+        <div class="explain">
+          <p>Lệnh này <em>không tự làm gì</em>. Nó chỉ in ra một dòng <code>sudo ...</code> dài, bảo bạn copy và chạy. Dòng đó:</p>
+          <ul>
+            <li>Tạo một service systemd tên <code>pm2-deploy</code>.</li>
+            <li>Bật service đó để tự chạy mỗi khi server boot.</li>
+            <li>Service này gọi <code>pm2 resurrect</code> để dựng lại các process đã <code>save</code>.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Để khi điện cúp / reboot / Cloudfly bảo trì hạ tầng → server bật lại là website lập tức chạy, không cần bạn SSH vào.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>curl -I http://localhost:3000</code></pre>
+        <div class="explain">
+          <p><code>-I</code> = chỉ gửi request HEAD (lấy headers, không lấy body HTML).</p>
+          <p>Kỳ vọng thấy <code>HTTP/1.1 200 OK</code>. Nếu thấy, có nghĩa Next.js đang lắng nghe trên port 3000 nội bộ VPS.</p>
+        </div>
+        <div class="why"><strong>Tại sao test ở localhost?</strong> Để chắc chắn lớp trong cùng (Node + Next.js) hoạt động, trước khi đụng đến Caddy. Phân tầng giúp dễ chẩn đoán: nếu lệnh này thất bại, lỗi chắc chắn ở Node, không phải ở DNS hay TLS.</div>
+      </div>
+    </section>
+
+    <!-- 11 CADDY -->
+    <section class="section" id="cmd-caddy">
+      <div class="section-head">
+        <span class="section-num">11</span>
+        <h2>Lệnh · cài Caddy + HTTPS<span class="vi">Thuê tiếp tân, xin giấy phép</span></h2>
+      </div>
+      <p><strong>Bối cảnh:</strong> Next.js đã chạy ở port 3000 nội bộ, nhưng khách Internet không gõ <code>:3000</code> vào URL. Họ vào port 443 (HTTPS). Caddy là cầu nối: nhận HTTPS ở 443, đẩy nội bộ sang 3000, và tự xin chứng chỉ.</p>
+
+      <div class="cmd">
+        <pre><code>sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl</code></pre>
+        <div class="explain">
+          <p>Cài các công cụ phụ trợ apt cần để: xác minh chữ ký package từ repo bên thứ ba, tải qua HTTPS. Thường đã có sẵn — lệnh idempotent, chạy đi chạy lại không sao.</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Bước sau ta thêm repo của Caddy (không phải repo Ubuntu chính thức); apt phải có công cụ để tin tưởng nguồn này.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>curl -1sLf <span class="s">'https://dl.cloudsmith.io/public/caddy/stable/gpg.key'</span> \
+  | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg</code></pre>
+        <div class="explain">
+          <ul>
+            <li><code>curl ... gpg.key</code> — tải khóa ký công khai của Caddy ở dạng text (ASCII-armored).</li>
+            <li><code>gpg --dearmor</code> — chuyển text → binary, định dạng apt mong đợi.</li>
+            <li><code>-o /usr/share/keyrings/...</code> — lưu vào thư mục apt quét tìm khóa tin cậy.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> apt chỉ cài package từ repo có chữ ký hợp lệ. Không có khóa này thì apt từ chối.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>curl -1sLf <span class="s">'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt'</span> \
+  | sudo tee /etc/apt/sources.list.d/caddy-stable.list</code></pre>
+        <div class="explain">
+          <p>Thêm địa chỉ repo Caddy vào danh sách nguồn của apt.</p>
+          <ul>
+            <li><code>sudo tee</code> — mẹo: <code>sudo</code> chỉ áp dụng cho <code>tee</code>, không cho <code>curl</code>. <code>tee</code> ghi nội dung pipe vào file (cần quyền root). Đây là cách viết file root-only qua pipe.</li>
+            <li>Không thể dùng <code>sudo curl ... > file</code> vì redirect <code>&gt;</code> được shell xử lý <em>trước</em> sudo.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Để bước <code>apt install caddy</code> ngay sau biết tìm package ở đâu.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>sudo apt update
+sudo apt install -y caddy</code></pre>
+        <div class="explain">
+          <p>Làm mới danh sách (giờ đã có repo Caddy), rồi cài. Caddy tự đăng ký service systemd và khởi động ngay với config mặc định.</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Đây là bước thực sự đặt Caddy lên server.</div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>sudo systemctl reload caddy</code></pre>
+        <div class="explain">
+          <p>Sau khi bạn sửa <code>/etc/caddy/Caddyfile</code> (chỉ vài dòng, dán tên miền và <code>reverse_proxy localhost:3000</code>), reload bảo Caddy đọc lại file mà không ngắt kết nối.</p>
+          <p>Ngay khi DNS trỏ về VPS đúng, Caddy âm thầm gọi Let's Encrypt, xin cert, cài đặt — toàn bộ quá trình tự động, mất khoảng 30 giây.</p>
+        </div>
+        <div class="why"><strong>Tại sao reload chứ không restart?</strong> Restart sẽ tạm ngắt server vài trăm ms. Reload giữ kết nối hiện tại, áp dụng config mới cho request mới — production luôn nên dùng reload.</div>
+      </div>
+    </section>
+
+    <!-- 12 DEPLOY -->
+    <section class="section" id="cmd-deploy">
+      <div class="section-head">
+        <span class="section-num">12</span>
+        <h2>Lệnh · script deploy<span class="vi">Một dòng lệnh để cập nhật website</span></h2>
+      </div>
+      <p><strong>Bối cảnh:</strong> Sau lần deploy đầu tiên, mỗi lần bạn sửa nội dung khóa học và muốn đẩy lên prod, không nên gõ lại 5–6 lệnh. Gói chúng vào một script.</p>
+
+      <div class="cmd">
+        <pre><code>chmod +x ~/deploy.sh</code></pre>
+        <div class="explain">
+          <p><code>chmod +x</code> = bật cờ "executable" cho file. Linux chỉ cho phép chạy file có cờ này — kể cả khi file có shebang <code>#!/bin/bash</code>.</p>
+        </div>
+        <div class="why"><strong>Tại sao cần?</strong> Không có <code>+x</code>, gõ <code>~/deploy.sh</code> sẽ bị báo "Permission denied".</div>
+      </div>
+
+      <p style="margin-top:1.5rem;">Bên trong <code>~/deploy.sh</code>:</p>
+
+      <div class="cmd">
+        <pre><code>#!/bin/bash
+set -e
+cd ~/it-courses
+git pull
+npm ci
+npm run build
+pm2 restart it-courses</code></pre>
+        <div class="explain">
+          <ul>
+            <li><code>#!/bin/bash</code> — <em>shebang</em>. Cho kernel biết "chạy file này bằng bash".</li>
+            <li><code>set -e</code> — thoát script ngay khi có lệnh fail. Quan trọng — nếu thiếu, build lỗi mà <code>pm2 restart</code> vẫn chạy, dẫn đến site dùng bản cũ hoặc crash.</li>
+            <li><code>cd ~/it-courses</code> — vào thư mục project (script có thể chạy từ bất kỳ đâu).</li>
+            <li><code>git pull</code> — kéo commit mới từ <code>origin/main</code> về.</li>
+            <li><code>npm ci</code> — cài lại deps trong trường hợp <code>package-lock.json</code> đã đổi.</li>
+            <li><code>npm run build</code> — build lại để file mới có hiệu lực.</li>
+            <li><code>pm2 restart it-courses</code> — đổi process sang bản mới. Downtime tính bằng mili giây.</li>
+          </ul>
+        </div>
+        <div class="why"><strong>Tại sao gộp thành script?</strong> 1 dòng lệnh thay vì 6 dòng. Sai sót giảm. Có thể gắn vào GitHub Actions để tự deploy mỗi khi push.</div>
+      </div>
+    </section>
+
+    <!-- 13 DIAG -->
+    <section class="section" id="cmd-diag">
+      <div class="section-head">
+        <span class="section-num">13</span>
+        <h2>Lệnh · chẩn đoán &amp; theo dõi<span class="vi">Khi có chuyện, nhìn vào đâu</span></h2>
+      </div>
+      <p><strong>Bối cảnh:</strong> Một ngày đẹp trời site không vào được. Bạn cần "ống nghe" để biết tầng nào đang hỏng. Đây là bộ lệnh quen thuộc.</p>
+
+      <div class="cmd">
+        <pre><code>pm2 status</code></pre>
+        <div class="explain">
+          <p>Bảng một dòng cho mỗi process PM2 quản lý: tên, trạng thái (online / errored / stopped), uptime, CPU, RAM, số lần restart.</p>
+          <p><strong>Nhìn vào cột status</strong> — nếu <em>errored</em>, process đang crash liên tục.</p>
+        </div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>pm2 logs it-courses --lines 100</code></pre>
+        <div class="explain">
+          <p>In 100 dòng cuối của stdout + stderr cho process tên <code>it-courses</code>, rồi stream log mới khi có. <kbd>Ctrl+C</kbd> để thoát.</p>
+          <p><strong>Đây là chỗ tốt nhất để debug</strong> — exception, missing env var, file not found đều hiện ở đây.</p>
+        </div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>sudo journalctl -u caddy -n 50</code></pre>
+        <div class="explain">
+          <p><code>journalctl</code> là trình xem log của systemd:</p>
+          <ul>
+            <li><code>-u caddy</code> — lọc theo service tên <code>caddy</code>.</li>
+            <li><code>-n 50</code> — chỉ in 50 dòng cuối.</li>
+          </ul>
+          <p>Lỗi Let's Encrypt / TLS hiện ra ở đây.</p>
+        </div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>sudo journalctl -u caddy -f</code></pre>
+        <div class="explain">
+          <p><code>-f</code> = follow. Log mới hiện ra real-time. Hữu ích khi bạn vừa reload Caddy và muốn xem nó xin cert thành công không.</p>
+        </div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>nslookup yourname.com</code></pre>
+        <div class="explain">
+          <p>Hỏi DNS xem tên miền của bạn hiện đang trỏ về đâu. Chạy từ laptop sau khi cập nhật DNS — khi IP trả về khớp với VPS, propagation đã đến chỗ bạn.</p>
+        </div>
+      </div>
+
+      <div class="cmd">
+        <pre><code>curl -I https://yourname.com</code></pre>
+        <div class="explain">
+          <p>Test end-to-end: từ laptop, qua DNS, qua Internet, vào VPS. Thấy <code>HTTP/2 200</code> và header <code>server: Caddy</code> nghĩa là cả dây chuyền hoạt động.</p>
+        </div>
+      </div>
+
+      <div class="callout callout-tip">
+        <span class="ico">★</span>
+        <div>
+          <p><strong>Quy trình debug đề nghị:</strong> khi site không vào, kiểm tra từ trong ra ngoài — <code>pm2 status</code> (Node sống?) → <code>curl -I http://localhost:3000</code> trên VPS (Node trả lời?) → <code>journalctl -u caddy -n 20</code> (Caddy ổn?) → <code>nslookup</code> từ laptop (DNS đúng?) → <code>curl -I https://...</code> (cả dây chuyền). Tầng nào im lặng, tầng đó hỏng.</p>
+        </div>
+      </div>
+    </section>
+
+  </article>
+</main>
+
+</body>
+</html>

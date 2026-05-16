@@ -7,6 +7,7 @@ import { Breadcrumb } from '@/components/site/breadcrumb';
 import { PrevNext } from '@/components/site/prev-next';
 import { ReadingProgress } from '@/components/site/reading-progress';
 import { BookmarkButton } from '@/components/site/bookmark-button';
+import { LanguageToggle } from '@/components/site/language-toggle';
 
 export async function generateStaticParams() {
   return getAllCourses().flatMap((course) =>
@@ -81,6 +82,7 @@ export default async function LessonPage({ params }: { params: Promise<Params> }
               </p>
               <div className="lesson-title-row">
                 <h1 className="lesson-title">{ctx.lesson.title}</h1>
+                {ctx.course.slug === 'ai-in-your-project' && <LanguageToggle />}
                 <BookmarkButton
                   path={`/courses/${ctx.course.slug}/lessons/${lessonSlug}`}
                   title={ctx.lesson.title}

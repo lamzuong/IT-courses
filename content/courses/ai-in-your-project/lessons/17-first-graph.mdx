@@ -1,6 +1,9 @@
 import { Recap } from '@/components/mdx/recap';
 import { Callout } from '@/components/mdx/callout';
 import { GraphRunnerDemo } from '@/components/demos/ai-in-your-project/graph-runner-demo';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - Rebuild the lesson 14 tool-calling loop as a graph — same behaviour, named steps.
@@ -118,3 +121,126 @@ You have, structurally, exactly what lesson 14 had — and a place to grow. The 
 - Compile and invoke. The graph reproduces the lesson 14 loop with named steps and a place to put every future concern.
 - The leverage of moving from `while` to a graph is that new behaviour becomes new nodes — not new branches inside a growing function.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Dựng lại vòng lặp tool-calling ở bài 14 thành một graph — cùng hành vi, nhưng từng bước được đặt tên.
+- Mô hình *ReAct* kinh điển (`agent → tools → agent → ...`) gói gọn trong chín dòng khai báo edge.
+- Một bộ "xương sống" để bạn gắn xác nhận, routing có điều kiện, và persistence vào suốt các bài 18-20.
+</Callout>
+
+Lấy agent gọi tool ở Phần III và dựng lại nó thành một graph. Cùng tool, cùng prompt, cùng model — chỉ thay đổi bộ điều phối. Hành vi bạn thấy ở cuối bài này y hệt bài 14: model quyết định có gọi tool hay không, runtime thực thi, model nói tiếp, và vòng lặp dừng khi không còn gì để làm. Khác biệt nhìn từ ngoài là vô hình, nhìn vào trong là kiến trúc: mỗi bước là một node, mỗi chuyển tiếp là một edge, và bạn có *chỗ để đặt* mọi mối lo sắp xuất hiện trong phần còn lại của Phần IV.
+
+Đây là hình dạng *ReAct* kinh điển — Reason, Act, Reason, Act, cho tới khi model quyết định xong. Nó là xương sống bạn sẽ gắn xác nhận, routing có điều kiện, và persistence vào trong ba bài kế tiếp.
+
+## 01 — State
+
+State đơn giản nhất có thể là một transcript. Chỉ là messages.
+
+```ts
+import { StateGraph, END } from '@langchain/langgraph';      // → graph builder + END sentinel
+import { HumanMessage, type BaseMessage } from '@langchain/core/messages'; // → message types
+
+type GraphState = { messages: BaseMessage[] };    // → state shape: just a transcript
+
+const graph = new StateGraph<GraphState>({        // → empty StateGraph<GraphState>
+  channels: {
+    messages: { reducer: (a, b) => a.concat(b), default: () => [] }, // → append-merge with [] default
+  },
+});
+```
+
+Thế thôi. Sau này ta sẽ mở rộng để có thêm plan, `pendingTool`, audit trail. Với bài 17, một transcript là đủ để tái hiện trung thành vòng lặp ở bài 14.
+
+## 02 — Agent node
+
+Agent node là một lần gọi model. Bind tool vào, invoke với danh sách message hiện tại, append bất cứ thứ gì model trả về. Model tự quyết định có phát ra `tool_calls` hay không; node không quan tâm.
+
+```ts
+async function agentNode(state: GraphState): Promise<Partial<GraphState>> {
+  const reply = await model.bindTools(allTools).invoke(state.messages); // → AIMessage (may have tool_calls)
+  return { messages: [reply] };                   // → reducer appends to state.messages
+}
+```
+
+Nếu reply có tool call, router sẽ đưa ta tới tools node. Nếu không, router sẽ đưa ta tới `END`. Dù sao, công việc của agent node đã xong.
+
+## 03 — Tools node
+
+Tools node nhìn vào message mới nhất — cái mà agent vừa append — và chạy mỗi tool call nó tìm thấy. Mỗi kết quả là một `ToolMessage` được khoá lại theo `id` của call gốc, để model có thể đối chiếu kết quả với request ở lượt sau.
+
+```ts
+import { ToolMessage } from '@langchain/core/messages'; // → ToolMessage class for tool results
+
+async function toolsNode(state: GraphState): Promise<Partial<GraphState>> {
+  const last = state.messages.at(-1);             // → last AIMessage from agent node
+  const calls = last?.tool_calls ?? [];           // → ToolCall[] (may be empty if router misfired)
+  const out: ToolMessage[] = [];                  // → accumulator for results
+  for (const call of calls) {
+    const tool = TOOL_REGISTRY[call.name];        // → StructuredTool registered at boot
+    const result = await tool.invoke(call.args);  // → string result of the tool execution
+    out.push(new ToolMessage({ tool_call_id: call.id, content: result })); // → matches result back to call.id
+  }
+  return { messages: out };                       // → ToolMessage[] appended to transcript
+}
+```
+
+`TOOL_REGISTRY` chỉ là một `Record<string, Tool>` bạn build một lần lúc khởi động từ chính những tool bạn đã bind vào model. Reducer trên `messages` tự động append từng `ToolMessage` vào transcript.
+
+## 04 — Router
+
+Một graph nhỏ như vậy chỉ có đúng một quyết định: *lặp tiếp, hay dừng?* Đó là edge có điều kiện gắn vào agent node.
+
+```ts
+import { isAIMessage } from '@langchain/core/messages'; // → type guard for AIMessage
+
+function shouldContinue(state: GraphState): 'tools' | typeof END {
+  const last = state.messages.at(-1);             // → last message (AIMessage if agent just ran)
+  if (last && isAIMessage(last) && (last.tool_calls?.length ?? 0) > 0) return 'tools'; // → loop back if pending calls
+  return END;                                     // → otherwise stop
+}
+
+graph
+  .addNode('agent', agentNode)                    // → registers 'agent'
+  .addNode('tools', toolsNode)                    // → registers 'tools'
+  .setEntryPoint('agent')                         // → graph starts here
+  .addConditionalEdges('agent', shouldContinue, { tools: 'tools', [END]: END }) // → branch on shouldContinue
+  .addEdge('tools', 'agent');                     // → after tools, always loop back
+
+const app = graph.compile();                      // → CompiledStateGraph — runnable
+
+const final = await app.invoke({                  // → final GraphState
+  messages: [new HumanMessage('Who hasn’t ordered in 60 days?')], // → seed transcript
+});
+// → final.messages.at(-1) is the AIMessage with the prose answer
+```
+
+Đọc to phần wiring lên và bạn có câu trả lời cho *cái này là cái gì?* Graph bắt đầu ở `agent`. Sau `agent`, nó hỏi `shouldContinue`; nếu có tool call, nó tới `tools`; nếu không, nó kết thúc. Sau `tools`, nó luôn quay lại `agent`. Đó là toàn bộ mô hình ReAct trong chín dòng khai báo edge.
+
+## 05 — Xem graph bước qua từng node
+
+Demo bên dưới minh hoạ một lần invoke graph ở trên. Mỗi node sáng xanh lá khi runtime bước vào, mờ dần thành xanh mint khi xong, và log message ở dưới thuyết minh từng chuyển tiếp đúng như `streamEvents` của LangGraph sẽ làm — *"step: agent → produced tool_calls"*, *"step: tools → executed customers.search"*, cho tới *"step: __end__ → graph halted."*
+
+<Demo title="ReAct graph stepping through agent → tools → agent → end">
+  <GraphRunnerDemo />
+</Demo>
+
+Hình dạng vẫn y như vòng lặp ở bài 14. Bức tranh trong đầu thì khác hẳn. Mỗi vòng lặp trần giờ đã trở thành một bước đi có nhãn giữa hai node. Khi bạn quay lại ở bài kế tiếp và tách tool theo side effect — read tool tự chạy, write tool cần xác nhận — bạn chỉ thêm một node và một edge có điều kiện, và phần còn lại của graph không hề hay biết. Đó chính là đòn bẩy bạn mua được khi nâng cấp từ một `while` thành một graph: thay đổi được khoanh vùng. Hành vi mới là node mới, không phải nhánh mới trong một hàm rối rắm.
+
+## Bạn đang có gì lúc này
+
+Về mặt kiến trúc, bạn có đúng thứ bài 14 đã có — cộng thêm chỗ để lớn lên. Bài kế tiếp tách tools node thành hai. Bài sau nữa thêm một interrupt trước các thao tác ghi, đó là điểm nhấn của toàn bộ khoá học. Bài sau nữa ráp workflow khách hàng lapsed từ đầu tới cuối, có xác nhận và audit log, trên cùng cái xương sống graph này.
+
+<Recap>
+- State cho một ReAct agent cơ bản chỉ là `{ messages }` — một transcript lớn dần theo từng node.
+- Agent node gọi model với các tool đã bind và append reply. Toàn bộ công việc của nó là thế.
+- Tools node nhìn message cuối, chạy từng `tool_call`, và append một `ToolMessage` tương ứng.
+- Router quyết định lặp hay dừng bằng cách kiểm tra message cuối có tool call không. Một edge có điều kiện, hai đích đến.
+- Compile và invoke. Graph tái hiện vòng lặp bài 14 với các bước được đặt tên và chỗ để đặt mọi mối lo trong tương lai.
+- Đòn bẩy của việc chuyển từ `while` sang graph là: hành vi mới trở thành node mới — không phải nhánh mới bên trong một hàm cứ to dần.
+</Recap>
+
+</VI>

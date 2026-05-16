@@ -1,6 +1,9 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { WriteToolDangerDemo } from '@/components/demos/ai-in-your-project/write-tool-danger-demo';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - Why `bindTools` is permissive by default and your application has to be the restrictive layer.
@@ -87,6 +90,169 @@ Not all writes need the same level of confirmation. A useful three-level taxonom
 
 The lesson isn't *"every write needs a modal."* It's *"every write tool should be classified, and the gate calibrated to its class."* When you build the tool, write the class on the tool description. When you bind it to the model, the orchestrator reads the class and picks the right gate.
 
+Concretely, that looks like this. The class lives in the description as a structured prefix — your tool-call loop parses it out and dispatches to the right gate.
+
+```ts
+import { tool } from '@langchain/core/tools';
+import { z } from 'zod';
+
+const tagCustomer = tool(
+  async ({ customerId, tag }) => db.customers.tag(customerId, tag),
+  {
+    name: 'tag_customer',
+    description:
+      '[write:trivial] Add an internal tag to a customer. Reversible in one click.',
+    schema: z.object({ customerId: z.string(), tag: z.string() }),
+  },
+);
+
+const createPromo = tool(
+  async ({ code, percentOff, audience }) =>
+    db.promos.create({ code, percentOff, audience }),
+  {
+    name: 'create_promo',
+    description:
+      '[write:standard] Create a promo code. Reversible with effort — code can be revoked.',
+    schema: z.object({
+      code: z.string(),
+      percentOff: z.number(),
+      audience: z.string(),
+    }),
+  },
+);
+
+const sendEmail = tool(
+  async ({ to, subject, body }) => mailer.send({ to, subject, body }),
+  {
+    name: 'send_email',
+    description:
+      '[write:irreversible] Send an email to a list. CANNOT be un-done.',
+    schema: z.object({
+      to: z.array(z.string()),
+      subject: z.string(),
+      body: z.string(),
+    }),
+  },
+);
+```
+
+The orchestrator does the rest — one read, one switch, no per-tool wiring in the loop:
+
+```ts
+type WriteClass = 'trivial' | 'standard' | 'irreversible';
+
+function classOf(t: { description: string }): WriteClass | null {
+  const m = t.description.match(/^\[write:(trivial|standard|irreversible)\]/);
+  return (m?.[1] as WriteClass) ?? null;
+}
+
+async function gateFor(
+  klass: WriteClass,
+  call: { name: string; args: unknown },
+  ui: ConfirmUI,
+): Promise<'approved' | 'rejected'> {
+  switch (klass) {
+    case 'trivial':       return ui.queueForBatch(call);
+    case 'standard':      return ui.confirmStandard(call);
+    case 'irreversible':  return ui.confirmTyped(call, { phrase: derivePhrase(call) });
+  }
+}
+
+// In your tool-call loop:
+for (const call of aiResponse.tool_calls) {
+  const t = toolsByName[call.name];
+  const klass = classOf(t);
+  if (klass) {
+    const verdict = await gateFor(klass, call, ui);
+    if (verdict === 'rejected') {
+      messages.push(toolMessage(call, 'rejected by user'));
+      continue;
+    }
+  }
+  const result = await t.invoke(call.args);
+  messages.push(toolMessage(call, result));
+}
+```
+
+### What's actually in `aiResponse.tool_calls`?
+
+`aiResponse` is the `AIMessage` returned by `model.invoke(messages)` after you called `bindTools`. When the model chose to use tools instead of (or in addition to) writing prose, LangChain parses the provider's tool-call payload into a normalized array. Each entry looks like:
+
+```ts
+type ToolCall = {
+  id: string;          // unique per call, e.g. "call_8sX2..."
+  name: string;        // the tool name the model wants to invoke
+  args: object;        // parsed JSON args, matched against your Zod schema
+  type: 'tool_call';   // discriminator
+};
+```
+
+A concrete example. The user typed *"Create a promo LAPSED15 — 15% off, audience: lapsed-60d."* The model returns:
+
+```ts
+console.log(aiResponse.content);
+// "" — often empty when the model is calling tools instead of replying
+
+console.log(aiResponse.tool_calls);
+// [
+//   {
+//     id: 'call_8sX2hQk7',
+//     name: 'create_promo',
+//     args: { code: 'LAPSED15', percentOff: 15, audience: 'lapsed-60d' },
+//     type: 'tool_call',
+//   },
+// ]
+```
+
+The orchestrator uses each field for one job:
+
+- **`name`** — `toolsByName[call.name]` finds the tool, and `classOf(t)` reads its `[write:standard]` tag.
+- **`args`** — already a typed JS object (LangChain ran the JSON through your Zod schema). After the gate approves, you hand it straight to `t.invoke(call.args)`.
+- **`id`** — required when you push the result back, so the model can pair the result with the original call:
+
+```ts
+import { ToolMessage } from '@langchain/core/messages';
+
+messages.push(
+  new ToolMessage({
+    tool_call_id: call.id,   // ← matches the result back to the call
+    name: call.name,
+    content: JSON.stringify(result),
+  }),
+);
+```
+
+**And what about `type: 'tool_call'`?** It's a discriminator. LangChain's normalized model recognizes three related shapes, all of which can show up around tool use:
+
+- **`tool_call`** — what we've been looking at: a complete, parsed call. This is what `aiResponse.tool_calls` always contains in a non-streaming response.
+- **`tool_call_chunk`** — a partial fragment, used when you stream the model's reply. The args field arrives piece by piece (`{ "code"`, `: "LAPS`, `ED15" }`, …) and your loop accumulates them. You read these from `chunk.tool_call_chunks`, not `tool_calls`.
+- **`invalid_tool_call`** — the model tried to call a tool but the args couldn't be parsed against your Zod schema (or the JSON was malformed). LangChain still surfaces it so you can decide whether to retry. It appears on `aiMessage.invalid_tool_calls`.
+
+```ts
+// All three carry the same discriminator field, different content:
+{ type: 'tool_call',          id, name, args }            // ready to invoke
+{ type: 'tool_call_chunk',    id, name, args: '{"code"' } // partial, args is a string fragment
+{ type: 'invalid_tool_call',  id, name, args, error }     // parse failed; error has the reason
+```
+
+In the gate loop above you only iterate `aiResponse.tool_calls`, so every entry is `type: 'tool_call'` and the discriminator looks redundant. It earns its keep when you write code that handles all three at once — a streaming UI that shows tool calls forming live, or a retry policy that re-prompts the model whenever an `invalid_tool_call` shows up. Streaming gets its own lesson; for now, just know the field is the hook for those flows.
+
+The array can hold multiple calls — that's how parallel tool calls in one turn are represented:
+
+```ts
+aiResponse.tool_calls
+// [
+//   { id: 'call_a', name: 'search_customers', args: { tag: 'lapsed-60d' }, type: 'tool_call' },
+//   { id: 'call_b', name: 'create_promo',    args: { code: 'LAPSED15', percentOff: 15, audience: 'lapsed-60d' }, type: 'tool_call' },
+// ]
+```
+
+Your loop iterates each one, the gate runs per call, each result becomes its own `ToolMessage` with the matching `tool_call_id`. The next `model.invoke(messages)` sees all of them and keeps going.
+
+Different providers (OpenAI, Anthropic, Ollama) emit tool calls in slightly different raw shapes. LangChain's job is to normalize them into the array above, so your orchestrator doesn't care which model is behind `bindTools`. That's the main reason the course uses LangChain instead of the provider SDKs directly.
+
+Three tools, three different gate strengths, one place to change the policy. Add a fourth tool tomorrow — tag it `[write:standard]` and it inherits the right gate for free.
+
 <Callout type="warning" title="Irreversibility × temperature × no-gate = incident">
 If your write tool isn't reversible, the cost of `temperature > 0` is now *"we sent emails to people who don't exist."* Either drop temperature for write-bearing turns, or wrap the tool in a gate that is impossible to bypass. Both is better than either.
 </Callout>
@@ -98,3 +264,269 @@ If your write tool isn't reversible, the cost of `temperature > 0` is now *"we s
 - Classify your write tools — trivial, standard, irreversible — and pick the right gate strength for each class.
 - Temperature plus irreversibility plus no gate is the incident waiting to happen. Pick your defenses.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Vì sao `bindTools` mặc định "dễ dãi", và app của bạn phải là lớp đặt ra giới hạn.
+- Cổng xác nhận từng lệnh: một lời gọi write tool là một *đề xuất*, không phải mệnh lệnh.
+- Cách phân loại write tool (tầm thường, tiêu chuẩn, không thể hoàn tác) và chọn độ mạnh của cổng tương ứng.
+</Callout>
+
+Read tool hỏng theo kiểu an toàn. Tệ nhất là sai đáp án — mô hình nói *"có 41 khách hàng đã lâu không quay lại"* trong khi số đúng là 42, và người review phát hiện ra. Write tool hỏng theo kiểu đắt tiền. Tệ nhất là trừ tiền thẻ của khách, gửi email cho 50.000 hộp thư, hoặc một câu `DELETE` xoá sạch ba tuần đơn hàng. Cùng một mô hình, chạy cùng một loop, với cùng một prompt — nhưng nó trở thành một loại rủi ro hoàn toàn khác kể từ giây phút nó có thể thay đổi state.
+
+Toàn bộ lý do phần này của khoá học tồn tại là vì gần như mọi tích hợp AI đều bắt đầu ở dạng chỉ-đọc — chatbot, search, tóm tắt — và rồi có người hỏi *"nó tự tạo luôn mã giảm giá được không?"* và câu trả lời là *"được, nhưng…"* Cái chữ *"nhưng"* đó chính là phần còn lại của bài này.
+
+## Mặc định cho write là sai
+
+Khi bạn gọi `model.bindTools([searchCustomers, createPromo, sendEmail])`, mô hình giờ có quyền tự ý gọi bất kỳ tool nào trong ba tool đó, theo thứ tự bất kỳ, bao nhiêu lần tuỳ thích, ở bất kỳ lượt nào của cuộc trò chuyện. Với read tool thì ổn — đó là cách bạn có được màn orchestration đa-tool đẹp đẽ ở bài 10. Với write tool thì là vấn đề, vì *bạn* không còn trong loop nữa. Mô hình quyết định, tool thực thi, email đã bay đi.
+
+Mặc định của framework là dễ dãi. Hệ thống bạn xây trên nó phải là lớp đặt giới hạn. Trong `bindTools` không có setting nào kiểu *"hỏi user trước đã"* — cổng đó là thứ bạn tự thêm vào trong logic application, nằm giữa lời gọi tool của mô hình và thao tác mutation thật sự. Đến bài 19 chúng ta mới gặp primitive `interrupt` của LangGraph; tới lúc đó cứ tự xây tay, nhưng nguyên lý vẫn vậy: một lời gọi write tool là một *đề xuất*, không phải mệnh lệnh.
+
+"Mặc định dễ dãi" nhìn trong code trông như sau:
+
+```ts
+// All three tools live at the same trust level. The model picks freely.
+const model = chat.bindTools([searchCustomers, createPromo, sendEmail]); // → Runnable bound with 3 tools (one read, two writes)
+
+await model.invoke([
+  { role: 'user', content: 'Email LAPSED15 to everyone who hasn\'t ordered in 60d.' }, // → HumanMessage
+]);
+// → AIMessage; the loop fires all 3 tool calls before returning
+
+// What just happened, in order:
+//   1. searchCustomers({ lapsedDays: 60 })   ← read, fine
+//   2. createPromo({ code: 'LAPSED15', discount: 15 })  ← live in DB
+//   3. sendEmail({ to: [...47 addresses] })  ← already in 47 inboxes
+// You are now writing the apology post.
+```
+
+Vẫn đoạn code đó, sắp xếp lại có thêm cổng, chính là phần còn lại của bài này.
+
+## Hai mẫu sai và một mẫu đúng
+
+Mẫu sai thứ nhất là *"thôi cứ tin mô hình đi."* Đây là cách mọi demo AI trên Internet trông như thế nào — và là cách không một hệ thống production nào nên làm. Mô hình đúng *hầu như mọi lúc*. Nhưng *"hầu như mọi lúc"* chính là chế độ hỏng.
+
+Mẫu sai thứ hai là *"thôi mình thêm một hàng đợi review thủ công."* Chạy được, nhưng chậm và tốn. Mô hình đề xuất ghi, đề xuất rơi vào queue, một người review sau đó, lệnh ghi thực thi bất đồng bộ. Với thao tác tần suất thấp, rủi ro cao thì ổn. Với *"tạo voucher này và gửi mail cho bảy người này ngay bây giờ"* thì là thảm hoạ UX — người dùng đang ngồi trước màn hình chờ.
+
+Mẫu thứ ba, mẫu mà chúng ta sẽ xây, là **cổng xác nhận từng lệnh.** Mỗi lần mô hình đề xuất một thao tác ghi, app của bạn chặn lời gọi đó lại, hiện cho người dùng một card mô tả mutation sắp diễn ra, và chỉ thực thi lời gọi database thật sau khi họ bấm Approve. Cổng này mang tính cấu trúc — nó sống trong orchestrator, không phải trong prompt — nên không thể "nói lý" để vượt qua bằng input khôn ngoan.
+
+Ba mẫu đặt cạnh nhau:
+
+```
+❌ Trust:    user prompt → model → write tool fires → DB changed
+                                                     (you find out from a Slack ping)
+
+⚠️  Queue:   user prompt → model → write tool → queue
+                                                  ↓ (hours later)
+                                              human reviews
+                                                  ↓
+                                              DB changed
+                                              (user has long since closed the tab)
+
+✅ Gate:    user prompt → model → write proposal → confirmation card
+                                                       ↓ Approve
+                                                  write tool fires → DB changed
+                                                  (user is still there, audit logged)
+```
+
+Cổng giữ được cảm giác tương tác của kiểu "trust" mà vẫn có độ an toàn của kiểu "queue" — người dùng vẫn ở trong loop, nhưng loop chỉ dài bằng một cú click.
+
+## Xác nhận trông như thế nào
+
+<Demo title="Cổng xác nhận BẬT vs TẮT — và bài toán dedup">
+  <WriteToolDangerDemo />
+</Demo>
+
+Để ý hai chuyện. Khi cổng **tắt**, bấm *"Run twice rapidly"* — giả lập mô hình retry cùng một lời gọi tool trong cùng một lượt — bạn được hai dòng trong `promotions`. Cùng code, cùng discount, hai lần ghi. Trên hệ thống thật đó là một sự cố trùng voucher. Khi cổng **bật**, hai lần retry đó tạo ra **một** card xác nhận, vì cổng dedup theo request key khi một xác nhận còn đang chờ. Một card, một quyết định của người dùng, một dòng. Phần dedup là chủ đề của bài sau, nhưng ở đây nó đã hiện ra như "người bạn đồng hành tự nhiên" của cổng.
+
+Cổng không phải là một popup. Trong production nó có thể là một panel, một notification, một email — bất kỳ kênh nào đến tay người dùng nhanh. Điểm cốt lõi mang tính cấu trúc: không có lệnh ghi nào nổ ra mà không có chữ "Yes" tường minh từ con người, và chữ "Yes" đó được ghi lại ngay cạnh dòng vừa được tạo.
+
+## Một bảng phân loại write tool
+
+Không phải mọi thao tác ghi đều cần cùng một mức xác nhận. Một bảng phân loại ba mức dễ dùng:
+
+- **Ghi tầm thường / chất lượng draft** — lưu một ghi chú nháp, gắn tag cho bản ghi nội bộ. Có thể hoàn tác bằng một cú click, bán kính sát thương thấp. Một xác nhận đơn lẻ có thể bỏ qua hoặc gộp ("bạn có 4 tag đang chờ — duyệt hết?").
+- **Ghi tiêu chuẩn** — tạo mã giảm giá, lên lịch một job. Hoàn tác được nhưng tốn công. Một xác nhận cho mỗi lệnh gọi.
+- **Ghi không thể hoàn tác** — gửi email, trừ tiền thẻ, xoá tài khoản. Không thể undo. Xác nhận hai bước: một card kèm câu phải gõ tay ("gõ email của khách hàng để xác nhận") hoặc cửa sổ "cooling-off" 24 giờ.
+
+Bài học không phải là *"mọi thao tác ghi đều cần một modal."* Bài học là *"mọi write tool đều phải được phân loại, và cổng được hiệu chỉnh đúng theo lớp của nó."* Khi viết tool, hãy ghi class vào description của tool. Khi bind tool cho mô hình, orchestrator đọc class và chọn cổng tương ứng.
+
+Cụ thể trong code thì như thế này. Class nằm ngay trong `description` dưới dạng prefix có cấu trúc — vòng lặp tool-call của bạn parse nó ra rồi dispatch sang đúng cổng.
+
+```ts
+import { tool } from '@langchain/core/tools';
+import { z } from 'zod';
+
+const tagCustomer = tool(
+  async ({ customerId, tag }) => db.customers.tag(customerId, tag),
+  {
+    name: 'tag_customer',
+    description:
+      '[write:trivial] Add an internal tag to a customer. Reversible in one click.',
+    schema: z.object({ customerId: z.string(), tag: z.string() }),
+  },
+);
+
+const createPromo = tool(
+  async ({ code, percentOff, audience }) =>
+    db.promos.create({ code, percentOff, audience }),
+  {
+    name: 'create_promo',
+    description:
+      '[write:standard] Create a promo code. Reversible with effort — code can be revoked.',
+    schema: z.object({
+      code: z.string(),
+      percentOff: z.number(),
+      audience: z.string(),
+    }),
+  },
+);
+
+const sendEmail = tool(
+  async ({ to, subject, body }) => mailer.send({ to, subject, body }),
+  {
+    name: 'send_email',
+    description:
+      '[write:irreversible] Send an email to a list. CANNOT be un-done.',
+    schema: z.object({
+      to: z.array(z.string()),
+      subject: z.string(),
+      body: z.string(),
+    }),
+  },
+);
+```
+
+Orchestrator lo phần còn lại — một lần đọc, một lần switch, không cần wiring riêng cho từng tool trong vòng lặp:
+
+```ts
+type WriteClass = 'trivial' | 'standard' | 'irreversible';
+
+function classOf(t: { description: string }): WriteClass | null {
+  const m = t.description.match(/^\[write:(trivial|standard|irreversible)\]/);
+  return (m?.[1] as WriteClass) ?? null;
+}
+
+async function gateFor(
+  klass: WriteClass,
+  call: { name: string; args: unknown },
+  ui: ConfirmUI,
+): Promise<'approved' | 'rejected'> {
+  switch (klass) {
+    case 'trivial':       return ui.queueForBatch(call);
+    case 'standard':      return ui.confirmStandard(call);
+    case 'irreversible':  return ui.confirmTyped(call, { phrase: derivePhrase(call) });
+  }
+}
+
+// Trong vòng lặp tool-call của bạn:
+for (const call of aiResponse.tool_calls) {
+  const t = toolsByName[call.name];
+  const klass = classOf(t);
+  if (klass) {
+    const verdict = await gateFor(klass, call, ui);
+    if (verdict === 'rejected') {
+      messages.push(toolMessage(call, 'rejected by user'));
+      continue;
+    }
+  }
+  const result = await t.invoke(call.args);
+  messages.push(toolMessage(call, result));
+}
+```
+
+### Trong `aiResponse.tool_calls` thật sự có gì?
+
+`aiResponse` là `AIMessage` mà `model.invoke(messages)` trả về sau khi bạn đã gọi `bindTools`. Khi mô hình quyết định dùng tool thay vì (hoặc kèm theo) viết prose, LangChain parse payload tool-call của provider thành một mảng đã được chuẩn hoá. Mỗi entry có dạng:
+
+```ts
+type ToolCall = {
+  id: string;          // duy nhất cho mỗi lần gọi, ví dụ "call_8sX2..."
+  name: string;        // tên tool mà mô hình muốn gọi
+  args: object;        // args JSON đã parse, đã match với Zod schema của bạn
+  type: 'tool_call';   // discriminator
+};
+```
+
+Một ví dụ cụ thể. Người dùng gõ *"Tạo promo LAPSED15 — giảm 15%, audience: lapsed-60d."* Mô hình trả về:
+
+```ts
+console.log(aiResponse.content);
+// "" — thường rỗng khi mô hình đang gọi tool thay vì trả lời chữ
+
+console.log(aiResponse.tool_calls);
+// [
+//   {
+//     id: 'call_8sX2hQk7',
+//     name: 'create_promo',
+//     args: { code: 'LAPSED15', percentOff: 15, audience: 'lapsed-60d' },
+//     type: 'tool_call',
+//   },
+// ]
+```
+
+Orchestrator dùng mỗi field cho một việc:
+
+- **`name`** — `toolsByName[call.name]` tìm ra tool, rồi `classOf(t)` đọc nhãn `[write:standard]` của nó.
+- **`args`** — đã là object JS có kiểu (LangChain đã chạy JSON qua Zod schema của bạn). Sau khi cổng duyệt, bạn truyền thẳng vào `t.invoke(call.args)`.
+- **`id`** — bắt buộc khi bạn đẩy kết quả ngược về, để mô hình ghép kết quả với lời gọi gốc:
+
+```ts
+import { ToolMessage } from '@langchain/core/messages';
+
+messages.push(
+  new ToolMessage({
+    tool_call_id: call.id,   // ← khớp kết quả về đúng lời gọi
+    name: call.name,
+    content: JSON.stringify(result),
+  }),
+);
+```
+
+**Còn `type: 'tool_call'` thì sao?** Nó là một *discriminator*. Mô hình chuẩn hoá của LangChain nhận biết ba dạng liên quan, đều có thể xuất hiện quanh việc dùng tool:
+
+- **`tool_call`** — cái chúng ta vừa xem: một lời gọi hoàn chỉnh, đã parse. Đây là thứ `aiResponse.tool_calls` luôn chứa trong response không stream.
+- **`tool_call_chunk`** — một mảnh từng phần, dùng khi bạn stream câu trả lời của mô hình. Field args về dần từng đoạn (`{ "code"`, `: "LAPS`, `ED15" }`, …) và vòng lặp của bạn ráp chúng lại. Bạn đọc chúng từ `chunk.tool_call_chunks`, không phải `tool_calls`.
+- **`invalid_tool_call`** — mô hình muốn gọi tool nhưng args không parse được theo Zod schema của bạn (hoặc JSON bị hỏng). LangChain vẫn surface nó ra để bạn quyết định có retry hay không. Nó xuất hiện ở `aiMessage.invalid_tool_calls`.
+
+```ts
+// Cả ba đều mang field discriminator giống nhau, nội dung khác nhau:
+{ type: 'tool_call',          id, name, args }            // sẵn sàng invoke
+{ type: 'tool_call_chunk',    id, name, args: '{"code"' } // từng phần, args là chuỗi fragment
+{ type: 'invalid_tool_call',  id, name, args, error }     // parse fail; error chứa lý do
+```
+
+Trong vòng lặp gate ở trên, bạn chỉ duyệt `aiResponse.tool_calls`, nên mọi entry đều là `type: 'tool_call'` và discriminator trông như thừa. Nó phát huy giá trị khi bạn viết code xử lý cả ba cùng lúc — ví dụ UI streaming hiển thị tool call đang dần hình thành, hoặc một policy retry tự động re-prompt mô hình mỗi khi gặp `invalid_tool_call`. Streaming sẽ có bài riêng; bây giờ chỉ cần biết field này là cái móc cho những luồng đó.
+
+Mảng có thể chứa nhiều lời gọi — đó là cách "parallel tool calls" trong cùng một lượt được biểu diễn:
+
+```ts
+aiResponse.tool_calls
+// [
+//   { id: 'call_a', name: 'search_customers', args: { tag: 'lapsed-60d' }, type: 'tool_call' },
+//   { id: 'call_b', name: 'create_promo',    args: { code: 'LAPSED15', percentOff: 15, audience: 'lapsed-60d' }, type: 'tool_call' },
+// ]
+```
+
+Vòng lặp của bạn duyệt từng cái, cổng chạy từng lời gọi, mỗi kết quả thành một `ToolMessage` riêng với `tool_call_id` tương ứng. Lần `model.invoke(messages)` kế tiếp sẽ thấy hết và đi tiếp.
+
+Mỗi provider (OpenAI, Anthropic, Ollama) phát ra tool call ở định dạng raw hơi khác nhau. Nhiệm vụ của LangChain là chuẩn hoá chúng về cùng một mảng như trên, để orchestrator của bạn không cần biết model nào đang đứng sau `bindTools`. Đó là lý do chính khoá học dùng LangChain thay vì gọi SDK của từng provider.
+
+Ba tool, ba độ mạnh cổng khác nhau, chỉ một chỗ duy nhất để thay đổi policy. Mai thêm tool thứ tư — gắn nhãn `[write:standard]` là nó tự động được áp đúng cổng, không phải sửa orchestrator.
+
+<Callout type="warning" title="Không thể hoàn tác × temperature × không có cổng = sự cố">
+Nếu write tool của bạn không thể hoàn tác, cái giá của `temperature > 0` bây giờ chính là *"chúng ta vừa gửi email cho những người không tồn tại."* Hoặc là hạ temperature về 0 ở những lượt có thao tác ghi, hoặc bọc tool trong một cổng không thể bypass. Làm cả hai thì tốt hơn làm một.
+</Callout>
+
+<Recap>
+- Read tool hỏng an toàn; write tool hỏng đắt tiền. Mặc định của `bindTools` là dễ dãi — app của bạn phải là lớp giới hạn.
+- Đừng tin mô hình mà không giám sát. Queue thủ công thì quá chậm cho luồng tương tác. Hãy xây cổng xác nhận từng lệnh.
+- Cổng mang tính cấu trúc: không có mutation nào nổ ra mà không có chữ "Yes" tường minh từ user, và được dedup trong lúc chờ.
+- Phân loại write tool — tầm thường, tiêu chuẩn, không thể hoàn tác — và chọn độ mạnh cổng tương ứng cho mỗi lớp.
+- Temperature cộng với không-thể-hoàn-tác cộng với không-cổng là một sự cố đang chờ xảy ra. Hãy chọn cách phòng thủ.
+</Recap>
+
+</VI>

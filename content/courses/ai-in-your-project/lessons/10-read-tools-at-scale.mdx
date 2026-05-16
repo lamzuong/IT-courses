@@ -1,6 +1,9 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
 import { MultiToolRunnerDemo } from '@/components/demos/ai-in-your-project/multi-tool-runner-demo';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - Three patterns to scale read tools from toy to production: pagination, filtering, aggregation.
@@ -252,3 +255,260 @@ You wrote the tools. The model wrote the orchestration. That's the part that sur
 - Never interpolate model output into SQL, JSONPath, or any other code surface. Parse, validate, translate.
 - Good tool descriptions + good schemas = the model orchestrates multi-tool sequences correctly without you scripting them.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Ba mẫu thiết kế để nâng cấp tool đọc từ "đồ chơi" lên production: pagination, filtering, aggregation.
+- Vì sao *bạn* phải là người viết SQL, còn model chỉ mô tả ý định — đừng bao giờ để model tự sinh ra mệnh đề `where`.
+- Vì sao description và schema chặt chẽ giúp model tự sắp xếp được chuỗi gọi nhiều tool mà không cần bạn viết kịch bản.
+</Callout>
+
+Một tool trả về 25 khách hàng thì ổn. Một tool trả về 25 triệu khách hàng chính là một cuộc tấn công từ chối dịch vụ nhằm vào context window của model — và vào hoá đơn của bạn. Khi các tool "tốt nghiệp" khỏi file seed local để bước vào database production, bài toán thiết kế chuyển từ *"tôi có thể expose query này cho model không?"* sang *"tôi có thể expose query này theo cách không sập ngay khi số dòng bắt đầu lớn không?"*.
+
+Bài này là cẩm nang cho phía *đọc*. Ba mẫu thiết kế sẽ cover hầu hết những gì bạn cần: pagination để model có thể xin thêm dữ liệu mà không phải nhìn thấy hết, filtering để model nói ra ý định còn bạn dịch nó thành query thật, và aggregation để model có thể xin *bản tóm tắt* thay vì các dòng dữ liệu thô. Mỗi mẫu này cắt giảm lượng data chảy vào context cỡ một bậc trở lên.
+
+## 01 — Pagination
+
+Sai lầm đơn giản nhất lại là phổ biến nhất: một tool trả về *tất cả* các dòng khớp. Hình dạng đúng là cursor-based — tool trả về một trang có kích thước cố định cộng thêm một cursor "đục" (opaque) mà model có thể gửi lại để xin trang kế tiếp:
+
+```ts
+export const listCustomers = tool(                // → StructuredTool { name: 'customers.list' }
+  async ({ cursor, limit = 25 }) => {             // → cursor: string|null|undefined, limit defaults to 25
+    const rows = await db.customers.findMany({    // → Customer[] of size up to limit+1
+      take: limit + 1,                            // → fetch one probe row to detect "has more"
+      cursor: cursor ? { id: parseInt(cursor, 10) } : undefined, // → resume from cursor or start at top
+      orderBy: { id: 'asc' },                     // → stable ordering for cursor walking
+    });
+    const nextCursor = rows.length > limit ? String(rows[limit].id) : null; // → '101' or null on last page
+    return JSON.stringify({ rows: rows.slice(0, limit), nextCursor });      // → '{"rows":[...25 rows...],"nextCursor":"101"}'
+  },
+  {
+    name: 'customers.list',                       // → identifier the model uses
+    description: 'List customers, 25 per page. Pass nextCursor from the previous page to continue.',
+    schema: z.object({
+      cursor: z.string().nullable().optional(),   // → string | null | undefined
+      limit: z.number().int().min(1).max(50).optional(), // → integer in [1, 50] or undefined
+    }),
+  },
+);
+```
+
+Vài chỗ đáng để ý. `limit` bị chặn — `min(1).max(50)` nghĩa là một model có hoang mang cách mấy cũng không xin được mười nghìn dòng. Cursor ở đây là một ID dạng chuỗi để cho dễ dạy; trong production bạn sẽ encode nó (ví dụ `Buffer.from(JSON.stringify({id})).toString('base64url')`) để model không thể tự "đoán format" rồi bịa ra một cursor — model chỉ gửi lại đúng chuỗi mà response trước đã đưa cho nó. Hình dạng `{ rows, nextCursor }` là quy ước model học một lần rồi áp dụng cho mọi tool có phân trang mà bạn xây.
+
+Model rất giỏi suy luận nhiều bước khi giao thức nhất quán. Nếu một nửa tool của bạn phân trang bằng `cursor` còn một nửa bằng `page`, bạn sẽ thấy model gửi `page: 2` vào tool dùng cursor rồi đứng hình. Chọn một hình dạng và áp dụng nó cho tất cả.
+
+### `cursor` thực ra làm gì
+
+`cursor` không phải là feature của Zod — đó chỉ là một tên field chúng ta đặt cho việc phân trang. Zod chỉ đang mô tả *shape* của nó; ý nghĩa đến từ cách thân hàm tool sử dụng nó.
+
+Phần Zod đang nói ba điều về field này:
+
+- `z.string()` — nếu có thì phải là string.
+- `.nullable()` — `null` cũng được phép (model có thể chủ động gửi "không có cursor").
+- `.optional()` — model có thể bỏ qua field này ở lần gọi đầu tiên.
+
+Zod không hiểu cursor là gì. Hành vi phân trang là do cái mà hàm của bạn làm với giá trị đó:
+
+```text
+Turn 1 — first page, no cursor yet
+  model emits:   { args: { limit: 25 } }
+  tool returns:  { rows: [...25 customers...], nextCursor: "eyJpZCI6MTAwfQ" }
+
+Turn 2 — model wants more, hands the cursor back
+  model emits:   { args: { cursor: "eyJpZCI6MTAwfQ", limit: 25 } }
+  tool returns:  { rows: [...next 25...], nextCursor: "eyJpZCI6MTI1fQ" }
+
+Turn 3 — last page
+  model emits:   { args: { cursor: "eyJpZCI6MTI1fQ", limit: 25 } }
+  tool returns:  { rows: [...final 12...], nextCursor: null }
+```
+
+Model không bao giờ *bịa* ra cursor — nó chỉ gửi lại đúng chuỗi mà response trước đã trả về. Đó là lý do thân tool rẽ nhánh dựa vào việc có hay không có cursor:
+
+```ts
+cursor: cursor ? { id: parseInt(cursor, 10) } : undefined, // → { id: 100 } when cursor present; undefined on first call
+```
+
+Có cursor thì bắt đầu từ ID đó. Không có thì bắt đầu từ đầu. Khi `nextCursor` trả về là `null`, model biết là không còn trang nào nữa.
+
+**Vì sao dùng cursor thay vì `page: 2`?**
+
+- **Ổn định khi có insert.** Pagination kiểu offset (`OFFSET 25`) sẽ làm mọi dòng dịch chỗ khi có dòng mới chèn vào giữa các lần gọi — bạn sẽ bỏ sót một khách hàng. Cursor trỏ vào ID của một dòng cụ thể, nên các insert chạy song song không làm dịch cửa sổ.
+- **Không cần đếm tổng.** DB không phải đếm tất cả dòng khớp; nó chỉ đi tiếp từ cursor.
+- **Đục và mã hoá được.** Bạn có thể đóng gói nhiều field sort vào một chuỗi base64 để model không thể tự nghĩ ra một cursor hợp lệ bằng cách đoán format.
+
+**Ví dụ chi tiết: bug offset-shift**
+
+Giả sử có 50 khách hàng trong DB, sắp xếp theo `id`, model phân trang 25 dòng mỗi trang.
+
+```text
+T₀ — initial state, 50 rows ordered by id
+  ids: [1, 2, 3, ..., 25, 26, 27, ..., 50]
+```
+
+*Với `page: 2` (offset-based)*
+
+```ts
+// Tool body — bad
+const rows = await db.customers.findMany({
+  skip: (page - 1) * 25,                          // → SQL OFFSET; shifts when rows insert/delete
+  take: 25,                                       // → SQL LIMIT
+  orderBy: { id: 'asc' },                         // → 1, 2, 3, ...
+});
+
+// Turn 1: page = 1
+//   SQL: SELECT ... ORDER BY id ASC LIMIT 25 OFFSET 0
+//   returns ids [1..25]  ✅
+
+// Between turns: a new signup. id 51 inserted, but actually
+// the new row gets id 26 because the schema reuses gaps.
+// (Or imagine the order is by created_at and the new row
+// sorts into the middle — same effect.)
+
+// Turn 2: page = 2
+//   SQL: SELECT ... ORDER BY id ASC LIMIT 25 OFFSET 25
+//   returns ids [27..51]  ❌  id 26 was silently skipped.
+```
+
+*Với `cursor` (id-based)*
+
+```ts
+// Tool body — good
+const PAGE_SIZE = 25;                             // → page size constant
+
+const rows = await db.customers.findMany({        // → Customer[] of size up to 26
+  take: PAGE_SIZE + 1, // 25 + 1 probe row to detect "more pages"   // → SQL LIMIT 26
+  cursor: cursor ? { id: parseInt(cursor, 10) } : undefined,        // → resume key, or undefined on first call
+  skip: cursor ? 1 : 0, // skip the cursor row itself               // → don't redeliver the cursor row
+  orderBy: { id: 'asc' },                         // → stable ordering for cursor walks
+});
+
+const hasMore = rows.length > PAGE_SIZE;          // → true if probe row came back, else false
+const pageRows = rows.slice(0, PAGE_SIZE);              // → first 25 rows (drop the probe)
+const nextCursor = hasMore ? String(pageRows[PAGE_SIZE - 1].id) : null; // → '25' on first page, null at end
+
+return JSON.stringify({ rows: pageRows, nextCursor });  // → '{"rows":[...25 rows...],"nextCursor":"25"}'
+```
+
+Query xin **26** dòng — `PAGE_SIZE + 1`. Tool chỉ **trả về 25** dòng cho model. Dòng dư ra là một "probe": nếu nó về tới, nghĩa là còn ít nhất một trang nữa, nên ta đặt `nextCursor` là id cuối cùng mà ta đang gửi đi. Nếu không về, ta đã đến cuối và `nextCursor` là `null`. Rẻ hơn nhiều so với query `COUNT(*)` riêng và dùng luôn index mà ta đang duyệt.
+
+Xem nó chạy trên bảng 50 dòng:
+
+```text
+Turn 1: cursor = null
+  DB returns 26 rows (probe came back) → ids [1..26]
+  hasMore  = true
+  pageRows = rows.slice(0, 25) = [1..25]
+  nextCursor = "25"   (last id in pageRows — not 26)
+  Tool returns: { rows: [1..25], nextCursor: "25" }
+
+Between turns: same insert as before, new row sorts as id 26.
+
+Turn 2: cursor = "25"
+  SQL: SELECT ... WHERE id > 25 ORDER BY id ASC LIMIT 26
+  DB returns 26 rows → ids [26..51]   ← id 26 is the inserted row, included naturally
+  hasMore  = true if there were more, false if these are the last
+  pageRows = [26..50]
+  nextCursor = "50" (or null if there were exactly 26 left)
+```
+
+Cursor là *"dòng cuối cùng tôi đã trả về"*, không phải *"dòng tôi chưa cho xem"*. Đó là lý do ở turn 2 query là `WHERE id > 25` — bắt đầu từ vị trí *ngay sau* những gì caller đã thấy.
+
+Phiên bản offset bỏ sót dòng mới vì *vị trí thứ 26 trong danh sách đã được sắp xếp đã bị dịch chuyển* giữa các turn. Phiên bản cursor neo vào `id > 25` thay vì "dòng số 26", nên các thao tác ghi song song không làm dịch cửa sổ. Bug tương tự cũng cắn bạn ở các feed `created_at DESC`, kết quả tìm kiếm, audit log — bất cứ chỗ nào có dòng mới xuất hiện trong lúc đang phân trang, mà chỗ nào cũng vậy cả.
+
+Tóm vai trò trong một dòng: *Zod xác thực shape mà cursor phải có. Hàm tool của bạn quyết định cursor có ý nghĩa gì.*
+
+## 02 — Filtering
+
+Mẫu thứ hai là để model nói ra *cái gì* nó muốn, thay vì lấy hết về. Cám dỗ thường gặp là expose một tool nhận vào một chuỗi SQL. Đừng. Model không cần học SQL; nó cần một object mô tả ý định.
+
+```ts
+const filterSchema = z.object({                   // → ZodObject describing the allowed filter fields
+  lapsedDays: z.number().int().positive().max(3650).optional(), // → integer 1..3650 or undefined
+  tagIn: z.array(z.string().max(40)).max(10).optional(),        // → up to 10 tag strings (each ≤40 chars)
+  emailDomain: z.string().max(80).optional(),     // → string ≤80 chars or undefined
+  createdAfter: z.string().datetime().optional(), // → ISO 8601 string or undefined
+});
+
+export const searchCustomers = tool(              // → StructuredTool { name: 'customers.search' }
+  async ({ filter }) => {
+    const where: Prisma.CustomerWhereInput = {};  // → start with empty where clause
+    if (filter.lapsedDays) where.lastOrderAt = { lt: daysAgo(filter.lapsedDays) }; // → { lt: Date 60d ago }
+    if (filter.tagIn) where.tags = { hasSome: filter.tagIn };                       // → { hasSome: ['vip'] }
+    if (filter.emailDomain) where.email = { endsWith: '@' + filter.emailDomain };   // → { endsWith: '@gmail.com' }
+    if (filter.createdAfter) where.createdAt = { gte: new Date(filter.createdAfter) }; // → { gte: Date }
+    const rows = await db.customers.findMany({ where, take: 25 }); // → Customer[] of size ≤ 25
+    return JSON.stringify({ rows });              // → '{"rows":[{"id":"c_01",...}, ...]}'
+  },
+  {
+    name: 'customers.search',                     // → identifier the model uses
+    description: 'Search customers by lapsed-days, tags, email domain, or creation date.',
+    schema: z.object({ filter: filterSchema }),   // → outer schema wrapping the filter object
+  },
+);
+```
+
+Zod schema làm hai việc cùng lúc. Nó nói cho model biết những filter nào đang sẵn có (schema là một phần của bề mặt expose ra của tool) và nó khoá chặt những gì hàm của bạn từng có thể nhận. Thân hàm là cái cầu chuyển từ *"ý định đã được xác thực"* sang *"query có tham số hoá"* — bạn là người dịch, không phải model.
+
+<Callout type="warning" title="Đừng bao giờ nội suy filter của model vào SQL thô">
+Hai năm gần đây, loại sự cố bảo mật AI lớn nhất chính là chuyện ai đó expose ra một tool nhận vào một mảnh SQL, một biểu thức JSONPath, hoặc một chuỗi `where` tự do. Sớm muộn gì model cũng sẽ phát ra `'; DROP TABLE customers; --` chỉ vì có người trong chat hỏi tử tế. Luôn parse bằng Zod, luôn dịch sang query có tham số hoá, luôn coi input từ model là thù địch. *Bạn* viết SQL; model chỉ mô tả nó muốn gì.
+</Callout>
+
+## 03 — Aggregation
+
+Mẫu thứ ba là mẫu tiết kiệm nhiều token nhất: khi model muốn biết *về* dữ liệu chứ không phải bản thân dữ liệu, hãy expose một tool tính sẵn câu trả lời.
+
+```ts
+export const totalsBySegment = tool(              // → StructuredTool { name: 'orders.totals_by_segment' }
+  async ({ segment }) => {
+    const cohort = await db.customers.findMany({  // → Customer[] (id-only projection)
+      where: segment === 'lapsed-pre-q4'          // → branch on segment
+        ? { lastOrderAt: { lt: daysAgo(60) } }    // → 'lapsed' cohort: last order > 60d ago
+        : { lastOrderAt: { gte: daysAgo(30) } },  // → 'active' cohort: ordered in last 30d
+      select: { id: true },                       // → only need ids for the next step
+    });
+    const ids = cohort.map((c) => c.id);          // → ['c_01', 'c_02', ...]
+    const orders = await db.orders.findMany({ where: { customerId: { in: ids } } }); // → Order[] for those customers
+    const total = orders.reduce((s, o) => s + o.totalCents, 0); // → 318420 (sum of cents)
+    return JSON.stringify({
+      customerCount: ids.length,                  // → 47
+      orderCount: orders.length,                  // → 53
+      totalRevenueCents: total,                   // → 318420
+      avgOrderValueCents: orders.length ? Math.round(total / orders.length) : 0, // → 6008
+    });
+    // → '{"customerCount":47,"orderCount":53,"totalRevenueCents":318420,"avgOrderValueCents":6008}'
+  },
+  {
+    name: 'orders.totals_by_segment',
+    description: 'Return revenue, order count, and average order value for a named customer segment.',
+    schema: z.object({ segment: z.enum(['lapsed-pre-q4', 'active-30d']) }), // → only 2 allowed segments
+  },
+);
+```
+
+Một model hỏi *"các khách hàng lapsed đã tiêu bao nhiêu?"* không cần thấy mọi đơn hàng. Nó cần bốn con số. Tính sẵn bốn con số đó, trả về, và đoạn văn tổng hợp model viết ra cũng chất lượng y vậy — còn round-trip dùng 200 token thay vì 200.000.
+
+Một heuristic hữu ích: nếu model từng xin tool các dòng dữ liệu thô chỉ để đếm chúng, bạn đang thiếu một tool aggregation. Thêm `count_by_tag`, `revenue_by_month`, `top_products_for_customer`. Mỗi cái chỉ mười lăm dòng TypeScript và tiết kiệm cả một context window.
+
+## 04 — Ba tool, một prompt
+
+Đây là phần thưởng. Hãy xem một yêu cầu duy nhất từ người dùng toả ra ba lần gọi tool tuần tự — tìm segment, tính tổng doanh thu, liệt kê sản phẩm ứng viên — rồi kết thúc bằng một đoạn tổng hợp model viết từ ba kết quả.
+
+<Demo title="Ba tool model tự sắp xếp">
+  <MultiToolRunnerDemo />
+</Demo>
+
+Bạn viết tool. Model viết orchestration. Đó là phần khiến người ta bất ngờ lần đầu nhìn thấy: không ai bảo trợ lý gọi ba tool đó theo thứ tự đó. Nó đọc description của các tool, chọn ra những cái sẽ trả lời được câu hỏi, rồi gọi. Lý do nó hoạt động là vì công sức bạn bỏ ra *trong description và schema của tool* — mỗi ràng buộc bạn đặt vào đó là một thứ model không phải đoán.
+
+<Recap>
+- Pagination: dùng cursor, `limit` có chặn, trả về `{ rows, nextCursor }`. Chọn một hình dạng và xài ở mọi nơi.
+- Filtering: một object `filter` có kiểu, được Zod xác thực, được hàm của bạn dịch sang query có tham số hoá.
+- Aggregation: tính sẵn các bản tóm tắt để model gọi. Thắng dữ liệu thô về chi phí, độ trễ, và chất lượng câu trả lời.
+- Đừng bao giờ nội suy output của model vào SQL, JSONPath, hay bất cứ bề mặt code nào khác. Parse, validate, dịch.
+- Description tốt + schema tốt = model tự sắp xếp được chuỗi gọi nhiều tool đúng cách mà bạn không cần viết kịch bản.
+</Recap>
+
+</VI>

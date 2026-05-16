@@ -1,5 +1,8 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - A 5-question audit you run on your own schema *before* writing any LLM code.
@@ -76,3 +79,85 @@ Keep this table next to you. By lesson 12 you'll be implementing it as TypeScrip
 - Pass IDs to the model, not sensitive fields. The AI doesn't need to see what it isn't acting on.
 - The action inventory is the spine of the rest of the course — Parts III and IV are this table, implemented.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Một bài audit 5 câu hỏi mà bạn chạy trên chính schema của mình *trước khi* viết bất kỳ dòng code LLM nào.
+- Bảng "action inventory" — sẽ trở thành xương sống của mọi read tool và write tool bạn xây dựng trong các bài sau.
+- Vì sao quy tắc "truyền ID cho model, fetch trường nhạy cảm ở server" phải là luật từ ngày đầu, không phải chắp vá về sau.
+</Callout>
+
+Trước khi bạn viết một lệnh gọi LLM nào, bạn cần một bức tranh rõ ràng về việc AI của bạn được phép *đọc* gì và được phép *làm* gì. Bài này là phần chuẩn bị mà chẳng ai viết blog: một bài audit 30 phút về data và hành động — bù lại, nó tiết kiệm thời gian cho mọi bài học sau đó.
+
+Chúng ta sẽ audit trên CMS giả lập dùng xuyên suốt khoá học để bạn có ví dụ cụ thể để copy. Nếu bạn đang theo cùng với app của riêng mình, hãy làm audit y hệt trên schema của bạn khi đọc.
+
+## CMS giả lập, gói gọn trong một bảng
+
+| Bảng | Cột mà AI quan tâm | Đại diện cho cái gì |
+|---|---|---|
+| `customers` | id, name, email, phone, created_at, **last_order_at**, tags (JSON) | Người đã từng đặt hàng. `last_order_at` và `tags` là hai "đòn bẩy" mà hầu hết workflow đều kéo. |
+| `products` | id, name, sku, price_cents, category, active | Catalog. Đủ nhỏ (~10 dòng) để AI có thể liệt kê hết trong một tool call. |
+| `orders` | id, customer_id, total_cents, placed_at, items (JSON) | Lịch sử giao dịch. Items để dạng JSON cho người mới đọc dễ hơn. |
+| `promotions` | id, code, description, discount_type, discount_value, starts_at, ends_at, audience_filter (JSON), active, created_by | Đích *ghi* chính. `audience_filter` là một predicate được lưu lại. |
+| `email_drafts` | id, customer_id, subject, body, created_at, sent_at (nullable) | AI soạn nháp; `sent_at` vẫn NULL cho đến khi người dùng bấm Send. Bước xác nhận được dựng vào tận cấu trúc. |
+
+Vậy đó. Năm bảng, ~15 khách hàng, 10 sản phẩm, vài voucher đã seed sẵn. Mọi demo trong khoá học đều chạy trên hình dạng này.
+
+## "Bề mặt đọc" vs "bề mặt ghi"
+
+Hai cột giấy. Bên trái, mọi câu hỏi một người có thể hỏi AI:
+
+- *Ai chưa đặt hàng trong 60 ngày?*
+- *Ana Garcia mua sản phẩm gì tháng trước?*
+- *Quý này danh mục nào bán chạy nhất?*
+
+Bên phải, mọi thay đổi một người có thể yêu cầu AI thực hiện:
+
+- *Tạo voucher 15% hết hạn Chủ Nhật.*
+- *Soạn email mời quay lại cho 12 khách hàng này.*
+- *Đánh dấu khách này là VIP.*
+
+Danh sách bên trái trở thành *read tools* (Phần III, bài 9–11). Danh sách bên phải trở thành *write tools* (bài 12–14) — và mỗi mục bên phải đều cần một bước xác nhận (Phần IV, bài 19).
+
+## Audit 5 câu hỏi cho chính app của bạn
+
+Mượn nguyên checklist này để áp lên schema của bạn:
+
+1. **5 entity nào được truy vấn nhiều nhất trong app?** Đây là các "danh từ" mà AI sẽ dùng.
+2. **Trong đó, cái nào đôi khi được tìm bằng mô tả tự nhiên thay vì ID?** Đó là những thứ AI cần *tìm ra* trước khi có thể tác động lên. (*"khách hàng ở Brooklyn đã mua chiếc tạp dề vải lanh"* — cần một search tool.)
+3. **Người dùng đang làm thủ công những thao tác ghi nào mà có thể gộp lại thành một loạt?** Một chuỗi 12 cú click nhỏ là ứng viên tuyệt vời để biến thành một "kế hoạch" do AI lên.
+4. **Thao tác ghi nào có thể đảo ngược?** Gắn tag cho khách hàng thì đảo ngược được. Gửi email thì không. Hãy thiết kế độ chặt chẽ của bước xác nhận tương ứng.
+5. **Dữ liệu nhạy cảm nằm ở đâu, và làm sao để nó không lọt vào context window của model?** Số điện thoại, địa chỉ, dữ liệu thanh toán — AI không cần *nhìn thấy* để hành động trên đó. Hãy truyền ID, fetch trường nhạy cảm ở server.
+
+<Callout type="warning" title="Đừng để AI nhìn thấy thứ nó không cần nhìn">
+Lọt số điện thoại khách hàng vào context của LLM là một sự cố quyền riêng tư — kể cả khi không email nào được gửi đi. Nhà cung cấp model có thể log lại input. Hãy audit nội dung prompt cũng kỹ như audit nội dung log.
+</Callout>
+
+## Đầu ra: một bảng action inventory
+
+Kết thúc bài này bằng cách tự viết một bảng markdown nhỏ — cho CMS giả lập hoặc cho app của bạn:
+
+| Hành động | Đọc / Ghi | Đảo ngược được? | Cần xác nhận? |
+|---|---|---|---|
+| Tìm khách hàng theo tag hoặc hoạt động | Đọc | n/a | Không |
+| Liệt kê sản phẩm | Đọc | n/a | Không |
+| Lịch sử đơn hàng của khách | Đọc | n/a | Không |
+| Tạo voucher | Ghi | Có (xoá đi được) | **Có** |
+| Soạn nháp email | Ghi | Có (chỉ là bản nháp) | Không (soạn nháp thì an toàn) |
+| Gửi email | Ghi | **Không** | **Có — chặt chẽ** |
+| Gắn tag khách hàng | Ghi | Có | Không |
+
+Giữ bảng này bên cạnh bạn. Đến bài 12, bạn sẽ triển khai nó bằng TypeScript tools, và đến bài 19, bạn sẽ nối cột "Cần xác nhận?" vào một interrupt node trong LangGraph.
+
+<Recap>
+- CMS giả lập gồm năm bảng: customers, products, orders, promotions, email_drafts. Mọi demo đều dùng hình dạng này.
+- Hai cột giấy: câu hỏi (read tools) và thay đổi (write tools). Mỗi thay đổi là một ứng viên cho cổng xác nhận.
+- Audit schema của bạn bằng năm câu hỏi; đầu ra là một bảng action inventory.
+- Truyền ID cho model, đừng truyền trường nhạy cảm. AI không cần thấy thứ nó không tác động tới.
+- Bảng action inventory là xương sống cho phần còn lại của khoá học — Phần III và IV chính là bảng này được triển khai.
+</Recap>
+
+</VI>

@@ -1,6 +1,9 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { IdempotencyDemo } from '@/components/demos/ai-in-your-project/idempotency-demo';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - The request-key pattern that makes any write tool safe to retry — the model never knows it's a retry.
@@ -94,6 +97,54 @@ The `findUnique`-then-`create` pattern in the snippet above has a race window: t
 
 A unique index on `requestKey` plus `INSERT … ON CONFLICT DO NOTHING` does the job. The first call inserts the row. The second call's insert is rejected by the unique constraint and the wrapper re-reads the existing row and returns it. You get the same external behavior — one row, two safe responses — without the race. In Postgres it's `ON CONFLICT (request_key) DO NOTHING RETURNING id`. In SQLite (which this course uses for the final project) it's `INSERT OR IGNORE`. Drizzle, Prisma, and Kysely all expose the conflict clause directly.
 
+Concretely, here's the schema and the rewritten `chargeOrder` from Pattern B above:
+
+```sql
+-- migration: add the dedup column and the index that closes the race
+ALTER TABLE charges ADD COLUMN request_key TEXT NOT NULL;
+CREATE UNIQUE INDEX charges_request_key_uq ON charges(request_key);
+```
+
+```ts
+// Postgres — raw SQL via your driver of choice
+async function chargeOrder({ orderId, amountCents }) {
+  const requestKey = `charge:${orderId}:${amountCents}`;        // → derived from inputs (Pattern B)
+
+  const inserted = await db.query<{ id: number }>(
+    `INSERT INTO charges (order_id, amount_cents, request_key)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (request_key) DO NOTHING
+     RETURNING id`,                                             // → returns one row if we won, zero if a sibling won
+    [orderId, amountCents, requestKey],
+  );
+
+  if (inserted.rows[0]) return inserted.rows[0];                // → we inserted; this is the first call
+  return await db.charges.findUnique({ where: { requestKey } }); // → the conflicting row is the canonical one
+}
+```
+
+Two retries arriving in the same millisecond now both run the same `INSERT`. The unique index guarantees exactly one of them is allowed in; the other gets zero rows back from `RETURNING`, falls through to the `findUnique`, and reads what the winner just wrote. Same external behavior as Pattern B's `findUnique`-then-`create`, but the race window is gone — the database is the arbiter, not the application code.
+
+The same thing in Drizzle (Postgres):
+
+```ts
+const inserted = await db
+  .insert(charges)
+  .values({ orderId, amountCents, requestKey })
+  .onConflictDoNothing({ target: charges.requestKey })          // → maps to ON CONFLICT (request_key) DO NOTHING
+  .returning({ id: charges.id });
+```
+
+And in SQLite — the runtime for this course's final project — the conflict clause is spelled differently but does the same thing:
+
+```sql
+INSERT OR IGNORE INTO charges (order_id, amount_cents, request_key)
+VALUES (?, ?, ?);
+-- → no RETURNING in older SQLite; do a follow-up SELECT keyed by request_key.
+```
+
+Prisma exposes it as `upsert` with an empty `update`, Kysely as `.onConflict(oc => oc.column('request_key').doNothing())`. The shape is the same in all four: one statement, the database enforces uniqueness, and the wrapper falls back to a keyed read when it loses the race.
+
 ## Watch the dedup decision
 
 <Demo title="Three rapid retries: with and without an idempotency key">
@@ -118,3 +169,174 @@ Generated dedup keys feel less rigorous than orchestrator-supplied ones — they
 - For tools without an obvious orchestrator key, generate one from the args (customer + subject hash + hour bucket).
 - Idempotency is the discipline that makes confirmation gates possible — the gate dedupes pending UI, the dedup key dedupes committed rows. Both layers, every write.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Mẫu request-key giúp mọi write tool trở nên an toàn khi bị retry — mô hình không hề biết đó là một lần retry.
+- Dedup ở tầng database bằng unique index cộng với `ON CONFLICT DO NOTHING` để đóng cửa sổ race.
+- Khoá dedup "ngoài luồng" (ví dụ `customer_id + subject_hash + hour_bucket`) cho những tool không có sẵn một khoá tự nhiên từ orchestrator.
+</Callout>
+
+Mô hình sẽ retry. Nó sẽ retry vì một cú gọi mạng vấp một cái và orchestrator phát lại lời gọi tool. Nó sẽ retry vì kết nối streaming bị rớt giữa chừng. Nó sẽ retry vì, vào những ngày hiếm và khó hiểu, nó "tự nghi ngờ chính mình" và gọi cùng một tool hai lần trong cùng một lượt vì những lý do mà không log nào giải thích nổi. Lần đầu bạn thấy tool *"create promo"* nổ ra hai-lần-rưỡi cho một yêu cầu duy nhất của người dùng, bạn sẽ hiểu idempotency tận xương. Tốt hơn là hiểu ngay từ bây giờ.
+
+Cách sửa không phải là *làm cho retry ngừng lại* — nó vẫn sẽ xảy ra, đôi khi rất chính đáng. Cách sửa là làm cho retry trở nên **an toàn**: viết tool của bạn sao cho việc retry cùng một thao tác logic tạo ra cùng một kết quả như lần gọi đầu tiên. Một dòng, không phải hai. Một lần trừ tiền, không phải hai. Một email, không phải hai.
+
+## Idempotency key đơn giản nhất
+
+Mẫu này vay nguyên từ thiết kế webhook và payment API. Mỗi thao tác logic nhận một **request key** — một UUID do orchestrator sinh ra trước khi gọi tool — và tool lưu key đó cùng với dòng nó ghi xuống. Trước khi insert, tool tra key. Tìm thấy? Trả về dòng đã có. Không thấy? Insert dòng mới và nhớ key.
+
+```ts
+export const createPromo = tool(                  // → StructuredTool { name: 'promotions.create' }
+  async ({ code, discountPct, requestKey }) => {
+    const existing = await db.promotions.findUnique({ where: { requestKey } }); // → Promotion | null
+    if (existing) {
+      return JSON.stringify({ ok: true, deduped: true, promo: existing });      // → '{"ok":true,"deduped":true,"promo":{...}}' on retry
+    }
+    const promo = await db.promotions.create({    // → newly inserted Promotion row
+      data: { code, discountPct, requestKey, createdAt: new Date() },
+    });
+    return JSON.stringify({ ok: true, deduped: false, promo }); // → '{"ok":true,"deduped":false,"promo":{...}}' on first call
+  },
+  {
+    name: 'promotions.create',                    // → identifier the model uses
+    description: 'Create a discount promo. Pass a stable requestKey to make retries safe.',
+    schema: z.object({
+      code: z.string().min(3).max(40),            // → string of 3..40 chars
+      discountPct: z.number().int().min(1).max(75), // → integer 1..75
+      requestKey: z.string().uuid(),              // → UUID — orchestrator fills this before invocation
+    }),
+  },
+);
+```
+
+`requestKey` là một phần của schema của tool, nghĩa là phía gọi tool phải cung cấp nó. Chi tiết then chốt: **mô hình không tự chọn giá trị này.** Ba mẫu cho câu hỏi "key đến từ đâu", xếp đại khái theo tần suất bạn sẽ dùng.
+
+### Mẫu A — orchestrator cấp key (mặc định)
+
+Một wrapper nhỏ quanh `agent.invoke` (hoặc node `tools` của LangGraph) chặn mọi lời gọi tool. Với mỗi *thao tác logic*, nó mint một UUID đúng một lần, lưu vào lượt đang chạy, và tái sử dụng cùng UUID đó cho mọi lần retry mà mô hình phát ra. Thân hàm tool chỉ việc nhận `requestKey` như một tham số bình thường.
+
+```ts
+async function withIdempotency(toolName: string, rawArgs: unknown, exec: (args: any) => Promise<unknown>) {
+  const args: any = rawArgs;                      // → freshly-validated tool args from the model
+  if (!args.requestKey) {
+    // One key per (turnId + toolName + stableHash(args)). Same args → same key,
+    // even if the model fires the tool three times in the same turn.
+    args.requestKey = sha256(`${currentTurnId()}:${toolName}:${stableStringify(args)}`); // → deterministic 64-char hex
+  }
+  return exec(args);                              // → result of the underlying tool execution
+}
+```
+
+Mô hình muốn retry bao nhiêu lần tuỳ thích; wrapper tạo cùng một key cho cùng một bộ args, bảng dedup bắt các bản trùng, người dùng không bao giờ thấy bị trừ tiền hai lần. Đây là mặc định, và cũng là điều mà `createPromo` ở trên giả định.
+
+### Mẫu B — tool tự suy ra key từ input
+
+Khi bản thân các args đã đủ để xác định *một* thao tác hợp lệ, tool có thể tự dựng key trong thân hàm. Không cần wrapper.
+
+```ts
+async function chargeOrder({ orderId, amountCents }) {
+  const requestKey = `charge:${orderId}:${amountCents}`; // → 'charge:7041:2500' — derived from inputs
+  const existing = await db.charges.findUnique({ where: { requestKey } }); // → Charge | null
+  if (existing) return existing;                  // → return previous Charge on retry
+  return await db.charges.create({ data: { orderId, amountCents, requestKey } }); // → new Charge on first call
+}
+```
+
+Cách này phù hợp khi thực tế không có trường hợp nào bạn muốn có *hai* lần charge giống nhau cách nhau vài giây. *"Trừ tiền đơn 7041 25 đô"* nên tạo ra đúng một dòng, bất kể mô hình phát lời gọi đó bao nhiêu lần.
+
+### Mẫu C — mô hình tự chọn giá trị (anti-pattern)
+
+```ts
+schema: z.object({
+  // ❌ The model can fabricate a fresh UUID on every retry, defeating dedup.
+  requestKey: z.string().uuid(),                  // → fresh UUID per turn → every retry misses dedup
+}),
+```
+
+Nếu chính mô hình là kẻ chọn UUID và coi mỗi lần retry là "một lần thử mới", thì mỗi retry có một key mới, mọi key đều miss dedup, và bạn ghi ba dòng cho một yêu cầu duy nhất của user. Tránh. Schema có thể *để lộ* trường này ra (hàm `tool()` của LangChain không có kênh riêng cho args "không cho mô hình thấy"), nhưng orchestrator phải điền nó trước khi tool chạy — mô hình được phép nhìn thấy ô trống, không bao giờ được tự điền giá trị.
+
+**Quy tắc ngón cái.** Nếu một lần retry phải tạo ra *cùng một dòng*, thì key phải ổn định qua các lần retry. Sự ổn định đó đến từ orchestrator (Mẫu A) hoặc từ chính args (Mẫu B). Bất cứ thứ gì cho phép mô hình tự chọn UUID mới khi retry đều phá vỡ mẫu này.
+
+## Idempotency ở tầng database
+
+Mẫu `findUnique` rồi `create` trong snippet ở trên có một cửa sổ race: hai lần retry rơi cùng một mili-giây có thể cả hai cùng miss `findUnique` và cùng insert. Với tool ít traffic bạn sẽ không bao giờ thấy; với tool nhiều traffic bạn sẽ thấy, và cách sửa là đẩy dedup xuống thẳng database.
+
+Một unique index trên `requestKey` cộng với `INSERT … ON CONFLICT DO NOTHING` là đủ. Lần gọi đầu tiên insert dòng. Insert của lần thứ hai bị unique constraint từ chối, wrapper đọc lại dòng đã có và trả về. Bạn vẫn có hành vi đối ngoại y hệt — một dòng, hai response an toàn — mà không còn race. Trong Postgres là `ON CONFLICT (request_key) DO NOTHING RETURNING id`. Trong SQLite (cái mà khoá học này dùng cho dự án cuối) là `INSERT OR IGNORE`. Drizzle, Prisma và Kysely đều expose mệnh đề conflict trực tiếp.
+
+Cụ thể, đây là schema và `chargeOrder` từ Pattern B ở trên viết lại:
+
+```sql
+-- migration: thêm cột dedup và index đóng cửa sổ race
+ALTER TABLE charges ADD COLUMN request_key TEXT NOT NULL;
+CREATE UNIQUE INDEX charges_request_key_uq ON charges(request_key);
+```
+
+```ts
+// Postgres — SQL thô qua driver bạn dùng
+async function chargeOrder({ orderId, amountCents }) {
+  const requestKey = `charge:${orderId}:${amountCents}`;        // → derive từ inputs (Pattern B)
+
+  const inserted = await db.query<{ id: number }>(
+    `INSERT INTO charges (order_id, amount_cents, request_key)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (request_key) DO NOTHING
+     RETURNING id`,                                             // → trả về 1 dòng nếu ta thắng, 0 dòng nếu thằng kia thắng
+    [orderId, amountCents, requestKey],
+  );
+
+  if (inserted.rows[0]) return inserted.rows[0];                // → ta là người insert; đây là lần gọi đầu tiên
+  return await db.charges.findUnique({ where: { requestKey } }); // → dòng "xung đột" chính là dòng chuẩn
+}
+```
+
+Hai lần retry rơi cùng một mili-giây bây giờ cùng chạy một `INSERT`. Unique index bảo đảm đúng một trong hai được cho vào; cái kia nhận 0 dòng từ `RETURNING`, rơi xuống `findUnique`, đọc đúng cái mà người thắng vừa ghi. Hành vi đối ngoại giống y Pattern B với `findUnique` rồi `create`, nhưng cửa sổ race biến mất — database là người phân xử, không phải code app.
+
+Cùng kiểu đó trong Drizzle (Postgres):
+
+```ts
+const inserted = await db
+  .insert(charges)
+  .values({ orderId, amountCents, requestKey })
+  .onConflictDoNothing({ target: charges.requestKey })          // → map ra ON CONFLICT (request_key) DO NOTHING
+  .returning({ id: charges.id });
+```
+
+Và trong SQLite — runtime cho dự án cuối của khoá học — mệnh đề conflict viết khác nhưng làm cùng một việc:
+
+```sql
+INSERT OR IGNORE INTO charges (order_id, amount_cents, request_key)
+VALUES (?, ?, ?);
+-- → SQLite phiên bản cũ không có RETURNING; làm thêm một SELECT theo request_key.
+```
+
+Prisma expose nó dưới dạng `upsert` với phần `update` để rỗng, Kysely là `.onConflict(oc => oc.column('request_key').doNothing())`. Hình dạng giống nhau ở cả bốn: một câu lệnh, database enforce uniqueness, wrapper fallback sang một SELECT theo key khi nó thua race.
+
+## Nhìn quyết định dedup diễn ra
+
+<Demo title="Ba lần retry liên tiếp: có và không có idempotency key">
+  <IdempotencyDemo />
+</Demo>
+
+Cột trái mô phỏng cách làm ngây thơ: mỗi retry tự sinh ID riêng cho lời gọi của mình và ghi một dòng mới. Ba lần retry, ba dòng — bảng `promotions` của bạn giờ có ba entry giống hệt nhau và đội customer-success bối rối không biết áp dụng cái nào. Cột phải truyền cùng một `requestKey` qua cả ba lần retry. Lần đầu insert, lần hai và ba thấy key trong bảng dedup và short-circuit, trả về dòng đã có cho mô hình. Mô hình không phân biệt được — đó chính là điểm mấu chốt.
+
+## Idempotency "ngoài luồng"
+
+Một số write tool không có sẵn key tự nhiên từ orchestrator — đặc biệt là những thao tác kiểu *"gửi email cho danh sách này."* Mô hình không sinh `requestKey` cho message; orchestrator có thể cũng không có, nhất là khi cùng một tool được gọi từ nhiều entry point khác nhau (một phiên chat, một job định kỳ, một cú click của admin). Cách sửa là sinh key dedup **bên trong tool** từ nội dung của thao tác.
+
+Một hình dạng hợp lý cho email tool: `(customer_id, subject_hash, hour_bucket)`. `hour_bucket` là `floor(now / 3600s)` — cùng email gửi cho cùng khách trong cùng một giờ sẽ gộp thành một. Khác giờ, hai email. Đây chính là cách các hệ thống gửi mail *thật* hoạt động; đó là cách bạn không vô tình "double-blast" một danh sách khi một job chạy hai lần.
+
+Key dedup tự sinh có cảm giác kém chặt chẽ hơn key do orchestrator cấp — chúng là một heuristic về *điều gì được tính là cùng một thao tác* — nhưng chúng bắt được các chế độ hỏng quan trọng. *"Hai lần retry cách nhau trong vòng 200ms"* là trường hợp nguy hiểm, và bất kỳ hash hợp lý nào của args cũng bắt được nó.
+
+<Recap>
+- Mô hình sẽ retry; hãy xây write tool sao cho retry là an toàn.
+- Truyền `requestKey` cho mỗi thao tác logic. Lần đầu insert, các retry thấy key và trả về dòng đã có.
+- Orchestrator (hoặc một derivation từ args) cấp key — không bao giờ để mô hình chọn UUID mới khi retry.
+- Đẩy dedup xuống database ở mọi nơi có thể — unique index cộng với `ON CONFLICT DO NOTHING` đóng cửa sổ race.
+- Với những tool không có key tự nhiên từ orchestrator, sinh key từ args (customer + subject hash + hour bucket).
+- Idempotency là kỷ luật giúp cổng xác nhận khả thi — cổng dedup phần UI đang chờ, key dedup dedup các dòng đã commit. Cả hai lớp, cho mọi thao tác ghi.
+</Recap>
+
+</VI>

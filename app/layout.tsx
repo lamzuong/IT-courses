@@ -23,6 +23,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <body suppressHydrationWarning>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var l=localStorage.getItem('lesson-lang');if(l==='vi'||l==='en')document.documentElement.setAttribute('data-lang',l);}catch(e){}",
+          }}
+        />
         <SiteNav searchIndex={searchIndex} />
         {children}
         <SiteFooter />

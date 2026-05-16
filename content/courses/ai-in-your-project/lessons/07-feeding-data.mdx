@@ -1,6 +1,9 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { SchemaContextDemo } from '@/components/demos/ai-in-your-project/schema-context-demo';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - What earns its tokens in the system prompt: schema definitions, sample rows, business definitions.
@@ -284,3 +287,292 @@ A useful test: skim everything you've got in the system prompt and ask, *"if a s
 - Schema costs are continuous: ~2,000 tokens × every turn × every user. Layout for prompt caching from day one.
 - Pass IDs to the model. Fetch sensitive rows server-side via tools. Always.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Cái gì xứng đáng được trả token để nằm trong system prompt: schema, vài sample row, và các định nghĩa nghiệp vụ.
+- Cái gì *không* nên nằm trong system prompt mà nên nằm sau một tool call: dữ liệu theo từng request, PII ở quy mô lớn, dump cả bảng.
+- Cách bố trí prompt để prompt caching giữ ấm các phần ổn định — và vì sao paste kết quả `SELECT` vào prompt là sai lầm cả về quyền riêng tư *lẫn* token.
+</Callout>
+
+Một LLM không biết gì về data của bạn giống như một người đa năng nhưng bị xích lại. Nó có thể viết cho bạn một đoạn về *khách hàng nói chung*, nhưng không nói được gì về *khách hàng của bạn*. System prompt là một nơi để nới sợi xích đó ra — bằng cách đưa cho model schema, vài dòng dữ liệu mẫu, và những định nghĩa nghiệp vụ không nằm sẵn ở đâu khác.
+
+Bài này nói về việc làm điều đó cho khéo. Mẹo không phải là dán thêm thật nhiều text vào; mà là chọn tập sự thật nhỏ nhất đủ làm model hữu ích, và có chủ đích với mọi thứ còn lại.
+
+## 01 — Cái gì nên cho vào context
+
+Ba nhóm xứng đáng với chi phí token:
+
+- **Schema.** Vài câu SQL `CREATE TABLE`, hoặc bản tương đương bằng Zod/Drizzle. Cho model biết có field nào, kiểu gì, và các bảng liên hệ ra sao. Rẻ, súc tích, lời cao.
+- **Sample row.** Ba đến năm dòng có hình dạng thật cho mỗi bảng. Chúng cho model thấy data *trông thế nào* — độ dài tên điển hình, định dạng email, `tags` là mảng string hay là chuỗi phân tách bằng dấu phẩy. Mẫu thật đáng giá hơn mô tả bằng tiếng Anh.
+- **Định nghĩa nghiệp vụ.** *"Chúng ta coi một khách hàng là 'lapsed' khi `last_order_at` của họ cách đây hơn 60 ngày."* Những thứ này không nằm trong schema và model không tự đoán được. Một câu cho mỗi định nghĩa.
+
+Gần như đó là toàn bộ danh sách. Bất cứ thứ gì không phải schema, sample, hay định nghĩa thì rất có thể là nhiễu.
+
+Tính chất then chốt là *khả năng tái sử dụng*: những thứ này không đổi giữa các cuộc trò chuyện. Bạn trả token một lần ở thời điểm thiết kế, rồi nó được khấu hao trên mọi lượt. So với dữ liệu theo từng request (lịch sử đơn hàng *thật* của khách, doanh thu tuần trước) — phần đó ta sẽ đưa qua tool, xem bài 9.
+
+Cụ thể, khối "data" trong system prompt của AI Operator trông như sau:
+
+```md
+## Schema (cached)
+
+CREATE TABLE customers (
+  id TEXT PRIMARY KEY,
+  name TEXT, email TEXT, last_order_at TIMESTAMP,
+  tags JSONB
+);
+CREATE TABLE promotions (
+  id TEXT PRIMARY KEY, code TEXT UNIQUE,
+  discount_type TEXT CHECK (discount_type IN ('percent','fixed')),
+  discount_value INT, ends_at TIMESTAMP, active BOOLEAN
+);
+
+## Sample rows
+
+customers: { id:"c_001", name:"Phuoc Luu", email:"phuoc@…",
+             last_order_at:"2026-02-14", tags:["vip","newsletter"] }
+promotions: { id:"p_007", code:"LAPSED15", discount_type:"percent",
+              discount_value:15, ends_at:"2026-05-31", active:true }
+
+## Definitions
+
+- "Lapsed" customer = last_order_at older than 60 days.
+- "VIP" customer = has tag "vip" OR lifetime_spend > $1000.
+- All promo codes are UPPERCASE, alphanumeric, no spaces.
+```
+
+Khoảng 200 token. Một lần duy nhất. Model giờ đã biết tên các cột, hình dạng data, và hai thuật ngữ nghiệp vụ mà lẽ ra nó sẽ phải đoán.
+
+## 02 — Cái gì *không* nên cho vào context
+
+Bức tranh đối lập. Những thứ trông như có ích nhưng thực ra không:
+
+- **PII ở quy mô lớn.** Tên, email, số điện thoại thuộc về database, không phải prompt. Model không giữ rạch ròi được; bộ phận privacy review sẽ "nướng" bạn.
+- **Dump cả bảng.** Bảng khách hàng 25 dòng nhét được vào context. Bảng 25.000 dòng đốt 50.000 token và model *vẫn* không tìm đúng dòng một cách đáng tin. Dùng tool tìm kiếm thay vì dump.
+- **Bất cứ thứ gì thay đổi theo từng request.** Số đơn hôm nay, task đang chờ của user này, cart hiện tại. Đó là tool call, không phải nội dung system prompt.
+- **Field suy diễn cũ kỹ.** *"Sản phẩm bán chạy nhất là X."* Nếu hôm nay đúng và tuần sau sai, đừng nướng nó vào prompt.
+
+### Nội dung system prompt vs. tool call — khác nhau ở đâu?
+
+Hai kênh đưa dữ liệu, hai hình dạng chi phí, hai vòng đời. Đáng làm rõ trước khi quy tắc kinh nghiệm trở nên hợp lý:
+
+| | Nội dung system prompt | Tool call |
+|---|---|---|
+| **Gửi đi khi nào?** | Mỗi lượt, trước khi model bắt đầu nghĩ | Chỉ khi model quyết định nó cần dữ liệu đó |
+| **Ai trả token?** | Bạn, trên mọi request, cho mọi user, mãi mãi | Bạn, chỉ ở những lượt mà tool thực sự được gọi |
+| **Độ tươi** | Đóng băng tại thời điểm prompt được ráp | Sống — chạy thẳng vào database ngay millisecond trước khi model thấy kết quả |
+| **Hợp với** | Sự thật ổn định: schema, định nghĩa, quy tắc, từ điển nghiệp vụ | Sự thật biến động: doanh thu hôm nay, cart của user này, dòng của customer #42 |
+| **Anti-pattern** | Paste `SELECT * FROM customers` vào prompt | Suy ra lại kiểu cột của `customers` mỗi lần đọc |
+
+Một ví dụ làm mẫu, cùng một câu hỏi, hai cách phục vụ:
+
+```md
+## Bad: stuffed into the system prompt
+"Today's revenue is $3,184.20. There are 47 orders. The top product
+ is the linen apron. Pending drafts: 12..."
+
+→ Cost: ~80 tokens × every turn × every user, forever.
+→ Wrong by 09:00 the next morning. Permanently wrong by Tuesday.
+```
+
+```md
+## Good: a tool the model calls when relevant
+tool: stats.today() → { revenueCents: 318420, orderCount: 47, topProductSku: 'apron-linen' }
+
+→ Cost: ~25 tokens, only on the ~5% of turns where the model needs it.
+→ Always fresh — runs against the live database the moment the model asks.
+→ The tool definition (~40 tokens) lives in the prompt; the data does not.
+```
+
+Mô hình tư duy: **system prompt dạy model thế giới của bạn *trông như thế nào*; tool call cho phép model *nhìn vào trạng thái hiện tại* của thế giới đó.** Cái thứ nhất là cuốn giáo trình model luôn mang theo; cái thứ hai là chiếc điện thoại model có thể nhấc lên. Đừng viết bản tin thời tiết hôm nay vào giáo trình.
+
+Cơ chế `tool()` thực sự sẽ được nối dây ở bài 09 — bây giờ chỉ cần biết "đây là tool call, không phải nội dung system prompt" có nghĩa là *"đừng nướng giá trị vào sẵn; hãy expose một hàm để model gọi lấy giá trị đó khi nó thực sự cần."*
+
+Quy tắc kinh nghiệm: nếu nó đúng cho mọi user trên mọi lượt và khó đổi trong một tháng, đó là ứng viên cho system prompt. Ngược lại, đó là tool call.
+
+Một prompt tệ ngoài đời thật vi phạm cả bốn điểm trên — kiểu bạn sẽ thấy trong PR đầu tiên của một dev junior:
+
+```md
+## Customers (so the AI "knows our users")
+c_001  Phuoc Luu     phuoc@gmail.com   +84-901-234-567   last_order: 2026-02-14
+c_002  Anna Becker   anna@hotmail.com  +49-30-12345678   last_order: 2026-04-22
+c_003  Diego Santos  diego@yahoo.com   +55-11-98765432   last_order: 2026-01-08
+... (24,997 more rows) ...
+
+## Today's stats
+Orders today: 47
+Revenue today: $3,184.20
+Pending email drafts: 12
+Operator on shift: Phuoc (login 08:14)
+
+## Insights
+Our most popular product is the linen apron.
+Most lapsed customers respond best to 15% off codes.
+Tuesday is our slowest day.
+```
+
+Sai chỗ nào, theo từng dòng:
+
+| Khối | Anti-pattern | Nơi đặt tốt hơn |
+|---|---|---|
+| Bảng khách hàng | PII ở quy mô lớn + dump cả bảng | Tool `customers.search(...)` trả về ≤25 dòng |
+| Stats hôm nay | Dữ liệu theo từng request | Tool `stats.today()`, gọi khi cần |
+| Operator đang trực | Dữ liệu theo từng request + cũ trong vài giờ | Hậu tố không cache, gắn thêm theo từng lượt |
+| "Insights" | Field suy diễn cũ kỹ trình bày như sự thật | Tính lại qua tool, hoặc bỏ hẳn |
+
+Prompt này sẽ đốt ~80.000 token *mỗi lượt*, làm rò số điện thoại khách hàng vào mọi log của provider, "bịa" ra sự thật ngay khoảnh khắc thứ Ba không còn là ngày ế nhất, và *vẫn* tệ hơn bản 200-token ở §01 — bởi vì model không thể tìm đúng dòng một cách đáng tin trong 25.000 dòng.
+
+## 03 — Thấy khác biệt tận mắt
+
+Bật/tắt việc schema có nằm trong system prompt hay không, rồi chạy cùng một câu hỏi.
+
+<Demo title="Có schema và không có schema trong context">
+  <SchemaContextDemo />
+</Demo>
+
+Không có schema, model phải thú nhận là nó không biết — không có cách trả lời thành thật nào cho câu "chúng ta có bao nhiêu khách hàng?" nếu nó không thấy gì. Có schema (và trong demo này, thêm một số tổng nhỏ tính sẵn từ seed data), nó trả lời ngay lập tức và đúng. Cùng model, cùng prompt người dùng; thứ duy nhất thay đổi là cái mà system prompt cho phép nó nhìn thấy.
+
+Chú ý điều *không* xảy ra: model không chạy SQL. Nó đọc các con số do *chúng ta* tính sẵn và đưa cho. Ở Phần III ta sẽ nối dây tool thật để model tự query data sống. Còn bây giờ, "đưa cho model schema và một bản tóm tắt tí hon đã tính sẵn" là đủ để cảm thấy thật.
+
+## 04 — Ngân sách token
+
+Mỗi ký tự trong system prompt đều bị tính tiền *mỗi lượt*. Một phép toán nhanh ở mức giá tầm GPT-4o (con số chính xác sẽ đổi; hình dạng thì không):
+
+- Trung bình một token tiếng Anh ~4 ký tự.
+- 8 KB schema + sample là ~2.000 token.
+- Với khoảng $3 cho mỗi triệu input token, đó là $0.006 mỗi lượt.
+- Một app trung bình 100 lượt/ngày với 1.000 user/ngày: $600/tháng, *chỉ để* gửi lại schema.
+
+Con số đó đủ nhỏ để bỏ qua ở dự án nghiệp dư, đủ lớn để quan trọng ở quy mô. Cách sửa không phải làm schema nhỏ đi — mà là dùng prompt caching. Hầu hết provider sẽ cache phần prefix không đổi và tính ở một phần nhỏ giá thường (đôi khi 10%). Đặt schema và định nghĩa của bạn ở *trên cùng* system prompt, theo thứ tự cố định, và bạn có thể giữ chúng trong cache hàng giờ.
+
+Ta sẽ nối dây prompt caching tử tế ở Phần V. Điểm cần nhớ bây giờ: hãy thiết kế context của bạn *như thể* bạn sẽ cache nó. Phần ổn định ở trên, phần theo từng lượt ở dưới.
+
+Bố cục, cụ thể:
+
+```md
+[CACHED — never changes between turns]
+1. Role + constraints (lesson 5 template)
+2. Schema CREATE TABLE blocks
+3. Sample rows
+4. Business definitions
+
+[NOT CACHED — changes per turn]
+5. Today's date: 2026-05-07
+6. Operator's name: Phuoc
+7. Recent conversation history
+```
+
+Chỉ cần một token biến động (ví dụ ngày hôm nay) ở đầu prompt là vô hiệu hoá toàn bộ cache của mọi thứ phía sau. Đẩy phần biến động xuống tận cuối, và ~2.000 token đầu tiên sẽ luôn ấm cả ngày.
+
+<Callout type="warning" title="Đừng paste bảng users vào prompt">
+Một lỗi phổ biến: copy kết quả SELECT vào system prompt để "model có data". Đừng làm vậy. Hãy truyền *id* của user trong prompt, rồi gọi một tool `get_customer(id)` để lấy dòng dữ liệu phía server. Field nhạy cảm ở lại trên server; token vẫn nhỏ; schema giống hệt production.
+</Callout>
+
+### Mô hình, làm mẫu chi tiết
+
+Hình dung một trợ lý hỗ trợ khách hàng giúp một operator trả lời câu hỏi về *một khách cụ thể* (khách đang có ticket mở). Bản năng ngây thơ là "đưa khách hàng đó cho AI" bằng cách nhét cả dòng vào.
+
+**❌ Bản tệ — paste SELECT vào prompt:**
+
+```ts
+// app/api/assist/route.ts
+const customer = await db.customers.findUnique({ where: { id: customerId } }); // → full Customer row, all 50 fields
+
+const systemPrompt = `
+You are a support assistant. The customer you are helping:
+
+  id: ${customer.id}                              // → 'c_001'
+  name: ${customer.name}                          // → 'Phuoc Luu'           (PII)
+  email: ${customer.email}                        // → 'phuoc@gmail.com'     (PII)
+  phone: ${customer.phone}                        // → '+84-901-234-567'     (PII!)
+  date_of_birth: ${customer.dateOfBirth}          // → '1988-03-12'          (PII!)
+  address: ${JSON.stringify(customer.address)}    // → '{"street":"...",...}' (PII!)
+  payment_method_last4: ${customer.paymentLast4}  // → '4242'                (sensitive)
+  last_order_at: ${customer.lastOrderAt}          // → '2026-02-14'
+  tags: ${customer.tags.join(', ')}               // → 'vip, newsletter'
+  internal_notes: ${customer.internalNotes}       // → 'flagged for review'  (private)
+
+Answer the operator's questions about this customer.
+`;
+// → systemPrompt now contains ~250 tokens of PII, sent on every turn
+
+const result = await model.invoke([
+  { role: 'system', content: systemPrompt },     // → SystemMessage with all PII inlined
+  { role: 'user', content: operatorMessage },    // → HumanMessage
+]);
+// → result: AIMessage (and a copy of all those PII fields just landed in the provider's logs)
+```
+
+Vừa sai chỗ nào, dù code "chạy được":
+
+- **Quyền riêng tư.** Số điện thoại, ngày sinh, địa chỉ, và 4 số cuối thẻ của khách giờ nằm trong log API của provider — *mọi lượt*, không chỉ những lượt model cần đến chúng. Nếu operator chỉ hỏi *"khách này đặt hàng gần nhất khi nào?"*, bạn đã rò dữ liệu thẻ một cách vô ích.
+- **Token.** Mỗi field không liên quan đều đang "trả tiền thuê" mỗi lượt. Một bản ghi khách 50 field là vài trăm token; nhân với mỗi lượt của mỗi cuộc trò chuyện của mỗi operator, hoá đơn không hề nhỏ.
+- **Schema drift.** Hình dạng dòng dữ liệu trong prompt là viết tay. Nếu mai `paymentLast4` đổi thành `paymentMethod.last4` trong database, prompt vẫn ghi `payment_method_last4` cho đến khi có người nhận ra. Model và database lệch nhau, và model không biết điều đó.
+- **Hallucination trên data cũ.** Nếu khách đổi địa chỉ giữa cuộc trò chuyện, AI vẫn trả lời từ snapshot lấy ở lượt 1. *"Địa chỉ của họ là 123 Old St"* — sai một cách rất tự tin.
+
+**✅ Bản tốt — ID trong prompt, lấy dữ liệu qua tool:**
+
+```ts
+// system prompt: just the ID and the rules, no PII
+const systemPrompt = `
+You are a support assistant. The customer for this conversation has id "${customerId}".
+Use customers.get(id) to fetch their non-sensitive profile.
+Use orders.list({ customerId }) for order history.
+Never ask the user for their phone or address — fetch from the database if needed.
+`;
+// → systemPrompt now ~30 tokens. The id 'c_001' is the only handle the model gets.
+
+// Tool definition (lesson 09 covers tool() in depth)
+const getCustomer = tool(                         // → StructuredTool { name: 'customers.get' }
+  async ({ id }) => {
+    const c = await db.customers.findUnique({ where: { id } }); // → full Customer | null
+    if (!c) return { ok: false, error: `customer ${id} not found` }; // → typed error for the model
+    return {
+      ok: true,
+      data: {
+        id: c.id,                                 // → 'c_001'
+        name: c.name,                             // → 'Phuoc Luu'
+        emailDomain: c.email.split('@')[1],       // → 'gmail.com'   (domain only — full address never leaves the server)
+        segment: c.segment,                       // → 'vip' | 'lapsed' | 'new'
+        lastOrderAt: c.lastOrderAt,               // → '2026-02-14'
+        tags: c.tags,                             // → ['vip', 'newsletter']
+        // phone, address, DOB, payment data — deliberately NOT returned
+      },
+    };
+    // → returned object: { ok: true, data: { id, name, emailDomain, segment, lastOrderAt, tags } }
+  },
+  {
+    name: 'customers.get',                        // → identifier the model uses
+    description: 'Fetch the non-sensitive profile of a customer by id.',
+    schema: z.object({ id: z.string() }),         // → ZodObject — id is required
+  },
+);
+```
+
+Đọc xem mỗi tính chất mang lại cho bạn điều gì:
+
+| Tính chất | Bản tệ | Bản tốt |
+|---|---|---|
+| Phone / DOB / 4 số cuối thẻ trong log provider | Có, mỗi lượt | Không bao giờ — chỉ ở phía server |
+| Token mỗi lượt | ~250 (cả dòng) | ~30 (chỉ tham chiếu id) |
+| Tool chạy khi model thực sự cần | n/a — luôn ở đó | Chỉ ở những lượt hỏi "người này là ai?" |
+| Schema bám sát production | Không — đóng băng lúc ráp prompt | Có — `findUnique` trả về đúng những gì migration vừa thêm |
+| Đổi địa chỉ giữa cuộc trò chuyện | Vẫn trả lời theo giá trị cũ | Lấy lại, hiện hành |
+| Field nhạy cảm | Trộn lẫn với phần còn lại | Allow-list trong hình dạng return của tool |
+
+**Nguyên tắc:** prompt nên nói *"khách trong cuộc trò chuyện này là `c_001`"*, không phải *"khách trong cuộc trò chuyện này là Phuoc Luu, sinh 1988-03-12, thẻ tận cùng 4242, …"*. ID là cái quai cầm. Tool là cánh cửa. Field nhạy cảm nằm phía sau cửa, và chỉ được mở khi model thực sự cần nhìn vào.
+
+Một phép thử hữu ích: lướt qua mọi thứ bạn đang để trong system prompt và tự hỏi: *"nếu mai có ai screenshot prompt này rồi đăng lên Twitter, mình có ổn không?"* Nếu câu trả lời không phải "có" rõ ràng, thì những field rò rỉ kia nên nằm sau một tool.
+
+<Recap>
+- Ba thứ xứng đáng với token trong context: schema, sample row, định nghĩa nghiệp vụ. Bỏ qua mọi thứ khác.
+- Đừng nhét PII quy mô lớn, dump cả bảng, hay dữ liệu theo từng request vào system prompt. Đó là việc của tool call.
+- Cùng model + schema hiện vs. ẩn = câu trả lời khác nhau. Mức cải thiện là thật và miễn phí.
+- Chi phí schema là liên tục: ~2.000 token × mỗi lượt × mỗi user. Bố cục cho prompt caching ngay từ ngày đầu.
+- Truyền ID cho model. Lấy dòng dữ liệu nhạy cảm phía server qua tool. Luôn luôn.
+</Recap>
+
+</VI>

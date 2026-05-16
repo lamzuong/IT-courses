@@ -124,7 +124,7 @@ export function ErrorsRetryDemo() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-4 items-start">
-        <div className="space-y-2 min-h-72" aria-live="polite">
+        <div className="space-y-2 min-h-72 min-w-0" aria-live="polite">
           <p className="text-[0.7rem] uppercase tracking-wider text-[color:var(--color-text-faint)]">
             attempts log
           </p>
@@ -155,8 +155,8 @@ export function ErrorsRetryDemo() {
                     Attempt {a.n} · {a.status === 'ok' ? 'success' : 'error'}
                   </span>
                 </p>
-                <p className="font-serif text-[0.92rem] mb-1">
-                  promotions.create(<span className="font-mono text-xs">
+                <p className="font-serif text-[0.92rem] mb-1 break-all">
+                  promotions.create(<span className="font-mono text-xs break-all">
                     {JSON.stringify(a.args)}
                   </span>)
                 </p>
@@ -170,7 +170,7 @@ export function ErrorsRetryDemo() {
             <p className="text-xs italic text-[color:var(--color-pine)] mt-2">{spec.finalNote}</p>
           )}
         </div>
-        <div className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-code-bg)] text-[color:var(--color-code-text)] p-3 font-mono text-xs h-72 overflow-auto">
+        <div className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-code-bg)] text-[color:var(--color-code-text)] p-3 font-mono text-xs h-72 overflow-auto min-w-0">
           <p className="text-[color:var(--color-code-soft)] mb-2">{'>'} error stream sent back to model</p>
           {!spec && <p className="opacity-50">— inspector idle —</p>}
           {shown.map((a) => (

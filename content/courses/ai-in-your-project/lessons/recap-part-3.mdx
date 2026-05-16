@@ -1,5 +1,8 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this recap">
 - A mind map of Part III — six lessons on giving the model verbs without giving it the keys.
@@ -86,3 +89,95 @@ Part III is where the model stops being a paragraph generator and starts being a
 </Recap>
 
 **Up next — Part IV: LangGraph & confirmation.** The pieces stop being separate. State, nodes, edges, conditional routing, and `interrupt()` come together into a graph that can pause for a human and resume from where it stopped.
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài tổng kết này">
+- Mind map của Phần III — sáu bài học về việc cho model "động từ" mà không trao chìa khoá.
+- Hai nửa: tool đọc (rẻ, gần như có thể hoàn tác) và tool ghi (đắt, không thể hoàn tác).
+- Một block Recap gói trọn playbook thiết kế tool mà phần còn lại của khoá học mặc định bạn đã nắm.
+</Callout>
+
+Phần III là chỗ model thôi đóng vai "máy đẻ ra văn bản" và bắt đầu trở thành một hệ thống *làm được việc*. Bước chuyển này là khoảnh khắc quan trọng nhất trong cả khoá. Tool là một hàm có kiểu mà model có thể gọi; sáu bài biến một câu đó thành một catalog chạy được. Bạn học cách định nghĩa một tool, cách scale tool đọc khi data lớn, bốn quy tắc thiết kế quyết định model có chọn đúng tool hay không, vùng nguy hiểm nơi mọi tool ghi cần một bước xác nhận, idempotency là mặc định, và cuối cùng là hình dạng error có kiểu — biến lỗi thành con đường tự hồi phục.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 480" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map của Phần III: nút trung tâm 'Tools — AI làm được việc' với sáu nhánh — tool đầu tiên, read tools ở quy mô lớn, nguyên tắc thiết kế, vùng nguy hiểm khi ghi, idempotency, và lỗi & retry">
+    {/* connectors */}
+    <path d="M 360,200 L 360,90" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,220 Q 500,200 520,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,260 Q 500,290 520,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 360,280 L 360,390" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,260 Q 220,290 200,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,220 Q 220,200 200,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+
+    {/* center */}
+    <rect x="260" y="200" width="200" height="80" rx="14" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="232" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'Tools'}</text>
+    <text x="360" y="252" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'AI làm được việc'}</text>
+    <text x="360" y="270" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'Phần III'}</text>
+
+    {/* north — first tool */}
+    <rect x="260" y="30" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Tool đầu tiên  ·  L09'}</text>
+    <text x="360" y="76" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'tool() · Zod · tool_call'}</text>
+
+    {/* north-east — read tools at scale */}
+    <rect x="520" y="110" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="610" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Đọc ở quy mô  ·  L10'}</text>
+    <text x="610" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'paginate · filter · aggregate'}</text>
+
+    {/* south-east — design principles */}
+    <rect x="520" y="310" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="610" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Quy tắc thiết kế  ·  L11'}</text>
+    <text x="610" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'hẹp · idempotent · có kiểu'}</text>
+
+    {/* south — write danger */}
+    <rect x="260" y="390" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="416" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Vùng nguy hiểm  ·  L12'}</text>
+    <text x="360" y="436" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'mọi lệnh ghi cần một cổng xác nhận'}</text>
+
+    {/* south-west — idempotency */}
+    <rect x="20" y="310" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="110" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Idempotency  ·  L13'}</text>
+    <text x="110" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'request key · chống retry trùng'}</text>
+
+    {/* north-west — errors & retries */}
+    <rect x="20" y="110" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="110" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Lỗi & retry  ·  L14'}</text>
+    <text x="110" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'lỗi có kiểu = lối thoát'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Sáu bài. Ba bài trên là về cách phơi bày tool cho tốt; ba bài dưới là về cách sống sót khi mọi thứ trục trặc.
+  </figcaption>
+</figure>
+
+## Các mảnh ghép vào nhau ra sao
+
+**Tool đầu tiên (L09)** giới thiệu bộ ba định nghĩa một tool: `name`, `description`, và Zod `schema`. Model phát ra một `tool_call` dạng JSON, runtime của bạn chạy hàm, kết quả quay về dưới dạng `ToolMessage`. Hai lần gọi model + một lần thực thi tool = một lượt.
+
+**Đọc ở quy mô (L10)** là playbook cho khoảnh khắc DB seed của bạn "tốt nghiệp" lên DB production. Ba pattern — phân trang (cursor, không offset), filter (object có kiểu, không bao giờ raw SQL), aggregate (gộp sẵn summary). Mỗi pattern thu nhỏ lượng dữ liệu chảy vào context theo cấp số mười.
+
+**Quy tắc thiết kế (L11)** là file nguyên tắc. Tool hẹp thắng tool rộng. Mặc định idempotent. Description CHÍNH LÀ prompt. Lỗi là lối thoát. Và `vùng vàng 5–15` cho số tool tối ưu mà một agent nên nắm cùng lúc.
+
+**Vùng nguy hiểm khi ghi (L12)** là khoảnh khắc quan điểm an toàn từ L01 có "răng". Mọi tool có khả năng thay đổi data — *create*, *update*, *delete*, *charge*, *send* — đều cần một cổng xác nhận trước khi commit. Đọc thì chạy tự động; ghi thì chờ duyệt. Phần "máy móc" của cổng này được dựng ở Phần IV với `interrupt()`.
+
+**Idempotency (L13)** là thứ giữ cho retry không bị tính tiền hai lần. Một request key cho mỗi thao tác logic, một pattern check-and-insert trong DB. Lần gọi đầu tiên hạ cánh; lần gọi thứ hai trả lại kết quả của lần đầu. Model không cần biết là nó đã retry.
+
+**Lỗi & retry (L14)** là bài nâng "thông điệp lỗi" lên thành "vật liệu prompt hạng nhất". *Cái gì hỏng. Tại sao. Nên làm gì thay vào đó.* Ba câu, và phần lớn thời gian model tự sửa lệnh gọi của nó ở lượt sau — một lối tự hồi phục, không cần dựng giàn giáo gì cả.
+
+<Recap>
+- **Một tool = `name + description + Zod schema + function`.** Zod schema là hợp đồng nói cho model biết phải phát ra gì, và cho hàm của bạn quyền tin tưởng những gì nhận về.
+- **Đọc ở quy mô: phân trang, filter, gộp.** Phân trang cursor-based, object filter có kiểu được dịch sang query có tham số, và summary tính sẵn thay vì kéo từng row.
+- **Không bao giờ nhét output của model vào SQL.** Parse bằng Zod, validate, dịch. Hàm của bạn viết SQL; model chỉ mô tả ý định.
+- **Tool hẹp thắng tool rộng.** `promotions.create_for_lapsed_customers` xét về thẩm mỹ code thì kém, nhưng đối với LLM thì tốt hơn rất nhiều. Cái tên *chính là* use case.
+- **Mọi lệnh ghi cần cổng xác nhận.** Trong khoá này, không tool nào có khả năng thay đổi data được chạy không người giám sát. Ngay cả lệnh ghi đầu tiên cũng đi qua `interrupt()` trước khi commit.
+- **Mặc định idempotent.** Mỗi tool ghi nhận một `requestKey`; pattern check-and-insert trong DB giữ cho retry an toàn.
+- **Lỗi có kiểu là lối thoát.** *Cái gì hỏng. Tại sao. Nên làm gì.* Thường thì model đọc thông điệp lỗi của bạn rồi tự sửa lệnh gọi của nó.
+- **5–15 tool là vùng vàng.** Quá 30 thì model bắt đầu chọn nhầm tool gần giống nhau; quá 50 thì bạn cần phân vùng, retrieval, hoặc sub-agent.
+</Recap>
+
+**Sắp tới — Phần IV: LangGraph & xác nhận.** Các mảnh ghép thôi rời rạc. State, node, edge, conditional routing, và `interrupt()` ráp lại thành một graph có thể tạm dừng cho con người và resume lại từ đúng chỗ đã dừng.
+
+</VI>

@@ -1,5 +1,8 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - The three shapes of "AI feature" — chat, agents, and human-in-the-loop agents — and why this course builds the third.
@@ -68,3 +71,77 @@ The course's running example is a mock ecommerce CMS — `customers`, `products`
 - Setup is free: Ollama plus a small local model. No API keys until you ship.
 - Before lesson 2, pick three tables in your own app you'd want the AI to touch.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Ba "hình dạng" của tính năng AI — chat, agent, và agent có người xác nhận — và vì sao khoá học này dạy bạn xây dạng thứ ba.
+- Vì sao hành động *đọc* dữ liệu thì rẻ, còn *ghi* dữ liệu thì luôn cần một bước xác nhận, được gắn sẵn vào kiến trúc.
+- Cấu trúc khoá học, ví dụ xuyên suốt (một CMS giả lập), và những thứ bạn cần chuẩn bị trước bài 02.
+</Callout>
+
+Bạn có một ứng dụng. Nó có database. Bạn muốn người dùng có thể hỏi nó bằng tiếng nói tự nhiên — và nó *thật sự* làm được. *"Tạo mã giảm 15% cho khách hàng đã không đặt hàng trong 60 ngày. Soạn email mời họ quay lại. Đừng gửi vội — cho tôi xem danh sách trước đã."* Đó chính là kiểu sản phẩm khoá học này dạy bạn xây.
+
+Nó không giống chatbot, và cũng không phải phép màu. Nó là một hình dạng rất cụ thể: một LLM, một nhóm nhỏ các "công cụ" có kiểu dữ liệu rõ ràng để chạm vào data của bạn, và một bước xác nhận đứng giữa *"AI muốn làm việc này"* và *"AI đã làm việc đó"*. Toàn bộ khoá học xoay quanh việc làm cho hình dạng đó đúng đắn.
+
+## Ba thứ trông giống nhau nhưng thực ra khác
+
+Khi người ta nói "tính năng AI", họ có thể đang nói về ba thứ rất khác nhau:
+
+- **Chat** — chữ vào, chữ ra. Hữu ích cho tóm tắt, brainstorm, soạn nháp. AI không bao giờ chạm vào dữ liệu — nó chỉ trò chuyện.
+- **Agent** — chat *cộng thêm công cụ*. AI có thể gọi một hàm (tìm khách hàng, liệt kê sản phẩm) và dùng kết quả trong câu trả lời tiếp theo. Nó *đọc* được data của bạn.
+- **Agent có người xác nhận (human-in-the-loop)** — AI đề xuất một loạt thao tác ghi, người dùng duyệt từng cái, AI chỉ thực thi sau khi được duyệt.
+
+Hầu hết tính năng AI đáng làm trong một sản phẩm thật ngày nay đều thuộc dạng thứ ba. Dạng đầu là trò mua vui. Dạng giữa rất nguy hiểm nếu không có giám sát. Dạng thứ ba mới là dạng người dùng thực sự đặt được niềm tin.
+
+## Vì sao bước xác nhận là mặc định
+
+Đọc dữ liệu thì rẻ. Tệ nhất là AI trả về sai bản ghi, người dùng phát hiện ngay. Còn *ghi* dữ liệu — tạo voucher, gửi email, hoàn tiền đơn hàng — có "bán kính sát thương" khác hẳn. Một mô hình "tự bịa" ra một lệnh ghi giờ đây là một bug rất đắt tiền.
+
+Cách sửa không phải "viết prompt cẩn thận hơn". Cách sửa là *về mặt kiến trúc*: mọi công cụ ghi mà AI có thể gọi đều bị chặn lại bởi một bước xác nhận tường minh. AI nói *"Tôi muốn tạo voucher `LAPSED15` cho 27 khách hàng này"* và người dùng bấm **Đồng ý** hoặc **Từ chối**. Việc này được dựng sẵn trong kiến trúc, không phải lắp tạm bên ngoài.
+
+LangGraph — chúng ta sẽ gặp ở Phần IV — biến điều này thành một primitive chỉ một dòng. Ba phần đầu của khoá học sẽ đưa bạn đến chỗ mà primitive đó trở thành "bước tiếp theo hiển nhiên".
+
+Sự khác biệt về "bán kính sát thương", nhìn cho cụ thể:
+
+| Mô hình làm sai ở… | Chuyện gì xảy ra | Cách sửa |
+|---|---|---|
+| `searchCustomers({ tag: 'lapesd' })` (gõ nhầm) | trả về 0 dòng; người dùng thấy "không có khách hàng", hỏi lại | hỏi lại bằng câu rõ hơn, mất 3 giây |
+| `createPromo({ discount: 95 })` (tự động chạy) | một mã giảm 95% giờ đang live; kênh chat sales loạn lên | hoàn tiền mọi đơn, hotfix thủ công, viết post-mortem |
+| `sendEmail(50_000_recipients)` (tự động chạy) | 50.000 hộp thư đã nhận; uy tín gửi mail rớt thảm | gửi email xin lỗi, làm việc với nhà cung cấp ESP, có khi xem lại hợp đồng |
+
+Dòng đầu là *"ô kìa, thử lại nhé"*. Hai dòng dưới là sự cố. Một bước xác nhận biến dòng 2 và 3 thành dòng 1.
+
+## Hình dạng của khoá học
+
+- **Phần I** — chuẩn bị. Trong app bạn đang có, cái gì có thể giao cho AI gọi?
+- **Phần II** — chữ vào, chữ ra. Streaming, system prompt, structured output.
+- **Phần III** — công cụ. Công cụ đọc, công cụ ghi, xử lý lỗi.
+- **Phần IV** — LangGraph và mô hình xác nhận.
+- **Phần V** — đem lên production. An toàn, testing, observability, deployment.
+
+Đến bài 20, bạn sẽ ráp xong một *AI Operator* chạy được — gõ một câu lệnh phức tạp, xem agent lên kế hoạch, xác nhận từng thao tác ghi, và thấy database thay đổi.
+
+## Bạn cần chuẩn bị gì trước bài 2
+
+- Quen tay với React + TypeScript (không cần giỏi).
+- SQL cơ bản.
+- Một chiếc laptop chạy được model local 2–8 GB (hầu hết máy hiện đại đều ổn).
+- **Không cần API key, không tốn tiền.** Cả khoá học dùng Ollama với một model mã nguồn mở nhỏ. Bài 24 sẽ chỉ cách đổi sang nhà cung cấp hosted chỉ bằng việc thay một dòng import — khi bạn đã sẵn sàng đem lên production.
+- 30 giây bài tập về nhà: mở schema database của dự án bạn, chọn ra ba bảng mà bạn muốn AI được phép đọc hoặc ghi.
+
+<Callout type="tip" title="Nếu bạn chưa có dự án nào riêng">
+Ví dụ xuyên suốt khoá học là một CMS thương mại điện tử giả lập — `customers`, `products`, `orders`, `promotions`, `email_drafts`. Bạn sẽ thấy schema của nó ở bài 2 và chúng ta sẽ tham chiếu nó liên tục. Vừa học vừa ánh xạ sang các bảng trong dự án của bạn, hoặc cứ theo CMS mẫu cũng được.
+</Callout>
+
+<Recap>
+- "Tính năng AI" thường có nghĩa là một trong ba thứ: chat, agent, hoặc agent có người xác nhận. Hầu hết sản phẩm thật cần dạng thứ ba.
+- Đọc thì rẻ; ghi thì cần một bước xác nhận. Hãy đưa nó vào kiến trúc ngay từ đầu, đừng để chắp vá sau.
+- Lộ trình khoá học: chuẩn bị → văn bản → công cụ → LangGraph → đem lên production. Kết quả cuối: một AI Operator chạy được.
+- Setup miễn phí: Ollama cộng một model local nhỏ. Không cần API key cho đến khi bạn đem lên production.
+- Trước bài 2: chọn ba bảng trong app của bạn mà bạn muốn AI được phép đụng vào.
+</Recap>
+
+</VI>

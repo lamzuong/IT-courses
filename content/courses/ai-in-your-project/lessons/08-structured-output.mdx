@@ -1,6 +1,9 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { StructuredOutputDemo } from '@/components/demos/ai-in-your-project/structured-output-demo';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - `model.withStructuredOutput(schema)` — the one method that replaces hand-parsing AI text with a typed object.
@@ -352,3 +355,360 @@ On most providers, `withStructuredOutput` is implemented by passing your schema 
 - Tight schemas on day one. Loosening is cheap; tightening after data is stored is not.
 - Under the hood it's usually a forced tool call, but you can ignore that and trust the API.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- `model.withStructuredOutput(schema)` — một method duy nhất thay thế cho việc tự tay parse text mà AI trả về, để nhận thẳng một object đã có kiểu rõ ràng.
+- Vì sao một Zod schema duy nhất có thể làm bốn việc: validate output của AI, validate input cho API, định nghĩa TypeScript type, và xuất ra JSON Schema.
+- Những "cú bẫy" về độ chặt — `.nullable()` so với `.optional()`, enum, refinement — thường cắn bạn khi bỏ qua chúng.
+</Callout>
+
+Khoảng cách giữa *"AI trả về một đoạn text và mình phải parse bằng regex"* và *"AI trả về một object đã có kiểu, mình dùng được luôn"* chỉ là một method call. Đó là toàn bộ khoảng trống mà structured output lấp lại. Bạn đưa cho model một schema, model bị ràng buộc phải nhét câu trả lời vào đúng shape đó, và code TypeScript của bạn nhận về một giá trị đúng kiểu mà bạn khai báo. Không parse, không kiểm tra phòng thủ, không còn `try { JSON.parse(content) } catch`.
+
+Bài này sẽ đi qua API, vì sao Zod schema là nơi đúng để vẽ ranh giới kiểu, chuyện gì xảy ra bên trong, và những cú bẫy quanh độ chặt. Hết bài, mọi chỗ trong app mà trước đây bạn parse output của AI bằng tay sẽ gọn lại thành một dòng.
+
+## 01 — `withStructuredOutput`
+
+### Vấn đề mà nó giải
+
+Không có structured output, code của bạn phải đoán xem model trả về shape gì rồi parse một cách phòng thủ. Cùng một prompt có thể trả về đủ kiểu khác nhau vào những ngày khác nhau:
+
+```ts
+const reply = await model.invoke(
+  'Extract the name and email from: "Hi, I\'m Phuoc <phuoc@example.com>"'
+);
+
+// reply.content is a STRING. It could be any of:
+//   '{"name":"Phuoc","email":"phuoc@example.com"}'              ← clean JSON ✅
+//   'Sure! Here is the JSON:\n```json\n{"name":"Phuoc"...'      ← JSON in a code fence
+//   'Name: Phuoc, Email: phuoc@example.com'                     ← prose
+//   'Hi! I\'d be happy to help. The name is Phuoc and the…'     ← chatty prose
+//   '{"name":"Phuoc","email":null,"extra":"unexpected field"}'  ← extra junk
+//
+// You now write 50 lines of regex + JSON.parse + try/catch + fallback
+// extraction. Every model update breaks half of it.
+```
+
+Đây chính là cái đau hàng ngày của *"bọn mình thử thêm AI rồi phần parse cứ nổ liên tục"*. Structured output là lớp khiến chuyện đó dừng lại.
+
+### Cách sửa, ba bước
+
+`withStructuredOutput(schema)` lật ngược vấn đề: bạn đưa cho model một Zod schema, model *bị buộc* phải trả về đúng shape đó, và code của bạn nhận lại một object đã có kiểu — không parse, không try/catch.
+
+```ts
+import { z } from 'zod';                          // → Zod schema builder imported
+
+// Step 1 — declare the shape with Zod.
+const Customer = z.object({                       // → ZodObject — TS infers `{ name: string; email: string|null; segment: ... }`
+  name: z.string(),                               // → required string
+  email: z.string().email().nullable(),           // → string | null  (must be a valid email if non-null)
+  segment: z.enum(['active', 'dormant', 'lapsed']), // → one of three literals
+});
+
+// Step 2 — wrap the model. `extractor` is a new model bound to the schema.
+const extractor = model.withStructuredOutput(Customer); // → Runnable<input, z.infer<typeof Customer>>
+
+// Step 3 — invoke. You get a real TypeScript object back.
+const result = await extractor.invoke(            // → already-validated typed object
+  'Extract name, email, and segment from: "Hi Phuoc <phuoc@example.com>, you\'re a VIP active customer."'
+);
+// → { name: 'Phuoc', email: 'phuoc@example.com', segment: 'active' }
+// TypeScript knows it. Autocomplete works. No JSON.parse anywhere.
+```
+
+Đọc từng bước thành tiếng là bạn đã có toàn bộ mental model:
+
+1. **Khai báo** shape — có những field nào, kiểu gì, enum được phép gồm những giá trị nào.
+2. **Wrap** model — `model.withStructuredOutput(schema)` trả về một model mới, đã được bảo phải nhét câu trả lời vào đúng schema.
+3. **Invoke** — bạn nhận lại một object TypeScript thật, đã được validate theo schema.
+
+Nếu model sinh ra thứ *không* khớp (sai kiểu, thiếu required field, một giá trị enum không có trong danh sách), call sẽ throw — chứ không phải một object hỏng nửa vời lặng lẽ trôi qua. Lỗi ồn ào và sớm, đúng chỗ bạn muốn thấy.
+
+### Ba ví dụ nữa — mấy pattern bạn sẽ dùng nhiều nhất
+
+**Extraction** — moi ra các field có cấu trúc từ một đoạn text tự do:
+
+```ts
+const Order = z.object({                          // → ZodObject describing one Order
+  orderNumber: z.string(),                        // → required string
+  totalCents: z.number().int().positive(),        // → positive integer (no decimals)
+  itemCount: z.number().int().positive(),         // → positive integer
+  shipped: z.boolean(),                           // → true | false
+});
+
+const extract = model.withStructuredOutput(Order); // → Runnable bound to the Order schema
+const order = await extract.invoke(                // → typed Order object
+  'Email body: "Your order #4287 totaling $89.50 (3 items) has shipped today."'
+);
+// → { orderNumber: '4287', totalCents: 8950, itemCount: 3, shipped: true }
+```
+
+Model đã tự đổi đơn vị ($89.50 → 8950 cents) chỉ vì schema viết `totalCents`, không phải `total`. *Tên field* cũng là một phần của hợp đồng.
+
+**Classification** — xếp một input vào một tập danh mục cố định:
+
+```ts
+const Triage = z.object({                         // → ZodObject for ticket triage
+  category: z.enum(['billing', 'shipping', 'product', 'account', 'other']), // → one of 5 literals
+  urgency: z.enum(['low', 'medium', 'high']),     // → one of 3 literals
+  needsHuman: z.boolean(),                        // → true | false
+  summary: z.string().max(120),                   // → string ≤ 120 chars
+});
+
+const triage = model.withStructuredOutput(Triage); // → Runnable bound to Triage
+const ticket = await triage.invoke(                // → typed Triage object
+  'Customer wrote: "I was charged twice for the same order and you haven\'t responded in 3 days!!"'
+);
+// → {
+//     category: 'billing',
+//     urgency: 'high',
+//     needsHuman: true,
+//     summary: 'Duplicate charge with no response — customer escalating.'
+//   }
+```
+
+Enum là một lời cam kết: `category` sẽ *không bao giờ* trở về kiểu `'shipping_issue'` hay `'BILLING'` hay `'I think this is billing'`. Đúng năm giá trị, không hơn. `switch (ticket.category)` ở phía dưới biến thành một nhánh exhaustive được TypeScript kiểm tra giúp.
+
+**Tool input shaping** — biến một yêu cầu mơ hồ bằng ngôn ngữ tự nhiên thành đúng các tham số mà hàm của bạn cần:
+
+```ts
+const SearchArgs = z.object({                     // → ZodObject describing the search shape
+  lapsedDays: z.number().int().min(1).max(3650).optional(), // → integer in [1, 3650] or undefined
+  tagIn: z.array(z.string()).optional(),          // → string[] or undefined
+  limit: z.number().int().min(1).max(100).default(25), // → integer 1..100, defaults to 25
+});
+
+const planner = model.withStructuredOutput(SearchArgs); // → Runnable bound to SearchArgs
+const args = await planner.invoke(                // → typed SearchArgs object
+  'Plan a customer search for: "VIPs who haven\'t ordered in two months — top 10 only"'
+);
+// → { lapsedDays: 60, tagIn: ['vip'], limit: 10 }
+
+// args is now safe to hand straight to your function:
+const customers = await db.customers.search(args); // → Customer[] of size ≤ 10
+```
+
+Model đã dịch *"two months"* → `60`, *"VIPs"* → `tagIn: ['vip']`, *"top 10"* → `limit: 10`. Hàm search của bạn không bao giờ nhìn thấy một câu văn tự do nữa — nó nhìn thấy đúng shape mà nó được xây để xử lý. Đây là nền móng cho mọi thứ trong Phần III.
+
+### Một lưu ý về streaming
+
+Với hầu hết provider, *chưa* có phiên bản streaming cho structured output — một object JSON đang xây dở dang thì chẳng dùng được vào việc gì (`{ "name": "Pho` không phải JSON hợp lệ). Cả response phải về đủ bạn mới validate được. Dùng **streaming** cho chat (vì mỗi token đọc được ngay); dùng **structured output** cho extraction, classification, và tool input (vì chỉ object đầy đủ mới có ý nghĩa).
+
+## 02 — Zod như single source of truth
+
+Một Zod schema làm song song nhiều việc, đáng dừng lại để nhìn cho rõ:
+
+- Validate output của model (qua `withStructuredOutput`).
+- Validate input từ các API route của bạn (qua `schema.parse(req.body)`).
+- Sinh ra TypeScript type (qua `z.infer`).
+- Có thể chuyển thành JSON Schema cho tài liệu, OpenAPI spec, hoặc các công cụ khác.
+
+Một file, bốn việc. Schema trở thành nơi *duy nhất* mà shape của `Customer` tồn tại trong app. Đổi một field ở đó và mọi thứ chạm vào nó — API, database adapter, AI extractor, props của component — đều sẽ báo type error hoặc runtime error ngay đúng chỗ cần báo.
+
+So với cách thay thế: một khai báo TypeScript `type`, cộng một validator viết tay, cộng một prompt riêng nói "trả về JSON với các field này". Ba nơi để sửa, ba cơ hội để chúng lệch nhau, và cái prompt AI luôn là cái bị tụt lại đằng sau.
+
+Một câu chuyện "lệch nhau" rất quen mà có thể bạn từng sống qua. Ngày 1, ba file đang đồng thuận:
+
+```ts
+// types.ts — what the rest of the app sees
+type Customer = { name: string; email: string; segment: 'active' | 'lapsed' };
+
+// validator.ts — what your API trusts
+function isCustomer(x: any): x is Customer {
+  return typeof x.name === 'string' && typeof x.email === 'string';
+}
+
+// prompt.ts — what you ask the AI
+const SYSTEM = 'Return JSON with keys: name, email, segment.';
+```
+
+Ngày 30, product xin thêm một segment `vip` và một số điện thoại. Bạn vá `types.ts` và `validator.ts`, deploy, rồi nửa đêm bị gọi: AI vẫn đang trả về ba segment cũ và không có phone. File prompt bị bỏ sót — nó *luôn* bị bỏ sót, vì không compile fail.
+
+Phiên bản Zod gộp cả ba thứ vào một khai báo:
+
+```ts
+// customer.ts — the only file
+export const Customer = z.object({                // → ZodObject (the runtime validator)
+  name: z.string(),                               // → required string
+  email: z.string().email(),                      // → must be valid email
+  phone: z.string().nullable(),                   // → string | null
+  segment: z.enum(['active', 'lapsed', 'vip']),   // → one of 3 literals
+});
+export type Customer = z.infer<typeof Customer>;  // → TS type derived from the schema
+
+// usage
+model.withStructuredOutput(Customer);   // → Runnable<input, Customer> — AI bound to schema
+Customer.parse(req.body);               // → Customer or throws ZodError — API bound to schema
+```
+
+Thêm `'vip'` vào enum là AI, API, và mọi caller TypeScript cùng dịch chuyển một nhịp. Cuộc gọi nửa đêm sẽ không bao giờ xảy ra.
+
+## 03 — Nhìn object lớn dần
+
+Chạy extractor và quan sát object đã có kiểu được điền dần dần.
+
+<Demo title="Trích xuất bị ràng buộc bởi schema">
+  <StructuredOutputDemo />
+</Demo>
+
+Shape của output được khoá lại đúng khoảnh khắc bạn khai báo schema. Model không thể thêm field, không thể bỏ một required field, không thể nhét string vào chỗ bạn xin một number. `email` trở về `null` vì text gốc không có — schema cho phép điều đó qua `.nullable()`. `segment` trở về `'lapsed'` thay vì một thứ model tự bịa, vì enum đã giới hạn nó vào đúng ba giá trị.
+
+Tính chất cuối cùng đó là điều khiến structured output không chỉ là tiện ích parse. Model *bị ngăn* không cho ảo giác ra category mới. Nếu code phía dưới của bạn viết `if (segment === 'churned')`, bạn sẽ nhận TypeScript error trước khi kịp ship — vì `'churned'` không nằm trong enum. Lỗi bắt sớm là lỗi rẻ.
+
+## 04 — Mấy cú bẫy về độ chặt
+
+Năm bất ngờ đáng biết trước khi bạn dính chúng trong production. Cái nào cũng cắn theo cùng một kiểu: schema nhìn ổn trong editor, demo chạy qua một lần, rồi cái biến thể mà bạn không lường trước xuất hiện.
+
+### `.nullable()` so với `.optional()` — không phải một thứ
+
+```ts
+// Schema A — nullable: the key is ALWAYS present, value is the type or null
+const A = z.object({ email: z.string().email().nullable() });
+// Result shapes: { email: 'phuoc@example.com' }   OR   { email: null }
+// TypeScript:    email: string | null
+
+// Schema B — optional: the key MIGHT be missing entirely
+const B = z.object({ email: z.string().email().optional() });
+// Result shapes: { email: 'phuoc@…' }   OR   { email: undefined }   OR   { } ← key missing!
+// TypeScript:    email: string | undefined
+```
+
+Sai cái nào thì hỏng cái nấy:
+
+```ts
+// With .optional(), this caller silently explodes when the key is missing:
+const customer = await extract.invoke(text);
+sendEmail(customer.email.toLowerCase());
+//                ^^^^^^ TypeError: Cannot read properties of undefined
+
+// With .nullable(), TypeScript forces you to handle null explicitly:
+if (customer.email !== null) sendEmail(customer.email.toLowerCase());
+```
+
+Quy tắc: chọn `.nullable()` trừ khi field đó thật sự *có thể bị bỏ hẳn*. Model điền `null` rất đáng tin; nhưng việc bỏ hẳn field thì rất khó đoán.
+
+### Enum — không bao giờ dùng `z.string()` cho một tập giá trị cố định
+
+```ts
+// ❌ z.string() — model invents variations on every run
+const Bad = z.object({ status: z.string() });
+// Run the same prompt 100 times against the same input, you get:
+//   'active' (47×), 'Active' (12×), 'ACTIVE' (3×),
+//   'lapsed' (28×), 'lapsed-customer' (3×),
+//   'churned' (4×), 'inactive' (2×), 'dormant' (1×)
+// Your downstream switch statement now needs 8+ cases — and you'll
+// miss one when a model update adds a 9th.
+
+// ✅ z.enum([...]) — exactly four allowed values, ever
+const Good = z.object({
+  status: z.enum(['active', 'lapsed', 'churned', 'inactive']),
+});
+// Run 100 times, you get exactly those four strings — never a 9th.
+// switch (s.status) is exhaustive: TypeScript fails compilation if
+// you ever forget a case.
+```
+
+Ràng buộc enum *được chính model thực thi* — nó vật lý không thể phát ra `'CHURNED'` hay `'lapsed-customer'`, vì những giá trị đó không có trong schema mà nó được đưa.
+
+### Refinement — `.refine()` chạy *sau khi* model đã trả về
+
+```ts
+const Sku = z.string().refine(
+  (s) => /^[A-Z]+-\d{4}$/.test(s),
+  { message: 'SKU must look like "WIDGET-0042" — uppercase letters, dash, four digits.' },
+);
+
+const Product = z.object({ sku: Sku, priceCents: z.number().int() });
+const extract = model.withStructuredOutput(Product);
+
+// ✅ Happy path — model emits a valid SKU
+await extract.invoke('Extract: "WIDGET-0042 at $19.99"');
+// → { sku: 'WIDGET-0042', priceCents: 1999 }
+
+// ❌ Sad path — model lowercases the SKU
+await extract.invoke('Extract: "the widget-0042 costs $19.99"');
+// 💥 Throws: SKU must look like "WIDGET-0042" — uppercase letters, dash, four digits.
+// You handle this with a retry. The model didn't know the constraint
+// at generation time — refinements only fire after parsing.
+```
+
+Dùng refinement như một *lưới an toàn* (ngăn một giá trị méo mó chạm vào DB), chứ không phải để *hướng dẫn* (bảo model cái gì là đẹp). Để hướng dẫn, hãy dựa vào `z.enum()`, `.regex()` trên kiểu gốc, hoặc một few-shot example trong prompt.
+
+### Object lồng — phẳng gần như luôn thắng
+
+```ts
+// ❌ Three levels deep — smaller models drop fields silently
+const Bad = z.object({
+  customer: z.object({
+    name: z.string(),
+    contact: z.object({
+      email: z.string(),
+      phone: z.object({ country: z.string(), number: z.string() }),
+    }),
+  }),
+});
+// What a 3B-param model often returns:
+// { customer: { name: 'Phuoc', contact: { email: 'phuoc@…' } } }
+//                                          ^ phone object missing entirely
+
+// ✅ Flat — every field has one home and the model fills all of them
+const Good = z.object({
+  customerName: z.string(),
+  customerEmail: z.string(),
+  phoneCountry: z.string(),
+  phoneNumber: z.string(),
+});
+// Reliably filled by 3B and 8B models alike.
+```
+
+Nếu cấu trúc *thật sự* quan trọng (ví dụ một cái cây sâu tuỳ ý), thì cứ lồng — nhưng hãy chuẩn bị tinh thần retry nhiều hơn và ưu tiên dùng model lớn hơn.
+
+### Required field mà model "quên"
+
+```ts
+const Customer = z.object({
+  name: z.string(),
+  email: z.string(),
+  segment: z.enum(['active', 'lapsed']),  // required, but a 3B model
+                                           // omits this on ~5% of calls
+});
+
+const extract = model.withStructuredOutput(Customer);
+
+// 1-in-20 calls throws:
+//   ZodError: segment — Required
+
+// A four-line retry pattern catches it cleanly:
+async function extractWithRetry(input: string, max = 3) {
+  for (let i = 0; i < max; i++) {
+    try { return await extract.invoke(input); }
+    catch (e) { if (i === max - 1) throw e; }
+  }
+  throw new Error('unreachable');
+}
+
+const result = await extractWithRetry(text);
+// On a small model, this turns "5% silent corruption" into "0.0125% loud failure"
+// (5% × 5% × 5%) — and the loud failure has a real error message you can act on.
+```
+
+Cái thắng nằm ở chỗ validation bắt được việc thiếu sót. Không có `withStructuredOutput`, một field thiếu sẽ lặng lẽ chạy tiếp dưới dạng `undefined` và làm hỏng thứ gì đó ba lần gọi hàm sau.
+
+Một quy tắc kinh nghiệm: hãy thiết kế schema thật chặt ngay ngày đầu. Nới một ràng buộc về sau dễ hơn nhiều so với thêm một ràng buộc mới *sau khi* hàng nghìn bản ghi đã được lưu vào DB mà không có nó.
+
+<Callout type="note" title="Bên trong structured output hoạt động ra sao">
+Với hầu hết provider, `withStructuredOutput` được cài bằng cách truyền schema của bạn như một tool duy nhất mà model bị buộc phải gọi. "Response" chính là arguments của tool đó. Một vài provider (đáng kể là JSON mode của OpenAI và response schema của Gemini) có tham số riêng, nhưng bề mặt API mà LangChain đưa cho bạn vẫn như nhau. Bạn không cần biết provider của mình đi đường nào — hợp đồng đều giống nhau: bạn nhận một object đã có kiểu, hoặc một lỗi được throw ra.
+</Callout>
+
+<Recap>
+- `model.withStructuredOutput(schema)` biến output của AI thành một object đã có kiểu. Không parse, không retry.
+- Dùng Zod *một lần*: cho output của AI, validate input cho API, sinh TypeScript type, và xuất JSON Schema. Một single source of truth.
+- Enum ngăn model bịa ra category mới. `nullable()` và `optional()` không phải một thứ — chọn cẩn thận.
+- Schema chặt ngay từ ngày đầu. Nới ra thì rẻ; siết lại sau khi dữ liệu đã lưu thì không.
+- Bên trong nó thường là một forced tool call, nhưng bạn có thể bỏ qua chi tiết đó và tin vào API.
+</Recap>
+
+</VI>

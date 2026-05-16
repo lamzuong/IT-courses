@@ -1,5 +1,8 @@
 import { Recap } from '@/components/mdx/recap';
 import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - Golden tool-call tests for the deterministic surface — `temperature: 0` + assert on the `tool_calls` your agent produces.
@@ -136,3 +139,145 @@ The mental model: your graph is software, your tools are software, your validato
 - Build a small eval dataset of `(prompt, expected_tool_calls)` and replay it on every PR; tune prompts against the score.
 - *"Does the graph reach END when the user rejects?"* is testable. *"Is the AI nice?"* is evaluable. Don't confuse them.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Golden test cho tool-call ở bề mặt tất định — `temperature: 0` + assert vào các `tool_calls` mà agent của bạn phát ra.
+- Snapshot văn xuôi theo *hình dạng* (số câu, cụm từ khoá, cấu trúc JSON) — không bao giờ theo đúng nguyên văn.
+- `FakeListChatModel` để test logic graph mà không tốn token thật.
+- Một eval dataset nhỏ kiểu `(prompt, expected_tool_calls)` được chạy lại trên mỗi PR.
+</Callout>
+
+Test các tích hợp AI là test một hệ ngẫu nhiên. Pattern khác với việc unit test một hàm sort. Hàm sort có một câu trả lời đúng cho mỗi input; mô hình thì có một phân phối. Bạn có thể hạ temperature, ghim seed, có chửi cả cái API — đến một ngày đỏng đảnh mô hình vẫn sẽ phát ra một câu hơi khác hôm qua. Mánh là dừng test mấy phần "thay đổi" và bắt đầu test mấy phần "không đổi". Bài này nói về phần nào là phần nào.
+
+Lời hứa: cuối bài, bạn sẽ có golden test cho routing tool-call, snapshot test cho hình dạng văn xuôi, fake LLM trong unit test, và một eval dataset chạy trên mỗi PR. Không cái nào trong bốn cái đó là "test xem AI có thông minh không". Cả bốn đều là test phần mềm, với mô hình đóng vai một cộng tác viên đủ tất định.
+
+## 01 — Golden test cho tool-call
+
+Cho một prompt cố định, system prompt cố định, và định nghĩa tool cố định, mô hình *phải* gọi đúng tool với đúng args. Đó là phần gần với tất định nhất trong tích hợp AI của bạn, và là phần đáng ghim nhất. Đặt `temperature: 0`, chạy một bộ input nhỏ qua agent, và assert vào các tool call ra:
+
+```ts
+test('lapsed-customer prompt produces a four-step plan', async () => {
+  const llm = new ChatAnthropic({ model: 'claude-sonnet-4', temperature: 0 }); // → deterministic ChatAnthropic
+  const agent = createAgent({ llm, tools: allTools, systemPrompt: SYSTEM });   // → CompiledStateGraph
+
+  const result = await agent.invoke({
+    messages: [new HumanMessage('Create a 15% promo for customers who haven\'t ordered in 60 days.')],
+  });
+  // → result: GraphState with full transcript
+
+  const calls = result.messages.flatMap((m) =>
+    isAIMessage(m) ? m.tool_calls ?? [] : [],     // → flatten tool_calls across every AIMessage
+  );
+  // → calls: ToolCall[] in the order the agent emitted them
+
+  expect(calls.map((c) => c.name)).toEqual([      // → assertion: exact ordered tool names
+    'promotions.create',
+    'customers.lapsed',
+    'email_drafts.create',
+  ]);
+  expect(calls[0].args).toMatchObject({ discountValue: 15 }); // → first tool args contain { discountValue: 15 }
+});
+```
+
+`temperature: 0` cộng `isAIMessage` từ `@langchain/core/messages` là combo cày-bừa kinh điển. Chạy cái này trong CI mỗi PR; khi một thay đổi prompt làm hỏng routing, assertion sẽ kêu lên và bạn biết trước khách hàng.
+
+## 02 — Snapshot regression cho văn xuôi
+
+Đôi khi mô hình phải sinh văn xuôi: body email, một đoạn giải thích, một bản tóm tắt. Bạn không thể assert nguyên văn — dấu câu sẽ trôi giữa các lần chạy. Bạn *có thể* assert vào cấu trúc:
+
+```ts
+test('email body has the expected shape', async () => {
+  const out = await agent.invoke({ messages: [new HumanMessage(PROMPT)] }); // → GraphState
+  const body = out.draft.body;                    // → string — the AI-drafted email body
+
+  expect(body.split(/[.!?]/).filter(Boolean).length).toBeGreaterThanOrEqual(3); // → at least 3 sentences
+  expect(body).toMatch(/15%/);                    // → mentions the discount
+  expect(body).toMatch(/code\s+LAPSED15/i);       // → mentions the promo code
+  expect(body).not.toMatch(/\{\{|<placeholder>/i); // → no leftover template placeholders
+});
+```
+
+Tối thiểu ba câu. Nhắc tới mức giảm giá. Nhắc tới mã. Không còn placeholder template sót lại. Bốn assertion về hình dạng đó bắt được hầu hết regression mà không khoá test suite của bạn vào một cách diễn đạt cụ thể.
+
+## 03 — Fake LLM trong test
+
+Logic graph của bạn — routing, interrupt, vòng lặp retry — không cần mô hình thật để test. Mô hình thật thì chậm, đắt, và đỏng đảnh trong CI. Dùng đồ giả:
+
+```ts
+import { FakeListChatModel } from '@langchain/core/utils/testing'; // → scriptable LLM stub
+
+test('graph routes write tool calls to await_confirmation', async () => {
+  const fake = new FakeListChatModel({            // → returns its `responses` in order
+    responses: [
+      // The model "decides" to call promotions.create. Encoded as a
+      // tool-call message your graph parses normally.
+      JSON.stringify({
+        tool_calls: [{ name: 'promotions.create', args: { code: 'TEST' }, id: '1' }],
+      }),                                         // → scripted "first turn" — proposes one write
+    ],
+  });
+
+  const graph = buildGraph({ llm: fake });        // → CompiledStateGraph wired to the fake LLM
+  const result = await graph.invoke({ messages: [new HumanMessage('go')] }); // → GraphState (paused on interrupt)
+
+  expect(result.__interrupt__).toBeDefined();     // → graph hit the confirmation interrupt
+  expect(result.__interrupt__[0].value.kind).toBe('confirm_writes'); // → payload kind matches our shape
+});
+```
+
+`FakeListChatModel` trả về các `responses` theo đúng thứ tự. Bạn có thể "script" một cuộc hội thoại năm lượt, gồm cả parallel tool call, lỗi giả lập, bất cứ thứ gì. Không tốn token và không thay đổi giữa các lần chạy. Code graph của bạn cứ tưởng nó đang nói chuyện với LLM thật; nó không cần biết.
+
+## 04 — Eval dataset
+
+Ngoài unit test, bạn còn cần một corpus các prompt đại diện được chạy lại trên mỗi PR. Vài chục cặp `(prompt, expected_tool_calls)` trong một file JSON:
+
+```json
+[
+  {
+    "id": "lapsed-customer-basic",
+    "prompt": "Create a 15% promo for customers who haven't ordered in 60 days.",
+    "expected": {
+      "tools": ["promotions.create", "customers.lapsed", "email_drafts.create"],
+      "first_args": { "discountValue": 15, "audience": "lapsed-60d" }
+    }
+  },
+  {
+    "id": "vip-thank-you",
+    "prompt": "Send a thank-you email to all VIP customers.",
+    "expected": {
+      "tools": ["customers.byTag", "email_drafts.create"]
+    }
+  }
+]
+```
+
+Một script nhỏ load file, chạy mỗi prompt qua agent thật, và báo cáo pass/fail theo từng dòng cộng với tóm tắt. Khi bạn tinh chỉnh prompt hay đổi mô hình, bạn nhìn score trên dataset đi lên hay đi xuống. Đây là tầng evaluation; chính nó cho phép bạn đổi prompt với sự tự tin thay vì khấn vái. Một số framework (LangSmith, Promptfoo) tự động hoá vòng lặp này, nhưng một script năm chục dòng trong repo của bạn là đủ để bắt đầu.
+
+<Callout type="tip">
+  Đừng cố test "AI có dễ thương không". Hãy test "graph có tới node END khi user reject không". Một bên mơ hồ; một bên là phần mềm. Các thuộc tính mơ hồ thì để con người lướt xem mẫu đầu ra; các thuộc tính tất định thì để CI assert. Đừng trộn lẫn.
+</Callout>
+
+## 05 — Cái gì đáng test, cái gì không
+
+Một bảng phân loại ngắn:
+
+- **Đáng test** — Logic routing của graph. Validate args tool. Đường hồi phục lỗi. Interrupt và resume. Bề mặt tất định lớn lắm; cứ coi như một state machine bình thường.
+- **Đáng evaluate, không phải unit-test** — Chất lượng văn xuôi, giọng điệu, mức hữu ích. Mấy thứ này thuộc về eval dataset với cơ chế "lấy mẫu rồi review", không phải assertion CI fail vì một cái dấu phẩy.
+- **Không đáng test** — Lựa chọn từ ngữ cụ thể của mô hình. Nó dùng "however" hay "but". Nó đặt mức giảm giá trước hay sau deadline trong email. Bạn sẽ điên cuồng đuổi mấy flake này.
+
+Mô hình tư duy: graph của bạn là phần mềm, tool của bạn là phần mềm, validator của bạn là phần mềm — test chúng nghiêm túc. Bản thân mô hình là một thành phần xác suất bạn nối giữa chúng; bạn ràng buộc input và output của nó, rồi tin tưởng nó trong các ràng buộc đó. Bạn không *test* sự tin tưởng; bạn *đo* sự tin tưởng trên eval dataset.
+
+<Recap>
+- Test bề mặt tất định: routing, args, hồi phục, interrupt và resume. Bỏ qua sự sáng tạo văn xuôi của mô hình.
+- Golden test cho tool-call: `temperature: 0`, prompt cố định, assert vào `tool_calls` từ kết quả `isAIMessage`.
+- Snapshot văn xuôi theo hình dạng (số câu, cụm từ khoá, cấu trúc JSON) — không phải nguyên văn.
+- Dùng `FakeListChatModel` từ `@langchain/core/utils/testing` để test logic graph mà không tốn token thật.
+- Xây một eval dataset nhỏ kiểu `(prompt, expected_tool_calls)` và chạy lại trên mỗi PR; tinh chỉnh prompt theo score.
+- *"Graph có tới END khi user reject không?"* là testable. *"AI có dễ thương không?"* là evaluable. Đừng nhầm.
+</Recap>
+
+</VI>

@@ -1,6 +1,9 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { ErrorsRetryDemo } from '@/components/demos/ai-in-your-project/errors-retry-demo';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - Three categories of tool failure — validation, business-rule, infrastructure — each routed to whoever can fix it.
@@ -103,6 +106,35 @@ Notice the right-hand inspector: that's the literal payload going back to the mo
 
 The summary lesson: error messages are read by the model, not your team. You'll have a different audience for your stack traces (the logs you ship to Sentry) and your tool errors (the strings you return to the model). Don't conflate them.
 
+<Callout type="note" title="What is a stack trace?">
+A **stack trace** is the list of function calls the runtime was inside *at the moment* an exception was thrown. Read it bottom-up and you see how execution got from your route handler down to the line that exploded. Read it top-down and you see what was running when things broke. It is the single most useful piece of debugging information your runtime gives you for free — and it is written for humans, not for an LLM.
+
+A real one from a Node app, calling our `createPromo` tool:
+
+```text
+Error: P2002: Unique constraint failed on the fields: (`code`)
+    at PromoTable.create (/app/src/db/promos.ts:42:18)
+    at Object.createPromo (/app/src/tools/create-promo.ts:31:10)
+    at runTool (/app/src/agent/runtime.ts:88:24)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async POST (/app/src/app/api/agent/route.ts:54:9)
+```
+
+What each piece is:
+
+- **`Error: P2002: Unique constraint failed...`** — the error class and message. This is the only line a human reads first; everything below is *how we got here*.
+- The **stack frames** — each `at … (path:line:col)` is a function still on the call stack. The top one is where the throw happened (`PromoTable.create` at `promos.ts:42`). Each frame down is its caller. The bottom frame is your entry point (the route handler).
+- **`async POST`** — frames marked `async` come from a different turn of the event loop; Node stitches them together so you don't lose context across `await`.
+
+Why you keep this *out* of the string you return to the model:
+
+- The model can't act on file paths it doesn't have. Telling it "the bug is at `promos.ts:42`" is noise — it's not in your repo.
+- Stack traces are long. Every token of stack trace is a token you're paying for and a token of context the model has to scan past to find the actual problem.
+- They leak internals. Function names, file structure, module versions — fine for Sentry, not for a string you might one day surface to a user.
+
+So: stack trace → Sentry / Datadog / your logs (with the full `Error` object, request ID, user ID, etc.). The string you `return` from the tool is the one-line, model-readable form — `"promo code 'LAPSED15' already exists; try a different code"`. Same underlying failure, two different audiences, two different shapes.
+</Callout>
+
 A good tool error is short, names the constraint, identifies the offending value, and — when possible — suggests the fix. *"discountValue 150 exceeds the 100 max for pct discounts; try 15."* A bad one is *"Validation failed."* The work to write the good one is small. The leverage is enormous: the model reads it, fixes itself, and your user never sees the failure.
 
 <Recap>
@@ -113,3 +145,150 @@ A good tool error is short, names the constraint, identifies the offending value
 - Wrap every tool in `try/catch` and return `{ ok, data | error }`. One envelope, one model-readable shape, no stack traces.
 - Treat error strings as part of the prompt. Short, specific, and instructive — the model reads them and acts on them.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Ba loại lỗi của tool — validation, business-rule, infrastructure — mỗi loại được "định tuyến" tới đúng kẻ có thể sửa nó.
+- Vì sao envelope dạng `{ ok, data | error }` ăn đứt việc ném string thẳng vào mô hình.
+- Cách một thông báo lỗi rõ ràng trở thành một đường recovery tự lành, mà bạn không phải viết một dòng retry nào.
+</Callout>
+
+Mỗi lời gọi tool có ba kết cục có thể xảy ra — thành công, lỗi có thể phục hồi, lỗi không thể phục hồi — và mô hình chỉ biết những gì bạn nói cho nó biết. Không có exception trace để nó đọc, không có debugger để nó gắn vào. String mà hàm tool của bạn trả về là *toàn bộ* vũ trụ thông tin mà mô hình có về việc vừa xảy ra. Nếu string đó là *"Internal server error"*, mô hình sẽ retry với cùng args hỏng và bạn nhận lại cùng cái string vô dụng đó. Nếu string là *"discountValue phải ≤ 100 với percentage discount; bạn gửi 150"*, mô hình sửa nó ở lượt tiếp theo và đi tiếp.
+
+Kỷ luật bài này dạy bạn rất nhỏ nhưng lạ tai: **thông báo lỗi giờ là một phần của prompt.** Từng byte của error string đều được mô hình đọc và dùng để quyết định bước tiếp theo. Hãy viết chúng cẩn thận như cách bạn viết tool description.
+
+## Lỗi validation — phục hồi được, gần như free
+
+Zod đang làm rất nhiều việc cho bạn ở đây. Khi mô hình gửi `discountValue: 150` cho một tool có schema `z.number().int().min(1).max(100)`, schema từ chối lời gọi đó trước cả khi thân hàm của bạn chạy. Lỗi bạn trả về — nguyên văn từ `error.format()` hoặc diễn lại thành một câu — chảy ngược về dưới dạng `ToolMessage` và mô hình tự sửa ở vòng loop kế tiếp. Bạn không viết một dòng retry nào. Bạn viết một cái schema. Retry đến free.
+
+Đây là loại lỗi phổ biến nhất trong thực tế và rẻ nhất để xử lý. Mọi tool trong hệ thống của bạn đều được đối xử như nhau: schema Zod chặt, message vi phạm rõ ràng, không cần parse lỗi thủ công. *"Trường X phải là Y, bạn gửi Z"* là cái template. Mô hình đọc được điều đó.
+
+Một round-trip đầy đủ trên một lỗi validation:
+
+```
+turn 1 → model emits:  createPromo({ code: "save15", discountValue: 150 })
+         Zod rejects:  ["code: must match /^[A-Z0-9_-]+$/, you sent 'save15'",
+                        "discountValue: must be ≤ 100, you sent 150"]
+
+turn 2 → model retries: createPromo({ code: "SAVE15", discountValue: 15 })
+         Zod accepts;   tool runs; returns the new row.
+```
+
+Bạn viết không một dòng retry. Mô hình đọc message vi phạm và tự sửa cả hai trường.
+
+## Lỗi business-rule — phục hồi được, kèm một gợi ý
+
+Một số lỗi không phải vi phạm kiểu — args parse ổn, nhưng thao tác không tiến hành được. *"Promo code WELCOME10 đã tồn tại."* *"Khách hàng 999 đã bị xoá."* *"Email đó đã unsubscribe."* Đây là business rule; Zod không bắt được, và database cũng không bắt được cho đến khi lệnh ghi thật sự nổ ra.
+
+Mẫu vẫn cùng hình dạng: bắt error trong thân hàm, trả về một failure có cấu trúc với message hữu ích. Mẹo là *gọi tên ràng buộc* **và** *gợi ý cách sửa*.
+
+```ts
+catch (e) {
+  if (isUniqueConstraint(e, 'code')) {            // → true if DB threw on a UNIQUE on `code`
+    return JSON.stringify({
+      ok: false,
+      error: `promo code "${args.code}" already exists. Pick a different code (e.g. "${args.code}-V2").`
+    });
+    // → '{"ok":false,"error":"promo code \\"WELCOME10\\" already exists. Pick a different code (e.g. \\"WELCOME10-V2\\")."}'
+  }
+  throw e; // unrecoverable, let it propagate     // → orchestrator handles unknown errors
+}
+```
+
+Mô hình đọc *"pick a different code (e.g. WELCOME10-V2)"* và lần thử tiếp theo là `WELCOME10-V2`. Không có retry loop trong code của bạn, không có xử lý đặc biệt — chính prompt đã xử lý xong.
+
+## Lỗi không phục hồi được — hỏng to, hỏng hữu ích
+
+Loại thứ ba là những lỗi mà mô hình *không thể* sửa bằng cách retry với args khác. Database của bạn down. Stripe trả 503. Mô hình gửi args hoàn toàn hợp lệ cho một tool hoàn toàn hợp lệ, và lớp infrastructure phía dưới hỏng.
+
+Phản ứng đúng là đánh dấu lỗi này là tạm thời và để orchestrator (không phải mô hình) quyết định chính sách retry. Một hình dạng chuẩn: `{ ok: false, error: 'TransientError: upstream timeout. Retry safe.', retriable: true }`. Mô hình thấy message nhưng không đổi args; orchestrator bắt cờ `retriable: true` và retry với exponential backoff. Sau ba lần thất bại, orchestrator bỏ cuộc và surface lỗi lên user — *"Tôi không liên hệ được database, vui lòng thử lại trong một phút."*
+
+Nguyên lý: **mô hình xử lý lỗi tầng args, orchestrator xử lý lỗi infrastructure, còn người dùng xử lý phần còn lại.** Đừng bao giờ đẩy quyết định về infrastructure vào context của mô hình — nó không biết retry budget của bạn, và cũng không nên cần biết.
+
+Một handler đầy đủ với ba loại đặt cạnh nhau:
+
+```ts
+async function createPromoTool(args) {
+  try {
+    const parsed = promoSchema.parse(args);              // category 1: validation  // → typed Promo or throws ZodError
+    const row = await db.insert(promotions).values(parsed).returning(); // → newly inserted Promotion row
+    return { ok: true, data: row };                       // → { ok: true, data: { id, code, ... } } on success
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { ok: false, error: zodToHint(e) };          // → { ok: false, error: 'discountValue must be ≤ 100, you sent 150' }
+    }
+    if (isUniqueConstraint(e, 'code')) {                   // category 2: business rule
+      return { ok: false, error: `code "${args.code}" exists. Try "${args.code}-V2".` }; // → hint with fix
+    }
+    if (isTimeoutOr5xx(e)) {                               // category 3: infra
+      return { ok: false, error: 'TransientError: DB timeout. Retry safe.', retriable: true }; // → orchestrator retries
+    }
+    throw e;                                               // → unknown error — orchestrator/log catches it
+  }
+}
+```
+
+Một hàm, một envelope, ba chế độ hỏng — mỗi cái được định tuyến tới đúng kẻ thực sự có thể sửa nó.
+
+<Callout type="tip" title="Bọc mọi hàm tool trong try/catch và trả về một envelope kết quả">
+Ném exception bên trong một LangChain tool và lỗi sẽ trở thành một string "ồn ào" do framework trung gian, mà mô hình phải tự parse — *"Error: ZodError: ..."* kèm theo stack trace dài. Bọc thân hàm trong `try/catch` và trả về `{ ok: true, data }` hoặc `{ ok: false, error }`. Mô hình đọc được cả hai nhánh. Test của bạn đọc được cả hai nhánh. Trace của bạn đọc được cả hai nhánh. Một hình dạng envelope duy nhất trả lại phần đầu tư của nó ngay trong ngày đầu tiên.
+</Callout>
+
+## Nhìn mô hình tự sửa lỗi của chính nó
+
+<Demo title="Ba kịch bản lỗi — và cách mô hình phục hồi">
+  <ErrorsRetryDemo />
+</Demo>
+
+Ba nút, ba loại lỗi. Case validation fail Zod, mô hình đọc message rồi retry với `discountValue` đúng. Case unique-constraint đụng database, nhận về gợi ý *"chọn một code khác"*, rồi thử `WELCOME10-V2`. Case timeout đập cùng args ba lần đến khi upstream sống dậy; mô hình không bao giờ đổi ý định, vì error đã bảo nó đừng đổi.
+
+Để ý cái inspector bên phải: đó chính là payload nguyên văn đi ngược lại cho mô hình. Mỗi byte bạn đặt vào string `error` đều rơi vào prompt tiếp theo. Bạn càng làm nó rõ ràng, mô hình càng phục hồi đáng tin cậy — và bạn càng phải viết ít retry logic tuỳ biến.
+
+## Nguyên lý "error là một phần của prompt"
+
+Bài học tóm gọn: thông báo lỗi được đọc bởi mô hình, không phải đội của bạn. Bạn sẽ có hai khán giả khác nhau cho stack trace (log bạn ship lên Sentry) và cho tool error (string bạn trả về cho mô hình). Đừng trộn chúng vào nhau.
+
+<Callout type="note" title="Stack trace là gì?">
+**Stack trace** là danh sách các hàm mà runtime đang ở *bên trong* tại khoảnh khắc một exception được throw. Đọc từ dưới lên, bạn thấy đường đi của thực thi từ route handler xuống đến dòng phát nổ. Đọc từ trên xuống, bạn thấy cái gì đang chạy lúc mọi thứ vỡ. Nó là mẩu thông tin debug hữu ích nhất mà runtime cho bạn miễn phí — và nó được viết cho *con người*, không phải cho LLM.
+
+Một stack trace thật từ một app Node, khi gọi tool `createPromo` của chúng ta:
+
+```text
+Error: P2002: Unique constraint failed on the fields: (`code`)
+    at PromoTable.create (/app/src/db/promos.ts:42:18)
+    at Object.createPromo (/app/src/tools/create-promo.ts:31:10)
+    at runTool (/app/src/agent/runtime.ts:88:24)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async POST (/app/src/app/api/agent/route.ts:54:9)
+```
+
+Từng phần là gì:
+
+- **`Error: P2002: Unique constraint failed...`** — class lỗi và message. Đây là dòng duy nhất mà con người đọc trước tiên; tất cả phía dưới là *làm sao tới được đây*.
+- Các **stack frame** — mỗi `at … (path:line:col)` là một hàm vẫn còn trên call stack. Frame trên cùng là chỗ throw xảy ra (`PromoTable.create` tại `promos.ts:42`). Mỗi frame xuống dưới là caller của nó. Frame dưới cùng là entry point của bạn (route handler).
+- **`async POST`** — các frame có chữ `async` đến từ một lượt khác của event loop; Node ráp chúng lại với nhau để bạn không mất context qua `await`.
+
+Vì sao bạn giữ nó *bên ngoài* chuỗi trả về cho mô hình:
+
+- Mô hình không thể hành động trên những file path nó không có. Nói với nó "bug ở `promos.ts:42`" là nhiễu — file đó không nằm trong repo của nó.
+- Stack trace rất dài. Mỗi token stack trace là một token bạn phải trả tiền và một token context mà mô hình phải lướt qua để tìm vấn đề thật sự.
+- Nó leak nội thất. Tên hàm, cấu trúc module, version — ổn cho Sentry, không ổn cho chuỗi mà một ngày nào đó có thể hiện ra cho user.
+
+Vậy nên: stack trace → Sentry / Datadog / log của bạn (kèm đầy đủ object `Error`, request ID, user ID, v.v.). Chuỗi bạn `return` từ tool là dạng một-dòng, đọc-được-bởi-mô-hình — `"promo code 'LAPSED15' đã tồn tại; thử mã khác"`. Cùng một lỗi gốc, hai khán giả khác nhau, hai hình dạng khác nhau.
+</Callout>
+
+Một tool error tốt thì ngắn, gọi tên ràng buộc, chỉ ra giá trị vi phạm, và — khi có thể — gợi ý cách sửa. *"discountValue 150 vượt mức tối đa 100 với pct discount; thử 15."* Một cái tệ là *"Validation failed."* Công sức viết cái tốt rất nhỏ. Đòn bẩy thì cực lớn: mô hình đọc nó, tự sửa, và người dùng của bạn không bao giờ thấy lỗi.
+
+<Recap>
+- Ba kết cục cho mỗi lời gọi tool: thành công, phục hồi được, không phục hồi được. Quyết định cái nào là cái nào *bên trong* tool, không phải bên ngoài.
+- Lỗi validation: schema Zod chặt + message vi phạm nguyên văn. Mô hình tự sửa, free.
+- Lỗi business-rule: bắt trong thân hàm, trả về failure có cấu trúc kèm một gợi ý cách sửa.
+- Lỗi infrastructure: đánh dấu transient, để orchestrator retry với backoff, đừng bắt mô hình đoán.
+- Bọc mọi tool trong `try/catch` và trả về `{ ok, data | error }`. Một envelope, một hình dạng mô-hình-đọc-được, không stack trace.
+- Coi error string là một phần của prompt. Ngắn, cụ thể, mang tính hướng dẫn — mô hình đọc nó và hành động theo nó.
+</Recap>
+
+</VI>

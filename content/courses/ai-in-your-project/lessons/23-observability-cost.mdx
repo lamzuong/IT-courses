@@ -1,6 +1,9 @@
 import { Recap } from '@/components/mdx/recap';
 import { Callout } from '@/components/mdx/callout';
 import { TokenCounterDemo } from '@/components/demos/ai-in-your-project/token-counter-demo';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - LangSmith (or Helicone, Langfuse, Phoenix) — flip on tracing with one env var, or write a 50-line DIY callback that logs to your own DB.
@@ -111,3 +114,119 @@ Observability gives you four things, in order of how much you'll use them: spend
 - Build three queries (spend by model, top spenders, daily trend), then add a per-user cap and a global kill-switch.
 - Don't trust the rate card; trust the rows in your `llm_calls` table.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- LangSmith (hoặc Helicone, Langfuse, Phoenix) — bật tracing chỉ bằng một env var, hoặc tự viết một callback DIY 50 dòng log vào DB của chính bạn.
+- Chi phí token thật sự đi đâu trong một plan nhiều bước — gần như luôn nằm ở conversation history, không phải ở output.
+- Ba câu SQL cộng với cap theo user và một kill-switch toàn cục để chặn kịch bản "hoá đơn bất ngờ".
+</Callout>
+
+Mỗi lần gọi LLM là một request có tính tiền. Bạn sẽ không ship một service gọi API bên thứ ba mà không có request log; cũng đừng ship AI mà không có call log. Observability cho AI là hai thứ cùng lúc: là *telemetry vận hành* — chuyện gì xảy ra, lúc nào, mất bao lâu, có fail không — và là *telemetry chi tiêu* — cái này tốn bao nhiêu, do ai gây ra, xu hướng đang lên hay xuống. Loại đầu thì quen thuộc; loại thứ hai mới là cái team phát hiện theo kiểu đau thương, thường là cuối tháng đầu tiên khi hoá đơn về.
+
+Bài này phác hoạ setup tối thiểu khả dụng: chọn một công cụ tracing (hoặc tự viết trong năm chục dòng), ghim token usage vào database của bạn, và bật cap ngân sách theo user trước khi user trả tiền đầu tiên đăng ký.
+
+## 01 — LangSmith và bạn bè
+
+[LangSmith](https://smith.langchain.com) là công cụ tracing hosted của team LangChain, gắn vào app LangChain hay LangGraph chỉ bằng một biến môi trường: `LANGSMITH_TRACING=true`. Khi đã bật, mọi chain, mọi tool call, mọi node trong graph của bạn đều được capture thành một cây bạn có thể click vào — input, output, latency, token usage, retry. Free tier rộng rãi đủ cho một side project; paid tier thêm eval dataset, alerting và trace chia sẻ trong team. Còn các lựa chọn khác — Helicone, Langfuse, Phoenix, view LLM của Honeycomb — và việc chọn giữa chúng chủ yếu phụ thuộc cái nào khớp với hình dạng data mà team bạn đã dùng cho các service non-AI.
+
+Cho lần ship đầu, chọn cái nào nhanh ráp nhất, rồi xem lại sau. Lock-in nhẹ; trace data đa phần là OpenTelemetry bên dưới.
+
+## 02 — Phương án DIY miễn phí
+
+Nếu chưa muốn dùng tool bên thứ ba, hãy viết một callback gắn vào mô hình và log vào DB của bạn. Hệ callback của LangChain cho phép bạn hook vào lifecycle của mọi lần gọi LLM:
+
+```ts
+import { BaseCallbackHandler } from '@langchain/core/callbacks/base'; // → callback base class
+import { db } from '@/lib/db';                    // → Drizzle/Prisma client
+
+class CostLogger extends BaseCallbackHandler {
+  name = 'cost-logger';                           // → required identifier
+
+  async handleLLMEnd(output: LLMResult, runId: string) {
+    const usage = output.llmOutput?.tokenUsage;   // → { promptTokens, completionTokens, totalTokens } | undefined
+    if (!usage) return;                           // → some providers don't report — skip
+    await db.insert(llmCalls).values({            // → INSERT INTO llm_calls
+      runId,                                      // → 'run_01HX...'
+      model: output.llmOutput?.model_name ?? 'unknown', // → 'claude-sonnet-4'
+      promptTokens: usage.promptTokens,           // → e.g. 2_473
+      completionTokens: usage.completionTokens,   // → e.g. 215
+      totalTokens: usage.totalTokens,             // → e.g. 2_688
+      timestamp: new Date(),                      // → 2026-05-09T13:42:11.000Z
+    });
+    // → one row added to llm_calls; available for SQL aggregates below
+  }
+}
+
+const llm = new ChatAnthropic({
+  model: 'claude-sonnet-4',                       // → ChatAnthropic instance with cost logging
+  callbacks: [new CostLogger()],                  // → fires handleLLMEnd after every call
+});
+```
+
+Đó là toàn bộ câu chuyện observability cho một app nhỏ. Một bảng, một callback handler, một dòng cho mỗi lần gọi LLM. Lần lặp tiếp theo gắn thêm user ID là bạn có hạch toán theo user. Không đẹp như UI của LangSmith, nhưng nó trả lời được mọi câu hỏi mà một dashboard billing cần trả lời.
+
+## 03 — Token accounting: chi phí thật sự đi đâu
+
+Token không được phân bổ đều khắp app. Các bài học của Phần II — system prompt, conversation history, schema trong context — đều cộng dồn ở phía input. Tool (bài 11) cộng cả hai phía: mỗi định nghĩa tool là token input ở mọi lượt, mỗi tool result là thêm token input ở lượt tiếp. Plan nhiều bước (bài 17) làm chuyện đó tăng theo cấp số: một plan bốn bước là bốn lần gọi LLM, mỗi lần mang theo toàn bộ conversation history *tính đến thời điểm đó*.
+
+Demo bên dưới làm rõ phần "chia ra". Để ý plan nhiều bước tốn khoảng 10× một cuộc chat ngắn — và phần lớn cái tăng đó nằm ở conversation history, không phải output. Tỷ lệ này đúng trong thực tế và nó có hệ quả. Nếu bạn muốn cắt chi phí, đòn bẩy gần như không bao giờ là *"dùng mô hình nhỏ hơn cho output"*; mà là *"cắt bớt history gửi đi"*.
+
+<Demo title="Token mix and cost across three scenarios">
+  <TokenCounterDemo />
+</Demo>
+
+<Callout type="note">
+  Token hay đánh lừa. Một mô hình "rẻ" có thể tốn hơn mô hình "cao cấp" nếu prompt của bạn có context nhiều gấp 50 lần. Luôn luôn log mọi thứ; tin vào rate card ít hơn tin vào các dòng thực sự trong bảng `llm_calls`.
+</Callout>
+
+## 04 — Ngân sách và alert
+
+Khi dữ liệu đã chảy vào bảng, dashboard sẽ tự viết. Ba câu query để bắt đầu:
+
+```sql
+-- Yesterday's total spend, by model.
+SELECT model, SUM(total_tokens), SUM(estimated_usd)   -- → one row per model
+FROM llm_calls
+WHERE timestamp >= now() - interval '1 day'           -- → last 24h window
+GROUP BY model;
+-- → e.g. ('claude-sonnet-4', 1_482_311, 4.45)
+
+-- Top spenders, last 7 days.
+SELECT user_id, COUNT(*) calls, SUM(estimated_usd) usd  -- → per-user totals
+FROM llm_calls
+WHERE timestamp >= now() - interval '7 days'           -- → last 7d window
+GROUP BY user_id
+ORDER BY usd DESC                                       -- → biggest spend first
+LIMIT 20;                                               -- → cap at 20 rows
+-- → e.g. ('u_42', 312 calls, $9.12)
+
+-- Daily spend trend.
+SELECT date_trunc('day', timestamp) day, SUM(estimated_usd)  -- → one row per day
+FROM llm_calls
+GROUP BY 1
+ORDER BY 1;                                             -- → chronological
+-- → e.g. ('2026-05-08', 11.30), ('2026-05-09', 13.05)
+```
+
+Xây query trước, rồi mới gắn alert: cap mỗi ngày theo user (đa số user không bao giờ chạm tới; ai chạm thì hoặc là bot hoặc bị kẹt trong loop), cap toàn cục mỗi ngày (kill-switch tạm dừng agent nếu chi tiêu hôm nay tăng gấp 10 hôm qua), và một bản review hàng tuần email cho bạn top spender để bạn nhận ra pattern trước khi hoá đơn tiếp theo về.
+
+Kill-switch quan trọng hơn vẻ ngoài của nó. Lần đầu một prompt có bug đưa agent của bạn vào loop năm mươi bước, bạn muốn cap tự kích hoạt thay vì đợi đến sáng thứ Hai bạn mới phát hiện. *"Nó cap ở $73 và gửi email cho tôi"* là một câu chuyện; *"nó chạy suốt cuối tuần và hoá đơn $4.200"* là một câu chuyện khác hẳn.
+
+## 05 — Một note về thứ bạn thật sự đang đo
+
+Observability cho bạn bốn thứ, sắp xếp theo mức bạn sẽ dùng: chi tiêu (mỗi ngày), latency (mỗi tuần), tỷ lệ tool-call thành công (mỗi release), và truy nguyên thay đổi prompt (mỗi khi có gì đó cảm thấy khang khác). Thứ thứ tư là người hùng thầm lặng. Khi khách hàng nói *"trợ lý tuần này cảm giác tệ hơn"* và bạn có trace từ trước thay đổi bạn đang nghi ngờ, câu hỏi đó trở thành diff thay vì điều tra. Không có trace, bạn đoán. Có trace, bạn so sánh.
+
+<Recap>
+- LangSmith (hoặc Helicone, Langfuse, Phoenix) bật bằng một env var và cho bạn một cây trace click được cho mỗi call.
+- DIY: một `BaseCallbackHandler` với `handleLLMEnd` ghi một dòng cho mỗi LLM call vào DB của bạn. Năm chục dòng, phủ hết.
+- Token usage nghiêng về conversation history trong các plan nhiều bước — 10× một chat ngắn là chuyện thường.
+- Tối ưu chi phí thường là chuyện cắt history, không phải đổi sang mô hình rẻ hơn.
+- Xây ba query (chi tiêu theo mô hình, top spender, xu hướng theo ngày), rồi thêm cap theo user và kill-switch toàn cục.
+- Đừng tin rate card; tin các dòng trong bảng `llm_calls` của bạn.
+</Recap>
+
+</VI>

@@ -1,6 +1,9 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { FirstToolDemo } from '@/components/demos/ai-in-your-project/first-tool-demo';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - Define a tool with `tool()` from `@langchain/core/tools` — name, Zod schema, async function.
@@ -224,3 +227,232 @@ That last column is why Zod isn't optional in this course. Every lesson from her
 - Two model calls + one tool execution = one turn. That's the loop the rest of Part III is built on.
 - Skip Zod and you take both jobs back yourself — `DynamicTool` hands you a raw string that the model formats differently on every turn. Use `tool()` + Zod by default; `DynamicStructuredTool` with JSON Schema only when you can't import Zod.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Định nghĩa một tool bằng `tool()` từ `@langchain/core/tools` — gồm name, Zod schema, và một async function.
+- Bind tool vào model và đọc payload `tool_call` mà model phát ra.
+- Hình dạng "hai lần gọi" của một lượt dùng tool (model → tool → model) — nền móng cho mọi thứ ở Phần III và IV.
+- Vì sao Zod schema không phải để trang trí: nó là hợp đồng để model phát ra đúng shape *và* để hàm của bạn tin tưởng những gì nó nhận được.
+</Callout>
+
+Một tool là một hàm đã có kiểu mà model có thể gọi. Bạn định nghĩa nó bằng ba thứ — một cái tên, một Zod input schema, và một hàm sẽ chạy khi model quyết định gọi nó. Model không bao giờ tự thực thi code của bạn; nó phát ra một yêu cầu có cấu trúc kiểu *"xin hãy gọi `customers.search` với những arguments này"*, runtime của bạn thực thi nó, và kết quả quay lại cuộc hội thoại dưới dạng một message khác. Cả vòng lặp chạy ở server-side, và TypeScript của bạn nắm quyền từ đầu đến cuối.
+
+Sự tách bạch đó chính là toàn bộ ý nghĩa. Cho đến giờ, model mới chỉ là một "máy sinh đoạn văn" có quyền đọc bất cứ thứ gì bạn nhét vào prompt. Với tool, nó có *động từ*. Nó có thể search, fetch, đếm, và (đến khi chúng ta nói về thao tác ghi ở bài 12) *hành động*. Prompt giải thích thế giới; tool cho model chạm vào thế giới đó.
+
+## 01 — Định nghĩa một tool với `tool()`
+
+LangChain cung cấp một wrapper mỏng biến một hàm thành thứ model có thể gọi. Toàn bộ shape gói gọn trong một call:
+
+```ts
+import { tool } from '@langchain/core/tools';   // → tool() factory imported
+import { z } from 'zod';                          // → Zod schema builder imported
+import { db } from '@/lib/db';                   // → Prisma-like client imported
+
+export const searchCustomers = tool(             // → StructuredTool { name: 'customers.search' }
+  async ({ filter }) => {                        // → handler called only when model picks this tool
+    const rows = await db.customers.findMany({   // → Customer[] from DB
+      where: {
+        lastOrderAt: filter.lapsedDays           // → branch: only when lapsedDays is set
+          ? { lt: daysAgo(filter.lapsedDays) }   // → e.g. { lt: 2026-03-10T00:00:00Z } if lapsedDays=60
+          : undefined,                           // → undefined → Prisma skips this filter
+        tags: filter.tagIn ? { hasSome: filter.tagIn } : undefined, // → { hasSome: ['vip'] } or undefined
+      },
+      take: 25,                                  // → cap result set at 25 rows
+    });
+    return JSON.stringify(rows);                 // → '[{"id":"c_01","email":"..."}, ...]' (string for model)
+  },
+  {
+    name: 'customers.search',                    // → identifier the model uses in tool_calls
+    description: 'Search customers by lapsed-days threshold or by tag. Returns up to 25 rows.', // → injected into prompt every turn
+    schema: z.object({                           // → ZodObject — enforced before handler runs
+      filter: z.object({
+        lapsedDays: z.number().int().positive().optional(), // → integer > 0 or omitted
+        tagIn: z.array(z.string()).optional(),   // → string[] or omitted
+      }),
+    }),
+  },
+);
+// → searchCustomers is now a tool the model can call by name 'customers.search'
+```
+
+Bốn điểm đáng để ý. `name` là định danh mà model dùng khi gọi — hãy đặt dạng có dấu chấm, có namespace (`customers.search`, đừng `searchCustomers`) để cả danh sách tool đọc lên như một bề mặt API. `description` là thứ model *thực sự* đọc để quyết định *có nên* gọi tool này hay không; chúng ta sẽ quay lại. `schema` là một Zod object ràng buộc arguments — model bị buộc phải nhét call vào đúng shape này, nên thân hàm của bạn không bao giờ phải phòng thủ trước input méo mó. Bản thân hàm chỉ là TypeScript thuần; nó trả về một string (hoặc bất cứ thứ gì stringify được) và đó chính là câu trả lời của tool.
+
+## 02 — Bind tool vào model
+
+Định nghĩa một tool không có nghĩa là phơi nó ra cho model thấy. Bạn phải bind một danh sách tool vào model, và model đã bind mới là cái bạn invoke:
+
+```ts
+import { ChatOpenAI } from '@langchain/openai';  // → ChatOpenAI class imported
+
+const model = new ChatOpenAI({ model: 'gpt-4o-mini' }) // → ChatOpenAI instance (not yet bound)
+  .bindTools([searchCustomers, listProducts, getOrderTotals]); // → Runnable bound with 3 tools
+
+const response = await model.invoke([            // → AIMessage { content: '', tool_calls: [...] }
+  { role: 'system', content: 'You are an operator assistant for a small e-commerce shop.' }, // → SystemMessage
+  { role: 'user', content: 'Who hasn\'t ordered in the last two months?' },                  // → HumanMessage
+]);
+// → response.tool_calls = [{ id: 'call_abc', name: 'customers.search', args: { filter: { lapsedDays: 60 } } }]
+```
+
+Lần này response sẽ *không* phải là câu trả lời hoàn chỉnh. Nó sẽ về kèm theo một mảng `tool_calls` — model đã quyết định rằng `customers.search` là bước tiếp theo đúng, và nó đang đề nghị runtime của bạn chạy hộ. Việc của bạn là thực thi từng call, append kết quả dưới dạng `ToolMessage`, rồi invoke model lần nữa. Lần gọi thứ hai mới là lúc model thấy kết quả và viết ra câu trả lời thành văn.
+
+Phần lớn vòng lặp đó là cơ học, và LangGraph (chúng ta gặp ở Phần IV) sẽ tự động hoá nó. Với bài này, bức tranh bạn cần giữ trong đầu chỉ đơn giản là: *model phát ra tool calls, runtime thực thi, runtime append kết quả, model nói tiếp.*
+
+<Callout type="note" title="Description của tool là một phần của prompt">
+Field `description` không phải tài liệu. Nó được gửi tới model *mỗi lượt*, kèm với schema, và là cách model quyết định tool của bạn có phải là tool phù hợp để dùng hay không. Hãy viết nó như thể một junior engineer đang đọc lần đầu: "Search customers by lapsed-days threshold or by tag. Returns up to 25 rows ordered by last-order date descending." Cụ thể về cái nó trả về *và* cái nó không trả về.
+</Callout>
+
+## 03 — Xem một vòng round-trip của tool
+
+Chọn một kịch bản và quan sát toàn bộ vòng round-trip diễn ra: message của user, model quyết định gọi `customers.search`, JSON arguments mà nó phát ra, các dòng dữ liệu runtime của bạn đẩy lại, và đoạn văn tóm tắt mà model viết ra khi đã có kết quả trong tay.
+
+<Demo title="Một vòng round-trip của một tool">
+  <FirstToolDemo />
+</Demo>
+
+Phần transcript bên trái là cuộc hội thoại; phần inspector bên phải là cái bạn thường không thấy. Trong production, cả hai nửa đều đang diễn ra trong mọi lượt — phần chat hiển thị chỉ là phần đỉnh nhỏ; tool calls và kết quả là phần tảng băng phía dưới. Khi một tính năng AI có sự cố, view inspector chính là nơi bạn debug.
+
+## 04 — Protocol của tool call
+
+Shape mà model phát ra rất nhỏ và được đặc tả rõ. Sau khi model đã bind chạy xong, object response chứa một mảng `tool_calls` trông như sau:
+
+```ts
+{
+  tool_calls: [                                  // → array — model can request several at once
+    {
+      id: 'call_abc123',                         // → unique per call; pair with ToolMessage.tool_call_id
+      name: 'customers.search',                  // → matches a bound tool's name
+      args: { filter: { lapsedDays: 60 } },      // → already Zod-validated against the tool's schema
+    },
+  ],
+}
+// → this is what response.tool_calls looks like after model.invoke(...)
+```
+
+Ba field. `id` để bạn có thể route kết quả trở lại đúng call khi model xin gọi nhiều tool cùng lúc (chúng ta sẽ thấy ở bài 10). `name` khớp với tên một tool bạn đã bind. `args` đã được parse và validate qua Zod theo schema của bạn — nếu model sinh ra thứ không hợp lệ, cả lượt đó fail và bạn xử lý retry, chứ không phải thân tool phải tự đối phó với rác.
+
+Runtime của bạn lấy mảng đó, chạy từng tool, và push một `ToolMessage` vào cuộc hội thoại cho từng cái với `tool_call_id` tương ứng. Sau đó bạn gọi model lần hai, và nó thấy kết quả rồi đi tiếp. Hai lần invoke model, một lần thực thi tool, một lượt — đó là đơn vị. Mọi thứ trong phần này của khoá học đều xây trên nó.
+
+## 05 — Vì sao dùng Zod (và bạn mất gì nếu không có)
+
+Zod schema không phải để trang trí. Nó làm hai việc cùng lúc: nó nói cho *model* biết phải phát ra shape gì, và nói cho *hàm* của bạn biết nó được tin gì. Bỏ schema đi là bạn lãnh lại cả hai việc bằng tay — và kết quả thường rối hơn người ta tưởng ở lần thử đầu.
+
+**Với Zod (cái bạn vẫn đang viết)**
+
+```ts
+export const listCustomers = tool(               // → StructuredTool { name: 'customers.list' }
+  async ({ cursor, limit }) => {                 // → cursor: string|null|undefined, limit: number≤50 — Zod-guaranteed
+    const rows = await db.customers.findMany({ take: limit ?? 25, cursor }); // → Customer[] of size ≤ limit
+    return JSON.stringify(rows);                 // → '[{"id":"c_01",...}]' string handed back to model
+  },
+  {
+    name: 'customers.list',                      // → identifier the model uses
+    description: 'List customers, 25 per page. Pass nextCursor to continue.', // → injected into prompt
+    schema: z.object({                           // → ZodObject — invalid args throw before handler runs
+      cursor: z.string().nullable().optional(),  // → string | null | undefined
+      limit: z.number().int().min(1).max(50).optional(), // → integer in [1,50] or undefined
+    }),
+  },
+);
+// → listCustomers is now callable by the model as 'customers.list'
+```
+
+Đây là cái model phát ra, đã được parse và validate hộ bạn:
+
+```json
+{ "name": "customers.list", "args": { "cursor": "abc123", "limit": 25 } }
+```
+
+Nếu model thử `limit: 9999`, Zod sẽ throw *trước khi* call DB của bạn chạy, và lỗi đó trở thành một gợi ý sửa sai mà model đọc được ở lượt tiếp theo. Thân hàm của bạn chỉ thấy input hợp lệ.
+
+**Không có schema gì cả — `DynamicTool`**
+
+```ts
+import { DynamicTool } from '@langchain/core/tools'; // → DynamicTool class imported (no schema)
+
+export const listCustomers = new DynamicTool({   // → DynamicTool instance — model sees only the description
+  name: 'customers.list',                        // → identifier the model uses
+  description: 'List customers, 25 per page. Pass cursor and limit.', // → only hint the model has about shape
+  func: async (input: string) => {               // → input is one raw string, format unknown
+    // input is a single raw string — whatever the model put there.
+    // You parse it. You validate it. You apologise to your future self.
+    const parsed = JSON.parse(input);            // → object on a good run; throws SyntaxError on a bad one
+    const cursor = typeof parsed.cursor === 'string' ? parsed.cursor : null; // → string | null
+    const limit = Number.isInteger(parsed.limit) && parsed.limit <= 50 ? parsed.limit : 25; // → 1..50 (default 25)
+    const rows = await db.customers.findMany({ take: limit, cursor }); // → Customer[]
+    return JSON.stringify(rows);                 // → '[{"id":"c_01",...}]'
+  },
+});
+// → listCustomers works, but every turn you might get a different input format
+```
+
+Hai hệ quả. Model *không có schema* để học từ — nó đoán format chỉ từ description, nên lượt này bạn nhận `'{"cursor":"abc","limit":25}'` và lượt sau là `'cursor=abc, limit=25'`. Và không có gì được validate: chuỗi rác đập thẳng vào code DB của bạn trừ khi bạn tự viết check, từng field, mỗi lần.
+
+**Dùng JSON Schema thay cho Zod — `DynamicStructuredTool`**
+
+```ts
+import { DynamicStructuredTool } from '@langchain/core/tools'; // → DynamicStructuredTool class imported
+
+export const listCustomers = new DynamicStructuredTool({ // → DynamicStructuredTool instance
+  name: 'customers.list',                        // → identifier the model uses
+  description: 'List customers, 25 per page.',  // → injected into prompt every turn
+  schema: {                                      // → raw JSON Schema — provider enforces, but no TS narrowing
+    type: 'object',
+    properties: {
+      cursor: { type: 'string' },                // → constrains cursor to a string
+      limit: { type: 'integer', maximum: 50 },   // → constrains limit to integer ≤ 50
+    },
+  },
+  func: async ({ cursor, limit }) => {           // → typed object, but TS infers loose `any` for fields
+    const rows = await db.customers.findMany({ take: limit ?? 25, cursor }); // → Customer[]
+    return JSON.stringify(rows);                 // → '[{"id":"c_01",...}]'
+  },
+});
+// → listCustomers behaves like the Zod version at runtime, but TS won't catch typos
+```
+
+Bạn vẫn nhận lại object đã có kiểu — provider LLM ép JSON Schema ở phía của nó — nhưng bạn mất TypeScript narrowing và các ràng buộc phong phú hơn của Zod (`email()`, `regex()`, `refine()`, message lỗi tuỳ biến). Model hành xử y hệt; code của bạn thì kém an toàn hơn.
+
+**So sánh trực diện**
+
+| Cách tiếp cận | Model phát ra | Hàm nhận được | Validation |
+| --- | --- | --- | --- |
+| Zod schema (`tool()`) | typed JSON args | object đã có kiểu — `{ cursor, limit }` | runtime + TS types |
+| JSON Schema (`DynamicStructuredTool`) | typed JSON args | object đã có kiểu | runtime, yếu hơn |
+| Không schema (`DynamicTool`) | một chuỗi đơn | `string` bạn tự parse | không có |
+
+**Cụ thể: cùng một prompt, ba kiểu phản hồi**
+
+User hỏi *"List the next 25 customers after cursor abc123."*
+
+```ts
+// With Zod — function receives:
+{ cursor: 'abc123', limit: 25 }
+
+// With JSON Schema — function receives:
+{ cursor: 'abc123', limit: 25 }
+
+// Without schema (DynamicTool) — function receives the raw string. On a good run:
+'{"cursor":"abc123","limit":25}'
+// On a bad run, same prompt, next turn:
+'cursor: abc123, limit: 25'
+// Or:
+'List 25 customers after abc123'
+```
+
+Cột cuối cùng đó là lý do Zod không phải tuỳ chọn trong khoá học này. Mọi bài từ đây trở đi — pagination cursor, filter object, idempotency key, structured tool error — đều giả định rằng input mà hàm của bạn thấy đã được validate. Bỏ Zod là bạn sẽ dành phần còn lại của Phần III để viết parser thay vì viết tính năng.
+
+<Recap>
+- Tool là một hàm đã có kiểu: name, Zod schema, và một async function. `tool()` từ `@langchain/core/tools` là wrapper.
+- `model.bindTools([...])` phơi một danh sách tool ra cho model. Model đã bind sẽ phát `tool_calls` thay vì trả lời cuối cùng khi nó muốn dùng tool.
+- Description của tool được gửi đi *mỗi lượt* — nó *là* một phần của prompt. Hãy viết cẩn thận.
+- Protocol nhỏ gọn: `{ id, name, args }`. Chạy call, trả về một `ToolMessage` với `tool_call_id` tương ứng, rồi invoke lần nữa.
+- Hai lần gọi model + một lần thực thi tool = một lượt. Đó là vòng lặp mà phần còn lại của Phần III được xây trên.
+- Bỏ Zod là bạn lãnh lại cả hai việc — `DynamicTool` đưa cho bạn một chuỗi thô mà model định dạng khác nhau mỗi lượt. Mặc định hãy dùng `tool()` + Zod; chỉ dùng `DynamicStructuredTool` với JSON Schema khi bạn không thể import Zod.
+</Recap>
+
+</VI>

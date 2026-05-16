@@ -1,5 +1,8 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - Where the bare `while (toolCalls)` loop from Part III runs out of road: multi-step plans, branching, pauses, recovery.
@@ -76,3 +79,85 @@ Everything you've built so far in Part III still applies. Tool definitions don't
 - Tools, schemas, prompts, errors — everything from Part III stays. Only the orchestrator graduates.
 - The next lesson is the proper introduction: state, nodes, edges, compile, invoke.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Vòng `while (toolCalls)` trần trụi ở Phần III hết đường ở đâu: kế hoạch nhiều bước, branching, tạm dừng, phục hồi.
+- Vì sao mọi cách sửa "thành thật" mà bạn viết thêm lên trên nó rốt cuộc đều tái phát minh một graph runtime — đó là động cơ của Phần IV.
+- Mối nối giữa Phần III và Phần IV: tool, schema, prompt giữ nguyên; chỉ có orchestrator "thăng cấp".
+</Callout>
+
+Đến cuối bài 14 bạn đã có một thứ thật sự chạy được: một agent biết gọi tool, biết loop, biết phục hồi lỗi, và biết tạo ra câu trả lời cuối hợp lý. Với một câu hỏi đơn lẻ kèm một hai lời gọi tool, cái loop này gần như đã đủ. Rắc rối bắt đầu ngay khoảnh khắc prompt của bạn tham vọng hơn một chút — *"tạo voucher, tìm khách hàng, soạn email cho họ"* — và các abstraction bạn dựa vào lâu nay bắt đầu lặng lẽ nứt.
+
+Bài này là mối nối giữa Phần III và Phần IV. Chúng ta sẽ không viết nhiều code; chúng ta sẽ nhìn vào cái loop, gọi tên những thứ nó không làm được, và nhận ra rằng bất kỳ cách sửa thành thật nào, từng bước một, đều sẽ tái phát minh một thứ đã có sẵn. Thứ đó tên là LangGraph, và bài kế tiếp là phần giới thiệu chính thức. Hôm nay là phần *vì sao*.
+
+## Nơi cái loop trần làm tốt việc của nó
+
+Hình dạng `while (lastMessage.tool_calls)` ở bài 14 thật sự giỏi ở một dải công việc hẹp. Người dùng hỏi một câu, mô hình quyết định xem có cần tra cứu gì không, chạy một hai cú đọc, rồi viết câu trả lời. Loop kết thúc vì mô hình thôi phát tool call; orchestrator trả về AIMessage cuối; người dùng đọc và yêu cầu kết thúc. *"Có bao nhiêu khách hàng lâu không quay lại?"* hợp tuyệt đối với hình dạng này. *"SKU bán chạy nhất tuần trước là gì?"* hay *"soạn cho tôi một subject line một dòng cho email re-engagement"* cũng vậy.
+
+Đây là hình dạng *Q&A tương tác*. Một lượt từ user, vài lượt nội bộ từ mô hình, một câu trả lời cuối. Loop là tool đúng, code ngắn, bạn không cần gì cầu kỳ hơn.
+
+## Nơi nó nứt
+
+Giờ thử *"Tạo voucher giảm 15% cho khách hàng đã không đặt hàng trong 60 ngày, và soạn cho họ một email re-engagement."* Đó là tối thiểu ba bước: tạo voucher, tra danh sách người nhận, soạn email. Mỗi bước phụ thuộc bước trước. Mỗi bước là một thao tác ghi — loại hành động mà bạn rất *không* muốn nổ ra mà không có một con người ký duyệt. Và mỗi bước có thể hỏng theo cách có hậu quả: có thể mã voucher đã tồn tại, có thể hai người trong danh sách đã unsubscribe, có thể tool soạn nháp timeout ở email thứ ba trong khi hai email đầu đã được lưu.
+
+Cái loop trần không có gì để nói về bất kỳ điều nào trong số đó. Nó không thể tạm dừng trước một thao tác ghi. Nó không thể branch — *"nếu segment lớn hơn năm mươi người thì hỏi người dùng trước; còn không thì cứ đi."* Nó không thể undo. Nếu cú ghi thứ hai trong ba cú thất bại, bạn không có cách sạch sẽ nào để bảo mô hình *"vui lòng tiếp tục từ bước ba"*; bạn chỉ có thể chạy lại toàn bộ prompt và hy vọng nó hội tụ về cùng một kế hoạch. Và không có chỗ tự nhiên nào để đặt checkpoint, nên nếu người dùng đóng tab giữa workflow, kế hoạch đang dở mất sạch.
+
+Đây không phải edge case. Đây là hình dạng đời thường của *"AI làm việc trong sản phẩm của bạn."*
+
+## Bạn sẽ bắt đầu viết những gì
+
+Nếu bạn quyết định tự sửa mà không nhờ ai, bạn sẽ với tay tới đúng những tool mà mọi framework rốt cuộc đều dùng. Bạn sẽ thêm một object `state` mà cả mô hình lẫn loop cùng đọc. Bạn sẽ tách cái loop đơn của mình thành các bước có tên — `plan`, `confirm`, `execute`, `summarize` — và đặt logic ở giữa chúng: *"nếu bước kế tiếp là một thao tác ghi, hãy giao quyền điều khiển trở lại UI và chờ duyệt"*; *"nếu một bước hỏng, định tuyến tới node recovery thay vì node kế tiếp."* Bạn sẽ thêm cơ chế pause/resume, nghĩa là state phải serialize được. Bạn sẽ thêm cơ chế stream tiến độ, nghĩa là mỗi bước phải emit event. Cuối cùng bạn sẽ thấy mình đang xây một cái graph nhỏ: node là bước, edge là chuyển trạng thái, runtime đi qua graph cho đến khi có gì đó dừng nó lại.
+
+Đến lúc bạn làm tất cả những thứ đó chạy được — chạy thật, có timeout có retry có token resumption — bạn đã mất vài tuần để tái phát minh một thư viện state-machine, một cách kém chất lượng. Quỹ đạo học đó không có gì sai. Nhưng cũng không có lý do gì để làm chuyện đó lần thứ hai khi có người đã làm tốt rồi.
+
+Quỹ đạo đó bằng pseudo-code, để sự tất yếu trở nên cụ thể:
+
+```ts
+// Day 1 — the lesson 14 loop
+while (lastMessage.tool_calls?.length) {           // → keep looping while the model keeps requesting tools
+  const results = await runToolCalls(lastMessage.tool_calls); // → ToolMessage[] from the executions
+  messages.push(...results);                       // → append tool results to the transcript
+  lastMessage = await model.invoke(messages);      // → next AIMessage (may have more tool_calls or be final)
+}
+
+// Day 7 — "we need to ask before writes"
+while (lastMessage.tool_calls?.length) {
+  const writes = lastMessage.tool_calls.filter(isWrite); // → ToolCall[] that mutate state
+  if (writes.length) {
+    const decision = await askUser(writes);   // ← but how do you save state if the user closes the tab?  // → { approve: boolean }
+    if (!decision.approve) break;                  // → user said no — abort the loop
+  }
+  // ...
+
+// Day 21 — pausable, with state, branching, retries, persistence
+type State = { messages: BaseMessage[]; pending?: ToolCall[]; phase: 'plan' | 'confirm' | 'execute' };
+const checkpoint = await loadCheckpoint(threadId); // → State | null
+let state = checkpoint ?? { messages: [], phase: 'plan' }; // → resume or start fresh
+while (state.phase !== 'done') {
+  state = await STEP_FUNCTIONS[state.phase](state); // → next State
+  await saveCheckpoint(threadId, state);           // → persist so the user can close the tab and come back
+  if (state.phase === 'confirm') return { interrupt: state.pending }; // → return to UI; resume after Approve
+}
+```
+
+Đến cuối cùng bạn đã tự viết nodes (`STEP_FUNCTIONS`), edges (chuyển trạng thái `phase`), state, và checkpoint — đúng bốn primitive mà bài kế tiếp giới thiệu kèm tên gọi và test.
+
+## Bước ngoặt
+
+LangGraph, rất chính xác, chính là cái state machine mà bạn sẽ phải tự viết, được kỹ sư hoá tử tế, với các quy ước API mà người dùng LangChain đã quen. State + nodes + edges; conditional routing; pause, resume, persistence; streaming; checkpoint hạng nhất. Nó nhìn vào cái loop trần đúng theo cách bạn nhìn — *"cái này ổn cho Q&A một phát, không đủ cho bất cứ thứ gì khác"* — và đưa bạn lên lớp tiếp theo mà không vứt bỏ những gì bạn đã biết.
+
+Tất cả những gì bạn đã xây ở Phần III vẫn áp dụng được. Định nghĩa tool không đổi. Schema Zod không đổi. System prompt và few-shot example không đổi. Cái thay đổi là orchestrator: thay vì `while (toolCalls.length) { ... }`, bạn mô tả một graph và `compile()` nó. Mô hình vẫn gọi tool; tool vẫn trả về string; bạn vẫn validate và vẫn log. Chỉ có cái runner là khác — và từ bài kế tiếp trở đi, mạnh mẽ hơn hẳn.
+
+<Recap>
+- Vòng while trần rất hợp cho Q&A một lượt và một hai lời gọi tool. Nó không hợp cho kế hoạch nhiều bước.
+- Công việc nhiều bước cần branching, pause, recovery, xử lý partial-failure, resumption — toàn bộ những mối quan tâm bình thường của state machine.
+- Tự xây mấy thứ đó lên trên cái loop nghĩa là bạn đang tái phát minh một graph runtime; LangGraph chính là runtime đó, thiết kế đúng cho hình dạng này.
+- Tool, schema, prompt, lỗi — mọi thứ ở Phần III đều giữ nguyên. Chỉ orchestrator thăng cấp.
+- Bài kế tiếp là phần giới thiệu chính thức: state, nodes, edges, compile, invoke.
+</Recap>
+
+</VI>

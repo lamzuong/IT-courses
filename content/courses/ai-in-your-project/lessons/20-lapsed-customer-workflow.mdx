@@ -1,6 +1,9 @@
 import { Recap } from '@/components/mdx/recap';
 import { Callout } from '@/components/mdx/callout';
 import { LapsedCustomerDemo } from '@/components/demos/ai-in-your-project/lapsed-customer-demo';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - Run the example prompt from lesson 01 through the full graph end-to-end.
@@ -89,3 +92,97 @@ There is exactly one thing missing before this is a thing you'd ship to producti
 - Reject is a hard stop. Earlier mutations stay committed and stay in the audit log; rolling back is its own approved workflow.
 - Every primitive from Parts I–IV composes onto one graph. The next part makes that graph durable, safe, observable, and shippable.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Chạy lại ví dụ prompt từ bài 01 xuyên suốt cả graph, từ đầu đến cuối.
+- Thấy mọi primitive từ Phần I–IV cùng ráp lại trên một xương sống: structured output, công cụ đọc, công cụ ghi, idempotency, hồi phục lỗi, routing có điều kiện, interrupt, audit log.
+- Cách "fail" sạch sẽ nhất có thể: khi bị từ chối thì dừng gọn, các mutation đã chạy trước đó vẫn được commit và ghi audit — việc khôi phục là một workflow duyệt riêng, không phải "undo ngầm" kiểu phép màu.
+</Callout>
+
+Đi lại ví dụ từ bài 1, lần này với toàn bộ "đồ nghề" bạn đã xây. Workflow khách hàng đã ngủ đông (lapsed customer) là củ cà rốt treo trước mũi bạn từ trang đầu khoá học: *tạo voucher giảm 15% cho khách hàng đã không đặt hàng trong 60 ngày, soạn email mời họ quay lại, và gắn tag để biết về sau cái gì hiệu quả.* Hai mươi bài trước, câu đó nghe như một đoạn mô tả tính năng. Giờ nó là ba node, bốn tool call và ba cổng xác nhận, được ráp trên một graph mà bạn hiểu rõ từng dòng. Bài này chạy toàn bộ luồng đó từ đầu đến cuối và chỉ ra chỗ nào mỗi primitive của khoá học "kiếm cơm".
+
+## 01 — Câu prompt
+
+> *"Tạo voucher giảm 15% cho khách hàng đã không đặt hàng trong 60 ngày, soạn email mời họ quay lại, và gắn tag `lapsed-q4` cho họ."*
+
+Đó là input của operator. Một câu. Ba thao tác ghi, một thao tác đọc, và ít nhất ba chỗ cần hỏi ý kiến người trước khi đụng vào database. Mô hình không phải tự đoán schema (các tool của bạn đã quảng cáo nó rồi), không phải tự suy ra mốc lọc khách hàng (prompt đã nói 60 ngày), và không phải tự nghĩ ra quy trình (đã được mô tả trong system prompt và các ví dụ few-shot ở Phần II). Việc mô hình *thật sự* phải làm là rã câu đó thành một kế hoạch mà các tool của bạn thực thi được, theo đúng thứ tự phụ thuộc giữa các bước.
+
+## 02 — Kế hoạch mà mô hình tạo ra
+
+Một lệnh structured-output (bài 8) ở đầu mỗi lượt agent sẽ sinh ra đại loại như sau:
+
+```json
+{
+  "plan": [
+    { "id": 1, "action": "create_promo",  "args": { "code": "LAPSED15", "discountType": "pct", "discountValue": 15, "audience": "lapsed-60d" } },
+    { "id": 2, "action": "find_lapsed",   "args": { "days": 60 } },
+    { "id": 3, "action": "draft_emails",  "args": { "promoCode": "LAPSED15", "from": "step-2.recipients" } },
+    { "id": 4, "action": "tag_customers", "args": { "tag": "lapsed-q4", "ids": "step-2.recipients.ids" } }
+  ]
+}
+```
+
+Hai điểm đáng chú ý. Thứ nhất, bước *đọc* nằm ở *giữa* — bước 2 sinh ra danh sách người nhận mà bước 3 và 4 phụ thuộc vào, nên kế hoạch không thể là một danh sách phẳng các lệnh gọi độc lập. Thứ hai, phụ thuộc giữa các bước được mã hoá bằng các chuỗi placeholder (`step-2.recipients`) mà vòng lặp agent sẽ giải quyết khi chạy. Schema structured-output của bạn là thứ đảm bảo hình dạng này lặp lại đều mỗi lần; bạn không tin tưởng được rằng văn bản tự do của mô hình lúc nào cũng parse được.
+
+## 03 — Thực thi từng bước
+
+Graph khởi động ở `agent`. Mô hình phát ra `tool_call` đầu tiên: `promotions.create`. Router (bài 18) phân loại nó là write và route sang `await_confirmation`. Interrupt (bài 19) kích hoạt; UI hiện thẻ xác nhận. Người dùng bấm Approve. Giá trị resume chảy ngược lại vào node, graph route tiếp sang `write_tools`, và một câu insert Drizzle chạy:
+
+```ts
+await db.insert(promotions).values({              // → INSERT INTO promotions (...) VALUES (...)
+  code: 'LAPSED15',                               // → unique promo code
+  discountType: 'pct',                            // → percentage discount
+  discountValue: 15,                              // → 15%
+  audienceFilter: { lapsedDays: 60 },             // → JSON column — "lapsed for 60+ days"
+  active: true,                                   // → live immediately
+  createdBy: 'ai',                                // → audit field — distinguishes AI from human creates
+});
+// → one Promotion row committed; audit log gains a 'promotions.create' entry
+```
+
+Audit log (bài 12) ghi lại dòng đó. Graph quay vòng về `agent`. Mô hình phát lệnh tiếp theo: `customers.lapsed({ days: 60 })`. Router phân loại nó là read. Không có interrupt — nó đi thẳng tới `read_tools`, chạy query Drizzle và trả về các dòng:
+
+```ts
+return await db.select()                          // → SELECT *
+  .from(customers)                                // → FROM customers
+  .where(lt(customers.lastOrderAt, sql`now() - interval '60 days'`)); // → WHERE last_order_at < now() - 60 days
+// → Customer[] — the 7 lapsed rows from the seed data
+```
+
+Bảy dòng được trả về. Graph quay vòng lại `agent`. Giờ mô hình đã có danh sách người nhận và phát `emails.draft_bulk` với bảy customer ID. Router phân loại là write — quay về `await_confirmation`. UI hiện thẻ xác nhận với tên người nhận hiển thị rõ để operator phát hiện nhầm đối tượng *trước* khi email được gửi đi. Approve. Graph chạy bulk insert, audit bảy dòng mới trong `email_drafts`, và quay vòng thêm một lần nữa.
+
+Mô hình phát tool cuối cùng: `customers.tag_bulk` với cùng bảy ID đó và tag `lapsed-q4`. Router → xác nhận → approve → write. Graph quay vòng, mô hình tạo `AIMessage` cuối cùng không có tool call (`"Done — promo created, 7 drafts saved, 7 customers tagged."`), và cạnh điều kiện đưa nó đến `END`.
+
+Ba cổng xác nhận. Ba câu write Drizzle. Một câu read Drizzle. Một dòng audit-log mỗi write. Idempotency key (bài 13) trên mỗi write để một request bị retry không bị tính hai lần. Hồi phục lỗi (bài 14) để một lỗi tạm thời ở bước email drafts không kéo sập bước tạo promo. Mọi primitive trong khoá học đều có mặt ở đây.
+
+## 04 — Xem nó chạy
+
+Demo bên dưới chạy nguyên sequence với hàm `lapsedCustomers(60)` *thật* từ CMS giả lập của khoá học — danh sách người nhận không phải chuỗi placeholder, mà là bảy khách hàng thật sự có `lastOrderAt` cách đây hơn 60 ngày trong seed data. Ba cổng xác nhận, một audit log bên phải mọc thêm dòng mỗi lần mutation được commit, và một trạng thái cuối cho thấy rõ cái gì đã ghi xuống và cái gì thì chưa.
+
+<Demo title="Lapsed customer workflow — the full Part IV pipeline">
+  <LapsedCustomerDemo />
+</Demo>
+
+Chạy thử một lần và approve hết để thấy audit log từ từ điền vào từng dòng. Chạy lại lần nữa và reject thẻ thứ hai — để ý rằng việc tạo promo ở bước 1 *vẫn nằm trong audit log* (vì nó đã commit rồi) nhưng không có gì khác được ghi xuống. Đây là kiểu fail sạch sẽ nhất có thể: mọi mutation đều được audit ngay khi commit, và "từ chối" là một stop cứng — để nguyên những thứ đã làm trước đó, không cố rollback. Khi cần khôi phục, đó lại là một workflow duyệt riêng — chứ không phải phép thuật "undo ngầm".
+
+## 05 — Đến đây học viên đã có gì
+
+Nhìn lại danh sách các primitive được ráp trong demo đó: structured output, công cụ đọc, công cụ ghi, idempotency key, hồi phục lỗi, routing có điều kiện, interrupt + xác nhận, audit logging. Tám thứ. Mỗi thứ đều từng là một bài, thường là một bài có demo riêng nho nhỏ, và giờ tất cả khớp vào nhau trên một xương sống graph duy nhất. Đó là toàn bộ tinh thần của Phần IV: *graph không phải là cách vẽ vòng lặp agent cho điệu đà, nó là chỗ để đặt từng mối quan tâm đã phát triển riêng lẻ vào mà không để chúng vướng lẫn nhau.*
+
+Còn đúng một thứ thiếu trước khi cái này thành thứ có thể ship lên production: durability (tính bền vững). Graph hiện tại sống trong memory; đóng tab giữa lúc xác nhận thì kế hoạch dang dở mất sạch. Bài 21 của Phần V chữa chỗ đó bằng checkpointer, sau đó Phần V còn nói về an toàn, testing, observability và deploy. Phần kiến trúc đã xong. Phần còn lại là làm cho nó *sống sót được ngoài đời thật*.
+
+<Recap>
+- Một câu của operator được rã thành kế hoạch bốn bước: tạo promo, tìm khách hàng đã ngủ đông, soạn email, gắn tag. Ba write, một read.
+- Structured output giữ cho hình dạng kế hoạch luôn dự đoán được; bạn không phải parse văn bản tự do.
+- Router phân loại mỗi tool call: write đi qua `await_confirmation`, read chạy thẳng.
+- Mỗi bước write là một interrupt → một thẻ xác nhận → một mutation Drizzle → một dòng audit-log. Ba cổng, ba dòng.
+- Idempotency key bảo vệ khỏi double-write khi request bị retry; hồi phục lỗi cách ly thất bại của một bước khỏi các bước còn lại.
+- Reject là stop cứng. Các mutation trước đó vẫn được commit và vẫn nằm trong audit log; rollback là một workflow duyệt riêng.
+- Mọi primitive từ Phần I–IV cùng ráp lên một graph. Phần tiếp theo làm cho graph đó bền vững, an toàn, có quan sát được và đem ship được.
+</Recap>
+
+</VI>

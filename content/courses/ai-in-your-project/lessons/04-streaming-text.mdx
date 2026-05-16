@@ -1,6 +1,9 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { StreamingTextDemo } from '@/components/demos/ai-in-your-project/streaming-text-demo';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - The two halves of a streaming chat: `model.stream()` on the server, a 25-line `useStream` hook on the client.
@@ -124,3 +127,132 @@ You don't need one. `EventSource` is a built-in browser API, but it can't send a
 - Browser side: `fetch` → `body.getReader()` → decoder → split on `\n\n` → parse `data: ` lines → setState. About 25 lines.
 - Once you have a `useStream` hook, every chat page becomes "a textarea and a div." The streaming machinery disappears.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Hai nửa của một chat có streaming: `model.stream()` ở server, một hook `useStream` 25 dòng ở client.
+- Vì sao time-to-first-token (chứ không phải wall-clock time) mới là thứ người dùng *thật sự cảm thấy*.
+- Vì sao bạn không cần một thư viện SSE — `fetch` + `body.getReader()` là đủ.
+</Callout>
+
+Streaming là khác biệt giữa "model đang suy nghĩ" và "model đang nói chuyện". Cùng một khoảng thời gian chờ, cảm giác rất khác nhau. Người dùng nhìn chữ hiện ra dần thì kiên nhẫn; người dùng nhìn spinner xoay thì không. Bản thân model không thay đổi gì — chỉ là trình duyệt làm gì với những byte khi chúng tới.
+
+Bài này lấy SSE handler từ bài 3 và nối nó vào một UI React thật. Sau khi xong, app của bạn sẽ nhỏ giọt từng token khi model sản sinh, và bạn sẽ có một hook `useStream` nho nhỏ để thả vào bất cứ page nào cần.
+
+## 01 — Vì sao streaming xứng đáng với chút công sức thêm
+
+Một model phát 200 token với tốc độ 30 token/giây sẽ mất khoảng bảy giây. Nếu bạn chờ cho xong cả response, người dùng nhìn spinner trong bảy giây rồi đột ngột thấy một bức tường chữ. Nếu bạn streaming, từ đầu tiên xuất hiện sau ~50ms và người dùng đọc trong khi phần còn lại đang được sinh ra. Wall-clock time tổng cộng *y hệt*, nhưng độ trễ *cảm nhận được* chính là time-to-first-token.
+
+Tốc độ đọc của một người lớn trung bình là khoảng 250 từ/phút, tức ~4 từ/giây. Hầu hết model mã nguồn mở hiện đại phát chữ ra nhanh hơn thế. Khi người dùng đã bắt đầu đọc, model coi như *bắt kịp họ* — họ đọc xong câu cuối ngay lúc model sinh xong câu cuối. Sự chờ đợi biến mất.
+
+Streaming còn cho bạn một tín hiệu tiến độ miễn phí. Token ngừng tới thì biết có vấn đề; token đang trickle vào thì biết hệ thống vẫn sống. Bạn không cần thêm chỉ báo "có còn đang chạy không?" tách rời.
+
+So sánh cụ thể, cùng một câu hỏi — *"Tóm tắt ba đơn hàng gần nhất của khách hàng này"* — sản sinh ~200 token:
+
+| | Không streaming | Có streaming |
+|---|---|---|
+| t = 0.0s | spinner | spinner |
+| t = 0.05s | spinner | *"Phước đã đặt…"* |
+| t = 1.5s | spinner | *"Phước đã đặt ba đơn trong 6 tuần qua. Gần nhất là…"* |
+| t = 7.0s | toàn bộ reply hiện ra | *"…và tổng là $312."* (reply kết thúc) |
+| Cảm giác | bảy giây trống rỗng | nửa giây trống rỗng, rồi vừa đọc vừa chờ |
+
+Cùng model, cùng câu trả lời, cùng chi phí wall-clock. Chỉ trải nghiệm người dùng thay đổi.
+
+## 02 — `model.stream()` ở phía server
+
+Bạn đã viết handler này ở bài 3. Đọc lại nhưng để ý mặt streaming:
+
+```ts
+const stream = await model.stream(message);     // → AsyncIterable<AIMessageChunk>
+
+const body = new ReadableStream({                // → Web ReadableStream we'll attach to Response
+  async start(controller) {
+    for await (const chunk of stream) {          // → each chunk: AIMessageChunk { content: 'Hi' }
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk.content)}\n\n`)); // → wire frame: 'data: "Hi"\n\n'
+    }
+    controller.enqueue(encoder.encode('data: [DONE]\n\n')); // → terminator the client looks for
+    controller.close();                          // → closes the stream cleanly
+  },
+});
+```
+
+`model.stream()` trả về một async iterator của các object `AIMessageChunk`. Mỗi vòng lặp là một chunk — thường là một token hoặc vài token. Bạn bọc chúng theo định dạng SSE (`data: ...\n\n`) và đẩy qua một `ReadableStream`. Sentinel `[DONE]` là quy ước, không phải spec — nhưng mọi SSE consumer trên trình duyệt đều mong đợi một dấu kết thúc kiểu vậy, nên ta đi theo số đông.
+
+Ba điểm cần để ý:
+
+- Handler có hình dạng *push*, không phải *pull*. Model quyết định khi nào chunk tới; bạn forward khi chúng xuất hiện.
+- `JSON.stringify` là bắt buộc — ký tự xuống dòng trong text gốc sẽ phá khung SSE.
+- Stream tự đóng khi model kết thúc. Không timeout, không `setTimeout`, không cleanup thủ công.
+
+## 03 — Phía React: một hook `useStream` nho nhỏ
+
+Phía trình duyệt ngắn hơn người ta tưởng. `fetch` trả về `Response` mà `body` của nó là một `ReadableStream`. Bạn đọc từng chunk, parse các dòng `data: `, và append vào state.
+
+```tsx
+'use client';
+import { useState } from 'react';
+
+export function useStream() {
+  const [text, setText] = useState('');          // → '' initially; grows as chunks arrive
+  const [running, setRunning] = useState(false); // → false; flips true while a request is in flight
+
+  async function send(message: string) {
+    setText('');                                 // → clears any prior reply
+    setRunning(true);                            // → UI shows "running" state
+    const res = await fetch('/api/chat', {       // → Response with streaming body
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),         // → '{"message":"..."}'
+    });
+    const reader = res.body!.getReader();        // → ReadableStreamDefaultReader<Uint8Array>
+    const decoder = new TextDecoder();           // → utf-8 decoder
+    let buf = '';                                // → accumulates leftover bytes between reads
+    while (true) {
+      const { value, done } = await reader.read(); // → { value: Uint8Array, done: boolean }
+      if (done) break;                           // → stream finished — exit loop
+      buf += decoder.decode(value, { stream: true }); // → buf now contains 'data: "Hi"\n\ndata: "!"\n\n...'
+      for (const line of buf.split('\n\n')) {    // → split into individual SSE frames
+        if (!line.startsWith('data: ')) continue;// → skip blank/keepalive lines
+        const payload = line.slice(6);           // → '"Hi"' (the JSON-encoded chunk)
+        if (payload === '[DONE]') break;         // → stop on terminator
+        setText((t) => t + JSON.parse(payload)); // → append decoded string ('Hi') to UI text
+      }
+      buf = buf.split('\n\n').slice(-1)[0];      // → keep the unfinished tail for the next read
+    }
+    setRunning(false);                           // → UI exits "running" state
+  }
+
+  return { text, running, send };                // → consumer reads `text`, calls `send(msg)`
+}
+```
+
+Hai mươi lăm dòng, không cần dependency. Phần tinh tế duy nhất là mẹo "buffer đuôi": các SSE frame ngăn cách bằng `\n\n`, nhưng một lần đọc network có thể cắt một frame ở giữa. Ta giữ phần đuôi chưa xong trong `buf` và ghép lại ở vòng đọc tiếp theo. Không có nó, bạn sẽ ngẫu nhiên bị mất token mỗi khi mạng đẩy về một chunk nhỏ.
+
+Khi đã có hook này, mọi chat-page về cơ bản đều giống nhau: một textarea, một button, và `<div>{text}</div>`. Bộ máy streaming trở nên vô hình.
+
+## 04 — Xem nó chạy
+
+Bấm Run và xem response nhỏ giọt.
+
+<Demo title="Streaming text into the UI">
+  <StreamingTextDemo />
+</Demo>
+
+Trong tình huống thật, mỗi ký tự sẽ tương ứng với một token từ model. Ở đây chúng ta gian lận một chút — ký tự thì dễ animate nuột hơn so với những đợt bùng không đều của LLM thật — nhưng *hình dạng* thì y hệt thứ bạn sẽ thấy trên production.
+
+<Callout type="note" title="Còn các thư viện Server-Sent Events thì sao?">
+Bạn không cần. `EventSource` là một API có sẵn của trình duyệt, nhưng nó không gửi được POST body — đó là lý do ta dùng `fetch` và parse thủ công. Mười lăm dòng logic decoder thắng việc lôi vào một dependency 30 KB.
+</Callout>
+
+<Recap>
+- Streaming không làm thay đổi wall-clock time; nó thay đổi độ trễ cảm nhận được. Time-to-first-token là cái người dùng cảm thấy.
+- Phía server: `model.stream()` → `ReadableStream` → các SSE frame. Khoảng 15 dòng.
+- Phía trình duyệt: `fetch` → `body.getReader()` → decoder → tách theo `\n\n` → parse các dòng `data: ` → setState. Khoảng 25 dòng.
+- Khi đã có hook `useStream`, mọi chat page trở thành "một textarea và một div." Bộ máy streaming biến mất.
+</Recap>
+
+</VI>

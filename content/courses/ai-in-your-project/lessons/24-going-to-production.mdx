@@ -1,5 +1,8 @@
 import { Recap } from '@/components/mdx/recap';
 import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - Swap `ChatOllama` for `ChatAnthropic` (or OpenAI, or Gemini) in one line — the rest of the graph code, tools, and tests don't change.
@@ -106,3 +109,115 @@ The final project takes everything one step further: a fully interactive AI Oper
 - First-deploy budget cap: $10/day. Hit it? Find the bug; don't raise the cap.
 - Across 24 lessons you built a state machine that plans, gates, mutates, and audits. That's the whole arc — from "what's AI in my project" to *shipped*.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Đổi `ChatOllama` sang `ChatAnthropic` (hoặc OpenAI, hoặc Gemini) chỉ trong một dòng — phần còn lại của graph code, tool, và test đều không đổi.
+- Chuyển sang checkpointer dùng Postgres để interrupt sống sót qua cold start của Vercel Function.
+- Ba lớp rate-limit (retry khi nhà cung cấp trả 429, sliding window theo user, kill-switch toàn cục theo ngày) và mức cap khởi điểm $10/ngày.
+</Callout>
+
+Bạn đã ship một AI Operator chạy local trên Ollama. Nó lên kế hoạch, hỏi xác nhận, commit vào database thật, audit, có test. Giờ thì ship cho ra ship. Khoảng cách giữa laptop của bạn và một URL production nhỏ hơn vẻ ngoài của nó — chỉ là một import, một env var, một lệnh deploy, vài cái guard rail — nhưng mỗi bước đều có chỗ để một sai sót nhỏ âm thầm tốn tiền. Bài này đi qua từng bước trong khoảng cách đó.
+
+Lời hứa nhỏ và cụ thể: cuối trang này, bạn đã đổi nhà cung cấp mô hình, cấu hình secret, deploy lên Vercel, đặt cap ngân sách và thêm rate limiter. Đó là cái sàn cho một tính năng AI production. Mọi thứ khác — chính sách multi-tenant, retention cho audit, fine-tune theo khách hàng — là lớp xếp lên trên.
+
+## 01 — Đổi nhà cung cấp mô hình
+
+Ollama là lựa chọn đúng cho development: free, local, iterate nhanh, không có bất ngờ rate limit khi bạn đang viết test. Nó là lựa chọn sai cho production: không ship được lên Vercel, sẽ đè bẹp một VPS nhỏ, và các mô hình open-weights đi sau mô hình hosted hàng đầu. Đổi sang nhà cung cấp hosted chỉ bằng một import:
+
+```ts
+// Before: dev on your laptop
+import { ChatOllama } from '@langchain/ollama';   // → local Ollama adapter
+const llm = new ChatOllama({ model: 'llama3.1:8b', temperature: 0 }); // → ChatOllama instance hitting localhost
+
+// After: production
+import { ChatAnthropic } from '@langchain/anthropic'; // → hosted Anthropic adapter
+const llm = new ChatAnthropic({
+  model: 'claude-sonnet-4',                       // → hosted frontier model
+  apiKey: process.env.ANTHROPIC_API_KEY,          // → secret loaded from env
+  temperature: 0,                                 // → deterministic for tool calling
+});
+// → llm: same BaseChatModel interface — every downstream call site is unchanged
+```
+
+Interface y hệt nhau. Graph code không đổi. Tool không đổi. Test, nếu bạn viết bằng `FakeListChatModel`, cũng không đổi. Đây là phần thưởng cho việc bám sát abstraction của LangChain xuyên suốt — việc đổi chỉ là sửa một dòng và re-deploy.
+
+(`@langchain/openai` và `@langchain/google-genai` cùng hình dạng. Chọn theo giá và khả năng; sau này đổi nhà cung cấp lại là một lần sửa một dòng.)
+
+## 02 — Env vars
+
+```bash
+# .env.local for development
+ANTHROPIC_API_KEY=sk-ant-api03-...                # → loaded into process.env by Next.js / dotenv
+
+# Vercel: project settings → environment variables
+# Add ANTHROPIC_API_KEY for the Production environment.   # → injected at build/runtime
+# Optionally add LANGSMITH_API_KEY and LANGSMITH_TRACING=true.  # → flips on tracing
+```
+
+Hai quy tắc. Đừng bao giờ commit key thật lên git — editor của bạn có lẽ đã có hook càm ràm; cứ tin nó. Đừng bao giờ dùng chung một key giữa dev và prod — rotate key dev thoải mái và khoá scope key prod chặt. Đa số nhà cung cấp cho bạn đặt rate limit theo từng key trong dashboard của họ; một key dev với cap $5/ngày sẽ không gây hoạ kể cả khi bạn lỡ `console.log` nó vào một ngày thứ Ba.
+
+## 03 — Deploy
+
+```bash
+vercel deploy --prod                              # → builds and promotes the deployment to the production URL
+```
+
+Lệnh thì có vậy. Phần thú vị xảy ra xung quanh nó. Vercel Functions không có state; checkpointer `MemorySaver` in-memory của bạn (bài 20) không sống sót giữa các request. Đổi sang checkpointer chạy trên Postgres trước lần deploy đầu tiên, không thì interrupt của bạn sẽ mất state mỗi lần function cold-start:
+
+```ts
+import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres'; // → durable graph checkpointer
+
+const checkpointer = PostgresSaver.fromConnString(process.env.POSTGRES_URL!); // → PostgresSaver instance
+await checkpointer.setup();                       // → ensures checkpoint tables exist (idempotent)
+
+const graph = builder.compile({ checkpointer });  // → CompiledStateGraph that persists state to Postgres
+// → interrupts now survive Vercel Function cold starts and tab closes
+```
+
+Bảng audit log từ bài 12 sống trong cùng Postgres đó. Dùng lại connection. Một database là đủ cho một app nhỏ.
+
+## 04 — Rate limit, ba hương vị
+
+Ba lớp, mỗi lớp bắt một kiểu tai nạn khác nhau.
+
+**Rate limit từ nhà cung cấp** không phải do bạn đặt; là của API. Anthropic, OpenAI và Google đều trả 429 khi vượt mức. Bọc lệnh gọi LLM của bạn bằng retry-with-backoff (bài 14) là bạn đã xử lý được hầu hết các ca tạm thời mà user không hề hay biết.
+
+**Rate limit theo user** là của bạn. Một bộ đếm sliding window đơn giản — ví dụ 50 request/user/giờ — sẽ ngăn một user tò mò vô tình đốt cháy ngân sách cả tháng. Vercel KV hoặc Upstash Redis là đủ; vài dòng middleware đặt trước handler agent.
+
+**Circuit-breaker toàn cục** là kill-switch từ bài 23. Một cap theo ngày, kiểm tra mỗi request, tạm dừng toàn bộ agent nếu chi tiêu hôm nay vượt cap. User nhận được một thẻ thân thiện *"AI tạm nghỉ trong ngày"* thay vì lỗi 500.
+
+Cả ba cùng nhau mới là cái sàn. Lần đầu tiên một trong số chúng kích hoạt trong production, bạn sẽ thấy may là có nó.
+
+## 05 — Theo dõi chi phí
+
+Bạn đã viết callback handler ở bài 23. Hãy gắn nó vào mọi mô hình trên production. Đưa ba câu query (chi tiêu hôm qua, top spender, xu hướng theo ngày) vào một trang admin nho nhỏ hoặc một email định kỳ; bạn không cần dashboard đẹp, bạn cần con số trước mặt đủ thường xuyên để bất ngờ trở thành không thể xảy ra.
+
+<Callout type="tip">
+  Cho lần deploy production đầu tiên, đặt cap ngân sách ngày là **$10/ngày** rồi đi chỗ khác. Nếu bạn chạm cap, prompt hoặc loop của bạn có bug — đi tìm bug, rồi mới nâng cap. Cap không phải là thứ giới hạn business của bạn; nó là thứ bảo vệ bạn trong lúc bạn đi tìm giới hạn của code.
+</Callout>
+
+## 06 — Bạn đã xây được gì
+
+Đây là những thứ đúng cách đây 24 bài và giờ thì không còn đúng nữa.
+
+Hai mươi tư bài trước, "AI trong dự án của tôi" là một khát vọng không có hình hài. Không có chỗ nào trong code của bạn để nó sống; chỉ có một ý định mơ hồ là "làm gì đó với LLM" nhét giữa hai tính năng đã có. Bạn đã chọn Ollama và pull một mô hình — Phần I. Bạn đã stream chữ vào UI, dạy mô hình về domain của bạn bằng prompt và structured output — Phần II. Bạn đã bind các tool đọc đầu tiên, rồi tool ghi nguy hiểm đầu tiên với cổng xác nhận và idempotency key — Phần III. Bạn đã khâu hết vào một graph, thêm routing có điều kiện, dừng runtime bằng `interrupt()` — Phần IV. Và bạn đã lấp khoảng cách production-ready: prompt injection, golden test, observability, cap ngân sách — Phần V.
+
+Cái nằm trên ổ đĩa của bạn lúc này là một mảnh phần mềm với một state machine bạn hiểu, các tool bạn tự viết và tự validate, một audit log của mọi mutation, và một bộ test CI bắt regression trước khi khách hàng bắt. Nó không phải chatbot. Nó là *AI Operator* — một graph đề xuất mutation, xin phép, thực thi cái đã được duyệt, và nói sự thật trong audit log về những gì đã làm. Sự phân biệt đó chính là toàn bộ tinh thần khoá học này.
+
+Dự án cuối còn đi thêm một bước: một console AI Operator tương tác đầy đủ, mô phỏng toàn bộ vòng lặp từ đầu đến cuối. Xây nó, ship nó, chụp ảnh màn hình, đưa lên portfolio. Lần tới có người hỏi *"bạn biết cách đưa AI vào một sản phẩm thật không?"* — bạn có một câu trả lời không phải là bản recap tutorial. Nó là thứ bạn đã ship.
+
+<Recap>
+- Một dòng import đổi `ChatOllama` thành `ChatAnthropic` (hoặc OpenAI, hoặc Gemini). Graph code, tool và test đều không đổi.
+- `ANTHROPIC_API_KEY` sống trong env vars của project Vercel, không bao giờ trong git. Rotate key dev thoải mái; scope key prod thật chặt.
+- Đổi sang checkpointer Postgres trước khi deploy — Vercel Functions không có state, `MemorySaver` không sống sót qua cold start.
+- Ba lớp rate-limit: retry 429 từ nhà cung cấp, sliding window theo user, kill-switch toàn cục theo ngày.
+- Gắn callback log chi phí vào mọi mô hình trên prod. Ba câu SQL thắng mọi dashboard.
+- Cap ngân sách lần deploy đầu: $10/ngày. Chạm cap? Đi tìm bug; đừng nâng cap.
+- Qua 24 bài, bạn đã xây một state machine biết lên kế hoạch, đặt cổng, mutate, và audit. Đó là toàn bộ tinh thần — từ "AI trong dự án của tôi là gì" tới *đã ship*.
+</Recap>
+
+</VI>

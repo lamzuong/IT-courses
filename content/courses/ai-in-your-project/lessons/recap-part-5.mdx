@@ -1,5 +1,8 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this recap">
 - A mind map of Part V — the four production layers wrapped around a working graph.
@@ -68,3 +71,77 @@ Part V is the wrapper. The graph from Part IV works on your laptop; Part V is wh
 </Recap>
 
 **The course in one sentence.** You went from *"AI in my project"* as a vague intention to a graph-shaped state machine that plans, gates, mutates, audits, tests, observes, and ships. The Final Project — the AI Operator console — is where you put the entire thing in front of a UI and watch the loop you understood theory-of in lesson 01 actually run end-to-end.
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài tổng kết này">
+- Mind map của Phần V — bốn lớp production bọc quanh một graph chạy được.
+- Checklist trước khi launch: chặn input, golden test, observability, và đổi provider chỉ một dòng.
+- Một block Recap tóm gọn *"sẵn sàng production"* thực sự nghĩa là gì với loại tính năng này.
+</Callout>
+
+Phần V là phần "vỏ bọc". Graph ở Phần IV chạy ổn trên laptop; Phần V là thứ giữ cho nó không nổ tung trên production. Bốn bài, mỗi bài xử lý một loại sự cố hay làm các team bất ngờ trong tháng đầu: một prompt người dùng độc hại "bẻ lái" agent (an toàn), sự dịch chuyển âm thầm trong hành vi model sau khi đổi prompt (testing), một hoá đơn bất ngờ vào sáng thứ Hai đầu tháng (observability và chi phí), và việc đổi từ Ollama local sang nhà cung cấp hosted vào ngày deploy là chuyện không thể tránh khỏi (lên production). Bài học mà các team có kinh nghiệm đã thuộc lòng: không lớp nào trong bốn lớp này là tuỳ chọn.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 480" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map của Phần V: nút trung tâm 'AI cấp production' với bốn nhánh — an toàn và prompt injection, testing và đánh giá, observability và chi phí, và đem lên production">
+    {/* connectors */}
+    <path d="M 360,200 L 360,90" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,240 L 540,240" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 360,280 L 360,390" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,240 L 180,240" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+
+    {/* center */}
+    <rect x="260" y="200" width="200" height="80" rx="14" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="232" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'AI cấp production'}</text>
+    <text x="360" y="252" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'bốn lớp bọc quanh graph'}</text>
+    <text x="360" y="270" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'Phần V'}</text>
+
+    {/* north — safety */}
+    <rect x="240" y="30" width="240" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'An toàn  ·  L21'}</text>
+    <text x="360" y="76" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'prompt injection · validate output'}</text>
+
+    {/* east — testing */}
+    <rect x="540" y="210" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="620" y="236" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Testing  ·  L22'}</text>
+    <text x="620" y="256" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'golden + fake LLM'}</text>
+
+    {/* south — observability */}
+    <rect x="240" y="390" width="240" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="416" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Observability  ·  L23'}</text>
+    <text x="360" y="436" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'tracing · chi phí token · kill-switch'}</text>
+
+    {/* west — going to production */}
+    <rect x="20" y="210" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="100" y="236" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Deploy  ·  L24'}</text>
+    <text x="100" y="256" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'đổi provider một dòng'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Bốn lớp bọc quanh graph. Bỏ qua một lớp, đó chính là chỗ sự cố đầu tiên đi ra.
+  </figcaption>
+</figure>
+
+## Các mảnh ghép vào nhau ra sao
+
+**An toàn (L21)** là hai hàng rào riêng biệt. *Prompt injection* — một người dùng (hoặc một mẩu dữ liệu do người dùng cung cấp) cố gắng ghi đè system prompt bằng câu *"bỏ qua các chỉ dẫn trước và..."*. Phòng thủ phải có nhiều lớp: không bao giờ paste dữ liệu người dùng thô vào system prompt; validate output của model bằng Zod schema; cho mọi lệnh ghi đi qua `interrupt()` để một prompt độc hại không thể vượt qua bước duyệt. *Validate output* — không bao giờ tin văn bản tự do của model trong các nhánh code; chỉ tin những gì quay về qua `withStructuredOutput`.
+
+**Testing (L22)** là một sự đổi thể loại, không chỉ thêm vài unit test. Bạn không test xem AI có *thông minh* không; bạn test xem *bề mặt tất định bao quanh nó* có hành xử đúng không. Golden tool-call test với `temperature: 0`. Snapshot văn xuôi theo *hình dạng*, không phải khớp chính xác từng chữ. `FakeListChatModel` cho test logic của graph mà không tốn token. Một bộ eval dataset nhỏ chạy lại ở mỗi PR. Phần mềm thì *test được*; còn model thì *đánh giá được*.
+
+**Observability và chi phí (L23)** là bài mà các team thường học theo "cách đau đớn". LangSmith (hoặc tự dựng một `BaseCallbackHandler` trong năm mươi dòng) cho bạn tracing theo từng call và theo dõi chi phí theo từng user. Ba câu SQL — chi phí hôm qua, top người tiêu nhiều nhất, xu hướng theo ngày — đánh bại mọi dashboard có sẵn trong tháng đầu. Một mức trần theo ngày và một kill-switch toàn cục biến *"hoá đơn 4.200 USD"* thành *"nó chạm trần 73 USD và đã email tôi."*
+
+**Đem lên production (L24)** là bước cuối cùng từ dev sang prod. `ChatOllama` đổi thành `ChatAnthropic` chỉ một dòng import. `MemorySaver` đổi sang một checkpointer dùng Postgres (interrupt phải sống được qua cold start). Ba lớp rate-limit — retry khi provider trả 429, sliding window theo từng user, kill-switch toàn cục theo ngày. Đặt trần ngân sách ban đầu ở 10 USD/ngày; nếu bạn chạm trần, hãy tìm bug trước khi nâng trần.
+
+<Recap>
+- **An toàn là phòng thủ nhiều lớp, không phải một điểm.** Coi input người dùng là thù địch, validate output model bằng Zod, cho mọi lệnh ghi đi qua `interrupt()`. Một lớp duy nhất là không đủ.
+- **Test bề mặt tất định, đánh giá phần còn lại.** Golden tool-call test + snapshot theo hình dạng + fake LLM trong CI. Eval dataset cho chất lượng văn xuôi. Đừng trộn lẫn hai thứ.
+- **Observability có hai nửa.** Vận hành (latency, error) và *chi phí* (token, USD/ngày, top user). Cái thứ hai là cái làm các team bất ngờ. Cắm sẵn callback `CostLogger` *trước* khi có user trả tiền đầu tiên.
+- **Tối ưu chi phí thường là cắt history, không phải chọn model rẻ hơn.** Một kế hoạch nhiều bước trả 10× một câu chat nhanh — và phần lớn cái "10×" đó là lịch sử hội thoại.
+- **Đổi provider chỉ một dòng.** `ChatOllama` → `ChatAnthropic`. Graph, tool, và test không phải đổi. Đó là phần thưởng của việc bám sát abstraction LangChain xuyên suốt.
+- **Trần ngân sách ngày deploy đầu tiên: 10 USD/ngày.** Nếu chạm trần, prompt hoặc loop của bạn có bug. Tìm bug trước, rồi mới nâng trần.
+</Recap>
+
+**Cả khoá học gói trong một câu.** Bạn đã đi từ *"AI trong dự án của tôi"* — một ý định mơ hồ — đến một state machine hình dạng graph: nó lên kế hoạch, gắn cổng, thay đổi data, kiểm toán, test, quan sát, và lên production. Final Project — console AI Operator — là chỗ bạn đặt cả hệ thống ấy trước một UI và xem cái vòng lặp mà bạn đã hiểu lý thuyết từ bài 01 thực sự chạy end-to-end.
+
+</VI>

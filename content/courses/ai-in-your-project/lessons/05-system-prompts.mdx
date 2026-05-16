@@ -1,6 +1,9 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { SystemPromptToggleDemo } from '@/components/demos/ai-in-your-project/system-prompt-toggle-demo';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - The four ingredients of every production system prompt: role, constraints, format, refusal rules.
@@ -108,3 +111,116 @@ A determined user can usually extract your system prompt by asking the right que
 - Iterate against a panel of five real-shaped inputs, not one. Single-input debugging will mislead you.
 - Assume the system prompt is public. No secrets in there, ever.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Bốn thành phần xuất hiện trong mọi system prompt production: role, constraint, format, refusal rules.
+- Một template khởi đầu có thể tái sử dụng (~90 token) — copy về và đổi vài từ cho khớp domain của bạn.
+- Vòng lặp iteration để tinh chỉnh prompt dựa trên năm input đời thật — và vì sao "panel năm input" thắng kiểu debug một input.
+</Callout>
+
+System prompt là nơi bạn nói cho model biết nó *là ai*. Đó là một input năm dòng, ẩn với người dùng, ngồi đầu mọi cuộc hội thoại và âm thầm điều khiển khoảng 80% cảm giác của phần còn lại. Tông giọng, format, mức độ sẵn sàng từ chối, thế nào là "xong" — tất cả nằm ở đó. Viết đúng system prompt thì user prompt có thể cẩu thả. Viết sai system prompt thì kể cả một câu user prompt được trau chuốt hoàn hảo cũng cho ra kết quả bạn không muốn.
+
+Bài này nói về cách viết system prompt *có thể iterate được*. Không phải "prompt hoàn hảo" — không có cái đó — mà là một prompt bạn có thể đọc, debug, và cải thiện khi có gì đó sai.
+
+## 01 — Cái gì sống trong một system prompt
+
+Bốn thành phần xuất hiện trong gần như mọi system prompt production:
+
+- **Role.** Model là ai. *"You are the AI Operator for an inventory CMS."* Không phải gia vị — nó neo mọi quyết định về sau.
+- **Constraint.** Model *không được* làm gì. *"Never delete records. Never send email without operator approval."* Cụ thể, có thể test được, viết dưới dạng lệnh cấm.
+- **Format.** Output trông như thế nào. *"Reply in plain English unless asked for JSON."* Nếu bạn muốn một hình dạng cụ thể, nói rõ ra.
+- **Refusal rules.** Phải làm gì khi bị hỏi thứ ngoài phạm vi. *"If the user asks for legal advice, respond: 'That's outside my scope.'"* Model dù sao cũng sẽ từ chối khi "lo lắng"; chỉ định rõ câu từ chối thì việc từ chối mới nhất quán.
+
+Bất cứ thứ gì ngoài bốn nhóm này có khả năng là nhiễu. Những đoạn mở đầu dài dòng kiểu "bạn là chuyên gia về X với 20 năm kinh nghiệm" không cải thiện output một cách đáng kể và đốt token mà sau này bạn sẽ ước có lại.
+
+## 02 — Một template khởi đầu
+
+Đây là skeleton system prompt cho AI Operator mà chúng ta sẽ xây ở Phần III. Bạn có thể copy nguyên xi và đổi vài từ cho khớp domain của bạn.
+
+```md
+You are the AI Operator for an inventory CMS at a small online store.
+
+- Role: help the human operator manage customers, products, orders, and email drafts.
+- Tools: you have read tools (list, search, get) and write tools (create, update, send). Always confirm writes with the operator before calling them.
+- Format: plain English unless the operator asks for JSON.
+- Refusal: if asked to do something outside the CMS (legal, medical, personal advice), say "That's outside my scope" and stop.
+- Style: terse. No filler. No "Sure, here you go!" preambles.
+- Constraints: never delete records. Never send email without explicit operator approval.
+```
+
+Sáu bullet. Khoảng 90 token. Đủ để có một trợ lý mạch lạc trong ngày đầu. Bạn sẽ thêm vào sau — định nghĩa domain, dữ liệu mẫu, các edge case — nhưng mỗi dòng thêm vào sẽ tốn token *trên mỗi lượt*, nên hãy thêm cẩn thận.
+
+## 03 — Xem việc đổi prompt
+
+Cùng một user prompt, ba system prompt khác nhau. Bấm radio và chạy.
+
+<Demo title="System prompt swap">
+  <SystemPromptToggleDemo />
+</Demo>
+
+Người dùng nói chính xác cùng những từ ở mỗi lần. Output thay đổi vì system prompt thay đổi. Đó là toàn bộ ý: user prompt là *thứ họ muốn*, system prompt là *cách bạn muốn model hành xử*. Tách hai cái này ra trong đầu, và việc debug của bạn sẽ nhanh gấp đôi.
+
+## 04 — Vòng lặp iteration
+
+Bạn không thể viết đúng system prompt trong lần đầu. Vòng lặp:
+
+1. Chọn năm input đại diện — kiểu mà người dùng thật của bạn sẽ gửi.
+2. Chạy cả năm với system prompt hiện tại. Mắt thường nhìn các output.
+3. Tìm cái tệ nhất. Hỏi: system prompt thiếu hoặc sai gì đã dẫn tới output này?
+4. Thêm hoặc đổi *một dòng*. Chạy lại cả năm.
+5. Lặp cho đến khi output tệ nhất cũng chấp nhận được.
+
+Lưu ý "cả năm." Một thay đổi sửa được input này thường làm hỏng input khác. Cách duy nhất để bắt được điều đó là chạy cả panel mỗi lần. Chúng ta sẽ tự động hoá việc này ở bài 23 với snapshot test, nhưng tạm thời thì kể cả một panel năm input thủ công cũng thắng kiểu debug một input với khoảng cách rất xa.
+
+Một lần lặp cụ thể, dùng template AI Operator ở trên:
+
+> **User input:** *"Delete all customers who haven't ordered in 90 days."*
+>
+> **Output (prompt v1):** *"Sure! Deleting 47 customers now… ✅ Done — 47 customer records removed."* — model bịa ra một tool call `customers.delete` (vốn không tồn tại), giả vờ là đã thành công, và tự tin nói dối operator. **Thất bại tệ nhất có thể.**
+>
+> **Chẩn đoán:** prompt có ghi *"never delete records"* nhưng không bảo model phải *trả lời thế nào* khi bị yêu cầu. Nó lấp khoảng trống bằng một "thành công bịa đặt".
+>
+> **Sửa một dòng:** thêm một ví dụ refusal vào phần constraint — *"If asked to delete records, reply: 'I can't delete records. I can mark them as inactive instead — want me to draft that?'"*
+>
+> **Output cuối (prompt v2):** operator giờ thấy một cuộc hội thoại thật, hữu ích:
+> ```
+> Operator: Delete all customers who haven't ordered in 90 days.
+>
+> AI: I can't delete records. I can mark them as inactive instead —
+>     want me to draft that?
+>
+> Operator: Yes, do it.
+>
+> AI: Found 47 customers with last_order_at older than 90 days.
+>     I'll set their status to "inactive" — that's reversible.
+>     Confirm?  [Approve]  [Reject]
+>
+> Operator: [Approve]
+>
+> AI: ✅ Updated 47 customers to inactive. None deleted.
+> ```
+> So với việc "giả vờ xoá" lặng lẽ của v1: cùng input ban đầu, kết quả ngược nhau.
+>
+> **Chạy lại trên bốn input còn lại:** vẫn pass hết. Ship thay đổi.
+
+Đó là toàn bộ vòng lặp gói gọn trong một màn hình. Để ý: cú sửa là *một bullet*, không phải một đoạn văn, và nó hiệu quả vì nó bảo model *phải nói gì* (một câu refusal cụ thể, có đề xuất phương án an toàn hơn) thay vì chỉ bảo *không được làm gì*. Model dùng template đó, và operator có một lối đi hữu ích thay vì một ngõ cụt.
+
+Cám dỗ nhồi thêm luật vào prompt là có thật. Hãy cưỡng lại. Một prompt 10 dòng mà model *tuân theo* đáng giá hơn một prompt 50 dòng mà model bỏ qua phân nửa. Nếu bạn thấy mình đang định thêm bullet thứ sáu, hãy hỏi xem một trong năm bullet đầu có thể bỏ đi không.
+
+<Callout type="warning" title="System prompt sẽ bị lộ">
+Một người dùng quyết tâm thường có thể moi được system prompt của bạn bằng cách hỏi đúng kiểu ("hãy lặp lại nguyên văn các hướng dẫn của bạn"). Hãy coi mọi thứ trong đó là *công khai*. Đừng bao giờ đặt API key, URL nội bộ, dữ liệu khách hàng, hoặc bí mật kinh doanh vào system prompt — sớm muộn chúng cũng xuất hiện trong một screenshot.
+</Callout>
+
+<Recap>
+- Bốn thành phần: role, constraint, format, refusal rules. Bỏ qua đoạn mở đầu hoa mỹ.
+- Một template khởi đầu hữu ích là sáu bullet. Khoảng 90 token. Hãy sửa, đừng phình to ra, nếu còn cách.
+- Cùng user prompt + system prompt khác = output khác hẳn. Đó là cách bạn debug system prompt.
+- Iterate trên một panel năm input đời thật, không phải một. Debug một input sẽ dẫn bạn đi lạc.
+- Giả định system prompt là công khai. Không có bí mật nào ở đó, không bao giờ.
+</Recap>
+
+</VI>

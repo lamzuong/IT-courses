@@ -1,6 +1,9 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
 import { FewShotToggleDemo } from '@/components/demos/ai-in-your-project/few-shot-toggle-demo';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - The two prompt techniques that actually move output quality: few-shot examples and format pinning.
@@ -122,3 +125,130 @@ The first prompt spends ~50 tokens on theatre. The second spends ~40 tokens on d
 - Politeness, expert preambles, ALL CAPS, and threats produce no measurable lift. Skip them.
 - When in doubt, add an example, not an adjective.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Hai kỹ thuật prompt thực sự kéo chất lượng đầu ra lên: few-shot example và "ghim" định dạng (format pinning).
+- Những "phép màu dân gian" (lễ phép, VIẾT HOA TẤT CẢ, mở đầu kiểu "bạn là chuyên gia", doạ dẫm) bạn có thể ngừng tốn token vào.
+- Một quy tắc kinh nghiệm vẫn còn dùng được kể cả khi trào lưu đã đổi: khi phân vân, hãy thêm một *ví dụ*, đừng thêm một *tính từ*.
+</Callout>
+
+Phần lớn thứ trên mạng tự xưng là "prompt engineering" chỉ là dân gian truyền miệng — nghi thức emoji, lời van VIẾT HOA, những lời khẳng định không kiểm chứng được về "chữ thần kỳ" tăng gấp đôi chất lượng. Bóc bỏ lớp ồn đó đi, chỉ còn lại hai kỹ thuật đứng vững qua nhiều đợt kiểm chứng, trên nhiều dòng model và nhiều năm: cho model thấy ví dụ, và ghim định dạng đầu ra. Tất cả phần còn lại chỉ là trang trí.
+
+Bài này nói về đúng hai kỹ thuật đó. Cả hai chỉ mất mười phút để áp dụng, và cả hai đều cho mức cải thiện đo được trên việc thật. Sau đó, ta sẽ nói về những thứ *không* quan trọng, để bạn ngừng lo về chúng.
+
+## 01 — Few-shot example
+
+Một few-shot example là một cặp input/output đã làm sẵn, đặt vào trong prompt trước input thật. Nó dạy model bằng cách *trình diễn* mẫu, thay vì *mô tả* mẫu bằng tiếng Anh.
+
+```md
+Classify the customer feedback below.
+
+Input: "The shirt is too small."
+Output: {"category":"sizing_issue","severity":"low","action":"offer_exchange"}
+
+Input: "Package never arrived."
+Output: {"category":"shipping_issue","severity":"high","action":"investigate_and_resend"}
+
+Input: "Wrong color sent."
+Output: {"category":"order_error","severity":"medium","action":"offer_replacement"}
+
+Input: "{{user_message}}"
+Output:
+```
+
+Model bắt chước theo mẫu. Nó tự suy ra các category, thang severity, và hình dạng JSON — tất cả từ ba ví dụ — rồi áp lên input mới. Không cần viết câu hướng dẫn nào.
+
+Few-shot đặc biệt mạnh khi tác vụ có những quy ước ngầm mà bạn khó diễn đạt bằng lời. *"Severity là medium khi khách bực mình nhưng chưa giận, low khi họ bình tĩnh, high khi họ đang doạ bỏ đi"* — viết ra thì rất khó. Ba ví dụ làm điều đó hiển nhiên.
+
+## 02 — Ghim định dạng (format pinning)
+
+Kỹ thuật còn lại là nói thẳng cho model biết đầu ra phải có hình dạng gì. Model giỏi đáng ngạc nhiên trong việc *tuân thủ* hướng dẫn định dạng rõ ràng — và dở đáng ngạc nhiên trong việc tự *tạo ra* cấu trúc hữu ích khi bạn không yêu cầu. *"Trả lời rõ ràng"* sẽ cho bạn một đoạn văn. *"Trả lời dưới dạng JSON với các key `category`, `severity`, và `action`"* sẽ cho bạn JSON.
+
+Nguyên tắc tương tự áp dụng cho đầu ra không phải JSON:
+
+- *"Trả về ba lựa chọn dưới dạng bullet list."*
+- *"Trả lời trong hai câu ngắn. Không hơn."*
+- *"Xuất ra một dòng duy nhất, không có dấu câu."*
+
+Model lúng túng với yêu cầu tự do mở, nhưng bám rất chắc khi có hình dạng rõ ràng. Chỉ tốn bốn chữ để định hình, mà tiết kiệm cho bạn một parser regex sau này.
+
+Một lợi ích tinh tế: ghim định dạng giúp parsing phía sau trở nên đáng tin. Nếu bạn nói "JSON với ba key này", mọi response trả về đều có thể `JSON.parse` mà không cần code phòng thủ. Không có ràng buộc, bạn sẽ phải viết một parser xử lý bullet list, đoạn văn, danh sách đánh số — và nó *vẫn* sẽ vỡ.
+
+Cùng một tác vụ, hai prompt, hai vấn đề phía sau rất khác:
+
+```md
+Prompt A (loose):  Tell me about customer 42's recent activity.
+
+→ "Customer 42, Phuoc Luu, has been quite active lately! He placed
+   an order on Tuesday for $89, and another last Friday. His most
+   recent purchase was the linen apron — a popular item this season."
+   (now go write a regex that finds the order count)
+```
+
+```md
+Prompt B (pinned): Tell me about customer 42's recent activity.
+                   Reply as JSON: { "name": string, "order_count": number,
+                   "last_order_at": ISO8601 }.
+
+→ {"name":"Phuoc Luu","order_count":2,"last_order_at":"2026-04-30"}
+   (JSON.parse and you're done)
+```
+
+Thêm 12 chữ vào prompt; xoá hẳn một lớp code parsing dễ vỡ.
+
+## 03 — Bật/tắt để thấy mức cải thiện
+
+Cùng một input người dùng. Thứ duy nhất thay đổi là có ba ví dụ đặt phía trên hay không.
+
+<Demo title="Bật/tắt few-shot example">
+  <FewShotToggleDemo />
+</Demo>
+
+Không có ví dụ, model viết văn xuôi — hữu ích cho con người, vô dụng cho code của bạn. Có ví dụ, nó bám chắc vào hình dạng JSON và thang severity bạn đã dạy. Đó chính là toàn bộ mức cải thiện. Không cần tinh chỉnh, không cần fine-tune, không cần đổi model lớn hơn.
+
+<Callout type="tip" title="Bao nhiêu ví dụ là đủ?">
+Ba thường là dư dả. Hai thường cũng đã đủ. Đi quá năm hiếm khi giúp ích, và bắt đầu tốn token thật — năm ví dụ trung bình 30 token mỗi cái là bạn đã tiêu 150 token trước khi user kịp nói gì. Nếu ba ví dụ vẫn không nâng được đầu ra, vấn đề nằm ở chỗ khác chứ không phải số lượng ví dụ.
+</Callout>
+
+## 04 — Những thứ không quan trọng lắm
+
+Một danh sách ngắn các kỹ thuật có tác dụng không đáng kể hoặc tác dụng âm, xếp từ "vô hại" đến "thực sự tệ":
+
+- **Lễ phép.** Nói "please" và "thank you" không thay đổi chất lượng đầu ra. Model không có cảm xúc; nó có xác suất.
+- **"Bạn là chuyên gia trong…"** Mở đầu kiểu "20 năm kinh nghiệm" không tốt hơn câu "Classify this feedback". Nhưng nó *có* cộng thêm 15 token cho mỗi lượt.
+- **VIẾT HOA TẤT CẢ.** Quát model cũng vô ích như quát compiler. Đôi khi model nhại lại — bực mình thêm.
+- **Doạ dẫm.** "Tôi sẽ mất việc nếu bạn làm sai" là meme từng có tác dụng ngắn với các model đời đầu, giờ không còn tác dụng gì. Đừng bận tâm.
+- **Mở đầu dài dòng tâng bốc.** *"Là một trợ lý thiên tài được đào tạo trên tinh hoa của muôn đời…"* — chỉ tổ phí token. Model hành xử y như nhau dù có hay không.
+
+Mức cải thiện đáng tin nằm ở *thứ model nhìn thấy* (ví dụ, định dạng, schema), không phải ở *cách bạn xưng hô với nó*. Hãy dành các ký tự cho phần thực sự thay đổi đầu ra.
+
+Một quy tắc kinh nghiệm nhanh: khi bạn định thêm một tính từ nữa, hãy thêm một ví dụ nữa. Tính từ rẻ và model thường lờ đi. Ví dụ tốn token hơn một chút, và model gần như luôn bắt chước theo.
+
+Cho dễ hình dung:
+
+```md
+❌ Tệ hơn: "You are a WORLD-CLASS expert customer service AI with 20 years
+           of experience. PLEASE classify this feedback CORRECTLY!!!
+           I REALLY need this to work. Input: 'Wrong color sent.'"
+
+✅ Tốt hơn: "Classify customer feedback.
+           Input: 'Too small.'   Output: {category:'sizing', severity:'low'}
+           Input: 'Never arrived.' Output: {category:'shipping', severity:'high'}
+           Input: 'Wrong color sent.' Output:"
+```
+
+Prompt đầu tốn ~50 token cho diễn kịch. Prompt sau tốn ~40 token cho trình diễn và cho ra JSON mà model thực sự sẽ bắt chước.
+
+<Recap>
+- Hai kỹ thuật cho cải thiện thật: few-shot example và ghim định dạng. Hầu hết phần còn lại là dân gian truyền miệng.
+- Few-shot dạy bằng cách trình diễn. Ba cặp input/output là điểm ngọt.
+- Ghim định dạng ("trả lời dưới dạng JSON với key X, Y, Z") cho bạn đầu ra parse được mà không cần code phòng thủ.
+- Lễ phép, mở đầu kiểu chuyên gia, VIẾT HOA, doạ dẫm — không cho cải thiện đo được nào. Bỏ qua.
+- Khi phân vân, thêm một ví dụ, đừng thêm một tính từ.
+</Recap>
+
+</VI>

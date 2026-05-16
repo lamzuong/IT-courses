@@ -1,5 +1,8 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - Install Ollama, pull a tool-calling-capable open model (`qwen2.5:3b` or `llama3.1:8b`).
@@ -140,3 +143,149 @@ If you got that, the vertical slice is alive: browser → Next.js Route Handler 
 - A streaming Route Handler is `ChatOllama` + `model.stream()` + `Response(ReadableStream)`. Twenty lines, three concepts.
 - `temperature: 0` for tool calling. Higher only when you want variation.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Cài Ollama, pull một model mã nguồn mở có hỗ trợ tool calling (`qwen2.5:3b` hoặc `llama3.1:8b`).
+- Dựng skeleton dự án Next.js + LangChain với đầy đủ dependency mà phần còn lại của khoá học sẽ dùng.
+- Ship một route handler "hello" có streaming — slice dọc nhỏ nhất, mọi bài sau đều lớn lên từ nó.
+</Callout>
+
+Đến lúc cài đặt rồi. Sau bài này, bạn sẽ có một model server chạy local, một dự án Next.js gọi vào đó, và một câu "hello" được trả về dưới dạng SSE streaming. Đó là slice dọc nhỏ nhất có thể — mọi bài sau chỉ là thêm thắt vào nó.
+
+## 1. Cài Ollama
+
+Ollama là một server local tí hon, chuyên load các model mã nguồn mở và phơi ra một HTTP API ở `localhost:11434`. Cài một lần dùng mãi:
+
+```bash
+# macOS
+brew install ollama                              # → installs the `ollama` CLI to /opt/homebrew/bin/ollama
+
+# Linux
+curl -fsSL https://ollama.com/install.sh | sh    # → fetches and runs the installer; binary at /usr/local/bin/ollama
+
+# Windows: download the installer from https://ollama.com/download
+```
+
+Sau đó khởi động server trong một terminal mà bạn sẽ để mở:
+
+```bash
+ollama serve                                     # → starts HTTP server on 127.0.0.1:11434 (leave this terminal open)
+```
+
+Bạn sẽ thấy log dạng `Listening on 127.0.0.1:11434`.
+
+## 2. Pull một model
+
+Mở một terminal khác và pull model. Hai lựa chọn khởi đầu hợp lý:
+
+- **`qwen2.5:3b`** — ~2 GB, chạy được trên hầu hết laptop, hỗ trợ tool calling. Chọn cái này nếu bạn chưa chắc.
+- **`llama3.1:8b`** — ~5 GB, thông minh hơn, cũng hỗ trợ tool calling. Chọn cái này nếu máy bạn có ít nhất 16 GB RAM.
+
+```bash
+ollama pull qwen2.5:3b                           # → downloads ~2 GB of weights; cached at ~/.ollama/models
+```
+
+Phần lớn model mã nguồn mở *không* hỗ trợ tool calling một cách đáng tin. Hai model trên được chọn chính vì chúng làm được — điều này quan trọng từ bài 9 trở đi. Đừng thay thế nếu chưa test.
+
+## 3. Dựng skeleton dự án
+
+Trong một thư mục mới:
+
+```bash
+npx create-next-app@latest ai-operator --typescript --app --tailwind --no-src-dir --eslint  # → scaffolds ./ai-operator
+cd ai-operator                                                                              # → cwd is now ./ai-operator
+npm install @langchain/core @langchain/langgraph @langchain/ollama zod                      # → adds 4 LangChain deps to package.json
+npm install drizzle-orm better-sqlite3                                                      # → adds Drizzle ORM + SQLite driver
+npm install -D drizzle-kit                                                                  # → adds drizzle-kit as devDep (CLI for migrations)
+```
+
+`package.json` của bạn bây giờ sẽ có các package LangChain và Drizzle. Chúng ta sẽ chưa dùng Drizzle cho đến bài 9 (khi nối tool với database), nhưng cài sẵn từ đầu sẽ tránh việc bạn phải chuyển ngữ cảnh giữa chừng.
+
+## 4. Handler đầu tiên
+
+Tạo `app/api/chat/route.ts`:
+
+```ts
+import { ChatOllama } from '@langchain/ollama';  // → ChatOllama class imported
+
+export const runtime = 'nodejs';                 // → opts this Route Handler into the Node.js runtime (not Edge)
+
+export async function POST(req: Request) {
+  const { message } = await req.json();          // → string from the client request body
+
+  const model = new ChatOllama({                 // → ChatOllama instance pointed at local Ollama
+    model: 'qwen2.5:3b',                         // → use the 3B model we just pulled
+    baseUrl: 'http://localhost:11434',           // → default Ollama endpoint
+    temperature: 0,                              // → deterministic output
+  });
+
+  const stream = await model.stream(message);    // → AsyncIterable<AIMessageChunk>
+
+  const encoder = new TextEncoder();             // → TextEncoder for utf-8 → Uint8Array
+  const body = new ReadableStream({              // → Web ReadableStream we'll hand to Response
+    async start(controller) {
+      for await (const chunk of stream) {        // → each chunk: AIMessageChunk { content: 'Hi' }
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk.content)}\n\n`)); // → wire format: 'data: "Hi"\n\n'
+      }
+      controller.enqueue(encoder.encode('data: [DONE]\n\n')); // → terminator chunk for the client
+      controller.close();                        // → closes the stream cleanly
+    },
+  });
+
+  return new Response(body, {                    // → Response { status: 200, body: ReadableStream }
+    headers: {
+      'Content-Type': 'text/event-stream',       // → tells the browser this is SSE
+      'Cache-Control': 'no-cache',               // → don't cache the live token stream
+      Connection: 'keep-alive',                  // → keep the socket open while streaming
+    },
+  });
+}
+```
+
+Vậy thôi. Ba khái niệm trong hai mươi dòng:
+
+1. **`ChatOllama`** — adapter của LangChain trỏ tới server local của ta.
+2. **`model.stream(message)`** — async iterator của các chunk token.
+3. **`Response` + `ReadableStream`** — Web API chuẩn cho SSE; không cần thư viện thêm.
+
+<Callout type="note" title="Vì sao temperature: 0?">
+Temperature càng thấp = output càng tất định. Với tool calling (bài 9+), bạn gần như luôn muốn `0` — bạn muốn model *làm cùng một việc* với cùng input. Chỉ vặn cao khi bạn cần sự sáng tạo, ví dụ như soạn nháp email.
+</Callout>
+
+## 5. Thử chạy
+
+Ở một terminal: `npm run dev`. Ở terminal khác:
+
+```bash
+curl -N -X POST http://localhost:3000/api/chat \              # → -N disables curl's buffering so SSE chunks print live
+  -H 'Content-Type: application/json' \                       # → sets the request content type
+  -d '{"message":"Say hi in one short sentence."}'            # → POST body the route reads as `message`
+# → emits SSE chunks one at a time until 'data: [DONE]'
+```
+
+Bạn sẽ thấy các SSE chunk nhỏ giọt:
+
+```
+data: "Hi"
+data: "!"
+data: " How"
+data: " are"
+...
+data: [DONE]
+```
+
+Nếu thấy được như trên, nghĩa là slice dọc đã sống: trình duyệt → Next.js Route Handler → Ollama → model → token chảy ngược về. Từ bài 4 trở đi, ta nối nó vào một UI React thực sự; từ bài 9, ta gắn thêm các tool để đọc và ghi database của bạn.
+
+<Recap>
+- Ollama là model server local. Cài một lần, chạy `ollama serve` trong một terminal để đó.
+- `qwen2.5:3b` hoặc `llama3.1:8b` — cả hai đều hỗ trợ tool calling, điều quan trọng cho Phần III.
+- Dependency của dự án: `@langchain/core`, `@langchain/langgraph`, `@langchain/ollama`, `zod`, `drizzle-orm`, `better-sqlite3`.
+- Một Route Handler streaming = `ChatOllama` + `model.stream()` + `Response(ReadableStream)`. Hai mươi dòng, ba khái niệm.
+- `temperature: 0` cho tool calling. Vặn cao hơn chỉ khi bạn muốn biến tấu.
+</Recap>
+
+</VI>

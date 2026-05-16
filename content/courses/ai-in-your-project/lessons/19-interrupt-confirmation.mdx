@@ -1,6 +1,9 @@
 import { Recap } from '@/components/mdx/recap';
 import { Callout } from '@/components/mdx/callout';
 import { ConfirmationInterruptDemo } from '@/components/demos/ai-in-your-project/confirmation-interrupt-demo';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - `interrupt()` from `@langchain/langgraph` — pause a graph from inside a node, surface a payload to your UI, resume with the user's decision.
@@ -108,3 +111,116 @@ When you ship this in production, the audit log writes "approved by user@example
 - Reject is a graph terminator: nothing wrote. That property is what makes the confirmation gate trustworthy enough to let an AI loose on a production database.
 - Confirmation is now a primitive: one node, one payload shape, one resume API. Every write tool, every approval UI, every audit hook plugs into the same point.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- `interrupt()` từ `@langchain/langgraph` — dừng một graph từ bên trong một node, đẩy một payload lên UI, rồi tiếp tục với quyết định của người dùng.
+- API `Command` / `thread_id` giúp việc tiếp tục sống sót qua nhiều request khác nhau.
+- Vì sao primitive này biến confirmation từ một mớ logic ứng dụng rải rác thành một tính năng gọn của graph — và điều gì khiến cánh cổng đáng tin đủ để đem lên production.
+</Callout>
+
+Đây là bài học mà cả khoá đã hướng tới. Mọi read tool, mọi Zod schema, mọi vòng retry, mọi quyết định routing từ trước tới giờ đều đang dọn đất cho một primitive duy nhất: một graph *tự dừng lại* trước khi làm một việc không thể hoàn tác, trả quyền điều khiển về cho ứng dụng, đợi một quyết định từ con người, và tiếp tục từ đúng cái state đó khi câu trả lời tới. Lần đầu bạn xem nó chạy từ đầu tới cuối là lúc bạn hiểu khác biệt giữa một chatbot và một *AI Operator*. Chatbot trả lời câu hỏi. AI Operator đề xuất các mutation và đợi bạn duyệt chúng.
+
+Bài này nói về primitive `interrupt()` của LangGraph — nó làm gì, đặt ở đâu, và bạn tiếp tục graph với phán quyết của con người ra sao. Demo ở cuối là điểm nhấn hình ảnh của toàn khoá học; đoạn code phía trên nó là ba mươi dòng biến confirmation thành một primitive của graph, thay vì logic ứng dụng rải rác qua năm file.
+
+## 01 — `interrupt()` từ `@langchain/langgraph`
+
+`interrupt()` là một lời gọi hàm bạn thực hiện từ bên trong một node. Khi runtime gặp nó, ba việc xảy ra: graph dừng ở node đó, giá trị bạn truyền vào `interrupt()` được đẩy lên ứng dụng dưới dạng payload "graph đang đợi cái gì?", và phần còn lại của node — cùng phần còn lại của graph — *không* chạy. Không phải "được xếp hàng để chạy sau". *Không chạy*. Quyền điều khiển quay về caller của bạn (`graph.invoke(...)` hoặc `graph.stream(...)`), kết thúc với một payload mô tả interrupt và một `thread_id` bạn sẽ dùng để resume.
+
+```ts
+import { interrupt } from '@langchain/langgraph'; // → suspension primitive
+
+async function awaitConfirmationNode(state: GraphState): Promise<Partial<GraphState>> {
+  const last = state.messages.at(-1);             // → newest message (an AIMessage with write tool_calls)
+  const writeCalls = (last?.tool_calls ?? []).filter((c) => isWriteTool(c.name)); // → ToolCall[] only writes
+
+  // The runtime suspends the graph here. The first arg is the payload your
+  // UI receives; the return value is whatever your application passes back.
+  const decision = interrupt({                    // → graph PAUSES; resumes with whatever Command.resume passes
+    kind: 'confirm_writes',
+    calls: writeCalls.map((c) => ({ id: c.id, name: c.name, args: c.args })), // → payload your UI renders as a card
+  });
+  // → on resume: decision === whatever the app sent back, e.g. { approve: true }
+
+  // Execution only reaches this line when the graph is RESUMED.
+  if (decision.approve === false) {
+    return { messages: [new AIMessage('Cancelled — no changes committed.')] }; // → cancellation appended to transcript
+  }
+  return {}; // pass-through; the next edge runs write_tools // → empty partial = no state change
+}
+```
+
+Có hai chuyện đang diễn ra trong tám dòng đó. Thứ nhất, bạn đã biến *ý định* — "tôi sắp ghi" — thành một mảnh dữ liệu mà UI của bạn có thể render. Payload có cấu trúc: tên tool, object args, mọi thứ khác bạn muốn hiển thị trong card xác nhận. Thứ hai, bạn đã biến *việc tiếp tục* thành một giá trị trả về của hàm: khi graph được resume, `interrupt()` trả về đúng cái giá trị resume mà ứng dụng cung cấp. Đó là cách quyết định của người dùng chảy ngược lại vào phạm vi cục bộ của node.
+
+## 02 — Đặt nó ở đâu
+
+Bên trong node `await_confirmation`, trước khi thao tác ghi xảy ra. Câu này nghe như một luật, nhưng thực ra là ba.
+
+Luật thứ nhất là *bên trong một node*. `interrupt()` không phải một cấu trúc top-level; nó phải được gọi từ trong thân một node để runtime có thể bắt được việc dừng. Node `await_confirmation` ở bài 18 là nhà tự nhiên của nó — đó là node mà router đẩy mọi write call qua.
+
+Luật thứ hai là *trước khi thao tác ghi xảy ra*. Nếu bạn gọi `interrupt()` sau khi mutate database thì bạn đã làm xong việc mà bạn đang xin phép. Thứ tự phải là: phân loại → interrupt → đợi resume → mutate. Node `write_tools`, cái thực sự chạy các call, đứng *sau* `await_confirmation` đúng vì lý do này.
+
+Luật thứ ba là *mỗi lần dừng chỉ một interrupt*. Đừng loop qua các write call và gọi `interrupt()` cho mỗi cái — gói chúng thành một payload và để người dùng duyệt hoặc từ chối cả batch. Hai interrupt liên tiếp là hai lần dừng graph, hai thread state, hai vòng round-trip tới UI; gần như không bao giờ là cái bạn muốn.
+
+## 03 — Tiếp tục với một quyết định
+
+Khi người dùng bấm Approve trong UI, bạn gọi `graph.invoke` lần nữa trên cùng thread. Các tham số mới nói với LangGraph hai điều: tiếp tục từ chỗ bạn đã dừng, và đây là giá trị cần trả về từ `interrupt()`.
+
+```ts
+import { Command } from '@langchain/langgraph'; // → resume command class
+
+// First call — runs until the interrupt fires.
+const first = await graph.invoke(
+  { messages: [new HumanMessage(prompt)] },        // → seed transcript
+  { configurable: { thread_id: 'op-2026-05-01-001' } }, // → keys this conversation in the checkpointer
+);
+// first.__interrupt__ === [{ value: { kind: 'confirm_writes', ... } }]   // → payload your UI renders
+
+// User clicks Approve in the UI. Resume the graph with their decision:
+const final = await graph.invoke(
+  new Command({ resume: { approve: true } }),      // → returned to the awaiting interrupt() call
+  { configurable: { thread_id: 'op-2026-05-01-001' } }, // → same thread, continues from the pause
+);
+// → final: completed GraphState (writes have committed; transcript ends with assistant summary)
+```
+
+`Command({ resume })` là API cho "đây là cái mà `interrupt()` nên trả về ở lần chạy tiếp tục." `thread_id` chính là thứ làm cho cái này *cùng một graph state* — không có checkpointer khoá state theo `thread_id`, không có chỗ nào để *tiếp tục từ đó*.
+
+Cùng hình dạng đó dùng được cho việc từ chối. Thay vì `{ approve: true }`, gửi `{ approve: false }` và để node trả về một message huỷ nhẹ nhàng. Graph vẫn kết thúc gọn ghẽ; không có gì được ghi.
+
+<Callout type="tip">
+  Interrupt chỉ hoạt động nếu state của graph sống sót giữa lúc dừng và lúc resume. Nghĩa là cần một checkpointer — `MemorySaver` cho development, một checkpointer dùng SQLite hay Postgres cho production. Bài kế tiếp sẽ nói chi tiết; bây giờ, chỉ cần biết rằng nếu không có nó thì kế hoạch đang dở dang của bạn biến mất ngay khoảnh khắc người dùng đóng tab.
+</Callout>
+
+## 04 — Xem lúc dừng và lúc tiếp tục
+
+Bấm run. Prompt của người dùng đi vào transcript. Model sinh ra một kế hoạch ba bước, điền dần từng dòng. Trước khi bước 1 chạy, card xác nhận trượt vào từ bên phải: *AI muốn tạo promo LAPSED15. Approve / Reject*. Bấm Approve. Bước 1 chạy (có animation), bước 2 (đọc) tự chạy vì read không dừng, và khoảnh khắc agent gom xong bước 3 — soạn email tới bảy khách hàng — card xác nhận thứ hai xuất hiện với danh sách người nhận. Approve lần nữa. Bước 3 chạy, trợ lý báo lại, và workflow đáp xuống `END` với một badge Done màu xanh lá.
+
+<Demo title="The interrupt → confirmation card → resume flow">
+  <ConfirmationInterruptDemo />
+</Demo>
+
+Chạy lại lần nữa và bấm Reject ở card đầu tiên xem. Graph dừng ngay tại interrupt, message huỷ xuất hiện trong transcript, và — phần quan trọng nhất — *không có mutation nào chạy*. Reject là một bộ kết thúc graph, không phải là một thao tác ẩn UI. Tính chất đó là thứ làm cho cổng này đáng tin.
+
+## 05 — Vì sao điều này thay đổi mọi thứ
+
+Confirmation giờ là một primitive của graph, không phải logic ứng dụng. Câu đó gánh rất nhiều ý nghĩa. Trước đây, mỗi write tool phải nhớ hỏi trước; mỗi UI phải tự nghĩ ra UI duyệt; mỗi vòng agent phải tự theo dõi quyết định nào đang chờ. Sau này, có một node nơi các lần dừng sống ở đó, một hình dạng payload mà mọi card duyệt đều tiêu thụ, một API resume mà mọi UI đều gọi. Thêm một write tool mới *chỉ là* thêm một mục trong registry — cổng đã lo phần còn lại. Thêm một UI duyệt mới *chỉ là* một component card — dữ liệu đã có cấu trúc sẵn. Thêm một audit log *chỉ là* một hook ở node `write_tools` — mọi mutation đã commit đều đi qua cùng một điểm điều khiển.
+
+Điều khác cũng thay đổi: từ chối trở nên rẻ. Một người dùng đáng lẽ phải ngồi tự veto quyết định của AI agent trong đầu trước khi chúng xảy ra — bằng cách đọc log dày đặc, bằng cách undo các thao tác ghi nhầm — giờ nhận được một card hai nút sạch sẽ trước mỗi lần. Điều đó thay đổi mối quan hệ của họ với hệ thống từ "canh một tiến trình chạy nhanh để chắc không có gì hỏng" sang "duyệt từng bước với tốc độ họ muốn." Có người muốn một click mỗi bước. Có người dựng luật auto-approve ở trên. Cả hai giờ là cấu hình, không phải code.
+
+Khi bạn đem cái này lên production, audit log ghi "approved by user@example.com at 14:03:17" cạnh mỗi mutation, và câu hỏi của cơ quan quản lý — *ai đã quyết định hoàn các khoản tiền này?* — có một câu trả lời năm ký tự. Câu trả lời đó là thứ làm cho AI Operator hợp pháp.
+
+<Recap>
+- `interrupt(payload)` từ `@langchain/langgraph` dừng graph từ bên trong một node và đẩy payload lên ứng dụng.
+- Đặt interrupt trong `await_confirmation`, trước mọi mutation. Gói cả batch vào một payload — một lần dừng cho mỗi quyết định.
+- Resume bằng `graph.invoke(new Command({ resume: decision }), { configurable: { thread_id } })`. `thread_id` chính là thứ làm cho nó cùng một graph state.
+- Giá trị resume là tuỳ bạn — `{ approve: true }`, một object args đã chỉnh, một lý do từ chối. Hình dạng nào UI gửi đi, node của bạn nhận đúng cái đó.
+- Cần một checkpointer để interrupt sống sót qua nhiều request hay reload trang. (Bài kế tiếp.)
+- Reject là một bộ kết thúc graph: không có gì được ghi. Tính chất đó là cái làm cho cổng xác nhận đáng tin đủ để thả một AI vào database production.
+- Confirmation giờ là một primitive: một node, một hình dạng payload, một API resume. Mọi write tool, mọi UI duyệt, mọi audit hook đều cắm vào cùng một điểm.
+</Recap>
+
+</VI>

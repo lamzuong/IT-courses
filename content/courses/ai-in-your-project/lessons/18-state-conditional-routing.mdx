@@ -1,6 +1,9 @@
 import { Recap } from '@/components/mdx/recap';
 import { Callout } from '@/components/mdx/callout';
 import { ConditionalRoutingDemo } from '@/components/demos/ai-in-your-project/conditional-routing-demo';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - Sort every tool into reads (auto-run) and writes (route through `await_confirmation`).
@@ -106,3 +109,114 @@ The shape that just appeared on screen is the whole thesis of Part IV. Splitting
 - An unknown tool name routes to write by default — fail safe so a forgotten classification can't bypass the human.
 - Conditional edges are logic. Logic is testable. Routing is now a five-line unit test, not a code review of a thousand-line agent loop.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Phân loại mỗi tool thành read (tự chạy) và write (đi qua `await_confirmation`).
+- Một hàm router nhỏ gắn trên một edge có điều kiện duy nhất sẽ chọn đường đi.
+- Vì sao tool không rõ loại sẽ được mặc định route sang write — an toàn theo kiểu fail-safe, để một lần quên phân loại không thể vô tình lách qua người dùng.
+</Callout>
+
+Hai tools node, một router, hai đường đi. Đó là cách reads chạy tự do còn writes thì đợi người dùng. Graph một-tools-node ở bài 17 thì chạy được, nhưng nó đối xử mọi tool như nhau — mọi kết quả đều được append tự động, mọi vòng lặp đều khép lại mà không có con người ở giữa. Khoảnh khắc một tool bắt đầu mutate database là lúc bạn cần một hình dạng khác: *reads tiếp tục tự động; writes dừng lại chờ xác nhận*. Đó là một quyết định routing, và quyết định routing sống trên các edge có điều kiện.
+
+Bạn sẽ không đổi agent node. Bạn sẽ không đổi model. Bạn sẽ tách một node thành ba và thêm một hàm router. Đó là toàn bộ phần nâng cấp, và đó cũng chính là chỗ mọi agent production-grade bắt đầu trông khác với mấy cái agent đồ chơi.
+
+## 01 — Tách tool theo side effect
+
+Lấy bất kỳ tool nào bạn đã viết và tự hỏi: *nếu model lỡ gọi nó hai mươi lần liên tục, dọn dẹp sẽ mất năm phút hay năm tiếng?* Nếu năm phút (search chẳng hạn), nó là read tool. Nếu năm tiếng (refund chẳng hạn), nó là write tool. Không có khoảng giữa. Phân loại mọi tool trong registry theo kiểu đó.
+
+```ts
+const READ_TOOLS = ['customers.search', 'orders.totals', 'products.list'] as const; // → readonly tuple of read tool names
+const WRITE_TOOLS = ['promotions.create', 'emails.draft_bulk', 'customers.tag_bulk'] as const; // → readonly tuple of write tool names
+
+type ReadName = (typeof READ_TOOLS)[number];      // → 'customers.search' | 'orders.totals' | 'products.list'
+type WriteName = (typeof WRITE_TOOLS)[number];    // → 'promotions.create' | 'emails.draft_bulk' | 'customers.tag_bulk'
+
+function isReadTool(name: string): name is ReadName {
+  return (READ_TOOLS as readonly string[]).includes(name); // → true if name is in READ_TOOLS
+}
+function isWriteTool(name: string): name is WriteName {
+  return (WRITE_TOOLS as readonly string[]).includes(name); // → true if name is in WRITE_TOOLS
+}
+```
+
+Bây giờ tools registry của bạn có hai nửa, và graph có thể có hai node: `read_tools` (chạy ngay, như trước) và `write_tools` (chỉ vào sau khi có người duyệt).
+
+## 02 — Edge có điều kiện là logic
+
+Trong LangGraph, một lần gọi `addConditionalEdges` là một router: một hàm nhìn state và trả về tên node kế tiếp. Agent node vốn đã sinh ra một `AIMessage` kèm `tool_calls` (có thể có hoặc không); việc của router là phân loại các call đó và chọn điểm đến.
+
+```ts
+import { StateGraph, END } from '@langchain/langgraph'; // → builder + END sentinel
+
+graph
+  .addNode('agent', agentNode)                    // → registers 'agent'
+  .addNode('read_tools', readToolsNode)           // → auto-running read pile
+  .addNode('await_confirmation', awaitConfirmationNode) // → pauses for human approval
+  .addNode('write_tools', writeToolsNode)         // → only entered after Approve
+  .setEntryPoint('agent')                         // → graph starts at 'agent'
+  .addConditionalEdges('agent', routeByToolType, {
+    read: 'read_tools',                           // → router said reads-only → run them now
+    write: 'await_confirmation',                  // → router said writes → pause first
+    done: END,                                    // → no tool_calls → halt
+  })
+  .addEdge('read_tools', 'agent')                 // → after reads, loop back
+  .addEdge('await_confirmation', 'write_tools')   // → on Approve, run writes
+  .addEdge('write_tools', 'agent');               // → after writes, loop back
+```
+
+Đọc to phần wiring lên. Từ `agent`, router có thể đi ba nơi: vào nhóm read, vào bước dừng để xác nhận trước nhóm write, hoặc ra `END`. Từ `read_tools` và `write_tools`, graph luôn quay lại `agent` để model phản ứng với các `ToolMessage` mới. Node `await_confirmation` nằm giữa `agent` và `write_tools` chính là để không có thao tác ghi nào xảy ra mà không có người quyết định.
+
+## 03 — Hàm router
+
+Router nhỏ và mang tính tất định. Nó nhìn message cuối; nếu là `AIMessage` có tool call, nó phân loại chúng.
+
+```ts
+import { isAIMessage } from '@langchain/core/messages'; // → AIMessage type guard
+
+type Route = 'read' | 'write' | 'done';            // → keys in the conditional-edges map
+
+function routeByToolType(state: GraphState): Route {
+  const last = state.messages.at(-1);             // → newest message
+  if (!last || !isAIMessage(last)) return 'done'; // → not an AIMessage → halt
+
+  const calls = last.tool_calls ?? [];            // → ToolCall[] (possibly empty)
+  if (calls.length === 0) return 'done';          // → final assistant text → halt
+
+  // If *any* call is a write, route through confirmation. Reads are batched
+  // into the next agent turn — confirmation pauses the entire batch.
+  if (calls.some((c) => isWriteTool(c.name))) return 'write'; // → any write present → 'write'
+  if (calls.every((c) => isReadTool(c.name))) return 'read';  // → all reads → 'read'
+
+  // A tool the registry doesn't classify is treated as a write — fail safe.
+  return 'write';                                 // → unknown tool → safer to gate
+}
+```
+
+Ba hành vi đáng ghim lại. Một reply không có tool call nghĩa là model đã xong; route tới `END`. Một reply chỉ có read call thì chạy tự do. Một reply có *bất kỳ* write call nào — kể cả một cái lẫn vào danh sách toàn read — đều phải đi qua `await_confirmation`. Mặc định an toàn cho một tên tool lạ là *write*, nên thêm một tool mà quên phân loại sẽ không bao giờ âm thầm lách qua cánh cổng.
+
+Đây đúng kiểu logic muốn được tách thành một hàm nhỏ có tên. Nó tất định, có thể test trong năm dòng (`expect(routeByToolType(stateWithOnlyReads)).toBe('read')`), và reviewer có thể duyệt mà không cần chạy model.
+
+## 04 — Xem routing đổi tuyến
+
+Ba prompt preset, ba đường đi khác nhau. Prompt chỉ-đọc vẽ ra `agent → read_tools → agent → END`. Prompt chỉ-ghi dừng lại ở `await_confirmation` trước khi cho `write_tools` chạy. Prompt hỗn hợp làm cả hai — call write kéo cả batch vào bước xác nhận, đúng y như router nói. Các edge không được đi qua với prompt đã chọn sẽ mờ đi để bạn thấy được đường mà input của mình đã đi, mà vẫn không mất phần còn lại của topology.
+
+<Demo title="Conditional routing — reads run free, writes wait for the user">
+  <ConditionalRoutingDemo />
+</Demo>
+
+Hình dạng vừa hiện trên màn hình chính là toàn bộ luận điểm của Phần IV. Tách tool theo side effect không phải mẹo khôn — nó là ranh giới mà ứng dụng của bạn dựng giữa *model là người đề xuất* và *con người là người quyết*. Bài kế tiếp sẽ điền vào những gì xảy ra bên trong `await_confirmation`. Đó chính là node mà graph thực sự dừng lại.
+
+<Recap>
+- Phân loại mỗi tool thành read (tự chạy) và write (dừng để xác nhận). Loại này quyết định đường đi.
+- Agent node không đổi. Bạn thêm `read_tools`, `await_confirmation`, và `write_tools` quanh nó.
+- Một edge có điều kiện từ `agent` chỉ là một hàm trả về tên node kế tiếp — `'read'`, `'write'`, hoặc `END`.
+- Luật router đáng giá: *bất kỳ* write call nào trong batch cũng đẩy cả batch qua xác nhận. Toàn read là cách duy nhất để bỏ qua cổng.
+- Tên tool không rõ loại sẽ route sang write theo mặc định — fail safe để một lần quên phân loại không thể lách qua người dùng.
+- Edge có điều kiện là logic. Logic thì test được. Routing giờ là một unit test năm dòng, chứ không phải một buổi review code cho một vòng lặp agent dài cả ngàn dòng.
+</Recap>
+
+</VI>

@@ -1,5 +1,8 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this lesson">
 - The three primitives of LangGraph: state, nodes, and edges.
@@ -99,3 +102,108 @@ That is the whole minimum surface. State, nodes, edges, compile, invoke. The nex
 - `END` is the sentinel for *stop here.* The runner halts and returns the final state.
 - `app.invoke(initialState)` runs to completion or to the next interrupt — exactly the shape you'll need in lesson 19.
 </Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Ba primitive của LangGraph: state, node, và edge.
+- Bề mặt tối thiểu cần nhớ — `StateGraph`, `addNode`, `addEdge`, `addConditionalEdges`, `compile`, `invoke` — gói gọn trong một bài.
+- Vì sao "channels" và reducer cho phép node giữ nhỏ và cục bộ, còn logic gộp dữ liệu thì nằm gọn một chỗ.
+</Callout>
+
+Một graph chỉ gồm ba thứ, và khi đã có ba thứ đó là bạn có một runtime. Có một mẩu *state* được chuyền từ bước này sang bước khác. Có các *node* — những hàm bình thường đọc state và trả về một bản cập nhật từng phần. Và có các *edge* — khai báo node nào chạy tiếp theo, đôi khi vô điều kiện, đôi khi dựa vào hình dạng của state tại thời điểm đó. Compile lại, bạn có một bộ chạy mà bạn có thể `invoke` y như bất kỳ hàm nào khác.
+
+Đó là LangGraph gói trong một đoạn văn. Mọi thứ khác — checkpoint, streaming, interrupt, multi-agent — đều được dựng trên ba primitive đó. Bài này đi qua từng cái theo thứ tự, kết thúc bằng một graph hoàn chỉnh (tí hon) bạn có thể chạy ngay hôm nay.
+
+## 01 — `StateGraph`
+
+Điểm khởi đầu là `StateGraph`. Bạn khởi tạo một cái bằng cách mô tả *hình dạng* của state. Trong TypeScript thì đó là một type bình thường — thường là một object với vài field, hay có một mảng `messages` vì chat là trường hợp phổ biến nhất.
+
+```ts
+import { StateGraph, END } from '@langchain/langgraph';   // → graph builder + END sentinel
+import type { BaseMessage } from '@langchain/core/messages'; // → BaseMessage type for the channel
+
+type GraphState = {
+  messages: BaseMessage[];                          // → conversation transcript field
+};
+
+const graph = new StateGraph<GraphState>({          // → empty StateGraph builder
+  channels: {
+    messages: { reducer: (a, b) => a.concat(b), default: () => [] }, // → append-merge; defaults to []
+  },
+});
+// → graph: a StateGraph<GraphState> ready to receive nodes and edges
+```
+
+Phần `channels` cần một chút thời gian để ngấm. Mỗi field khai báo cách các bản cập nhật từng phần được gộp vào state hiện có. `messages` được *append* — mỗi node trả về `{ messages: [...] }` sẽ thêm vào mảng thay vì ghi đè. Reducer chính là thứ làm cho state có ích: node có thể nhỏ và cục bộ vì logic gộp đã được tập trung một chỗ. Chúng ta sẽ thêm channel khác (như `pendingTool` cho mô hình xác nhận) ở bài 18 — bây giờ chỉ một channel để ví dụ gọn gàng.
+
+## 02 — Node
+
+Một node là một hàm đi từ state ra một bản cập nhật từng phần của state. Dễ viết, dễ test, vì nó không động vào runtime — chỉ đọc cái nó thấy trước mặt và trả về cái nó muốn thay đổi.
+
+```ts
+async function agentNode(state: GraphState): Promise<Partial<GraphState>> {
+  const reply = await model.bindTools(allTools).invoke(state.messages); // → AIMessage (may include tool_calls)
+  return { messages: [reply] };                   // → partial state — gets appended via the reducer
+}
+
+async function toolsNode(state: GraphState): Promise<Partial<GraphState>> {
+  const last = state.messages.at(-1);             // → last AIMessage from the agent
+  const results = await runToolCalls(last);       // → ToolMessage[]
+  return { messages: results };                   // → appended to state.messages
+}
+
+graph.addNode('agent', agentNode);                // → registers 'agent' node
+graph.addNode('tools', toolsNode);                // → registers 'tools' node
+```
+
+Để ý mỗi node *chỉ* trả về phần nó muốn thay đổi. Reducer của `messages` lo phần còn lại. Một node không xử lý được tình huống có thể trả về object rỗng và state đi qua mà không đổi. Không có class hierarchy nào để kế thừa, không có interface đặc biệt nào để thoả mãn ngoài *nhận state, trả về update từng phần.*
+
+## 03 — Edge
+
+Edge khai báo topology (hình dạng kết nối). Hai loại: vô điều kiện và có điều kiện. Edge vô điều kiện là *"sau node A, đi tới node B."* Edge có điều kiện chạy một hàm router nhỏ và dùng giá trị trả về để chọn node kế tiếp từ một bảng ánh xạ.
+
+```ts
+graph.addEdge('tools', 'agent');                  // → after running tools, always go back to the agent
+
+graph.addConditionalEdges('agent', (state) => {
+  const last = state.messages.at(-1);             // → last AIMessage
+  return last?.tool_calls?.length ? 'tools' : '__end__'; // → 'tools' if pending calls, else '__end__'
+}, { tools: 'tools', __end__: END });             // → router-string → node-name map
+
+graph.setEntryPoint('agent');                     // → graph starts at 'agent'
+```
+
+Router chỉ là TypeScript thường. Nó nhìn state và trả về một string; tham số thứ ba là bảng ánh xạ từ những string đó sang tên node thật. `END` là sentinel báo cho runtime dừng và trả về state cuối cùng. Edge có điều kiện là chỗ các kế hoạch nhiều bước có được *if/else* của mình — và là cách bạn sẽ ráp confirmation, recovery, và routing-theo-loại-tool ở hai bài kế tiếp.
+
+## 04 — Compile và invoke
+
+Khi topology đã được mô tả xong, bạn compile graph. Compile là bước tạo ra cái chạy được; bản thân `StateGraph` chỉ là một builder.
+
+```ts
+const app = graph.compile();                      // → CompiledStateGraph — runnable, has .invoke() / .stream()
+
+const final = await app.invoke({                  // → final GraphState after the run
+  messages: [new HumanMessage('Who hasn’t ordered in 60 days?')], // → seed transcript
+  pendingTool: null,                              // → unused in this minimal graph (added in lesson 18)
+});
+
+console.log(final.messages.at(-1)?.content);      // → logs the final assistant reply text
+```
+
+`invoke` chạy graph từ entry point cho đến khi gặp `END` (hoặc một interrupt — chúng ta sẽ tới ở bài 19). Nó trả về *state cuối*. Cũng có `stream` và `streamEvents` cho đúng những UI pattern ta đã dựng ở Phần II, chỉ khác là giờ bạn đang stream các state trung gian của graph, không phải token của model.
+
+Đó là toàn bộ bề mặt tối thiểu. State, node, edge, compile, invoke. Bài kế tiếp dựng lại vòng lặp trần ở Phần III thành một graph — cùng hành vi, cùng tool, nhưng linh hoạt hơn nhiều từ đây trở đi.
+
+<Recap>
+- Một graph là *state* + *node* + *edge*. `StateGraph` dựng nó; `compile()` cho ra cái chạy được.
+- State channel khai báo reducer — cách gộp các bản cập nhật từng phần. `messages` gần như luôn được append.
+- Node là hàm từ state ra state từng phần. Gần như thuần tuý, dễ test.
+- `addEdge('a', 'b')` cho chuyển tiếp vô điều kiện. `addConditionalEdges('a', router, map)` cho rẽ nhánh.
+- `END` là sentinel cho *dừng ở đây.* Bộ chạy dừng lại và trả về state cuối.
+- `app.invoke(initialState)` chạy tới khi xong hoặc tới interrupt kế tiếp — đúng hình dạng bạn cần ở bài 19.
+</Recap>
+
+</VI>

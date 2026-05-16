@@ -1,5 +1,12 @@
 import { Callout } from "@/components/mdx/callout";
 import { Recap } from "@/components/mdx/recap";
+import { Demo } from "@/components/mdx/demo";
+import { EN, VI } from "@/components/mdx/bilingual";
+import { TokenCounterDemo } from "@/components/demos/ai-in-your-project/token-counter-demo";
+import { StreamingTextDemo } from "@/components/demos/ai-in-your-project/streaming-text-demo";
+import { SystemPromptToggleDemo } from "@/components/demos/ai-in-your-project/system-prompt-toggle-demo";
+
+<EN>
 
 <Callout type="note" title="In this lesson">
   - A skim-once reference for every LLM, LangChain, and LangGraph term used in
@@ -101,6 +108,11 @@ It's organised by cluster, not alphabetically — terms that show up together in
 
 - **Token** — the unit a model reads and writes in. Roughly ¾ of an English word. _"Hello, world"_ is about 3 tokens. Pricing, context limits, and speed are all measured in tokens.
 - **Context window** — the maximum number of tokens the model can "see" at once (your prompt + its reply). When you exceed it, older messages get cut. Bigger windows aren't free — they cost more and slow down.
+
+<Demo title="See where the tokens go — switch scenarios to watch the context budget shift">
+  <TokenCounterDemo />
+</Demo>
+
 - **Inference** — one round-trip to the model: send tokens in, get tokens out. _"Slow inference"_ means the model is taking a long time to reply.
 
   _A concrete example._ One inference call, timed:
@@ -155,6 +167,11 @@ It's organised by cluster, not alphabetically — terms that show up together in
   - **Model size is a multiplier on every output token.** A 3B model might emit at ~30 ms/token; an 8B at ~50 ms; a 14B at ~80 ms. Same 24-token reply, very different wall-clock times. (See the model-size chart further up.)
 - **Temperature** — a knob from 0 to ~2 that controls randomness. `0` = same answer every time (good for tools and structured output). `0.7` = creative (good for drafting copy).
 - **Streaming** — receiving the reply token-by-token as the model produces it, instead of waiting for the whole thing. Lesson 4 wires this up.
+
+<Demo title="Streaming vs. wait-for-the-whole-reply — feel the difference in time-to-first-token">
+  <StreamingTextDemo />
+</Demo>
+
 - **Provider** — the service that hosts the model. **Ollama** runs models on your laptop. **OpenAI**, **Anthropic**, **Google** host them in the cloud. LangChain lets you swap providers without rewriting your app (lesson 24).
 
 <figure style={{ margin: '1.5rem auto', maxWidth: '560px' }}>
@@ -242,6 +259,11 @@ It's organised by cluster, not alphabetically — terms that show up together in
 
 - **Prompt** — the text you send to the model. Casual usage; in code it's usually structured as messages.
 - **System prompt** — a special "instructions to the AI" message at the top. Defines role, tone, hard rules. _"You are a helpful CMS assistant. Never invent customer IDs."_ Lesson 5.
+
+<Demo title="Toggle the system prompt — same question, very different answers">
+  <SystemPromptToggleDemo />
+</Demo>
+
 - **User message / assistant message** — the back-and-forth turns of a conversation. The chat history is just an array of these.
 - **Few-shot examples** — including 1–5 worked examples in the prompt to show the model the pattern you want. _"Here's how I'd phrase a re-engagement email; now do one for this customer."_
 - **Prompt engineering** — the skill of writing prompts that get reliable output. Less black-magic than the internet implies. Lesson 6.
@@ -418,3 +440,441 @@ It's organised by cluster, not alphabetically — terms that show up together in
   bookmark and skim back as needed.
 </Recap>
 
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+  - Một trang tra cứu nhanh cho mọi thuật ngữ LLM, LangChain, và LangGraph được
+  dùng trong phần còn lại của khoá học. - Thuật ngữ được nhóm thành năm cụm
+  (model & inference, prompt, tool, LangGraph, production) để bạn tìm theo chủ
+  đề chứ không phải theo bảng chữ cái.
+</Callout>
+
+Khoá học này dựa trên một bộ từ vựng nhỏ đến từ ba thế giới khác nhau — các nhà cung cấp model, hệ sinh thái LangChain, và backend engineering nói chung — và rất dễ bị "ngộp" khi một bài học bất chợt thả ra câu kiểu _"bind cái tool vào model rồi stream các delta ngược về qua graph."_ Câu đó là năm thuật ngữ khoác chung một chiếc áo. Trang này tồn tại để bạn lướt qua một lần bây giờ, rồi quay lại bất cứ khi nào có một từ làm bạn khựng lại.
+
+Trang được tổ chức theo cụm chứ không theo bảng chữ cái — những thuật ngữ thường xuất hiện cùng nhau trong code thật thì được nhóm cạnh nhau ở đây.
+
+<Callout type="tip" title="Bạn không cần học thuộc">
+  Đọc một lần rồi giữ tab này mở trong lúc học các bài. Hầu hết thuật ngữ sẽ
+  trở nên dễ hiểu hơn nhiều ở lần thứ hai bạn gặp, khi đã có ngữ cảnh.
+</Callout>
+
+<figure style={{ margin: '1.75rem auto', maxWidth: '640px' }}>
+  <svg viewBox="0 0 640 230" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Ba tầng từ vựng xếp chồng: kiến thức cơ bản về model ở dưới cùng, tool và agent ở giữa, graph orchestration ở trên">
+    <rect x="20" y="10" width="600" height="56" rx="10" fill="rgba(22,163,74,0.05)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="40" y="34" fontSize="13" fontWeight="700" fill="#16a34a">Tầng 3 · Graph orchestration  (Phần IV)</text>
+    <text x="40" y="54" fontSize="12" fill="currentColor" opacity="0.75">state · nodes · edges · conditional routing · interrupt · checkpointer</text>
+
+    <rect x="20" y="82" width="600" height="56" rx="10" fill="rgba(22,163,74,0.10)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="40" y="106" fontSize="13" fontWeight="700" fill="#16a34a">Tầng 2 · Tools & agents  (Phần III)</text>
+    <text x="40" y="126" fontSize="12" fill="currentColor" opacity="0.75">tool · tool_call · schema · structured output · ReAct loop · idempotent</text>
+
+    <rect x="20" y="154" width="600" height="56" rx="10" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="40" y="178" fontSize="13" fontWeight="700" fill="#16a34a">Tầng 1 · Kiến thức cơ bản về model  (Phần II)</text>
+    <text x="40" y="198" fontSize="12" fill="currentColor" opacity="0.75">LLM · token · context window · streaming · system prompt · temperature</text>
+
+  </svg>
+  <figcaption style={{ marginTop: '0.5rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Từ vựng xếp chồng. Tầng 1 là nền móng; mỗi tầng trên đều dùng lại từ ngữ ở tầng dưới.
+  </figcaption>
+</figure>
+
+## Models & inference
+
+- **LLM (Large Language Model)** — chính là "AI". Nhận chữ vào, sinh chữ ra. Ví dụ: GPT-4, Claude, Llama, Mistral. Trong khoá học này, ta chạy một model nhỏ ngay trên máy bạn qua Ollama.
+- **Parameter count / model size (số tham số / kích cỡ model)** — số trọng số đã học được trong mạng neural, viết kèm chữ `B` nghĩa là tỷ. `qwen2.5:3b` có 3 tỷ tham số; `llama3.1:8b` có 8 tỷ. Nhiều tham số hơn thường nghĩa là model "khôn" hơn, đáng tin cậy hơn — nhưng cũng tốn nhiều RAM, nhiều dung lượng đĩa hơn, và chậm hơn trên mỗi token.
+
+  <table>
+    <thead>
+      <tr>
+        <th style={{ width: '1%', whiteSpace: 'nowrap' }}>Kích cỡ</th>
+        <th>Ví dụ</th>
+        <th>Chạy được trên</th>
+        <th>Độ tin cậy cho các pattern trong khoá học</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}><strong>1–3B</strong></td>
+        <td><code>qwen2.5:3b</code>, <code>llama3.2:3b</code>, <code>gemma2:2b</code></td>
+        <td>CPU laptop, điện thoại</td>
+        <td>Rớt field, sai chính tả enum khi task khó hơn</td>
+      </tr>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}><strong>7–8B</strong></td>
+        <td><code>qwen2.5:7b</code>, <code>llama3.1:8b</code>, <code>mistral:7b</code></td>
+        <td>Laptop có 16 GB RAM trở lên</td>
+        <td>Đủ tin cậy cho mọi pattern trong khoá học này</td>
+      </tr>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}><strong>13–14B</strong></td>
+        <td><code>qwen2.5:14b</code>, <code>phi-4:14b</code></td>
+        <td>GPU phổ thông (12 GB VRAM trở lên)</td>
+        <td>Điểm "ngọt" cho self-hosted production</td>
+      </tr>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}><strong>30–70B</strong></td>
+        <td><code>llama3.3:70b</code>, <code>qwen2.5:72b</code></td>
+        <td>Workstation hoặc dàn nhiều GPU</td>
+        <td>Chất lượng "frontier" cho hầu hết task</td>
+      </tr>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}><strong>100B+</strong></td>
+        <td>GPT-4, Claude, Gemini Pro</td>
+        <td>Chỉ chạy hosted (qua API)</td>
+        <td>Mốc tham chiếu mà ai cũng đem ra so sánh</td>
+      </tr>
+    </tbody>
+  </table>
+
+  Bài 03 sẽ hướng dẫn bạn tải về model 3B hoặc 8B. Nếu gặp vấn đề về độ tin cậy ở bản 3B, cách sửa thường là "đổi tên model sang bản 8B" — code y nguyên, hành vi tốt hơn nhiều.
+
+  _Một ví dụ cụ thể._ Cùng một input (`"Hi, our customer Phuoc <phuoc@savyu.com> hasn't ordered in 3 months — mark as lapsed."`), cùng một Zod schema (`{ name, email, segment: enum['active','lapsed'] }`), cùng một lệnh `withStructuredOutput` — chỉ khác kích cỡ model, chạy mỗi cái 100 lần:
+
+  | Model              | Đúng       | Sai       | Độ trễ   | $ mỗi lần chạy |
+  | ------------------ | ---------- | --------- | -------- | -------------- |
+  | `qwen2.5:3b` (3B)  | 78 / 100   | 22 / 100  | ~3.0 s   | miễn phí       |
+  | `llama3.1:8b` (8B) | 97 / 100   | 3 / 100   | ~5.5 s   | miễn phí       |
+  | `claude-sonnet`    | 100 / 100  | 0 / 100   | ~1.4 s   | ~$0.001        |
+
+  22 lần sai ở bản 3B chia ra như sau: 14 lần lệch chữ hoa chữ thường (`"Lapsed"` thay vì `"lapsed"`, không khớp enum), 5 lần thiếu hẳn field `segment`, 3 lần bịa ra `segment: "inactive"` (không có trong enum). Cả ba kiểu sai này đúng y chang những "cạm bẫy" được liệt kê trong bài 08 §04.
+
+  _Bài học rút ra:_ bạn hoàn toàn có thể chạy **cả khoá học** trên một model 3B — sẽ chậm và bạn sẽ phải retry kha khá — nhưng nếu demo structured-output của bài nào đó "tậm tịt", chỉ cần đổi `'qwen2.5:3b'` thành `'llama3.1:8b'` ngay trong dòng `ChatOllama({ model: ... })`, lỗi thường biến mất. Để dành model frontier hosted cho production (bài 24).
+
+- **Token** — đơn vị mà model đọc và viết. Khoảng ¾ một từ tiếng Anh. _"Hello, world"_ tầm 3 token. Giá tiền, giới hạn context, và tốc độ đều được đo bằng token.
+- **Context window** — số token tối đa mà model có thể "nhìn thấy" cùng lúc (prompt của bạn + phần trả lời của nó). Khi bạn vượt giới hạn, các message cũ sẽ bị cắt. Window lớn hơn không miễn phí — đắt tiền hơn và chậm hơn.
+
+<Demo title="Xem token đi đâu — chuyển scenario để thấy ngân sách context dịch chuyển">
+  <TokenCounterDemo />
+</Demo>
+
+- **Inference** — một vòng đi-về tới model: gửi token vào, nhận token ra. _"Inference chậm"_ nghĩa là model đang trả lời lâu.
+
+  _Một ví dụ cụ thể._ Một lần gọi inference, có bấm giờ:
+
+  ```ts
+  console.time('inference');
+  const reply = await model.invoke('What is the capital of France?');
+  console.timeEnd('inference');
+  // → inference: 1247ms
+
+  // reply.content: "The capital of France is Paris."
+  ```
+
+  1247 ms đó thực ra trôi đi đâu, trên một model 8B chạy local:
+
+  <table>
+    <thead>
+      <tr>
+        <th style={{ width: '1%', whiteSpace: 'nowrap' }}>Giai đoạn</th>
+        <th style={{ width: '1%', whiteSpace: 'nowrap' }}>Thời gian</th>
+        <th>Chuyện gì xảy ra</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}>Tokenize input</td>
+        <td style={{ whiteSpace: 'nowrap' }}>~10 ms</td>
+        <td>Chuẩn bị 7 input token từ chuỗi prompt</td>
+      </tr>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}>Prefill (forward pass)</td>
+        <td style={{ whiteSpace: 'nowrap' }}>~30 ms</td>
+        <td>Model "đọc" cả 7 token prompt cùng lúc và dựng trạng thái làm việc</td>
+      </tr>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}><strong>Sinh output</strong></td>
+        <td style={{ whiteSpace: 'nowrap' }}><strong>~1180 ms</strong></td>
+        <td><strong>24 output token, từng cái một, mỗi cái ~50 ms</strong> — phần tốn thời gian nhất</td>
+      </tr>
+      <tr>
+        <td style={{ whiteSpace: 'nowrap' }}>Decode + trả về</td>
+        <td style={{ whiteSpace: 'nowrap' }}>~25 ms</td>
+        <td>Ghép các token lại thành chuỗi và trả về code của bạn</td>
+      </tr>
+    </tbody>
+  </table>
+
+  Ba quy tắc "nắm tay" rút ra từ bảng phân tích đó:
+
+  - **Độ dài output là chính.** Output dài gấp đôi thì thời gian inference cũng tăng gấp đôi. Đó là lý do vì sao chỉ thị "trả lời ngắn gọn" trong prompt không chỉ là sở thích về phong cách — nó là một mẹo tăng tốc thật.
+  - **Độ dài input ít quan trọng hơn nhiều.** Thêm 100 token vào system prompt chỉ tốn ~10 ms ở giai đoạn prefill. Thêm 100 token vào *output* sẽ tốn ~5 giây với tốc độ 50 ms/token.
+  - **Kích cỡ model là một hệ số nhân lên từng output token.** Model 3B có thể sinh ~30 ms/token; 8B ~50 ms; 14B ~80 ms. Cùng một câu trả lời 24 token, nhưng thời gian thực rất khác nhau. (Xem lại bảng kích cỡ model ở trên.)
+- **Temperature** — núm xoay từ 0 đến ~2 điều khiển độ ngẫu nhiên. `0` = cùng câu hỏi luôn cho cùng câu trả lời (tốt cho tool và structured output). `0.7` = sáng tạo (tốt khi viết nháp nội dung).
+- **Streaming** — nhận câu trả lời từng token một khi model đang sinh ra, thay vì đợi cả khối. Bài 4 sẽ dựng phần này.
+
+<Demo title="Streaming vs. đợi cả câu trả lời — cảm nhận khác biệt time-to-first-token">
+  <StreamingTextDemo />
+</Demo>
+
+- **Provider** — dịch vụ host model. **Ollama** chạy model ngay trên laptop của bạn. **OpenAI**, **Anthropic**, **Google** host trên cloud. LangChain cho phép bạn đổi provider mà không cần viết lại app (bài 24).
+
+<figure style={{ margin: '1.5rem auto', maxWidth: '560px' }}>
+  <svg viewBox="0 0 560 220" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Độ tin cậy của cùng một task structured-extraction trên bốn kích cỡ model: 3B 78%, 8B 97%, 14B 99%, 100B+ 100%">
+    <text x="280" y="20" textAnchor="middle" fontSize="12" fontWeight="600" fill="currentColor">Độ tin cậy trên cùng một task structured-output (100 lần chạy)</text>
+
+    <line x1="120" y1="40" x2="120" y2="200" stroke="currentColor" strokeWidth="1" opacity="0.25" />
+    <line x1="240" y1="40" x2="240" y2="200" stroke="currentColor" strokeWidth="1" opacity="0.15" strokeDasharray="2 3" />
+    <line x1="360" y1="40" x2="360" y2="200" stroke="currentColor" strokeWidth="1" opacity="0.15" strokeDasharray="2 3" />
+    <line x1="480" y1="40" x2="480" y2="200" stroke="currentColor" strokeWidth="1" opacity="0.15" strokeDasharray="2 3" />
+
+    <text x="120" y="215" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">0%</text>
+    <text x="240" y="215" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">25%</text>
+    <text x="360" y="215" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">50%</text>
+    <text x="480" y="215" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">75%</text>
+
+    <text x="110" y="65" textAnchor="end" fontSize="12" fontWeight="600" fill="currentColor">3B</text>
+    <text x="110" y="78" textAnchor="end" fontSize="9" fill="currentColor" opacity="0.6">qwen2.5:3b</text>
+    <rect x="120" y="50" width="294" height="28" rx="4" fill="rgba(22,163,74,0.20)" stroke="#16a34a" strokeWidth="1.2" />
+    <text x="424" y="69" fontSize="12" fontWeight="700" fill="#16a34a">78%</text>
+
+    <text x="110" y="105" textAnchor="end" fontSize="12" fontWeight="600" fill="currentColor">8B</text>
+    <text x="110" y="118" textAnchor="end" fontSize="9" fill="currentColor" opacity="0.6">llama3.1:8b</text>
+    <rect x="120" y="90" width="365" height="28" rx="4" fill="rgba(22,163,74,0.30)" stroke="#16a34a" strokeWidth="1.2" />
+    <text x="495" y="109" fontSize="12" fontWeight="700" fill="#16a34a">97%</text>
+
+    <text x="110" y="145" textAnchor="end" fontSize="12" fontWeight="600" fill="currentColor">14B</text>
+    <text x="110" y="158" textAnchor="end" fontSize="9" fill="currentColor" opacity="0.6">qwen2.5:14b</text>
+    <rect x="120" y="130" width="372" height="28" rx="4" fill="rgba(22,163,74,0.40)" stroke="#16a34a" strokeWidth="1.2" />
+    <text x="502" y="149" fontSize="12" fontWeight="700" fill="#16a34a">~99%</text>
+
+    <text x="110" y="185" textAnchor="end" fontSize="12" fontWeight="600" fill="currentColor">100B+</text>
+    <text x="110" y="198" textAnchor="end" fontSize="9" fill="currentColor" opacity="0.6">claude / gpt</text>
+    <rect x="120" y="170" width="376" height="28" rx="4" fill="rgba(22,163,74,0.55)" stroke="#16a34a" strokeWidth="1.2" />
+    <text x="506" y="189" fontSize="12" fontWeight="700" fill="#16a34a">100%</text>
+
+  </svg>
+  <figcaption style={{ marginTop: '0.5rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Độ tin cậy tăng mạnh từ 3B → 8B (+19 điểm), rồi gần như bằng phẳng. Bước nhảy đáng giá nhất cho setup self-hosted là 3B → 8B.
+  </figcaption>
+</figure>
+
+<figure style={{ margin: '1.5rem auto', maxWidth: '560px' }}>
+  <svg viewBox="0 0 560 170" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Chuỗi Hello, world! được tách thành bốn token">
+    <defs>
+      <marker id="tok-arr-vi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+    <rect x="180" y="14" width="200" height="36" rx="6" fill="none" stroke="currentColor" strokeOpacity="0.35" strokeDasharray="4 3" />
+    <text x="280" y="38" textAnchor="middle" fontSize="16" fontFamily="monospace" fill="currentColor">{'"Hello, world!"'}</text>
+    <line x1="280" y1="56" x2="280" y2="84" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#tok-arr-vi)" />
+    <g transform="translate(60, 92)">
+      <rect width="100" height="44" rx="8" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+      <text x="50" y="28" textAnchor="middle" fontSize="14" fontFamily="monospace" fill="currentColor">{'"Hello"'}</text>
+    </g>
+    <g transform="translate(170, 92)">
+      <rect width="50" height="44" rx="8" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+      <text x="25" y="28" textAnchor="middle" fontSize="14" fontFamily="monospace" fill="currentColor">{'","'}</text>
+    </g>
+    <g transform="translate(230, 92)">
+      <rect width="120" height="44" rx="8" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+      <text x="60" y="28" textAnchor="middle" fontSize="14" fontFamily="monospace" fill="currentColor">{'" world"'}</text>
+    </g>
+    <g transform="translate(360, 92)">
+      <rect width="50" height="44" rx="8" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+      <text x="25" y="28" textAnchor="middle" fontSize="14" fontFamily="monospace" fill="currentColor">{'"!"'}</text>
+    </g>
+    <text x="450" y="120" fontSize="14" fill="#16a34a" fontWeight="600" fontStyle="italic">{'= 4 tokens'}</text>
+  </svg>
+  <figcaption
+    style={{
+      marginTop: "0.5rem",
+      fontSize: "0.875rem",
+      textAlign: "center",
+      opacity: 0.7,
+    }}
+  >
+    Tokenization tách văn bản thành những đơn vị mà model thực sự đọc. Hầu hết
+    các từ là một token; dấu câu, khoảng trắng đầu từ, và các từ hiếm có thể bị
+    tách nhỏ.
+  </figcaption>
+</figure>
+
+## Prompt & message
+
+- **Prompt** — đoạn văn bản bạn gửi tới model. Cách nói thông thường; trong code thì nó thường được cấu trúc thành các message.
+- **System prompt** — một message đặc biệt kiểu "chỉ thị cho AI" đặt ở trên cùng. Định nghĩa vai trò, giọng điệu, các quy tắc cứng. _"You are a helpful CMS assistant. Never invent customer IDs."_ Bài 5.
+
+<Demo title="Bật/tắt system prompt — cùng một câu hỏi, hai kiểu trả lời khác hẳn">
+  <SystemPromptToggleDemo />
+</Demo>
+
+- **User message / assistant message** — các lượt qua lại trong một cuộc hội thoại. Lịch sử chat chỉ là một mảng gồm những thứ này.
+- **Few-shot examples** — đưa vào prompt 1–5 ví dụ đã giải sẵn để chỉ cho model pattern bạn muốn. _"Đây là cách tôi viết một email mời quay lại; giờ hãy viết một cái cho khách hàng này."_
+- **Prompt engineering** — kỹ năng viết prompt để có output đáng tin cậy. Không thần bí như trên mạng hay đồn. Bài 6.
+- **Hallucination (ảo giác)** — khi model tự tin bịa ra một sự thật. Kiểu lỗi tiêu biểu nhất. Tool và structured output làm giảm chứ không loại bỏ được.
+
+## Tool & agent
+
+- **Tool** (còn gọi là **function call**) — một hàm TypeScript mà model được phép gọi, kèm theo schema có kiểu rõ ràng mô tả các tham số. Model nói _"Tôi muốn gọi `searchCustomers({ tag: 'lapsed' })`"_; code của bạn chạy nó; bạn đưa kết quả ngược lại cho model. Bài 9.
+- **Tool call** — một yêu cầu cụ thể từ model để gọi một tool, kèm theo các tham số nó đã chọn.
+- **Read tool / write tool** — cách đặt tên riêng của khoá học. Read tool dùng để lấy dữ liệu (an toàn để tự động chạy). Write tool thay đổi database hoặc gửi tin nhắn (cần xác nhận).
+- **Agent** — một LLM chạy trong một vòng lặp với các tool. Nó đọc, quyết định, gọi tool, đọc kết quả, lại quyết định, cuối cùng trả lời.
+- **ReAct loop** — _Reason + Act_ (Suy luận + Hành động). Pattern agent kinh điển: model suy nghĩ → gọi tool → đọc kết quả → suy nghĩ tiếp → lặp lại cho đến khi xong. Bài 15 và 17.
+- **Schema** (Zod) — cách khai báo theo kiểu "TypeScript trước" rằng _"tool này nhận một object có `customerId: string` và `discount: number trong khoảng 0 đến 100"_. Vừa validate input vừa cho model biết kỳ vọng đầu vào là gì. Bài 8 và 9.
+- **Structured output** — ép model trả về JSON khớp với một schema, thay vì văn bản tự do. Bài 8.
+- **Idempotent** — gọi cùng một thao tác hai lần thì hiệu ứng giống như gọi một lần. _"Đánh dấu order #42 là cancelled"_ là idempotent; _"Gửi một email"_ thì không. Bài 13.
+
+<figure style={{ margin: '1.5rem auto', maxWidth: '600px' }}>
+  <svg viewBox="0 0 600 220" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Một vòng đi-về của tool call: model phát ra tool_call, runtime thực thi, kết quả quay lại vào model">
+    <defs>
+      <marker id="tool-arr-vi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+    <text x="300" y="22" textAnchor="middle" fontSize="11" fontStyle="italic" fill="currentColor" opacity="0.65">↻ lặp lại cho đến khi model ngừng phát ra tool_calls</text>
+
+    <rect x="40" y="80" width="120" height="60" rx="8" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="100" y="106" textAnchor="middle" fontSize="14" fontWeight="700" fill="currentColor">Model</text>
+    <text x="100" y="124" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">(LLM)</text>
+
+    <rect x="240" y="80" width="120" height="60" rx="8" fill="rgba(22,163,74,0.10)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="300" y="106" textAnchor="middle" fontSize="14" fontWeight="700" fill="currentColor">Runtime của bạn</text>
+    <text x="300" y="124" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">(thực thi tool)</text>
+
+    <rect x="440" y="80" width="120" height="60" rx="8" fill="rgba(22,163,74,0.05)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="500" y="106" textAnchor="middle" fontSize="14" fontWeight="700" fill="currentColor">Database</text>
+    <text x="500" y="124" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">(dữ liệu của bạn)</text>
+
+    <line x1="160" y1="100" x2="240" y2="100" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#tool-arr-vi)" />
+    <text x="200" y="92" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.85">tool_call</text>
+
+    <line x1="360" y1="100" x2="440" y2="100" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#tool-arr-vi)" />
+    <text x="400" y="92" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.85">query</text>
+
+    <line x1="440" y1="124" x2="360" y2="124" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#tool-arr-vi)" />
+    <text x="400" y="142" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.85">rows</text>
+
+    <line x1="240" y1="124" x2="160" y2="124" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#tool-arr-vi)" />
+    <text x="200" y="142" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.85">ToolMessage</text>
+
+    <line x1="100" y1="140" x2="100" y2="180" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#tool-arr-vi)" opacity="0.6" />
+    <text x="100" y="200" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">trả lời cuối cho user</text>
+
+  </svg>
+  <figcaption style={{ marginTop: '0.5rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Một lượt của agent có dùng tool: model đề xuất một cuộc gọi → code của bạn chạy nó → kết quả quay ngược lại → model nói. Hai lần gọi model, một lần thực thi tool, một lượt.
+  </figcaption>
+</figure>
+
+## LangChain & LangGraph
+
+- **LangChain** — một thư viện cung cấp một giao diện chung cho mọi provider model, kèm các tiện ích cho prompt, tool, parsing, v.v.
+- **LangGraph** — xây trên LangChain. Cho phép bạn diễn đạt agent của mình dưới dạng một _graph_ gồm các bước có state, có rẽ nhánh, và có thể tạm dừng. Là lý do khoá học này có được pattern human-in-the-loop mà không phải tự tay viết một state machine. Từ bài 16 trở đi.
+- **Node** — một bước trong graph. Thường là một hàm: _"gọi model"_, _"chạy một tool"_, _"hỏi user để xác nhận"_.
+- **Edge** — kết nối từ node này sang node kế tiếp. Edge thường thì luôn đi đến cùng một đích; **conditional edge** (edge có điều kiện) thì rẽ nhánh dựa trên state (_"nếu tool tiếp theo là write thì đi tới node xác nhận; còn không thì tự động chạy"_).
+- **State** — một object có kiểu rõ ràng, chảy xuyên qua mọi node trong graph. Mỗi node đọc nó và trả về các update. Đây là chỗ chứa message, các tool call đang chờ, và trạng thái xác nhận.
+- **StateGraph** — class trong LangGraph mà bạn dùng để ráp node và edge lại với nhau.
+- **Interrupt** — tính năng "đinh" của LangGraph. Một node gọi `interrupt(...)`, graph tạm dừng và lưu lại trạng thái, UI của bạn hiển thị cho user biết cái gì đang chờ, user bấm Approve, graph chạy tiếp. Bài 19.
+- **Checkpointer** — backend lưu trữ (in-memory, SQLite, Postgres) giúp một graph đang tạm dừng sống sót qua lúc server khởi động lại, để user có thể xác nhận sau.
+
+<figure style={{ margin: '1.5rem auto', maxWidth: '640px' }}>
+  <svg viewBox="0 0 640 250" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Một LangGraph với một node agent và ba đường rẽ có điều kiện: read tool tự chạy, write tool đi qua await_confirmation, hoặc graph kết thúc">
+    <defs>
+      <marker id="lg-arr-vi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+
+    <rect x="430" y="10" width="200" height="46" rx="6" fill="rgba(22,163,74,0.05)" stroke="#16a34a" strokeWidth="1.2" strokeDasharray="3 2" />
+    <text x="530" y="30" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">state (channels)</text>
+    <text x="530" y="48" textAnchor="middle" fontSize="10" fontFamily="ui-monospace, monospace" fill="currentColor" opacity="0.75">{'{ messages, pendingTool }'}</text>
+
+    <circle cx="320" cy="40" r="10" fill="#16a34a" />
+    <text x="320" y="68" textAnchor="middle" fontSize="11" fontWeight="600" fill="currentColor">START</text>
+
+    <rect x="250" y="90" width="140" height="52" rx="8" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="320" y="112" textAnchor="middle" fontSize="14" fontWeight="700" fill="currentColor">agent</text>
+    <text x="320" y="130" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.65">(gọi model)</text>
+
+    <line x1="320" y1="52" x2="320" y2="90" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#lg-arr-vi)" />
+
+    <text x="320" y="160" textAnchor="middle" fontSize="11" fontStyle="italic" fill="currentColor" opacity="0.6">↓ conditional edge</text>
+
+    <rect x="40" y="180" width="140" height="50" rx="8" fill="rgba(22,163,74,0.10)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="110" y="202" textAnchor="middle" fontSize="13" fontWeight="700" fill="currentColor">read_tools</text>
+    <text x="110" y="218" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.65">tự động chạy</text>
+
+    <rect x="220" y="180" width="200" height="50" rx="8" fill="rgba(220,140,40,0.14)" stroke="#dc8c28" strokeWidth="1.5" strokeDasharray="5 3" />
+    <text x="320" y="202" textAnchor="middle" fontSize="13" fontWeight="700" fill="currentColor">await_confirmation ⏸</text>
+    <text x="320" y="218" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">interrupt() — tạm dừng chờ người</text>
+
+    <rect x="460" y="180" width="140" height="50" rx="8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.6" />
+    <text x="530" y="202" textAnchor="middle" fontSize="13" fontWeight="700" fill="currentColor">END</text>
+    <text x="530" y="218" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.65">không còn tool_call</text>
+
+    <path d="M 290 142 Q 200 165 130 180" stroke="currentColor" strokeWidth="1.5" fill="none" markerEnd="url(#lg-arr-vi)" />
+    <text x="195" y="160" textAnchor="middle" fontSize="10" fontWeight="600" fill="currentColor" opacity="0.75">read</text>
+
+    <line x1="320" y1="142" x2="320" y2="180" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#lg-arr-vi)" />
+    <text x="338" y="162" fontSize="10" fontWeight="600" fill="#dc8c28">write</text>
+
+    <path d="M 350 142 Q 440 165 510 180" stroke="currentColor" strokeWidth="1.5" fill="none" markerEnd="url(#lg-arr-vi)" />
+    <text x="445" y="160" textAnchor="middle" fontSize="10" fontWeight="600" fill="currentColor" opacity="0.75">xong</text>
+
+  </svg>
+  <figcaption style={{ marginTop: '0.5rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Node làm việc; conditional edge chọn đường đi. Node màu cam gọi <code>interrupt()</code> — đó chính là chỗ graph tạm dừng để chờ người duyệt trước khi bất kỳ thao tác ghi nào kích hoạt.
+  </figcaption>
+</figure>
+
+## Production & an toàn
+
+- **Prompt injection** — một kiểu tấn công, trong đó model đọc văn bản do kẻ tấn công kiểm soát (ghi chú của khách hàng, một trang web được scrape về) và coi đó như là chỉ thị. Giảm thiểu bằng việc lọc input, validate output, và tuyệt đối không trao cho AI "ambient authority" (quyền hạn ngầm). Bài 21.
+- **Guardrails** — các lớp kiểm tra bao quanh model: bộ lọc input, bộ validate output, rate limit. Kiểu "thắt lưng cộng đai".
+- **Eval** (đánh giá) — bài test regression cho AI. Chạy một bộ input cố định, đối chiếu output với hành vi mong đợi. Bài 22.
+- **Trace / observability** — log lại mọi cuộc gọi model, mọi tool call, mọi bước trong graph để mấy ngày sau bạn còn debug được _"vì sao agent lại làm vậy?"_. Bài 23.
+- **Token budget / cost cap** — trần token theo từng request hoặc theo ngày để một vòng lặp "vỡ trận" không hút sạch hạn mức thẻ tín dụng của bạn.
+- **Rate limit** — giới hạn do provider áp lên số request mỗi phút. Sớm muộn cũng đụng phải; bài 14 nói về retry kèm backoff.
+- **HITL (Human-in-the-loop)** — pattern thiết kế trong đó AI đề xuất còn con người duyệt trước khi bất kỳ hành động không thể đảo ngược nào diễn ra. Đây chính là tinh thần của cả Phần IV.
+
+<figure style={{ margin: '1.5rem auto', maxWidth: '600px' }}>
+  <svg viewBox="0 0 600 320" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Năm lớp phòng thủ, xếp chồng từ input ở trên xuống cổng xác nhận ở dưới">
+    <defs>
+      <marker id="def-arr-red-vi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" />
+      </marker>
+    </defs>
+
+    <text x="300" y="20" textAnchor="middle" fontSize="12" fill="#dc2626" fontWeight="600">⚠ Input thù địch</text>
+    <line x1="300" y1="28" x2="300" y2="50" stroke="#dc2626" strokeWidth="2" markerEnd="url(#def-arr-red-vi)" />
+
+    <rect x="40" y="60" width="520" height="44" rx="6" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="60" y="86" fontSize="13" fontWeight="700" fill="#16a34a">1. Cấu trúc input</text>
+    <text x="220" y="86" fontSize="11" fill="currentColor" opacity="0.75">{'văn bản user nằm trong <tags>, không bao giờ dán thẳng vào chỉ thị'}</text>
+
+    <rect x="40" y="112" width="520" height="44" rx="6" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="60" y="138" fontSize="13" fontWeight="700" fill="#16a34a">2. Validate input</text>
+    <text x="220" y="138" fontSize="11" fill="currentColor" opacity="0.75">Zod schema ở ranh giới API — trước khi vào model</text>
+
+    <rect x="40" y="164" width="520" height="44" rx="6" fill="rgba(22,163,74,0.14)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="60" y="190" fontSize="13" fontWeight="700" fill="#16a34a">3. Allowlist tool</text>
+    <text x="220" y="190" fontSize="11" fill="currentColor" opacity="0.75">model CHỈ có thể gọi những tool bạn đã bind vào nó</text>
+
+    <rect x="40" y="216" width="520" height="44" rx="6" fill="rgba(22,163,74,0.18)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="60" y="242" fontSize="13" fontWeight="700" fill="#16a34a">4. Validate output</text>
+    <text x="220" y="242" fontSize="11" fill="currentColor" opacity="0.75">Zod cho tham số của mọi tool call — model không thể can thiệp lớp này</text>
+
+    <rect x="40" y="268" width="520" height="44" rx="6" fill="rgba(220,140,40,0.16)" stroke="#dc8c28" strokeWidth="1.5" />
+    <text x="60" y="294" fontSize="13" fontWeight="700" fill="#dc8c28">5. Cổng xác nhận ⏸</text>
+    <text x="240" y="294" fontSize="11" fill="currentColor" opacity="0.75">người duyệt Approve / Reject trước mọi thao tác ghi không thể đảo ngược</text>
+
+  </svg>
+  <figcaption style={{ marginTop: '0.5rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Từng lớp riêng lẻ đều có thể bị vượt qua. Năm lớp xếp chồng lại với nhau mới là cái sống sót được trước một kẻ tấn công thật.
+  </figcaption>
+</figure>
+
+<Recap>
+  - Từ vựng về inference: LLM, token, context window, streaming, temperature,
+  provider. - Từ vựng về prompt: system prompt, message, few-shot,
+  hallucination. - Từ vựng về tool: tool, tool call, schema, structured output,
+  idempotent, agent, ReAct loop. - Từ vựng về LangGraph: node, edge, state,
+  StateGraph, interrupt, checkpointer. - Từ vựng về production: prompt
+  injection, guardrails, eval, trace, rate limit, HITL. - Đừng học thuộc — hãy
+  bookmark và lướt lại khi cần.
+</Recap>
+
+</VI>

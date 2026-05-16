@@ -1,5 +1,8 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this recap">
 - A mind map of Part IV — six lessons that turn the loose tool-calling loop from Part III into a graph the user can pause.
@@ -83,3 +86,92 @@ Part IV is where the architecture clicks together. Up to now you've had a model,
 </Recap>
 
 **Up next — Part V: Production-grade AI.** Safety, testing, observability, deployment. Four lessons that turn a working graph into a feature you can put in front of paying users without flinching.
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài tổng kết này">
+- Mind map của Phần IV — sáu bài biến vòng tool-calling lỏng lẻo của Phần III thành một graph mà người dùng có thể tạm dừng.
+- Hai tính năng "sát thủ": conditional routing cho việc rẽ nhánh đọc/ghi, và `interrupt()` cho người duyệt.
+- Một block Recap tóm gọn mô hình tinh thần LangGraph trong dưới ba mươi giây.
+</Callout>
+
+Phần IV là chỗ kiến trúc khớp lại với nhau. Cho đến giờ bạn có một model, một danh sách tool, và một vòng lặp đâu đó trong code gọi cái này rồi cái kia. Vòng lặp đó có những giới hạn rất rõ — state qua nhiều lượt rất dễ vỡ, rẽ nhánh đọc-vs-ghi nghĩa là một mớ `if` rối rắm, và việc tạm dừng cả hệ thống để chờ người duyệt là thứ bạn phải tự bịa từ con số không. LangGraph là một thư viện nhỏ cho bạn một state machine thay vì một vòng lặp. State, node, edge, conditional routing, `interrupt()`. Đến cuối phần này, bạn có một *AI Operator* hoàn chỉnh — một graph đề xuất các thay đổi, xin phép, thực thi những cái được duyệt, và kể lại trung thực việc nó đã làm.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 480" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map của Phần IV: nút trung tâm 'LangGraph và xác nhận' với sáu nhánh — giới hạn của vòng lặp, làm quen LangGraph, graph đầu tiên, conditional routing, interrupt, và workflow khách hàng ngủ quên">
+    {/* connectors */}
+    <path d="M 360,200 L 360,90" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,220 Q 500,200 520,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,260 Q 500,290 520,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 360,280 L 360,390" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,260 Q 220,290 200,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,220 Q 220,200 200,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+
+    {/* center */}
+    <rect x="260" y="200" width="200" height="80" rx="14" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="232" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'LangGraph'}</text>
+    <text x="360" y="252" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'state machine + interrupt'}</text>
+    <text x="360" y="270" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'Phần IV'}</text>
+
+    {/* north — multi-turn limits */}
+    <rect x="260" y="30" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Giới hạn vòng lặp  ·  L15'}</text>
+    <text x="360" y="76" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'vì sao bindTools "trần" sẽ vỡ'}</text>
+
+    {/* north-east — welcome to LangGraph */}
+    <rect x="520" y="110" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="610" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Graph cơ bản  ·  L16'}</text>
+    <text x="610" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'state · node · edge'}</text>
+
+    {/* south-east — first graph */}
+    <rect x="520" y="310" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="610" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Graph đầu tiên  ·  L17'}</text>
+    <text x="610" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'agent → tools → agent'}</text>
+
+    {/* south — conditional routing */}
+    <rect x="260" y="390" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="416" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Routing  ·  L18'}</text>
+    <text x="360" y="436" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'đọc auto · ghi chờ duyệt'}</text>
+
+    {/* south-west — interrupt */}
+    <rect x="20" y="310" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="110" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'interrupt()  ·  L19'}</text>
+    <text x="110" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'tạm dừng · duyệt · resume'}</text>
+
+    {/* north-west — full workflow */}
+    <rect x="20" y="110" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="110" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'End to end  ·  L20'}</text>
+    <text x="110" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'flow khách hàng ngủ quên'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Sáu bài vẽ một vòng cung — chẩn đoán giới hạn của vòng lặp, học mô hình graph, dựng nó, rẽ nhánh nó, tạm dừng nó, "ship" cả hệ thống.
+  </figcaption>
+</figure>
+
+## Các mảnh ghép vào nhau ra sao
+
+**Giới hạn của vòng lặp (L15)** là phần chẩn đoán. Vòng `bindTools` ngây thơ ở Phần III chỉ chạy ổn cho hội thoại hai lượt và rất nhanh trở nên dễ vỡ. Cắt bớt history, rẽ nhánh theo loại tool, hồi phục từ lỗi — mỗi cái lại biến thành một khối `if` lớn hơn cho đến khi file không còn đọc được. LangGraph là câu trả lời cho nỗi đau đó.
+
+**Graph cơ bản (L16)** là phần từ vựng. *State* là một object có kiểu chảy xuyên suốt graph. *Node* là các hàm đọc và ghi state. *Edge* nối các node. *Conditional edge* chọn node tiếp theo dựa trên state. Hết. Mọi thứ khác chỉ là cách ráp lại.
+
+**Graph đầu tiên (L17)** dựng lại vòng lặp Phần III dưới dạng graph: một node `agent` gọi model, một node `tools` chạy các tool call, các edge định tuyến giữa chúng. Hành vi y hệt, nhưng cấu trúc giờ đã hiển hiện và có thể quan sát.
+
+**Conditional routing (L18)** là nơi agent học cách rẽ nhánh. Sau một tool call, graph hỏi: *đây là đọc hay ghi?* Đọc thì auto quay về `agent`. Ghi thì đi tới node `await_confirmation` và tạm dừng. Hai con đường từ một điểm quyết định — đó là hình dạng kiến trúc của mọi AI Operator an toàn.
+
+**`interrupt()` (L19)** là tính năng "sát thủ" của LangGraph. Một node gọi `interrupt({ tool, args })`, graph tạm dừng, UI của bạn render một thẻ duyệt, người dùng bấm *có* hoặc *không*, graph resume lại từ đúng chỗ đã dừng. State, lịch sử message, công việc còn dang dở — tất cả được giữ nguyên. Vòng lặp thường không có gì tương đương.
+
+**End to end (L20)** là phần thưởng. *"Tạo voucher 15% cho khách hàng không đặt hàng trong 60 ngày, soạn email mời họ quay lại."* Graph lên kế hoạch, gọi tool đọc để tìm tập khách, xin phép cho các thao tác ghi, thực thi cái nào được duyệt, trả về một transcript kể lại chính xác chuyện đã xảy ra. Mảnh của mọi bài trước đều có một chỗ để cắm vào.
+
+<Recap>
+- **State + node + edge + conditional routing.** Toàn bộ mô hình tinh thần của LangGraph. Học thuộc bốn từ này.
+- **Vì sao chọn graph thay vì loop.** Loop rẽ nhánh bằng `if`; graph rẽ nhánh bằng edge. Cái thứ hai scale được khi bạn có ba quyết định trở lên mỗi lượt.
+- **Conditional routing theo loại tool.** Đọc thì chạy tự động; ghi thì đi tới `await_confirmation`. Một quy tắc duy nhất đó chính là quan điểm an toàn từ L01 được viết bằng code.
+- **`interrupt()` là pause-and-resume, không phải async/await.** State của graph được checkpoint; resume nhiều ngày sau từ một process khác vẫn chạy được (cần Postgres checkpointer — L24).
+- **Flow khách hàng ngủ quên là phép thử.** Nếu bạn dựng được nó end-to-end với cổng xác nhận và một audit log sạch, là bạn đã hiểu Phần IV.
+</Recap>
+
+**Sắp tới — Phần V: AI cấp production.** An toàn, testing, observability, deployment. Bốn bài biến một graph chạy được thành một tính năng có thể đem ra trước mặt khách hàng trả tiền mà không phải nín thở.
+
+</VI>

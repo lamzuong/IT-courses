@@ -1,5 +1,8 @@
 import { Callout } from '@/components/mdx/callout';
 import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
 
 <Callout type="note" title="In this recap">
 - A mind map of Part I — what *Before you touch AI* actually means in practice.
@@ -83,3 +86,92 @@ Part I is the one part of the course where you write almost no AI code. That is 
 </Recap>
 
 **Up next — Part II: First conversations.** You stop sketching the agent and start writing the first prompts. Streaming text into a UI, system prompts that actually shape behaviour, and the first time the model returns typed JSON instead of prose.
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài tổng kết này">
+- Mind map của Phần I — *"Trước khi đụng vào AI"* trên thực tế nghĩa là gì.
+- Bốn sợi chỉ mà phần còn lại của khoá học sẽ kéo theo: từ vựng, hình dạng khoá học, kiểm kê domain, và vòng dev với Ollama.
+- Một block Recap bạn có thể đọc lại trong hai phút trước khi sang Phần II.
+</Callout>
+
+Phần I là phần duy nhất trong khoá học mà bạn gần như không viết code AI nào cả. Đó chính là mục đích. Trước khi đem một LLM vào sản phẩm thật, bạn cần một bộ từ vựng đủ vững để đọc tài liệu mà không lạc, một bức tranh rõ ràng về *agent* trong khoá học này thực sự làm gì, một bản đồ trung thực về những góc nào trong app hiện có cho phép AI chạm vào, và một vòng phát triển không "đốt" tiền mỗi lần bạn nhấn save. Bốn bài học, một nền móng hoàn chỉnh.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 480" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map của Phần I: nút trung tâm 'Trước khi đụng vào AI' với sáu nhánh — glossary, agents vs chat, tool calling, human-in-the-loop, domain inventory, và Ollama setup">
+    {/* connectors first so nodes paint over them */}
+    <path d="M 360,200 L 360,90" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,220 Q 500,200 520,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,260 Q 500,290 520,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 360,280 L 360,390" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,260 Q 220,290 200,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,220 Q 220,200 200,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+
+    {/* center node */}
+    <rect x="260" y="200" width="200" height="80" rx="14" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="236" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'Trước khi đụng vào AI'}</text>
+    <text x="360" y="256" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'Phần I — nền móng'}</text>
+
+    {/* north — glossary (lesson 00) */}
+    <rect x="260" y="30" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Từ vựng  ·  L00'}</text>
+    <text x="360" y="76" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'tokens · tools · thuật ngữ LangGraph'}</text>
+
+    {/* north-east — agents vs chat (lesson 01) */}
+    <rect x="520" y="110" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="610" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Agent vs chat  ·  L01'}</text>
+    <text x="610" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'lên kế hoạch → gọi → trả lời'}</text>
+
+    {/* south-east — tool calling (lesson 01) */}
+    <rect x="520" y="310" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="610" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Tool calling  ·  L01'}</text>
+    <text x="610" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'những "động từ" model có thể dùng'}</text>
+
+    {/* south — human-in-the-loop (lesson 01) */}
+    <rect x="260" y="390" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="416" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Human-in-the-loop  ·  L01'}</text>
+    <text x="360" y="436" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'mọi lệnh ghi đều cần duyệt'}</text>
+
+    {/* south-west — domain inventory (lesson 02) */}
+    <rect x="20" y="310" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="110" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Kiểm kê domain  ·  L02'}</text>
+    <text x="110" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'schema · ý định · hành động'}</text>
+
+    {/* north-west — Ollama setup (lesson 03) */}
+    <rect x="20" y="110" width="180" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="110" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Cài Ollama  ·  L03'}</text>
+    <text x="110" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'model local · route khung sườn'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Sáu thứ bạn mang đi sau Phần I. Riêng bài 01 đã đóng góp ba thứ trong số đó.
+  </figcaption>
+</figure>
+
+## Các mảnh ghép vào nhau ra sao
+
+**Glossary (L00)** là quầy tham chiếu. Bạn sẽ không nhớ ngay từ đầu *checkpointer* hay *interrupt* nghĩa là gì — bạn chỉ lướt qua một lần, rồi quay lại khi Phần IV dùng các từ đó và đột nhiên chúng có ý nghĩa.
+
+**Agent vs chat (L01)** là cái khung giữ cả khoá học lại với nhau. Chatbot chỉ nói chuyện. Agent thì chạy một kế hoạch nhỏ: đọc ngữ cảnh, quyết định có gọi tool hay không, chạy tool, đọc kết quả, quyết định bước kế tiếp. Mọi bài về sau đều là một mảnh của vòng lặp đó.
+
+**Tool calling (L01)** là thứ biến model từ "máy đẻ ra văn bản" thành thứ có thể *hành động*. Giao thức rất nhỏ — một object JSON `tool_call`, một `ToolMessage` chứa kết quả — và toàn bộ Phần III chỉ làm một việc: nghiên cứu cách thiết kế các tool ở phía nhận.
+
+**Human-in-the-loop (L01)** là quan điểm an toàn mà khoá học cam kết. Model đề xuất; người duyệt; hệ thống mới commit. Ba vai, và ranh giới giữa chúng chính là nơi bug ẩn nấp. Chúng ta sẽ quay lại điều này ở L19 với `interrupt()`.
+
+**Kiểm kê domain (L02)** là bài tập "spreadsheet" không hào nhoáng gì. Trước khi viết bất kỳ dòng code LLM nào, bạn liệt kê: cái gì query được, cái gì sửa được, cái gì có tính phá huỷ, và hành động nào cần một bước xác nhận. Danh sách này về sau trở thành "catalog tool" của bạn ở Phần III.
+
+**Cài Ollama (L03)** cho bạn một vòng dev miễn phí. Một model local 7–8B chạy được trên laptop, không tốn xu nào mỗi request, và vừa khít interface LangChain mà sau này bạn sẽ đổi sang nhà cung cấp hosted chỉ bằng một dòng (L24). Học cả khoá trên Ollama, lên production trên Anthropic.
+
+<Recap>
+- **Đọc glossary một lần, rồi để mở luôn.** Phần lớn thuật ngữ chỉ "vào đầu" khi gặp ngữ cảnh thật. Lớp từ vựng xếp như sau: *cơ bản về model → tools & agents → graphs* — ba tầng, mỗi tầng dùng lại từ ở tầng dưới.
+- **Agent là một vòng lặp, không phải chatbot.** Lên kế hoạch, gọi tool, đọc kết quả, quyết định lại. Mọi bài trong Phần III–IV đều là một bản tinh chỉnh của vòng lặp đó.
+- **Tool calling là phần "động từ" của ứng dụng LLM.** Model phát ra một `tool_call` có cấu trúc; runtime của bạn thực thi; kết quả quay về dưới dạng `ToolMessage`. Bài 09 là nơi điều này được biến thành code.
+- **HITL là quan điểm an toàn.** *Đọc thì chạy tự động; ghi thì phải chờ duyệt.* Câu đó chính là toàn bộ "spec" của `interrupt()` ở Phần IV.
+- **Kiểm kê trước khi đụng LLM.** Schema, ý định, phá huỷ vs có thể hoàn tác — bản kiểm kê chính là catalog tool của bạn.
+- **Ollama cho dev, hosted cho prod.** Đổi nhà cung cấp chỉ một dòng (L24) nghĩa là bạn xây cả khoá trên model local miễn phí, và lên production trên model hosted khi mọi thứ đã ổn.
+</Recap>
+
+**Sắp tới — Phần II: Những cuộc hội thoại đầu tiên.** Bạn ngừng phác thảo agent và bắt đầu viết những prompt đầu tiên. Stream chữ vào UI, system prompt định hình hành vi thật sự, và lần đầu tiên model trả về JSON có kiểu thay vì văn xuôi.
+
+</VI>

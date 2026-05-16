@@ -11,6 +11,8 @@ import { Vocab } from '@/components/mdx/english/vocab';
 import { Dialogue } from '@/components/mdx/english/dialogue';
 import { Mistake } from '@/components/mdx/english/mistake';
 import { Grammar } from '@/components/mdx/english/grammar';
+import { EN, VI } from '@/components/mdx/bilingual';
+import { ChineseSentence, ChineseDialogue, ChineseLine } from '@/components/mdx/chinese/sentence';
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
@@ -26,5 +28,10 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     Dialogue,
     Mistake,
     Grammar,
+    EN,
+    VI,
+    ChineseSentence,
+    ChineseDialogue,
+    ChineseLine,
   };
 }
