@@ -2677,4 +2677,357 @@
   .zh-line-speaker { justify-self: start; }
 }
 
+/* ── Admin shell ─────────────────────────────────────────────────────── */
+.admin-shell {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 5rem;
+}
+.admin-login-card {
+  max-width: 420px;
+  margin: 4rem auto;
+  padding: 2rem 2.25rem 2.25rem;
+  border: 1px solid var(--color-rule);
+  border-radius: 1rem;
+  background: var(--color-bg);
+}
+.admin-title {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  margin: 0 0 0.4rem;
+}
+.admin-deck {
+  margin: 0 0 1.5rem;
+  color: var(--color-text-soft);
+  font-size: 0.95rem;
+}
+.admin-form { display: flex; flex-direction: column; gap: 1rem; }
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-soft);
+}
+.admin-field input {
+  appearance: none;
+  border: 1px solid var(--color-rule);
+  border-radius: 0.5rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 400;
+  padding: 0.6rem 0.8rem;
+  transition: border-color 140ms ease;
+}
+.admin-field input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+.admin-error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+.admin-btn {
+  appearance: none;
+  border: 1px solid var(--color-rule);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+.admin-btn:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.admin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.admin-btn--primary {
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border-color: var(--color-accent);
+}
+.admin-btn--primary:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--color-accent), black 15%);
+  color: var(--color-bg);
+}
+
+.admin-dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+.admin-course-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.admin-course-card {
+  display: flex;
+  align-items: stretch;
+  gap: 1.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--color-rule);
+  border-radius: 0.85rem;
+  background: var(--color-bg);
+}
+.admin-course-card.is-locked {
+  border-color: color-mix(in oklab, #f97316, transparent 60%);
+  background: color-mix(in oklab, #f97316, transparent 96%);
+}
+.admin-course-info { flex: 1; min-width: 0; }
+.admin-status {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #16a34a;
+  margin-bottom: 0.4rem;
+}
+.admin-status--locked { color: #c2410c; }
+.admin-course-title {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  margin: 0 0 0.2rem;
+}
+.admin-course-slug {
+  margin: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  color: var(--color-text-soft);
+}
+.admin-course-meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-text-soft);
+  opacity: 0.8;
+}
+.admin-course-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 240px;
+  align-items: stretch;
+}
+.admin-lock-row { display: flex; gap: 0.5rem; }
+.admin-lock-row input {
+  flex: 1;
+  appearance: none;
+  border: 1px solid var(--color-rule);
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.admin-lock-row input:focus { outline: none; border-color: var(--color-accent); }
+
+@media (max-width: 640px) {
+  .admin-course-card { flex-direction: column; }
+  .admin-course-actions { min-width: 0; }
+}
+
+.admin-course-groups { display: flex; flex-direction: column; gap: 0.75rem; }
+.admin-course-group {
+  border: 1px solid var(--color-rule);
+  border-radius: 0.85rem;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+.admin-course-group[open] { background: color-mix(in oklab, var(--color-bg), transparent 0%); }
+.admin-course-group-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.85rem 1.1rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-family: var(--font-sans);
+  transition: background 140ms ease;
+}
+.admin-course-group-summary::-webkit-details-marker { display: none; }
+.admin-course-group-summary::before {
+  content: '▸';
+  margin-right: 0.6rem;
+  color: var(--color-text-soft);
+  transition: transform 140ms ease;
+  display: inline-block;
+}
+.admin-course-group[open] > .admin-course-group-summary::before {
+  transform: rotate(90deg);
+}
+.admin-course-group-summary:hover {
+  background: var(--color-bg-soft, color-mix(in oklab, var(--color-text), transparent 96%));
+}
+.admin-course-group-title {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+.admin-course-group-stats {
+  font-size: 0.78rem;
+  color: var(--color-text-soft);
+  white-space: nowrap;
+}
+.admin-course-group-locked { color: #c2410c; font-weight: 600; }
+.admin-lesson-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid var(--color-rule);
+}
+.admin-lesson-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.7rem 1.1rem;
+  border-bottom: 1px solid var(--color-rule);
+}
+.admin-lesson-row:last-child { border-bottom: 0; }
+.admin-lesson-row.is-locked {
+  background: color-mix(in oklab, #f97316, transparent 95%);
+}
+.admin-lesson-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  flex: 1;
+  min-width: 0;
+}
+.admin-lesson-text { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.admin-lesson-title { font-weight: 500; font-size: 0.95rem; }
+.admin-lesson-slug {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  color: var(--color-text-soft);
+}
+.admin-lesson-meta { opacity: 0.75; }
+.admin-lesson-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 280px;
+  align-items: stretch;
+}
+@media (max-width: 720px) {
+  .admin-lesson-row { flex-direction: column; }
+  .admin-lesson-actions { min-width: 0; width: 100%; }
+}
+
+/* ── Admin setup / hash generator ────────────────────────────────────── */
+.hash-gen { display: flex; flex-direction: column; gap: 1.25rem; }
+.hash-gen-card {
+  padding: 1.5rem 1.75rem 1.75rem;
+  border: 1px solid var(--color-rule);
+  border-radius: 1rem;
+  background: var(--color-bg);
+}
+.hash-gen-section-title {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  margin: 0 0 0.4rem;
+}
+.hash-gen-output { margin-top: 1.25rem; }
+.hash-gen-field { display: flex; flex-direction: column; gap: 0.4rem; }
+.hash-gen-field label {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.hash-gen-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+.hash-gen-row code,
+.hash-gen-row pre {
+  flex: 1;
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+  background: var(--color-bg-soft, color-mix(in oklab, var(--color-text), transparent 96%));
+  border: 1px solid var(--color-rule);
+  border-radius: 0.5rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+  word-break: break-all;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+.hash-gen-row pre { white-space: pre; }
+.hash-gen-env-block {
+  text-align: left;
+  line-height: 1.5;
+}
+.hash-gen-final {
+  border-color: color-mix(in oklab, var(--color-accent), transparent 60%);
+  background: color-mix(in oklab, var(--color-accent), transparent 96%);
+}
+@media (max-width: 640px) {
+  .hash-gen-row { flex-direction: column; }
+}
+
+/* ── Course lock gate ────────────────────────────────────────────────── */
+.lock-gate-shell {
+  max-width: 480px;
+  margin: 5rem auto;
+  padding: 2.25rem 2.25rem 2.5rem;
+  border: 1px solid var(--color-rule);
+  border-radius: 1rem;
+  background: var(--color-bg);
+  text-align: center;
+}
+.lock-gate-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+.lock-gate-title {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  margin: 0 0 0.4rem;
+}
+.lock-gate-deck {
+  margin: 0 0 1.5rem;
+  color: var(--color-text-soft);
+  font-size: 0.95rem;
+}
+.lock-gate-form { display: flex; flex-direction: column; gap: 0.75rem; }
+.lock-gate-form input {
+  appearance: none;
+  border: 1px solid var(--color-rule);
+  border-radius: 0.5rem;
+  padding: 0.7rem 0.9rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.95rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  text-align: center;
+}
+.lock-gate-form input:focus { outline: none; border-color: var(--color-accent); }
+
 

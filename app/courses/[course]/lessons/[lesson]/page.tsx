@@ -8,6 +8,8 @@ import { PrevNext } from '@/components/site/prev-next';
 import { ReadingProgress } from '@/components/site/reading-progress';
 import { BookmarkButton } from '@/components/site/bookmark-button';
 import { LanguageToggle } from '@/components/site/language-toggle';
+import { hasLessonAccess } from '@/lib/lesson-locks';
+import { LessonLockGate } from '@/components/site/lesson-lock-gate';
 
 export async function generateStaticParams() {
   return getAllCourses().flatMap((course) =>
@@ -33,6 +35,17 @@ export default async function LessonPage({ params }: { params: Promise<Params> }
   const { course: courseSlug, lesson: lessonSlug } = await params;
   const ctx = getLesson(courseSlug, lessonSlug);
   if (!ctx) notFound();
+
+  if (!(await hasLessonAccess(courseSlug, lessonSlug))) {
+    return (
+      <LessonLockGate
+        courseSlug={courseSlug}
+        lessonSlug={lessonSlug}
+        lessonTitle={ctx.lesson.title}
+        courseTitle={ctx.course.title}
+      />
+    );
+  }
 
   let MDXContent: React.ComponentType;
   try {

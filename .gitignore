@@ -32,6 +32,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# admin-managed lesson lock store contains bcrypt password hashes
+/data/lesson-locks.json
 
 # vercel
 .vercel
