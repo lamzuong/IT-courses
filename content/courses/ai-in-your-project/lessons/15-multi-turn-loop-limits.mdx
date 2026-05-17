@@ -32,7 +32,178 @@ These aren't edge cases. They're the everyday shape of *"AI that does work in yo
 
 If you decided to fix this without help, you'd reach for the same tools every framework eventually does. You'd add a `state` object the model and the loop both read from. You'd split your single loop into named steps — `plan`, `confirm`, `execute`, `summarize` — and put logic between them: *"if the next step is a write, hand control back to the UI and wait for an approval"*; *"if a step failed, route to a recovery node instead of the next one."* You'd add a way to pause and resume, which means the state has to be serializable. You'd add a way to stream partial progress, which means each step has to emit events. You'd find yourself building a small graph: nodes are steps, edges are transitions, and the runtime walks the graph until something stops it.
 
+### The graph you didn't mean to build
+
+Draw it out and you can see immediately why a bare `while` loop isn't enough — four named nodes finally match the shape of the work.
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 720 820"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="State graph for an agent runtime: plan, confirm, execute, summarize, with a recovery branch and a shared state store at the top."
+    style={{ width: '100%', maxWidth: '720px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="arrInk-en15" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+      <marker id="arrGreen-en15" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#2d7a4a" />
+      </marker>
+      <marker id="arrRed-en15" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#b94646" />
+      </marker>
+    </defs>
+
+    {/* STATE header */}
+    <rect x="60" y="20" width="600" height="110" rx="10" fill="#f5f7f4" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="360" y="48" textAnchor="middle" fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace" fontSize="14" fontWeight="700" fill="#1a3a2e">STATE  { '{ messages, phase, pending, error? }' }</text>
+    <text x="360" y="74" textAnchor="middle" fontSize="13" fill="#3d4f47">• read by both the model and the loop</text>
+    <text x="360" y="94" textAnchor="middle" fontSize="13" fill="#3d4f47">• checkpoint after every step  (pause / resume)</text>
+    <text x="360" y="114" textAnchor="middle" fontSize="13" fill="#3d4f47">• emit event on every transition  (stream to UI)</text>
+
+    {/* User request → plan */}
+    <text x="360" y="158" textAnchor="middle" fontSize="12" fontStyle="italic" fill="#3d4f47">user sends request</text>
+    <line x1="360" y1="166" x2="360" y2="194" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk-en15)" />
+
+    {/* plan */}
+    <rect x="290" y="198" width="140" height="50" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="360" y="223" textAnchor="middle" fontSize="15" fontWeight="700" fill="#1a3a2e">plan</text>
+    <text x="360" y="240" textAnchor="middle" fontSize="11" fill="#3d4f47">propose the next step</text>
+
+    {/* plan branch decision label */}
+    <text x="360" y="268" textAnchor="middle" fontSize="11" fontStyle="italic" fill="#3d4f47">is the next step a WRITE?</text>
+
+    {/* plan → confirm (yes write) */}
+    <path d="M 320 248 Q 260 280 220 312" fill="none" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk-en15)" />
+    <text x="230" y="290" fontSize="11" fontWeight="600" fill="#1a3a2e">yes</text>
+
+    {/* plan → execute (no write) */}
+    <path d="M 400 248 Q 460 280 500 312" fill="none" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk-en15)" />
+    <text x="478" y="290" fontSize="11" fontWeight="600" fill="#1a3a2e">no</text>
+
+    {/* confirm */}
+    <rect x="150" y="315" width="140" height="50" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="220" y="340" textAnchor="middle" fontSize="14" fontWeight="700" fill="#1a3a2e">confirm</text>
+    <text x="220" y="357" textAnchor="middle" fontSize="11" fill="#3d4f47">wait for UI approval</text>
+
+    {/* execute */}
+    <rect x="430" y="315" width="140" height="50" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="500" y="340" textAnchor="middle" fontSize="14" fontWeight="700" fill="#1a3a2e">execute</text>
+    <text x="500" y="357" textAnchor="middle" fontSize="11" fill="#3d4f47">call the tool</text>
+
+    {/* confirm → execute (approve) */}
+    <line x1="290" y1="340" x2="425" y2="340" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk-en15)" />
+    <text x="358" y="333" textAnchor="middle" fontSize="11" fill="#3d4f47">approve</text>
+
+    {/* confirm → done✗ (reject) */}
+    <line x1="220" y1="365" x2="220" y2="448" stroke="#b94646" strokeWidth="1.5" markerEnd="url(#arrRed-en15)" />
+    <text x="228" y="408" fontSize="11" fill="#b94646">reject</text>
+
+    {/* done✗ (from reject) */}
+    <rect x="160" y="448" width="120" height="42" rx="6" fill="#fff5f5" stroke="#b94646" strokeWidth="1.5" />
+    <text x="220" y="475" textAnchor="middle" fontSize="13" fontWeight="700" fill="#b94646">done ✗</text>
+
+    {/* execute split label */}
+    <text x="500" y="385" textAnchor="middle" fontSize="11" fontStyle="italic" fill="#3d4f47">tool returned?</text>
+
+    {/* execute → "more steps?" (ok) */}
+    <line x1="475" y1="365" x2="430" y2="448" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk-en15)" />
+    <text x="430" y="408" fontSize="11" fontWeight="600" fill="#1a3a2e">ok</text>
+
+    {/* execute → recovery (error) */}
+    <path d="M 565 365 Q 600 400 605 448" fill="none" stroke="#b94646" strokeWidth="1.5" markerEnd="url(#arrRed-en15)" />
+    <text x="595" y="408" fontSize="11" fill="#b94646">error</text>
+
+    {/* "more steps?" decision node (rounded, dashed) */}
+    <rect x="370" y="448" width="120" height="42" rx="6" fill="#f5f7f4" stroke="#1a3a2e" strokeWidth="1.2" strokeDasharray="3,3" />
+    <text x="430" y="474" textAnchor="middle" fontSize="12" fill="#3d4f47">more steps?</text>
+
+    {/* recovery */}
+    <rect x="540" y="448" width="130" height="50" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="605" y="473" textAnchor="middle" fontSize="14" fontWeight="700" fill="#1a3a2e">recovery</text>
+    <text x="605" y="490" textAnchor="middle" fontSize="11" fill="#3d4f47">handle the error</text>
+
+    {/* recovery → plan (retryable, dashed loop) */}
+    <path d="M 540 460 C 380 460 360 320 360 250" fill="none" stroke="#1a3a2e" strokeWidth="1.4" strokeDasharray="4,3" markerEnd="url(#arrInk-en15)" />
+    <text x="370" y="455" fontSize="11" fontStyle="italic" fill="#3d4f47">retryable → replan</text>
+
+    {/* recovery → done✗ (not retryable) */}
+    <line x1="605" y1="498" x2="605" y2="555" stroke="#b94646" strokeWidth="1.5" markerEnd="url(#arrRed-en15)" />
+    <text x="613" y="528" fontSize="11" fill="#b94646">not retryable</text>
+
+    {/* done✗ (from recovery) */}
+    <rect x="545" y="555" width="120" height="42" rx="6" fill="#fff5f5" stroke="#b94646" strokeWidth="1.5" />
+    <text x="605" y="582" textAnchor="middle" fontSize="13" fontWeight="700" fill="#b94646">done ✗</text>
+
+    {/* more steps → plan (yes, loop back, dashed) */}
+    <path d="M 380 448 C 280 440 280 300 290 235" fill="none" stroke="#1a3a2e" strokeWidth="1.4" strokeDasharray="4,3" markerEnd="url(#arrInk-en15)" />
+    <text x="290" y="420" fontSize="11" fontWeight="600" fill="#1a3a2e">yes</text>
+
+    {/* more steps → summarize (no) */}
+    <line x1="430" y1="490" x2="430" y2="555" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk-en15)" />
+    <text x="438" y="525" fontSize="11" fontWeight="600" fill="#1a3a2e">no</text>
+
+    {/* summarize */}
+    <rect x="360" y="555" width="140" height="50" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="430" y="580" textAnchor="middle" fontSize="14" fontWeight="700" fill="#1a3a2e">summarize</text>
+    <text x="430" y="597" textAnchor="middle" fontSize="11" fill="#3d4f47">write the final reply</text>
+
+    {/* summarize → done ✓ */}
+    <line x1="430" y1="605" x2="430" y2="660" stroke="#2d7a4a" strokeWidth="1.5" markerEnd="url(#arrGreen-en15)" />
+
+    {/* done ✓ */}
+    <rect x="370" y="660" width="120" height="44" rx="6" fill="#f0faf4" stroke="#2d7a4a" strokeWidth="1.5" />
+    <text x="430" y="687" textAnchor="middle" fontSize="13" fontWeight="700" fill="#2d7a4a">done ✓</text>
+
+    {/* STATE bidirectional hint */}
+    <line x1="360" y1="135" x2="360" y2="150" stroke="#1a3a2e" strokeWidth="1" strokeDasharray="2,2" />
+    <text x="368" y="146" fontSize="10" fill="#3d4f47">read / written by every node</text>
+  </svg>
+  <figcaption style={{ fontSize: '0.85rem', color: '#3d4f47', marginTop: '0.5rem', textAlign: 'center', fontStyle: 'italic' }}>
+    Solid arrows: straight state transitions. Dashed arrows: loops back. Red: failure / cancellation branches. Green: successful termination.
+  </figcaption>
+</figure>
+
+Read the diagram — every arrow is a sentence from the paragraph above:
+
+| In the paragraph | Where it lives on the graph |
+|---|---|
+| *"a `state` object the model and the loop both read from"* | Top box — every node reads / writes here |
+| *"plan, confirm, execute, summarize"* | The four named nodes |
+| *"if the next step is a write, hand control back to the UI and wait for approval"* | Edge `plan ──yes──▶ confirm`, then `confirm` waits on `approve` |
+| *"if a step failed, route to a recovery node instead of the next one"* | Edge `execute ──error──▶ recovery` (instead of `execute ──ok──▶ summarize`) |
+| *"pause and resume, which means the state has to be serializable"* | The "checkpoint after every step" line in the state box |
+| *"stream partial progress, which means each step has to emit events"* | The "emit event on every transition" line in the state box |
+| *"nodes are steps, edges are transitions"* | The whole graph |
+
+<Callout type="tip" title="Café analogy — why the graph is the right shape">
+Imagine a barista taking a complex order: *"2 lattes, 1 cappuccino with less sugar, and a warmed croissant."*
+
+- **plan**: the barista works out the order — *"grind first, steam the milk, latte art, warm the croissant last."*
+- **confirm**: before hitting the espresso button (= a write, can't be undone), you glance up and ask: *"Just to confirm — 2 lattes, 1 cappuccino with less sugar, right?"* Customer changes their mind → back to **plan**.
+- **execute**: pull the shots. While pulling, you say *"first cup done, working on the second"* — that's **stream events**.
+- **recovery**: drop a cup → don't ruin the other two. Note *"need to redo cup 2"*, back to plan with what's left.
+- **state + checkpoint**: sticky notes on the machine track which cup is done. Power dies (= user closes tab); start back up and the notes tell you exactly where you were — the customer doesn't re-order.
+- **summarize**: hand the tray over: *"Here you go — 2 lattes, 1 cappuccino, croissant warm."*
+
+The **bare loop** from lesson 14 = a barista who pours and serves with no confirmations, no notes, drops a cup and the whole order is gone. Fine for one Americano. Not fine for an order of four.
+</Callout>
+
 By the time you've got all of that working — really working, with timeouts and retries and resumption tokens — you'll have spent a couple of weeks reinventing a state-machine library, badly. There's nothing wrong with that learning trajectory. There's also no reason to do it twice when someone has done it well already.
+
+<Callout type="note" title="Why 'badly'? — it's not because your code is bad">
+The hand-rolled version isn't worse because the code is sloppy — it's worse because **you haven't hit enough edge cases yet**. LangGraph has run production traffic for thousands of teams and already fixed the five things v1 of yours will be missing:
+
+- **Race conditions between `approve` and `execute`.** A user clicks Approve at the exact moment your loop decides to cancel due to a timeout. State gets written twice in the same instant; whichever lands last "wins" depending on the database driver — sometimes the tool fires *after* the UI says "cancelled." LangGraph uses versioned writes (optimistic locking: every checkpoint carries a version, writes with the wrong version are rejected). You'll discover the need yourself — about week four, after one production bug.
+- **Serialization is not just `JSON.stringify`.** Real state has `Date`s, `Map`s, LangChain `BaseMessage` class instances, `AbortController`s. `JSON.stringify` mangles most of them — `Date` becomes an ISO string (timezone wrong on parse-back), `Map` becomes `{}`, class instances lose their methods. You'll write a one-off serializer, patching each failure as it appears; LangGraph already ships a serializer covering ten such cases.
+- **The stream protocol has to match the UI hook.** `useChat` from the AI SDK expects a specific event shape (`token`, `tool_call_chunk`, `state_update`). Your hand-rolled emitter will be shaped differently — so you can't reuse the existing UI hook, you have to write that hook too, costing another week plus a class of stream-buffer bugs.
+- **Retries aren't `setTimeout(fn, 1000)`.** You need exponential backoff (1s → 2s → 4s), jitter (random ±20% so simultaneous failures don't all retry at the same instant), per-node-type max attempts, no-retry on 401/403/404. v1 without jitter → 50 users retry in the same second → upstream API rate-limits the whole app. LangGraph has declarative policies: `retry: { max: 3, backoff: 'exponential', skipOn: [401, 404] }`.
+- **Persistence has to be pluggable.** In dev you save state to memory (fast, easy). Production needs Redis or Postgres so multiple Vercel instances can share state when the user hits F5 or switches tabs. You have to rewrite `saveCheckpoint` — and everywhere that calls it. LangGraph has a `CheckpointSaver` interface: change one line from `new MemorySaver()` to `new PostgresSaver(pool)`, no node changes.
+
+**Café analogy:** you've nailed espresso at home — fresh beans, 0.1g scale, 92°C water. Then you invite people over and it falls apart: three cups in two minutes drains the boiler (you've never had to pull three in a row). The La Marzocco in the café has a **dual boiler**, **temperature surfing**, **programmable shots** — not because the café barista is more skilled than you, but because **the machine has already handled the edge cases you've never had to face at home**. You understand the *structure* of a good espresso — but the runtime in the café has already answered *"what happens when three people order at once?"* while your home version is still figuring it out.
+</Callout>
 
 The trajectory in pseudocode, just so the inevitability is concrete:
 
@@ -112,7 +283,178 @@ Cái loop trần không có gì để nói về bất kỳ điều nào trong s�
 
 Nếu bạn quyết định tự sửa mà không nhờ ai, bạn sẽ với tay tới đúng những tool mà mọi framework rốt cuộc đều dùng. Bạn sẽ thêm một object `state` mà cả mô hình lẫn loop cùng đọc. Bạn sẽ tách cái loop đơn của mình thành các bước có tên — `plan`, `confirm`, `execute`, `summarize` — và đặt logic ở giữa chúng: *"nếu bước kế tiếp là một thao tác ghi, hãy giao quyền điều khiển trở lại UI và chờ duyệt"*; *"nếu một bước hỏng, định tuyến tới node recovery thay vì node kế tiếp."* Bạn sẽ thêm cơ chế pause/resume, nghĩa là state phải serialize được. Bạn sẽ thêm cơ chế stream tiến độ, nghĩa là mỗi bước phải emit event. Cuối cùng bạn sẽ thấy mình đang xây một cái graph nhỏ: node là bước, edge là chuyển trạng thái, runtime đi qua graph cho đến khi có gì đó dừng nó lại.
 
+### Sơ đồ — graph mà bạn vô tình đang xây
+
+Vẽ ra thì nhìn ngay được tại sao "vòng while trần" không đủ — bốn node có tên mới khớp với hình dạng công việc.
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 720 820"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="State graph cho agent runtime: plan, confirm, execute, summarize, với recovery branch và state-shared store ở trên cùng."
+    style={{ width: '100%', maxWidth: '720px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="arrInk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+      <marker id="arrGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#2d7a4a" />
+      </marker>
+      <marker id="arrRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#b94646" />
+      </marker>
+    </defs>
+
+    {/* STATE header */}
+    <rect x="60" y="20" width="600" height="110" rx="10" fill="#f5f7f4" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="360" y="48" textAnchor="middle" fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace" fontSize="14" fontWeight="700" fill="#1a3a2e">STATE  { '{ messages, phase, pending, error? }' }</text>
+    <text x="360" y="74" textAnchor="middle" fontSize="13" fill="#3d4f47">• cả mô hình lẫn loop cùng đọc</text>
+    <text x="360" y="94" textAnchor="middle" fontSize="13" fill="#3d4f47">• checkpoint sau mỗi bước  (pause / resume)</text>
+    <text x="360" y="114" textAnchor="middle" fontSize="13" fill="#3d4f47">• emit event mỗi lần đổi   (stream tới UI)</text>
+
+    {/* User request → plan */}
+    <text x="360" y="158" textAnchor="middle" fontSize="12" fontStyle="italic" fill="#3d4f47">user gửi yêu cầu</text>
+    <line x1="360" y1="166" x2="360" y2="194" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk)" />
+
+    {/* plan */}
+    <rect x="290" y="198" width="140" height="50" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="360" y="223" textAnchor="middle" fontSize="15" fontWeight="700" fill="#1a3a2e">plan</text>
+    <text x="360" y="240" textAnchor="middle" fontSize="11" fill="#3d4f47">đề xuất bước kế</text>
+
+    {/* plan branch decision label */}
+    <text x="360" y="268" textAnchor="middle" fontSize="11" fontStyle="italic" fill="#3d4f47">bước kế là thao tác GHI?</text>
+
+    {/* plan → confirm (yes write) */}
+    <path d="M 320 248 Q 260 280 220 312" fill="none" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk)" />
+    <text x="230" y="290" fontSize="11" fontWeight="600" fill="#1a3a2e">yes</text>
+
+    {/* plan → execute (no write) */}
+    <path d="M 400 248 Q 460 280 500 312" fill="none" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk)" />
+    <text x="478" y="290" fontSize="11" fontWeight="600" fill="#1a3a2e">no</text>
+
+    {/* confirm */}
+    <rect x="150" y="315" width="140" height="50" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="220" y="340" textAnchor="middle" fontSize="14" fontWeight="700" fill="#1a3a2e">confirm</text>
+    <text x="220" y="357" textAnchor="middle" fontSize="11" fill="#3d4f47">chờ UI duyệt</text>
+
+    {/* execute */}
+    <rect x="430" y="315" width="140" height="50" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="500" y="340" textAnchor="middle" fontSize="14" fontWeight="700" fill="#1a3a2e">execute</text>
+    <text x="500" y="357" textAnchor="middle" fontSize="11" fill="#3d4f47">gọi tool</text>
+
+    {/* confirm → execute (approve) */}
+    <line x1="290" y1="340" x2="425" y2="340" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk)" />
+    <text x="358" y="333" textAnchor="middle" fontSize="11" fill="#3d4f47">approve</text>
+
+    {/* confirm → done✗ (reject) */}
+    <line x1="220" y1="365" x2="220" y2="448" stroke="#b94646" strokeWidth="1.5" markerEnd="url(#arrRed)" />
+    <text x="228" y="408" fontSize="11" fill="#b94646">reject</text>
+
+    {/* done✗ (from reject) */}
+    <rect x="160" y="448" width="120" height="42" rx="6" fill="#fff5f5" stroke="#b94646" strokeWidth="1.5" />
+    <text x="220" y="475" textAnchor="middle" fontSize="13" fontWeight="700" fill="#b94646">done ✗</text>
+
+    {/* execute split label */}
+    <text x="500" y="385" textAnchor="middle" fontSize="11" fontStyle="italic" fill="#3d4f47">tool trả về?</text>
+
+    {/* execute → "còn bước?" (ok) */}
+    <line x1="475" y1="365" x2="430" y2="448" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk)" />
+    <text x="430" y="408" fontSize="11" fontWeight="600" fill="#1a3a2e">ok</text>
+
+    {/* execute → recovery (error) */}
+    <path d="M 565 365 Q 600 400 605 448" fill="none" stroke="#b94646" strokeWidth="1.5" markerEnd="url(#arrRed)" />
+    <text x="595" y="408" fontSize="11" fill="#b94646">error</text>
+
+    {/* "còn bước nữa?" decision node (rounded, dashed) */}
+    <rect x="370" y="448" width="120" height="42" rx="6" fill="#f5f7f4" stroke="#1a3a2e" strokeWidth="1.2" strokeDasharray="3,3" />
+    <text x="430" y="474" textAnchor="middle" fontSize="12" fill="#3d4f47">còn bước nữa?</text>
+
+    {/* recovery */}
+    <rect x="540" y="448" width="130" height="50" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="605" y="473" textAnchor="middle" fontSize="14" fontWeight="700" fill="#1a3a2e">recovery</text>
+    <text x="605" y="490" textAnchor="middle" fontSize="11" fill="#3d4f47">xử lý lỗi</text>
+
+    {/* recovery → plan (retryable, dashed loop) */}
+    <path d="M 540 460 C 380 460 360 320 360 250" fill="none" stroke="#1a3a2e" strokeWidth="1.4" strokeDasharray="4,3" markerEnd="url(#arrInk)" />
+    <text x="370" y="455" fontSize="11" fontStyle="italic" fill="#3d4f47">retryable → replan</text>
+
+    {/* recovery → done✗ (not retryable) */}
+    <line x1="605" y1="498" x2="605" y2="555" stroke="#b94646" strokeWidth="1.5" markerEnd="url(#arrRed)" />
+    <text x="613" y="528" fontSize="11" fill="#b94646">not retry</text>
+
+    {/* done✗ (from recovery) */}
+    <rect x="545" y="555" width="120" height="42" rx="6" fill="#fff5f5" stroke="#b94646" strokeWidth="1.5" />
+    <text x="605" y="582" textAnchor="middle" fontSize="13" fontWeight="700" fill="#b94646">done ✗</text>
+
+    {/* còn bước → plan (yes, loop back, dashed) */}
+    <path d="M 380 448 C 280 440 280 300 290 235" fill="none" stroke="#1a3a2e" strokeWidth="1.4" strokeDasharray="4,3" markerEnd="url(#arrInk)" />
+    <text x="290" y="420" fontSize="11" fontWeight="600" fill="#1a3a2e">yes</text>
+
+    {/* còn bước → summarize (no) */}
+    <line x1="430" y1="490" x2="430" y2="555" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk)" />
+    <text x="438" y="525" fontSize="11" fontWeight="600" fill="#1a3a2e">no</text>
+
+    {/* summarize */}
+    <rect x="360" y="555" width="140" height="50" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="430" y="580" textAnchor="middle" fontSize="14" fontWeight="700" fill="#1a3a2e">summarize</text>
+    <text x="430" y="597" textAnchor="middle" fontSize="11" fill="#3d4f47">chốt câu trả lời</text>
+
+    {/* summarize → done ✓ */}
+    <line x1="430" y1="605" x2="430" y2="660" stroke="#2d7a4a" strokeWidth="1.5" markerEnd="url(#arrGreen)" />
+
+    {/* done ✓ */}
+    <rect x="370" y="660" width="120" height="44" rx="6" fill="#f0faf4" stroke="#2d7a4a" strokeWidth="1.5" />
+    <text x="430" y="687" textAnchor="middle" fontSize="13" fontWeight="700" fill="#2d7a4a">done ✓</text>
+
+    {/* STATE bidirectional hint */}
+    <line x1="360" y1="135" x2="360" y2="150" stroke="#1a3a2e" strokeWidth="1" strokeDasharray="2,2" />
+    <text x="368" y="146" fontSize="10" fill="#3d4f47">đọc / ghi từ mọi node</text>
+  </svg>
+  <figcaption style={{ fontSize: '0.85rem', color: '#3d4f47', marginTop: '0.5rem', textAlign: 'center', fontStyle: 'italic' }}>
+    Mũi tên liền: chuyển trạng thái thẳng. Mũi tên đứt nét: vòng quay lại (loop). Đỏ: nhánh lỗi/huỷ. Xanh: kết thúc thành công.
+  </figcaption>
+</figure>
+
+Đọc sơ đồ — mỗi mũi tên là một câu trong đoạn ngay trên:
+
+| Phần trong văn bản | Ở đâu trên graph |
+|---|---|
+| *"object `state` mà cả mô hình lẫn loop cùng đọc"* | Hộp trên cùng — mọi node đọc/ghi vào đây |
+| *"plan, confirm, execute, summarize"* | Bốn node có tên trong graph |
+| *"nếu bước kế là một thao tác ghi, hãy giao quyền điều khiển trở lại UI và chờ duyệt"* | Edge `plan ──yes──▶ confirm`, rồi `confirm` đợi `approve` |
+| *"nếu một bước hỏng, định tuyến tới node recovery thay vì node kế tiếp"* | Edge `execute ──error──▶ recovery` (thay vì `execute ──ok──▶ summarize`) |
+| *"pause/resume, nghĩa là state phải serialize được"* | Dòng "checkpoint sau mỗi bước" trên hộp state |
+| *"stream tiến độ, nghĩa là mỗi bước phải emit event"* | Dòng "emit event mỗi lần đổi" trên hộp state |
+| *"node là bước, edge là chuyển trạng thái"* | Toàn bộ graph này |
+
+<Callout type="tip" title="Café analogy — vì sao graph mới là hình dạng đúng">
+Tưởng tượng một barista nhận order phức tạp: *"2 latte, 1 cappuccino ít đường, và thêm 1 croissant hâm nóng."*
+
+- **plan**: barista nghĩ thứ tự — *"xay cà phê trước, hâm sữa, làm latte art, hâm croissant cuối."*
+- **confirm**: trước khi BẤM máy pha (= thao tác ghi, không undo được), bạn ngẩng lên hỏi khách: *"Xác nhận lại — 2 latte, 1 cappuccino ít đường, đúng chứ?"* Khách đổi ý → quay về **plan**.
+- **execute**: pha. Vừa pha vừa nói *"ly thứ nhất xong, đang làm ly hai"* — đó là **stream event**.
+- **recovery**: lỡ rớt ly → không phá luôn cả 3 ly. Ghi note *"ly 2 phải làm lại"*, quay về plan với phần còn lại.
+- **state + checkpoint**: sticky note trên máy ghi từng ly đã giao. Mất điện giữa chừng (= user đóng tab), bật lại máy đọc note là biết phải làm tiếp ly nào — không bắt khách order lại từ đầu.
+- **summarize**: đưa khay lên bàn, *"Của anh đây, 2 latte 1 cappuccino, bánh hâm xong."*
+
+Cái **loop trần** ở Bài 14 = barista pha tới đâu giao tới đó, không hỏi xác nhận, không note, rớt ly là cả đơn vỡ. OK cho 1 ly Americano. Không OK cho đơn 4 món.
+</Callout>
+
 Đến lúc bạn làm tất cả những thứ đó chạy được — chạy thật, có timeout có retry có token resumption — bạn đã mất vài tuần để tái phát minh một thư viện state-machine, một cách kém chất lượng. Quỹ đạo học đó không có gì sai. Nhưng cũng không có lý do gì để làm chuyện đó lần thứ hai khi có người đã làm tốt rồi.
+
+<Callout type="note" title="Vì sao 'tệ hơn cái có sẵn'? — không phải vì bạn viết code dở">
+Phiên bản tự viết tệ hơn không phải vì code xấu — mà vì **bạn chưa va vào đủ edge case**. LangGraph đã chạy production cho hàng nghìn nhóm và đã fix sẵn năm thứ dưới đây mà version 1 của bạn chắc chắn sẽ thiếu:
+
+- **Race condition giữa `approve` và `execute`.** User bấm Approve đúng lúc loop của bạn vừa quyết định cancel do timeout. State bị ghi đè hai lần một lúc, ai "thắng" tuỳ database driver — đôi khi tool chạy sau khi UI đã bảo "đã huỷ". LangGraph dùng versioned writes (optimistic locking, mỗi checkpoint có version number, ghi sai version thì reject). Bạn sẽ tự nghĩ ra cách này — khoảng tuần thứ tư, sau một bug production.
+- **Serialization không phải chỉ `JSON.stringify`.** State thực tế có `Date`, có `Map`, có instance class `BaseMessage` của LangChain, có `AbortController`. `JSON.stringify` quăng mất gần hết — `Date` thành string ISO (sai timezone khi parse lại), `Map` thành `{}`, class instance mất method. Bạn sẽ tự viết một serializer ad-hoc, vá từng lỗi một; LangGraph có serializer riêng đã xử lý cả mười loại này từ trước.
+- **Stream protocol phải khớp với UI hook.** `useChat` của AI SDK kỳ vọng event shape cụ thể (`token`, `tool_call_chunk`, `state_update`). Cái emitter tự viết của bạn sẽ shape khác → không xài lại được UI hook có sẵn, phải tự viết luôn cái UI hook đó, mất thêm một tuần và một mớ bug stream-buffer.
+- **Retry không chỉ là `setTimeout(fn, 1000)`.** Bạn cần backoff số mũ (1s → 2s → 4s), jitter (cộng ngẫu nhiên ±20% để tránh thundering herd), max attempt riêng theo loại node, tránh retry trên lỗi 401/403/404. Version 1 quên jitter → 50 user retry cùng giây → upstream API rate-limit cả app. LangGraph có policy declarative: `retry: { max: 3, backoff: 'exponential', skipOn: [401, 404] }`.
+- **Persistence phải pluggable.** Dev local bạn lưu state vào memory (nhanh, dễ). Production cần Redis hoặc Postgres để nhiều instance Vercel share state khi user F5 hoặc đổi tab. Bạn phải rewrite hàm `saveCheckpoint` — và mọi nơi gọi nó. LangGraph có interface `CheckpointSaver`: đổi một dòng từ `new MemorySaver()` sang `new PostgresSaver(pool)` là xong, không sửa node nào.
+
+**Café analogy:** bạn pha được espresso ngon ở nhà — bột Aeropress, cân 0.1g, đo nhiệt 92°C. Nhưng mời khách tới uống thì hỏng: 3 ly liên tiếp làm bình đun mất nước nóng (bạn chưa từng cần pha 3 ly trong 2 phút). Cái máy La Marzocco trong quán có **dual boiler**, **temperature surfing**, **programmable shot** — không phải vì barista dở hơn bạn, mà vì cái máy **đã xử lý đủ những edge case mà bạn ở nhà chưa va vào**. Bạn đã hiểu cấu trúc một ly espresso ngon — nhưng cái runtime ở quán đã trả lời sẵn câu *"chuyện gì xảy ra khi 3 người order cùng lúc?"* trong khi version tự pha của bạn vẫn đang ấp úng.
+</Callout>
 
 Quỹ đạo đó bằng pseudo-code, để sự tất yếu trở nên cụ thể:
 

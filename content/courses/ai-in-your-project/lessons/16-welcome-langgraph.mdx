@@ -56,6 +56,26 @@ graph.addNode('agent', agentNode);                // → registers 'agent' node
 graph.addNode('tools', toolsNode);                // → registers 'tools' node
 ```
 
+<Callout type="note" title="Why `state.messages.at(-1)` — not scanning the whole array?">
+`toolsNode` reads only the **last** message in the transcript, never the full history. The reason it's correct (and safe) isn't obvious — but it falls out of three guarantees you already have:
+
+1. **State is append-only.** The reducer on `messages` is *append*, not *replace* — every node that returns `{ messages: [...] }` adds to the end. Chronological order is preserved: `at(-1)` is always the thing that most recently passed through the loop, never a shuffled position.
+2. **Only `agentNode` produces `AIMessage`s.** In this graph the model is called exclusively from `agent`. Every `AIMessage` (including ones with `tool_calls`) is born in that node. Other nodes (`tools`) only append `ToolMessage`s. So *"the newest AIMessage"* and *"the output of the most recent `agent` run"* are the same thing.
+3. **Topology guarantees the right node reads at the right time.** The conditional edge runs immediately **after** `agent` → `at(-1)` is guaranteed to be the AIMessage the model just produced. The edge `tools → agent` cycles back, so when `toolsNode` runs, the last message is still the AIMessage from the agent that fired just before — nothing else has had a chance to slip in.
+
+Combine the three: *"the latest AIMessage"* = *"the command just issued."* That's all `toolsNode` and the router need to decide the next step.
+
+**Why NOT scan all of `state.messages`?** Because the model **already** read the whole transcript when producing the latest reply — the decision about which tool to call is encoded in the last message's `tool_calls` field. Older `tool_calls` in the transcript were executed in previous loops (they became `ToolMessage`s right after). Running them again = a bug (calling the tool twice, sending the email twice, charging the card twice). The rule: *"`tool_calls` live for exactly one round — born at round N, dead the moment they become a `ToolMessage` at round N."*
+
+**Café analogy** — kitchen with a stack of order tickets:
+- Customer orders → server writes a ticket → puts it on top of the stack (= `agentNode` appends `AIMessage`).
+- Cook takes the **top** ticket and works on it (= `toolsNode` reads `at(-1)`). Never digs through old tickets — those are already plates of food (= already `ToolMessage`s).
+- Cook finishes → ticket marked done, plate goes out (= append `ToolMessage`) → server comes back for the next order (= edge `tools → agent`).
+- If the cook scanned the whole stack and re-made every ticket — every customer gets their order twice, the kitchen melts down.
+
+Lesson 18 adds a `pendingTool` channel — essentially *"hold the top ticket aside while waiting for human approval"* — but the principle stands: only one entry is live at a time.
+</Callout>
+
 Notice how each node returns *only* the part it wants to change. The reducer on `messages` does the rest. A node that fails to handle a case can return an empty object and the state passes through unchanged. There's no class hierarchy to inherit, no special interface to satisfy beyond *takes state, returns a partial update.*
 
 ## 03 — Edges
@@ -75,6 +95,199 @@ graph.setEntryPoint('agent');                     // → graph starts at 'agent'
 
 The router is plain TypeScript. It looks at the state and returns a string; the third argument is a map from those strings to actual node names. `END` is a sentinel that tells the runtime to stop and return the final state. Conditional edges are where multi-step plans get their *if/else* — and they're how you'll wire confirmation, recovery, and routing-by-tool-type in the next two lessons.
 
+### Diagram — the graph after compile
+
+Two nodes, three edges, one entry point. Drawn so you can see the actual runtime you'll be running:
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 720 360"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Minimum LangGraph: entry point into the agent node, a conditional edge from agent to either tools or END, and an unconditional edge from tools back to agent."
+    style={{ width: '100%', maxWidth: '720px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="arrInk16-en" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+
+    {/* Entry dot */}
+    <circle cx="140" cy="30" r="7" fill="#1a3a2e" />
+    <text x="156" y="34" fontSize="12" fill="#3d4f47" fontStyle="italic">setEntryPoint('agent')</text>
+
+    {/* Entry → agent */}
+    <line x1="140" y1="38" x2="140" y2="78" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk16-en)" />
+
+    {/* agent node */}
+    <rect x="70" y="82" width="140" height="64" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="140" y="108" textAnchor="middle" fontSize="16" fontWeight="700" fill="#1a3a2e">agent</text>
+    <text x="140" y="128" textAnchor="middle" fontSize="11" fill="#3d4f47">call model → AIMessage</text>
+
+    {/* tools node */}
+    <rect x="490" y="82" width="140" height="64" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="560" y="108" textAnchor="middle" fontSize="16" fontWeight="700" fill="#1a3a2e">tools</text>
+    <text x="560" y="128" textAnchor="middle" fontSize="11" fill="#3d4f47">run tool_calls → ToolMessage[]</text>
+
+    {/* END node */}
+    <rect x="80" y="266" width="120" height="50" rx="6" fill="#f0faf4" stroke="#2d7a4a" strokeWidth="1.5" />
+    <text x="140" y="296" textAnchor="middle" fontSize="14" fontWeight="700" fill="#2d7a4a">END</text>
+
+    {/* agent → tools (conditional, top, dashed) */}
+    <path d="M 210 102 L 490 102" fill="none" stroke="#1a3a2e" strokeWidth="1.5" strokeDasharray="5,4" markerEnd="url(#arrInk16-en)" />
+    <text x="350" y="90" textAnchor="middle" fontSize="11" fontWeight="600" fill="#1a3a2e">last.tool_calls?.length &gt; 0</text>
+    <text x="350" y="78" textAnchor="middle" fontSize="10" fill="#3d4f47">addConditionalEdges('agent', router)</text>
+
+    {/* tools → agent (unconditional, bottom, solid) */}
+    <path d="M 490 130 L 210 130" fill="none" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk16-en)" />
+    <text x="350" y="148" textAnchor="middle" fontSize="11" fontWeight="600" fill="#1a3a2e">addEdge('tools', 'agent') — always returns</text>
+
+    {/* agent → END (conditional, dashed) */}
+    <line x1="140" y1="146" x2="140" y2="262" stroke="#1a3a2e" strokeWidth="1.5" strokeDasharray="5,4" markerEnd="url(#arrInk16-en)" />
+    <text x="152" y="190" fontSize="11" fontWeight="600" fill="#1a3a2e">last.tool_calls?.length === 0</text>
+    <text x="152" y="206" fontSize="10" fill="#3d4f47">router returns '__end__'</text>
+
+    {/* Legend */}
+    <g transform="translate(370, 230)">
+      <text x="0" y="0" fontSize="11" fontWeight="700" fill="#3d4f47">Legend:</text>
+      <line x1="0" y1="20" x2="36" y2="20" stroke="#1a3a2e" strokeWidth="1.5" />
+      <text x="44" y="24" fontSize="11" fill="#3d4f47">unconditional edge — `addEdge(a, b)`</text>
+      <line x1="0" y1="42" x2="36" y2="42" stroke="#1a3a2e" strokeWidth="1.5" strokeDasharray="5,4" />
+      <text x="44" y="46" fontSize="11" fill="#3d4f47">conditional edge — `addConditionalEdges(a, router, map)`</text>
+      <circle cx="18" cy="64" r="5" fill="#1a3a2e" />
+      <text x="44" y="68" fontSize="11" fill="#3d4f47">entry point — where the runtime starts</text>
+    </g>
+  </svg>
+  <figcaption style={{ fontSize: '0.85rem', color: '#3d4f47', marginTop: '0.5rem', textAlign: 'center', fontStyle: 'italic' }}>
+    Two nodes (`agent`, `tools`) + three edges (entry, conditional split at `agent`, loop-back from `tools`) — enough for a multi-turn agent.
+  </figcaption>
+</figure>
+
+Reading the graph as the runtime walks it:
+
+1. **The runtime starts at `agent`** (entry point) → model reads `state.messages`, produces an `AIMessage`.
+2. **The conditional edge router reads `state.messages.at(-1)`** — if that `AIMessage` has `tool_calls`, the runtime takes the dashed edge to `tools`; if not, the runtime takes the dashed edge down to `END`.
+3. **`tools` runs and appends `ToolMessage[]`** → the unconditional edge (solid line) sends the runtime back to `agent`. The loop closes here.
+4. **Repeats until the model stops asking for tools** → router returns `'__end__'` → `END` → `invoke()` returns the final state.
+
+Same shape as the `while (lastMessage.tool_calls?.length)` loop from Part III — the difference is that *topology is declared*, not *wrapped in control flow*. Lesson 18 adds a `confirm` node and a `pendingTool` channel — the simple graph grows one branch, you don't rewrite the file.
+
+### Example — one question walking through the graph
+
+Take a concrete question and "run it by hand" through the graph so you can see how the state grows. Suppose the user types:
+
+> *"How many orders did the shop have this week?"*
+
+There's a tool called `countOrders` to query the DB. These are the 5 steps the runtime takes:
+
+**Step 1 — Initial state**
+
+```ts
+state.messages = [
+  HumanMessage("How many orders did the shop have this week?")
+]
+// → runtime sits at the entry point and will run 'agent' first
+```
+
+**Step 2 — Node `agent` fires for the first time**
+
+The model reads `state.messages`, decides it needs DB data, produces an `AIMessage` that has only `tool_calls` (no final `content` yet):
+
+```ts
+// agentNode returns:
+{ messages: [
+    AIMessage({
+      content: "",
+      tool_calls: [{ name: 'countOrders', args: { since: '2026-05-11' } }]
+    })
+]}
+
+// reducer appends → state.messages is now:
+[
+  HumanMessage("How many orders did the shop have this week?"),
+  AIMessage(tool_calls: [countOrders])   // ← .at(-1)
+]
+```
+
+The conditional edge's router reads `state.messages.at(-1)` — sees `tool_calls.length === 1` → returns `'tools'` → the runtime takes the **dashed edge** to the `tools` node.
+
+**Step 3 — Node `tools` fires**
+
+`toolsNode` reads `state.messages.at(-1)`, pulls `tool_calls`, calls the real function against the DB:
+
+```ts
+// runToolCalls(last) executes countOrders({ since: '2026-05-11' })
+// → returns: 47
+
+// toolsNode returns:
+{ messages: [
+    ToolMessage({ tool_call_id: '...', content: "47" })
+]}
+
+// state.messages is now:
+[
+  HumanMessage("How many orders did the shop have this week?"),
+  AIMessage(tool_calls: [countOrders]),
+  ToolMessage("47")                        // ← .at(-1)
+]
+```
+
+After `tools` finishes, the **unconditional edge** (solid line) sends the runtime back to `agent`. No decision happens here — that edge always fires.
+
+**Step 4 — Node `agent` fires for the second time**
+
+The model reads the entire `state.messages` again — now it can see the `"47"` at the end. This time it doesn't need a tool, it writes the answer for the user:
+
+```ts
+// agentNode returns:
+{ messages: [
+    AIMessage({
+      content: "The shop has 47 orders this week.",
+      tool_calls: []   // ← empty!
+    })
+]}
+
+// state.messages is now:
+[
+  HumanMessage("How many orders did the shop have this week?"),
+  AIMessage(tool_calls: [countOrders]),
+  ToolMessage("47"),
+  AIMessage("The shop has 47 orders this week.")   // ← .at(-1)
+]
+```
+
+The router runs again — `state.messages.at(-1).tool_calls.length === 0` → returns `'__end__'` → the runtime takes the **dashed edge down to `END`**.
+
+**Step 5 — END**
+
+`app.invoke()` returns the `final state` (which is exactly the 4-message array above). The UI reads `final.messages.at(-1).content` → renders *"The shop has 47 orders this week."* for the user.
+
+---
+
+The path for this particular question, in shorthand:
+
+```text
+entry → agent → tools → agent → END
+        (round 1)      (round 2)
+```
+
+Two rounds. If the question were simpler (*"What day is it today?"*) — the model answers directly, no tool — the path collapses to:
+
+```text
+entry → agent → END
+        (round 1, no tool)
+```
+
+If it needed multiple tools (*"Compare this week's revenue with last week's"*) — the model might call `countOrders` twice with two different date ranges, then summarise — the path extends:
+
+```text
+entry → agent → tools → agent → tools → agent → END
+        (1)            (2)            (3)
+```
+
+Same graph, same two nodes, same three edges — the number of rounds adjusts itself to the complexity of the question. That's the very same "loop" lesson 14 wrote as `while`, now declared as topology.
+
 ## 04 — Compile and invoke
 
 Once the topology is described, you compile the graph. Compilation is what produces the runnable; the `StateGraph` itself is a builder.
@@ -91,6 +304,148 @@ console.log(final.messages.at(-1)?.content);      // → logs the final assistan
 ```
 
 `invoke` runs the graph from the entry point until it hits an `END` (or an interrupt — we get there in lesson 19). It returns the *final state*. There's also `stream` and `streamEvents` for the same UI patterns we set up in Part II, except now you're streaming a graph's intermediate states, not just a model's tokens.
+
+### Diagram — graph lifecycle: builder → runnable → three ways to extract
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 720 360"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="LangGraph lifecycle: StateGraph builder goes through compile() to become CompiledStateGraph runnable, which exposes three methods (invoke, stream, streamEvents) returning different shapes of data."
+    style={{ width: '100%', maxWidth: '720px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="arrInk04-en" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+      <marker id="arrBlue04-en" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#2d5a8a" />
+      </marker>
+      <marker id="arrGreen04-en" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#2d7a4a" />
+      </marker>
+      <marker id="arrOrange04-en" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#b85c1a" />
+      </marker>
+    </defs>
+
+    {/* StateGraph builder box */}
+    <rect x="20" y="60" width="200" height="220" rx="8" fill="#f5f7f4" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="120" y="92" textAnchor="middle" fontSize="15" fontWeight="700" fill="#1a3a2e">StateGraph</text>
+    <text x="120" y="110" textAnchor="middle" fontSize="11" fontStyle="italic" fill="#3d4f47">(builder, mutable)</text>
+    <text x="34" y="140" fontSize="11" fontFamily="ui-monospace, monospace" fill="#3d4f47">.addNode('agent', ...)</text>
+    <text x="34" y="160" fontSize="11" fontFamily="ui-monospace, monospace" fill="#3d4f47">.addNode('tools', ...)</text>
+    <text x="34" y="180" fontSize="11" fontFamily="ui-monospace, monospace" fill="#3d4f47">.addEdge('tools', 'agent')</text>
+    <text x="34" y="200" fontSize="11" fontFamily="ui-monospace, monospace" fill="#3d4f47">.addConditionalEdges(</text>
+    <text x="46" y="216" fontSize="11" fontFamily="ui-monospace, monospace" fill="#3d4f47">'agent', router, map)</text>
+    <text x="34" y="240" fontSize="11" fontFamily="ui-monospace, monospace" fill="#3d4f47">.setEntryPoint('agent')</text>
+    <text x="120" y="266" textAnchor="middle" fontSize="11" fontStyle="italic" fill="#5d7a6c">topology under construction</text>
+
+    {/* .compile() arrow */}
+    <line x1="220" y1="170" x2="290" y2="170" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#arrInk04-en)" />
+    <text x="255" y="160" textAnchor="middle" fontSize="12" fontWeight="700" fill="#1a3a2e">.compile()</text>
+    <text x="255" y="188" textAnchor="middle" fontSize="10" fontStyle="italic" fill="#3d4f47">freeze the topology</text>
+
+    {/* CompiledStateGraph runnable box */}
+    <rect x="290" y="80" width="180" height="180" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="380" y="110" textAnchor="middle" fontSize="15" fontWeight="700" fill="#1a3a2e">CompiledStateGraph</text>
+    <text x="380" y="128" textAnchor="middle" fontSize="11" fontStyle="italic" fill="#3d4f47">(runnable, immutable)</text>
+    <text x="380" y="158" textAnchor="middle" fontSize="11" fill="#3d4f47">topology is locked</text>
+    <text x="380" y="176" textAnchor="middle" fontSize="11" fill="#3d4f47">— can't add more nodes</text>
+    <text x="380" y="206" textAnchor="middle" fontSize="11" fill="#3d4f47">→ runnable through any</text>
+    <text x="380" y="222" textAnchor="middle" fontSize="11" fill="#3d4f47">of 3 methods</text>
+
+    {/* Three method arrows */}
+    {/* .invoke (top, blue) */}
+    <line x1="470" y1="120" x2="540" y2="80" stroke="#2d5a8a" strokeWidth="1.8" markerEnd="url(#arrBlue04-en)" />
+    <rect x="540" y="60" width="170" height="58" rx="6" fill="#eff5fb" stroke="#2d5a8a" strokeWidth="1.3" />
+    <text x="555" y="80" fontSize="12" fontWeight="700" fontFamily="ui-monospace, monospace" fill="#2d5a8a">.invoke(input)</text>
+    <text x="555" y="98" fontSize="10" fill="#3d4f47">→ Promise&lt;final state&gt;</text>
+    <text x="555" y="113" fontSize="10" fill="#3d4f47">waits for END, single shot</text>
+
+    {/* .stream (middle, green) */}
+    <line x1="470" y1="180" x2="540" y2="170" stroke="#2d7a4a" strokeWidth="1.8" strokeDasharray="5,4" markerEnd="url(#arrGreen04-en)" />
+    <rect x="540" y="148" width="170" height="58" rx="6" fill="#f0faf4" stroke="#2d7a4a" strokeWidth="1.3" />
+    <text x="555" y="168" fontSize="12" fontWeight="700" fontFamily="ui-monospace, monospace" fill="#2d7a4a">.stream(input)</text>
+    <text x="555" y="186" fontSize="10" fill="#3d4f47">→ AsyncIterable&lt;diff&gt;</text>
+    <text x="555" y="201" fontSize="10" fill="#3d4f47">yields after each node fires</text>
+
+    {/* .streamEvents (bottom, orange) */}
+    <line x1="470" y1="220" x2="540" y2="260" stroke="#b85c1a" strokeWidth="1.8" strokeDasharray="2,3" markerEnd="url(#arrOrange04-en)" />
+    <rect x="540" y="240" width="170" height="58" rx="6" fill="#fdf5ee" stroke="#b85c1a" strokeWidth="1.3" />
+    <text x="555" y="260" fontSize="12" fontWeight="700" fontFamily="ui-monospace, monospace" fill="#b85c1a">.streamEvents(input)</text>
+    <text x="555" y="278" fontSize="10" fill="#3d4f47">→ AsyncIterable&lt;event&gt;</text>
+    <text x="555" y="293" fontSize="10" fill="#3d4f47">token-by-token detail</text>
+  </svg>
+  <figcaption style={{ fontSize: '0.85rem', color: '#3d4f47', marginTop: '0.5rem', textAlign: 'center', fontStyle: 'italic' }}>
+    `StateGraph` (mutable builder) → `.compile()` freezes it into `CompiledStateGraph` (runnable) → three ways to "draw the data out", each matching a different UI.
+  </figcaption>
+</figure>
+
+The two things to take away from the diagram:
+
+1. **`StateGraph` and `CompiledStateGraph` are different objects.** The first is a builder — you can still call `addNode` / `addEdge`. The second is a runnable — topology is locked, calling `addNode` throws. `compile()` is the one-way door between them.
+2. **`invoke` / `stream` / `streamEvents` all run the SAME graph, they only differ in how the data is drawn out.** You don't build a separate graph for each. Same nodes, same edges, same state — what changes is whether the UI wants a single final blob or each intermediate step.
+
+### Example — same prompt, three ways to extract the result
+
+Reuse the prompt from earlier (*"How many orders did the shop have this week?"*) — round 1: `agent → tools`, round 2: `agent → END`. Same compiled `app`, called three different ways:
+
+```ts
+// ──────── .invoke() — wait to the end, get final state ────────
+const final = await app.invoke({
+  messages: [new HumanMessage("How many orders did the shop have this week?")],
+});
+console.log(final.messages.at(-1)?.content);
+// → "The shop has 47 orders this week."
+//   (one line, printed ~3–5s later once the graph has run both rounds)
+```
+
+```ts
+// ──────── .stream() — yield a state diff after EVERY node finishes ────────
+for await (const chunk of app.stream({
+  messages: [new HumanMessage("How many orders did the shop have this week?")],
+})) {
+  console.log(Object.keys(chunk)[0], '→', chunk);
+}
+// → agent  → { agent: { messages: [AIMessage(tool_calls: [countOrders])] } }
+// → tools  → { tools: { messages: [ToolMessage('47')] } }
+// → agent  → { agent: { messages: [AIMessage('The shop has 47 orders this week.')] } }
+//
+// 3 yields, one immediately after each node finishes — the UI can show
+// "agent is thinking..." then "querying DB..." then "writing the answer..."
+```
+
+```ts
+// ──────── .streamEvents() — yield fine-grained events, including model tokens ────────
+for await (const ev of app.streamEvents(
+  { messages: [new HumanMessage("How many orders did the shop have this week?")] },
+  { version: 'v2' },
+)) {
+  if (ev.event === 'on_chat_model_stream') {
+    process.stdout.write(ev.data.chunk.content); // → prints EACH token
+  }
+}
+// → The  shop  has  47  orders  this  week .
+//   (prints token by token — this is how you build a ChatGPT/Claude-style streaming UI)
+```
+
+When to use which — the practical rule:
+
+| Method | Returns | When to use | Typical UI |
+|---|---|---|---|
+| `invoke` | one `Promise<final state>` | Background job, cron, API endpoint that returns JSON in one shot | "We're working — we'll ping you when it's done" |
+| `stream` | iterable of state diffs | You want to show "which node is running now" — coarse progress | Step indicator: "querying DB → writing the answer" |
+| `streamEvents` | iterable of fine-grained events | You want to render text token-by-token like ChatGPT | Chat bubble that types itself out |
+
+<Callout type="tip" title="Café analogy — ordering one coffee">
+- **`invoke`** = you order, stand at the counter, the barista calls your name when it's done — you receive **the finished cup** and walk away. One transaction, no peek behind the curtain.
+- **`stream`** = you get **status updates in the app**: *"order received"*, *"grinding beans"*, *"steaming milk"*, *"ready"*. You don't see every drop of water, just which step is done. Enough to draw a progress bar.
+- **`streamEvents`** = you sit at the bar and watch the barista **every move** — flip the grinder on, knock out the portafilter, tamp, lock in the machine, pull the shot, steam the milk. Detail right down to the token.
+
+Three ways of "experiencing" the same coffee-making process. You pick the one that matches the UI you're building — you don't build a different graph.
+</Callout>
 
 That is the whole minimum surface. State, nodes, edges, compile, invoke. The next lesson rebuilds the bare loop from Part III as a graph — same behaviour, same tools, dramatically more flexibility from there on.
 
@@ -159,6 +514,26 @@ graph.addNode('agent', agentNode);                // → registers 'agent' node
 graph.addNode('tools', toolsNode);                // → registers 'tools' node
 ```
 
+<Callout type="note" title="Vì sao `state.messages.at(-1)` — không phải scan cả mảng?">
+`toolsNode` chỉ đọc message **cuối cùng** trong transcript, không duyệt cả lịch sử. Lý do nó đúng (và an toàn) không hiển nhiên — nhưng dựa vào ba điều bạn đã có rồi:
+
+1. **State là append-only.** Reducer của `messages` là *append*, không phải *replace* — mỗi node trả về `{ messages: [...] }` đều được thêm vào cuối. Thứ tự thời gian được bảo toàn: `at(-1)` luôn là cái mới nhất đi qua loop, không có chuyện bị xáo trộn.
+2. **Chỉ `agentNode` sinh ra `AIMessage`.** Trong graph này, model chỉ được gọi ở `agent`. Mọi `AIMessage` (kể cả những cái có `tool_calls`) đều ra đời ở node đó. Các node khác (`tools`) chỉ append `ToolMessage`. Nên *"AIMessage mới nhất"* và *"output của lần `agent` chạy ngay trước"* là cùng một thứ.
+3. **Topology bảo đảm đúng node đọc đúng lúc.** Edge có điều kiện chạy ngay **sau** `agent` → `at(-1)` chắc chắn là cái `AIMessage` model vừa trả về. Edge `tools → agent` rồi vòng lại, nên khi `toolsNode` chạy, message cuối cũng là `AIMessage` của `agent` vừa rồi — chưa kịp có gì khác chen vào.
+
+Cộng ba điều này lại: *"AIMessage cuối cùng"* = *"lệnh vừa mới được phát"*. Đó là tất cả những gì `toolsNode` và router cần để quyết định bước kế.
+
+**Vì sao KHÔNG scan cả `state.messages`?** Vì model **đã** đọc toàn bộ transcript khi sinh ra reply mới nhất — quyết định gọi tool nào đã được encode trong `tool_calls` của message cuối. Những `tool_calls` cũ hơn trong transcript đã bị thực thi xong từ vòng trước (đã thành `ToolMessage` ngay sau đó). Chạy lại chúng = bug (gọi tool hai lần, gửi email hai lần, trừ tiền hai lần). Quy tắc: *"tool_calls chỉ sống đúng một vòng — sinh ra ở vòng N, chết khi thành ToolMessage ở vòng N."*
+
+**Café analogy** — nhà bếp với chồng order ticket:
+- Khách order → waiter ghi ticket → đặt lên đầu chồng (= `agentNode` append `AIMessage`).
+- Đầu bếp lấy ticket **trên cùng** ra làm (= `toolsNode` đọc `at(-1)`). Không bao giờ lục lại ticket dưới — những ticket đó đã thành đĩa thức ăn rồi (= đã thành `ToolMessage`).
+- Đầu bếp xong → ticket được đánh dấu xong, món được đẩy ra (= append `ToolMessage`) → waiter quay lại lấy order tiếp (= edge `tools → agent`).
+- Nếu đầu bếp lục cả chồng và làm lại từng ticket — khách sẽ nhận double order, hỏng đơn.
+
+Bài 18 sẽ thêm channel `pendingTool` — về cơ bản là *"giữ riêng cái ticket trên cùng ra một chỗ khi chờ user duyệt"* — nhưng nguyên lý vẫn vậy: chỉ một entry sống tại một thời điểm.
+</Callout>
+
 Để ý mỗi node *chỉ* trả về phần nó muốn thay đổi. Reducer của `messages` lo phần còn lại. Một node không xử lý được tình huống có thể trả về object rỗng và state đi qua mà không đổi. Không có class hierarchy nào để kế thừa, không có interface đặc biệt nào để thoả mãn ngoài *nhận state, trả về update từng phần.*
 
 ## 03 — Edge
@@ -178,6 +553,202 @@ graph.setEntryPoint('agent');                     // → graph starts at 'agent'
 
 Router chỉ là TypeScript thường. Nó nhìn state và trả về một string; tham số thứ ba là bảng ánh xạ từ những string đó sang tên node thật. `END` là sentinel báo cho runtime dừng và trả về state cuối cùng. Edge có điều kiện là chỗ các kế hoạch nhiều bước có được *if/else* của mình — và là cách bạn sẽ ráp confirmation, recovery, và routing-theo-loại-tool ở hai bài kế tiếp.
 
+### Sơ đồ — graph sau khi compile
+
+Hai node, ba edge, một entry point. Vẽ ra để bạn nhìn thấy đúng cái runtime sẽ chạy:
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 720 360"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Graph LangGraph tối thiểu: entry point trỏ vào node agent, edge có điều kiện từ agent rẽ sang node tools hoặc END, edge vô điều kiện từ tools quay lại agent."
+    style={{ width: '100%', maxWidth: '720px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="arrInk16" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+      <marker id="arrSoft16" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#5d7a6c" />
+      </marker>
+    </defs>
+
+    {/* Entry dot */}
+    <circle cx="140" cy="30" r="7" fill="#1a3a2e" />
+    <text x="156" y="34" fontSize="12" fill="#3d4f47" fontStyle="italic">setEntryPoint('agent')</text>
+
+    {/* Entry → agent */}
+    <line x1="140" y1="38" x2="140" y2="78" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk16)" />
+
+    {/* agent node */}
+    <rect x="70" y="82" width="140" height="64" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="140" y="108" textAnchor="middle" fontSize="16" fontWeight="700" fill="#1a3a2e">agent</text>
+    <text x="140" y="128" textAnchor="middle" fontSize="11" fill="#3d4f47">gọi model → AIMessage</text>
+
+    {/* tools node */}
+    <rect x="490" y="82" width="140" height="64" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="560" y="108" textAnchor="middle" fontSize="16" fontWeight="700" fill="#1a3a2e">tools</text>
+    <text x="560" y="128" textAnchor="middle" fontSize="11" fill="#3d4f47">chạy tool_calls → ToolMessage[]</text>
+
+    {/* END node */}
+    <rect x="80" y="266" width="120" height="50" rx="6" fill="#f0faf4" stroke="#2d7a4a" strokeWidth="1.5" />
+    <text x="140" y="296" textAnchor="middle" fontSize="14" fontWeight="700" fill="#2d7a4a">END</text>
+
+    {/* agent → tools (conditional, top, dashed) */}
+    <path d="M 210 102 L 490 102" fill="none" stroke="#1a3a2e" strokeWidth="1.5" strokeDasharray="5,4" markerEnd="url(#arrInk16)" />
+    <text x="350" y="90" textAnchor="middle" fontSize="11" fontWeight="600" fill="#1a3a2e">last.tool_calls?.length &gt; 0</text>
+    <text x="350" y="78" textAnchor="middle" fontSize="10" fill="#3d4f47">addConditionalEdges('agent', router)</text>
+
+    {/* tools → agent (unconditional, bottom, solid) */}
+    <path d="M 490 130 L 210 130" fill="none" stroke="#1a3a2e" strokeWidth="1.5" markerEnd="url(#arrInk16)" />
+    <text x="350" y="148" textAnchor="middle" fontSize="11" fontWeight="600" fill="#1a3a2e">addEdge('tools', 'agent') — luôn quay về</text>
+
+    {/* agent → END (conditional, dashed) */}
+    <line x1="140" y1="146" x2="140" y2="262" stroke="#1a3a2e" strokeWidth="1.5" strokeDasharray="5,4" markerEnd="url(#arrInk16)" />
+    <text x="152" y="190" fontSize="11" fontWeight="600" fill="#1a3a2e">last.tool_calls?.length === 0</text>
+    <text x="152" y="206" fontSize="10" fill="#3d4f47">router trả '__end__'</text>
+
+    {/* Legend */}
+    <g transform="translate(370, 230)">
+      <text x="0" y="0" fontSize="11" fontWeight="700" fill="#3d4f47">Chú thích:</text>
+      <line x1="0" y1="20" x2="36" y2="20" stroke="#1a3a2e" strokeWidth="1.5" />
+      <text x="44" y="24" fontSize="11" fill="#3d4f47">edge vô điều kiện — `addEdge(a, b)`</text>
+      <line x1="0" y1="42" x2="36" y2="42" stroke="#1a3a2e" strokeWidth="1.5" strokeDasharray="5,4" />
+      <text x="44" y="46" fontSize="11" fill="#3d4f47">edge có điều kiện — `addConditionalEdges(a, router, map)`</text>
+      <circle cx="18" cy="64" r="5" fill="#1a3a2e" />
+      <text x="44" y="68" fontSize="11" fill="#3d4f47">entry point — chỗ runtime bắt đầu</text>
+    </g>
+  </svg>
+  <figcaption style={{ fontSize: '0.85rem', color: '#3d4f47', marginTop: '0.5rem', textAlign: 'center', fontStyle: 'italic' }}>
+    Hai node (`agent`, `tools`) + ba edge (entry, conditional split tại `agent`, loop về từ `tools`) — đủ cho một agent đa lượt.
+  </figcaption>
+</figure>
+
+Đọc graph theo nhịp chạy:
+
+1. **Runtime bắt đầu ở `agent`** (entry point) → model nhận `state.messages`, sinh ra `AIMessage`.
+2. **Router của edge có điều kiện đọc `state.messages.at(-1)`** — nếu `AIMessage` đó có `tool_calls`, runtime đi đường đứt nét sang `tools`; nếu không, runtime đi đường đứt nét xuống `END`.
+3. **`tools` chạy xong append `ToolMessage[]`** → edge vô điều kiện (đường liền) đẩy runtime quay lại `agent`. Vòng lặp đóng kín ở đây.
+4. **Lặp đến khi model không yêu cầu tool nữa** → router trả `'__end__'` → `END` → `invoke()` trả `final state`.
+
+Cùng cấu trúc với vòng `while (lastMessage.tool_calls?.length)` ở Phần III — chỉ khác là *topology được khai báo*, không phải *gói trong control flow*. Bài 18 sẽ thêm node `confirm` và channel `pendingTool` — graph đơn giản nở thêm một nhánh, không phải rewrite cả file.
+
+### Ví dụ — một câu hỏi đi qua graph
+
+Lấy một câu hỏi cụ thể và "chạy bằng tay" qua graph để thấy state lớn dần như thế nào. Giả sử user gõ:
+
+> *"Tuần này shop có bao nhiêu đơn hàng?"*
+
+Có một tool tên `countOrders` để query DB. Đây là 5 bước runtime chạy:
+
+**Bước 1 — Khởi tạo state**
+
+```ts
+state.messages = [
+  HumanMessage("Tuần này shop có bao nhiêu đơn hàng?")
+]
+// → runtime ở entry point, sẽ chạy 'agent' đầu tiên
+```
+
+**Bước 2 — Node `agent` chạy lần 1**
+
+Model đọc `state.messages`, thấy cần dữ liệu DB, sinh ra một `AIMessage` chỉ có `tool_calls` (chưa có `content` cuối cùng):
+
+```ts
+// agentNode return về:
+{ messages: [
+    AIMessage({
+      content: "",
+      tool_calls: [{ name: 'countOrders', args: { since: '2026-05-11' } }]
+    })
+]}
+
+// reducer append → state.messages bây giờ:
+[
+  HumanMessage("Tuần này shop có bao nhiêu đơn hàng?"),
+  AIMessage(tool_calls: [countOrders])   // ← .at(-1)
+]
+```
+
+Router của edge có điều kiện đọc `state.messages.at(-1)` — thấy `tool_calls.length === 1` → trả `'tools'` → runtime đi theo **đường đứt nét** sang node `tools`.
+
+**Bước 3 — Node `tools` chạy**
+
+`toolsNode` lấy `state.messages.at(-1)`, đọc `tool_calls`, gọi function thật trong DB:
+
+```ts
+// runToolCalls(last) thực thi countOrders({ since: '2026-05-11' })
+// → trả về: 47
+
+// toolsNode return:
+{ messages: [
+    ToolMessage({ tool_call_id: '...', content: "47" })
+]}
+
+// state.messages bây giờ:
+[
+  HumanMessage("Tuần này shop có bao nhiêu đơn hàng?"),
+  AIMessage(tool_calls: [countOrders]),
+  ToolMessage("47")                        // ← .at(-1)
+]
+```
+
+Sau khi `tools` chạy xong, **edge vô điều kiện** (đường liền) đẩy runtime quay lại `agent`. Không có quyết định nào ở đây — đường đó luôn fire.
+
+**Bước 4 — Node `agent` chạy lần 2**
+
+Model đọc lại toàn bộ `state.messages` — giờ đã thấy kết quả `"47"` ở cuối. Lần này nó không cần tool nữa, viết câu trả lời cho user:
+
+```ts
+// agentNode return:
+{ messages: [
+    AIMessage({
+      content: "Tuần này shop có 47 đơn hàng.",
+      tool_calls: []   // ← rỗng!
+    })
+]}
+
+// state.messages bây giờ:
+[
+  HumanMessage("Tuần này shop có bao nhiêu đơn hàng?"),
+  AIMessage(tool_calls: [countOrders]),
+  ToolMessage("47"),
+  AIMessage("Tuần này shop có 47 đơn hàng.")   // ← .at(-1)
+]
+```
+
+Router chạy lại — `state.messages.at(-1).tool_calls.length === 0` → trả `'__end__'` → runtime đi **đường đứt nét xuống `END`**.
+
+**Bước 5 — END**
+
+`app.invoke()` trả về `final state` (chính là mảng 4 message ở trên). UI lấy `final.messages.at(-1).content` → hiển thị *"Tuần này shop có 47 đơn hàng."* cho user.
+
+---
+
+Tóm tắt đường đi qua graph cho riêng câu hỏi này:
+
+```text
+entry → agent → tools → agent → END
+        (vòng 1)       (vòng 2)
+```
+
+Hai vòng. Nếu câu hỏi đơn giản hơn (*"Hôm nay thứ mấy?"*) — model trả lời thẳng, không gọi tool — đường đi rút thành:
+
+```text
+entry → agent → END
+        (vòng 1, không có tool)
+```
+
+Nếu câu hỏi cần nhiều tool (*"So sánh doanh thu tuần này với tuần trước"*) — model có thể gọi `countOrders` hai lần với hai khoảng ngày khác nhau, rồi mới tổng kết — đường đi nở dài:
+
+```text
+entry → agent → tools → agent → tools → agent → END
+        (1)            (2)            (3)
+```
+
+Cùng một graph, cùng hai node, cùng ba edge — số vòng tự điều chỉnh theo độ phức tạp của câu hỏi. Đó chính là cái "loop" mà bài 14 viết bằng `while`, giờ được khai báo bằng topology.
+
 ## 04 — Compile và invoke
 
 Khi topology đã được mô tả xong, bạn compile graph. Compile là bước tạo ra cái chạy được; bản thân `StateGraph` chỉ là một builder.
@@ -194,6 +765,148 @@ console.log(final.messages.at(-1)?.content);      // → logs the final assistan
 ```
 
 `invoke` chạy graph từ entry point cho đến khi gặp `END` (hoặc một interrupt — chúng ta sẽ tới ở bài 19). Nó trả về *state cuối*. Cũng có `stream` và `streamEvents` cho đúng những UI pattern ta đã dựng ở Phần II, chỉ khác là giờ bạn đang stream các state trung gian của graph, không phải token của model.
+
+### Sơ đồ — vòng đời graph: builder → runnable → ba cách "rút" kết quả
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 720 360"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Vòng đời graph LangGraph: StateGraph (builder) đi qua compile() để thành CompiledStateGraph (runnable), runnable có ba phương thức invoke, stream, streamEvents trả về dữ liệu khác nhau."
+    style={{ width: '100%', maxWidth: '720px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="arrInk04" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+      <marker id="arrBlue04" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#2d5a8a" />
+      </marker>
+      <marker id="arrGreen04" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#2d7a4a" />
+      </marker>
+      <marker id="arrOrange04" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#b85c1a" />
+      </marker>
+    </defs>
+
+    {/* StateGraph builder box */}
+    <rect x="20" y="60" width="200" height="220" rx="8" fill="#f5f7f4" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="120" y="92" textAnchor="middle" fontSize="15" fontWeight="700" fill="#1a3a2e">StateGraph</text>
+    <text x="120" y="110" textAnchor="middle" fontSize="11" fontStyle="italic" fill="#3d4f47">(builder, có thể sửa)</text>
+    <text x="34" y="140" fontSize="11" fontFamily="ui-monospace, monospace" fill="#3d4f47">.addNode('agent', ...)</text>
+    <text x="34" y="160" fontSize="11" fontFamily="ui-monospace, monospace" fill="#3d4f47">.addNode('tools', ...)</text>
+    <text x="34" y="180" fontSize="11" fontFamily="ui-monospace, monospace" fill="#3d4f47">.addEdge('tools', 'agent')</text>
+    <text x="34" y="200" fontSize="11" fontFamily="ui-monospace, monospace" fill="#3d4f47">.addConditionalEdges(</text>
+    <text x="46" y="216" fontSize="11" fontFamily="ui-monospace, monospace" fill="#3d4f47">'agent', router, map)</text>
+    <text x="34" y="240" fontSize="11" fontFamily="ui-monospace, monospace" fill="#3d4f47">.setEntryPoint('agent')</text>
+    <text x="120" y="266" textAnchor="middle" fontSize="11" fontStyle="italic" fill="#5d7a6c">topology đang xây</text>
+
+    {/* .compile() arrow */}
+    <line x1="220" y1="170" x2="290" y2="170" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#arrInk04)" />
+    <text x="255" y="160" textAnchor="middle" fontSize="12" fontWeight="700" fill="#1a3a2e">.compile()</text>
+    <text x="255" y="188" textAnchor="middle" fontSize="10" fontStyle="italic" fill="#3d4f47">đóng băng topology</text>
+
+    {/* CompiledStateGraph runnable box */}
+    <rect x="290" y="80" width="180" height="180" rx="8" fill="#ffffff" stroke="#1a3a2e" strokeWidth="1.5" />
+    <text x="380" y="110" textAnchor="middle" fontSize="15" fontWeight="700" fill="#1a3a2e">CompiledStateGraph</text>
+    <text x="380" y="128" textAnchor="middle" fontSize="11" fontStyle="italic" fill="#3d4f47">(runnable, immutable)</text>
+    <text x="380" y="158" textAnchor="middle" fontSize="11" fill="#3d4f47">topology đã chốt</text>
+    <text x="380" y="176" textAnchor="middle" fontSize="11" fill="#3d4f47">không sửa được nữa</text>
+    <text x="380" y="206" textAnchor="middle" fontSize="11" fill="#3d4f47">→ có thể chạy bằng</text>
+    <text x="380" y="222" textAnchor="middle" fontSize="11" fill="#3d4f47">3 phương thức</text>
+
+    {/* Three method arrows */}
+    {/* .invoke (top, blue) */}
+    <line x1="470" y1="120" x2="540" y2="80" stroke="#2d5a8a" strokeWidth="1.8" markerEnd="url(#arrBlue04)" />
+    <rect x="540" y="60" width="170" height="58" rx="6" fill="#eff5fb" stroke="#2d5a8a" strokeWidth="1.3" />
+    <text x="555" y="80" fontSize="12" fontWeight="700" fontFamily="ui-monospace, monospace" fill="#2d5a8a">.invoke(input)</text>
+    <text x="555" y="98" fontSize="10" fill="#3d4f47">→ Promise&lt;final state&gt;</text>
+    <text x="555" y="113" fontSize="10" fill="#3d4f47">chờ đến END, một cú</text>
+
+    {/* .stream (middle, green) */}
+    <line x1="470" y1="180" x2="540" y2="170" stroke="#2d7a4a" strokeWidth="1.8" strokeDasharray="5,4" markerEnd="url(#arrGreen04)" />
+    <rect x="540" y="148" width="170" height="58" rx="6" fill="#f0faf4" stroke="#2d7a4a" strokeWidth="1.3" />
+    <text x="555" y="168" fontSize="12" fontWeight="700" fontFamily="ui-monospace, monospace" fill="#2d7a4a">.stream(input)</text>
+    <text x="555" y="186" fontSize="10" fill="#3d4f47">→ AsyncIterable&lt;diff&gt;</text>
+    <text x="555" y="201" fontSize="10" fill="#3d4f47">yield sau mỗi node chạy</text>
+
+    {/* .streamEvents (bottom, orange) */}
+    <line x1="470" y1="220" x2="540" y2="260" stroke="#b85c1a" strokeWidth="1.8" strokeDasharray="2,3" markerEnd="url(#arrOrange04)" />
+    <rect x="540" y="240" width="170" height="58" rx="6" fill="#fdf5ee" stroke="#b85c1a" strokeWidth="1.3" />
+    <text x="555" y="260" fontSize="12" fontWeight="700" fontFamily="ui-monospace, monospace" fill="#b85c1a">.streamEvents(input)</text>
+    <text x="555" y="278" fontSize="10" fill="#3d4f47">→ AsyncIterable&lt;event&gt;</text>
+    <text x="555" y="293" fontSize="10" fill="#3d4f47">token-by-token chi tiết</text>
+  </svg>
+  <figcaption style={{ fontSize: '0.85rem', color: '#3d4f47', marginTop: '0.5rem', textAlign: 'center', fontStyle: 'italic' }}>
+    `StateGraph` (builder, có thể sửa) → `.compile()` đóng băng thành `CompiledStateGraph` (runnable) → ba cách "rút" dữ liệu ra, mỗi cách hợp với một loại UI.
+  </figcaption>
+</figure>
+
+Hai điều quan trọng nhất khi đọc sơ đồ:
+
+1. **`StateGraph` và `CompiledStateGraph` là hai object khác nhau.** Cái đầu là builder — bạn còn gọi `addNode` / `addEdge` được. Cái sau là runnable — topology đã đóng băng, gọi `addNode` là throw. `compile()` là cánh cửa một chiều giữa hai bên.
+2. **Ba phương thức `invoke` / `stream` / `streamEvents` chạy CÙNG MỘT graph, chỉ khác cách "rút" dữ liệu ra.** Không phải bạn dựng graph riêng cho mỗi cái. Cùng node, cùng edge, cùng state — chỉ khác bạn muốn UI nhận một cục cuối hay từng nhịp.
+
+### Ví dụ — cùng prompt, ba cách rút kết quả
+
+Lấy lại prompt ở mục trên (*"Tuần này shop có bao nhiêu đơn hàng?"*) — vòng 1: `agent → tools`, vòng 2: `agent → END`. Cùng `app` đã compile, gọi bằng ba phương thức khác nhau:
+
+```ts
+// ──────── .invoke() — đợi đến cuối, lấy state cuối ────────
+const final = await app.invoke({
+  messages: [new HumanMessage("Tuần này shop có bao nhiêu đơn hàng?")],
+});
+console.log(final.messages.at(-1)?.content);
+// → "Tuần này shop có 47 đơn hàng."
+//   (in ra một dòng, sau ~3–5s khi graph chạy xong cả 2 vòng)
+```
+
+```ts
+// ──────── .stream() — yield state diff sau MỖI node chạy xong ────────
+for await (const chunk of app.stream({
+  messages: [new HumanMessage("Tuần này shop có bao nhiêu đơn hàng?")],
+})) {
+  console.log(Object.keys(chunk)[0], '→', chunk);
+}
+// → agent  → { agent: { messages: [AIMessage(tool_calls: [countOrders])] } }
+// → tools  → { tools: { messages: [ToolMessage('47')] } }
+// → agent  → { agent: { messages: [AIMessage('Tuần này shop có 47 đơn hàng.')] } }
+//
+// 3 lần yield, mỗi lần đúng sau khi 1 node kết thúc — UI hiện được "agent đang nghĩ..."
+// rồi "đang query DB..." rồi "đang viết câu trả lời..."
+```
+
+```ts
+// ──────── .streamEvents() — yield event chi tiết, kể cả token model trả về ────────
+for await (const ev of app.streamEvents(
+  { messages: [new HumanMessage("Tuần này shop có bao nhiêu đơn hàng?")] },
+  { version: 'v2' },
+)) {
+  if (ev.event === 'on_chat_model_stream') {
+    process.stdout.write(ev.data.chunk.content); // → in ra TỪNG token
+  }
+}
+// → T uần  này  shop  có  47  đơn  hàng .
+//   (in lần lượt từng token — đây là cách dựng UI streaming giống ChatGPT/Claude)
+```
+
+Khi nào dùng cái nào — quy tắc thực dụng:
+
+| Phương thức | Trả về | Khi nào dùng | UI điển hình |
+|---|---|---|---|
+| `invoke` | một `Promise<final state>` | Background job, cron, API endpoint trả JSON một cú | "Đợi đi, có kết quả mình ping bạn" |
+| `stream` | iterable các state diff | Bạn muốn show "đang chạy node nào" — tiến độ thô | Step indicator: "đang query DB → đang viết câu trả lời" |
+| `streamEvents` | iterable event chi tiết | Bạn muốn render text token-by-token như ChatGPT | Chat bubble chạy chữ ra mỗi nhịp |
+
+<Callout type="tip" title="Café analogy — order một ly cà phê">
+- **`invoke`** = bạn order, đứng đợi quầy, barista làm xong gọi tên bạn — bạn nhận **ly hoàn chỉnh** ra về. Một cú giao dịch, không thấy trung gian.
+- **`stream`** = bạn nhận **status update qua app**: *"đã nhận order"*, *"đang xay hạt"*, *"đang rót sữa"*, *"sẵn sàng"*. Bạn không thấy từng giọt nước, chỉ thấy bước nào xong. Đủ để hiện progress bar.
+- **`streamEvents`** = bạn ngồi ngay quầy bar, nhìn barista làm **từng động tác** — bật máy xay, gõ portafilter, nhồi tamper, gắn vào máy ép, rót shot, hâm sữa. Chi tiết tới từng token.
+
+Ba cách "trải nghiệm" cùng một quy trình pha cà phê. Bạn chọn cái nào tuỳ bạn đang xây loại UI nào — không phải tuỳ graph khác nhau.
+</Callout>
 
 Đó là toàn bộ bề mặt tối thiểu. State, node, edge, compile, invoke. Bài kế tiếp dựng lại vòng lặp trần ở Phần III thành một graph — cùng hành vi, cùng tool, nhưng linh hoạt hơn nhiều từ đây trở đi.
 

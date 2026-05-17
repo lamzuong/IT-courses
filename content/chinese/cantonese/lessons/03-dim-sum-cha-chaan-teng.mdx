@@ -2,12 +2,15 @@ import { Callout } from '@/components/mdx/callout';
 import { ChineseSentence, ChineseDialogue, ChineseLine } from '@/components/mdx/chinese/sentence';
 
 <Callout type="note" title="Trong bài này">
-- Tên các món dim sum quen thuộc — há cảo, xíu mại, bánh bao xá xíu.
-- Hai loại trà phải biết khi vào cha chaan teng: trà sữa đá và trà chanh đá.
-- Cách gọi món, nhờ vả, và câu thần chú **埋單** để tính tiền kiểu HK.
+- Tên các món dim sum quen thuộc — há cảo, xíu mại, bánh bao xá xíu, chân gà, cháo, bánh dứa.
+- Hai loại trà phải biết khi vào cha chaan teng: trà sữa đá và trà chanh đá — kèm vài món "set meal" đặc trưng HK.
+- Cách gọi món, nhờ vả, đổi món, hỏi nguyên liệu, và câu thần chú **埋單** để tính tiền kiểu HK.
+- Hai đoạn hội thoại: yum cha sáng chủ nhật ở quán dim sum truyền thống, và ăn trưa nhanh ở cha chaan teng.
 </Callout>
 
-**Dim sum (點心)** và **cha chaan teng (茶餐廳)** là hai linh hồn ẩm thực Hồng Kông. Dim sum là điểm tâm sáng kiểu Quảng Đông — giỏ tre xếp tầng, há cảo trong vắt, trà nóng. Cha chaan teng là "quán cà phê kiểu HK" — trà sữa đá, mì gói nấu ăn sáng, bánh mì kẹp. Bài này gom đủ từ để bạn vào quán không phải chỉ trỏ.
+**Dim sum (點心)** và **cha chaan teng (茶餐廳)** là hai linh hồn ẩm thực Hồng Kông. Dim sum là điểm tâm sáng kiểu Quảng Đông — giỏ tre xếp tầng, há cảo trong vắt, trà nóng rót đầy ấm. Cha chaan teng là "quán cà phê kiểu HK" — trà sữa đá, mì gói nấu ăn sáng, bánh mì kẹp trứng, set lunch giá bình dân.
+
+Cứ tưởng tượng dim sum là "quán phở" — ngồi lâu, tám chuyện, gia đình kéo nhau đi sáng chủ nhật. Còn cha chaan teng là "quán cơm bình dân" — vào, ăn nhanh, đi. Hai chốn này gom đến 80% nhu cầu ăn ngoài của dân HK. Bài này gom đủ từ để bạn vào quán không phải chỉ trỏ.
 
 ## Món trên bàn dim sum
 
@@ -31,7 +34,7 @@ import { ChineseSentence, ChineseDialogue, ChineseLine } from '@/components/mdx/
   variant="cantonese"
   text="燒賣"
   romanization="siu1 maai2"
-  vietnamese="Xíu mại (bánh bao nhỏ vỏ vàng)."
+  vietnamese="Xíu mại (bánh bao nhỏ vỏ vàng, nhân thịt heo và tôm)."
   literal="nướng + bán"
 />
 
@@ -43,27 +46,151 @@ import { ChineseSentence, ChineseDialogue, ChineseLine } from '@/components/mdx/
   literal="xá xíu + bao"
 />
 
+<ChineseSentence
+  variant="cantonese"
+  text="鳳爪"
+  romanization="fung6 zaau2"
+  vietnamese="Chân gà (hấp tàu xì đặc trưng)."
+  literal="phượng + móng"
+/>
+
+<ChineseSentence
+  variant="cantonese"
+  text="腸粉"
+  romanization="coeng2 fan2"
+  vietnamese="Bánh cuốn (vỏ gạo trắng cuộn tôm hoặc xá xíu)."
+  literal="ruột + bột"
+/>
+
+<ChineseSentence
+  variant="cantonese"
+  text="一籠"
+  romanization="jat1 lung4"
+  vietnamese="Một giỏ (lượng từ cho dim sum)."
+  literal="một + giỏ"
+/>
+
 <Callout type="tip" title="Gọi món dim sum như dân HK">
-Ở quán dim sum truyền thống, bạn được phát một tờ phiếu. Bạn đánh dấu bao nhiêu **籠 (lung4 — giỏ)** của mỗi món, đưa nhân viên. Khi muốn gọi thêm, chỉ cần nói tên món + số lượng. Ví dụ `一籠蝦餃 (jat1 lung4 haa1 gaau2)` — một giỏ há cảo.
+Ở quán dim sum truyền thống, bạn được phát một tờ phiếu giấy. Bạn đánh dấu bao nhiêu **籠 (lung4 — giỏ)** của mỗi món, đưa nhân viên. Khi muốn gọi thêm bằng miệng, công thức là **số + 籠 + tên món**: `一籠蝦餃 (jat1 lung4 haa1 gaau2)` — một giỏ há cảo. `兩籠燒賣 (loeng5 lung4 siu1 maai2)` — hai giỏ xíu mại.
+
+Lưu ý: bánh cuốn `腸粉` không tính theo `籠` mà tính theo `碟 (dip6)` — đĩa. Vì nó nằm đĩa, không nằm giỏ tre.
+
+Khi xe đẩy dim sum chạy qua bàn (truyền thống cũ, giờ ít quán còn), bạn chỉ cần chỉ và nói `一個呢個 (jat1 go3 ni1 go3)` — một cái này — là xong.
 </Callout>
 
-## Đồ uống & câu nói thường gặp
+## Trà nóng & nghi thức bàn dim sum
+
+<ChineseSentence
+  variant="cantonese"
+  text="飲乜茶呀?"
+  romanization="jam2 mat1 caa4 aa3?"
+  vietnamese="Uống trà gì vậy?"
+  literal="uống + cái gì + trà + (câu hỏi)"
+/>
+
+<ChineseSentence
+  variant="cantonese"
+  text="普洱"
+  romanization="pou2 nei2"
+  vietnamese="Trà phổ nhĩ (đậm, hợp dim sum dầu mỡ)."
+  literal="phổ + nhĩ"
+/>
+
+<ChineseSentence
+  variant="cantonese"
+  text="香片"
+  romanization="hoeng1 pin2"
+  vietnamese="Trà hoa nhài."
+  literal="hương + miếng"
+/>
+
+<ChineseSentence
+  variant="cantonese"
+  text="唔該斟茶"
+  romanization="m4 goi1 zam1 caa4"
+  vietnamese="Cảm ơn, rót trà giúp tôi."
+  literal="cảm ơn + rót + trà"
+/>
+
+<ChineseSentence
+  variant="cantonese"
+  text="加水, 唔該"
+  romanization="gaa1 seoi2, m4 goi1"
+  vietnamese="Thêm nước, cảm ơn."
+  literal="thêm + nước, cảm ơn"
+/>
+
+<Callout type="note" title="Nghi thức gõ ngón tay khi được rót trà">
+Khi ai đó rót trà cho bạn ở bàn dim sum, người HK **gõ ngón trỏ và ngón giữa hai ba cái xuống bàn** — như đang "cảm ơn không lời". Đây là phong tục cổ truyền: bạn không cần dừng nói chuyện chỉ để cảm ơn, chỉ cần gõ là họ hiểu.
+
+Khi ấm trà cạn, **lật nắp ấm úp lên một bên** — nhân viên đi qua thấy là tự đến châm nước. Hai nghi thức này biết được, bạn đã thấy mình "thuộc về" cái bàn đó rồi.
+</Callout>
+
+## Cha chaan teng — đồ uống & món tủ
 
 <ChineseSentence
   variant="cantonese"
   text="凍奶茶"
   romanization="dung3 naai5 caa4"
-  vietnamese="Trà sữa đá (kiểu HK)."
-  literal="đá + sữa + trà"
+  vietnamese="Trà sữa đá (kiểu HK, lọc qua trà vớ)."
+  literal="lạnh + sữa + trà"
 />
 
 <ChineseSentence
   variant="cantonese"
-  text="凍檸茶"
-  romanization="dung3 ling4 caa4"
-  vietnamese="Trà chanh đá."
-  literal="đá + chanh + trà"
+  text="熱奶茶"
+  romanization="jit6 naai5 caa4"
+  vietnamese="Trà sữa nóng."
+  literal="nóng + sữa + trà"
 />
+
+<ChineseSentence
+  variant="cantonese"
+  text="凍檸茶, 少冰"
+  romanization="dung3 ling4 caa4, siu2 bing1"
+  vietnamese="Trà chanh đá, ít đá."
+  literal="lạnh + chanh + trà, ít + đá"
+/>
+
+<ChineseSentence
+  variant="cantonese"
+  text="鴛鴦"
+  romanization="jyun1 joeng1"
+  vietnamese="Trà sữa pha cà phê (đặc sản HK)."
+  literal="uyên + ương"
+/>
+
+<ChineseSentence
+  variant="cantonese"
+  text="菠蘿油"
+  romanization="bo1 lo4 jau4"
+  vietnamese="Bánh dứa kẹp bơ (đặc sản cha chaan teng)."
+  literal="dứa + dầu (bơ)"
+/>
+
+<ChineseSentence
+  variant="cantonese"
+  text="餐蛋麵"
+  romanization="caan1 daan2 min6"
+  vietnamese="Mì gói nấu thịt hộp với trứng."
+  literal="bữa ăn + trứng + mì"
+/>
+
+<ChineseSentence
+  variant="cantonese"
+  text="常餐"
+  romanization="soeng4 caan1"
+  vietnamese="Set thường (combo cố định, đổi theo quán)."
+  literal="thường + bữa ăn"
+/>
+
+<Callout type="tip" title="Trà sữa HK khác trà sữa Đài Loan">
+`凍奶茶` HK là trà đen pha rất đặc, lọc qua một cái túi vải dày (gọi là "trà vớ" — `絲襪奶茶 si1 mat6 naai5 caa4`), trộn với sữa đặc. Vị đậm, hơi đắng, không có trân châu. Nếu bạn muốn kiểu trân châu thì gọi `珍珠奶茶 (zan1 zyu1 naai5 caa4)` — nhưng đó là đặc sản Đài Loan, không phải HK.
+
+`鴛鴦 (jyun1 joeng1)` — "uyên ương" — là cà phê pha trà sữa, tỉ lệ thường 3 trà / 7 cà phê. Đặc sản chỉ HK có, không tìm thấy ở Đài Loan hay Trung đại lục.
+</Callout>
+
+## Câu nói thường gặp khi gọi món
 
 <ChineseSentence
   variant="cantonese"
@@ -71,6 +198,38 @@ import { ChineseSentence, ChineseDialogue, ChineseLine } from '@/components/mdx/
   romanization="m4 goi1"
   vietnamese="Cảm ơn / Cho hỏi / Phiền bạn..."
   literal="không + nên"
+/>
+
+<ChineseSentence
+  variant="cantonese"
+  text="唔該, 落單"
+  romanization="m4 goi1, lok6 daan1"
+  vietnamese="Cho mình gọi món."
+  literal="cảm ơn, đặt + đơn"
+/>
+
+<ChineseSentence
+  variant="cantonese"
+  text="走青"
+  romanization="zau2 cing1"
+  vietnamese="Không cho hành/rau xanh."
+  literal="đi + xanh"
+/>
+
+<ChineseSentence
+  variant="cantonese"
+  text="少甜"
+  romanization="siu2 tim4"
+  vietnamese="Ít ngọt."
+  literal="ít + ngọt"
+/>
+
+<ChineseSentence
+  variant="cantonese"
+  text="加底"
+  romanization="gaa1 dai2"
+  vietnamese="Thêm cơm/mì (thêm tinh bột nền)."
+  literal="thêm + đáy"
 />
 
 <ChineseSentence
@@ -83,64 +242,212 @@ import { ChineseSentence, ChineseDialogue, ChineseLine } from '@/components/mdx/
 
 <Callout type="tip" title="埋單 — câu thần chú kết bữa">
 `埋單 (maai4 daan1)` nghĩa đen là "gom đơn lại" — chính là yêu cầu tính tiền. Đây là từ Cantonese gốc, sau lan ra cả Mandarin (`买单` mǎi dān). Khi gọi, người HK thường vừa nói `唔該, 埋單!` vừa làm động tác viết tay trong không khí — như đang ký vào bill. Nhân viên hiểu ngay.
+
+Vài lệnh tắt rất "HK" khác mà tai bạn sẽ quen dần:
+- `走冰 (zau2 bing1)` — không đá.
+- `走青 (zau2 cing1)` — không hành lá.
+- `加底 (gaa1 dai2)` — thêm cơm/mì.
+- `走甜 (zau2 tim4)` — không đường.
 </Callout>
 
-## Hội thoại ngắn
+## Hội thoại 1 — Yum cha sáng chủ nhật
 
-<ChineseDialogue title="Gọi dim sum ở quán Mong Kok">
+<ChineseDialogue title="Quán dim sum Mong Kok — gia đình đi sáng chủ nhật">
 
 <ChineseLine
-  speaker="A"
+  speaker="Phục vụ"
   variant="cantonese"
-  text="唔該, 一籠蝦餃, 一籠燒賣"
-  romanization="m4 goi1, jat1 lung4 haa1 gaau2, jat1 lung4 siu1 maai2"
-  vietnamese="Cho mình một giỏ há cảo, một giỏ xíu mại nhé."
+  text="幾位呀? 飲乜茶?"
+  romanization="gei2 wai2 aa3? jam2 mat1 caa4?"
+  vietnamese="Mấy người ạ? Uống trà gì?"
 />
 
 <ChineseLine
-  speaker="B"
+  speaker="Lâm"
   variant="cantonese"
-  text="好. 飲咩呀?"
-  romanization="hou2. jam2 me1 aa3?"
-  vietnamese="Được. Anh uống gì?"
+  text="三位, 唔該. 一壺普洱"
+  romanization="saam1 wai2, m4 goi1. jat1 wu4 pou2 nei2"
+  vietnamese="Ba người, cảm ơn. Một ấm phổ nhĩ."
 />
 
 <ChineseLine
-  speaker="A"
+  speaker="Phục vụ"
   variant="cantonese"
-  text="一杯凍奶茶, 唔該"
-  romanization="jat1 bui1 dung3 naai5 caa4, m4 goi1"
-  vietnamese="Một ly trà sữa đá, cảm ơn."
+  text="好. 落單慢慢睇, 嗰邊有紙"
+  romanization="hou2. lok6 daan1 maan6 maan6 tai2, go2 bin1 jau5 zi2"
+  vietnamese="OK. Gọi món từ từ xem, bên kia có phiếu."
 />
 
 <ChineseLine
-  speaker="B"
+  speaker="Lâm"
   variant="cantonese"
-  text="好, 等陣"
-  romanization="hou2, dang2 zan6"
-  vietnamese="OK, đợi một chút."
+  text="唔該, 兩籠蝦餃, 一籠燒賣, 一籠叉燒包"
+  romanization="m4 goi1, loeng5 lung4 haa1 gaau2, jat1 lung4 siu1 maai2, jat1 lung4 caa1 siu1 baau1"
+  vietnamese="Cho mình hai giỏ há cảo, một giỏ xíu mại, một giỏ bánh bao xá xíu."
 />
 
 <ChineseLine
-  speaker="A"
+  speaker="Phục vụ"
   variant="cantonese"
-  text="唔該, 埋單!"
-  romanization="m4 goi1, maai4 daan1!"
-  vietnamese="Cho mình tính tiền nhé!"
+  text="仲有冇?"
+  romanization="zung6 jau5 mou5?"
+  vietnamese="Còn gì nữa không?"
 />
 
 <ChineseLine
-  speaker="B"
+  speaker="Lâm"
   variant="cantonese"
-  text="好, 多謝!"
-  romanization="hou2, do1 ze6!"
-  vietnamese="OK, cảm ơn anh!"
+  text="加一碟蝦腸, 同埋一籠鳳爪"
+  romanization="gaa1 jat1 dip6 haa1 coeng2, tung4 maai4 jat1 lung4 fung6 zaau2"
+  vietnamese="Thêm một đĩa bánh cuốn tôm, và một giỏ chân gà."
+/>
+
+<ChineseLine
+  speaker="Phục vụ"
+  variant="cantonese"
+  text="收到. 等陣上"
+  romanization="sau1 dou2. dang2 zan6 soeng5"
+  vietnamese="Nhận đơn. Lát sẽ ra."
+/>
+
+<ChineseLine
+  speaker="Lâm"
+  variant="cantonese"
+  text="唔該, 加水"
+  romanization="m4 goi1, gaa1 seoi2"
+  vietnamese="Cảm ơn, thêm nước (cho ấm trà)."
+/>
+
+<ChineseLine
+  speaker="Phục vụ"
+  variant="cantonese"
+  text="好, 即刻嚟"
+  romanization="hou2, zik1 hak1 lai4"
+  vietnamese="OK, tới ngay."
+/>
+
+<ChineseLine
+  speaker="Lâm"
+  variant="cantonese"
+  text="食飽喇. 唔該, 埋單!"
+  romanization="sik6 baau2 laa3. m4 goi1, maai4 daan1!"
+  vietnamese="No rồi. Cho tính tiền nhé!"
+/>
+
+<ChineseLine
+  speaker="Phục vụ"
+  variant="cantonese"
+  text="三百二十蚊. 多謝晒!"
+  romanization="saam1 baak3 ji6 sap6 man1. do1 ze6 saai3!"
+  vietnamese="Ba trăm hai mươi đồng. Cảm ơn anh nhiều!"
 />
 
 </ChineseDialogue>
 
-<Callout type="tip" title="Trà sữa HK khác trà sữa Đài Loan">
-`凍奶茶` HK là trà đen pha rất đặc, lọc qua một cái túi vải dày (gọi là "trà vớ" — `絲襪奶茶`), trộn với sữa đặc. Vị đậm, hơi đắng, không có trân châu. Nếu bạn muốn kiểu trân châu thì gọi `珍珠奶茶 (zan1 zyu1 naai5 caa4)` — nhưng đó là đặc sản Đài Loan, không phải HK.
+<Callout type="note" title="`一壺` vs `一杯` — chọn lượng từ đúng">
+Cantonese rất chú trọng **lượng từ** (giống tiếng Việt: một *con* mèo, một *cái* bàn). Khi gọi đồ uống:
+- `一杯 (jat1 bui1)` — một ly (cho đồ uống cá nhân: trà sữa, cà phê).
+- `一壺 (jat1 wu4)` — một ấm (cho trà chung trên bàn dim sum).
+- `一支 (jat1 zi1)` — một chai (cho bia, nước ngọt chai).
+- `一罐 (jat1 gun3)` — một lon (cho lon Coca, bia lon).
+
+Nói nhầm lượng từ không gây hiểu lầm nghiêm trọng, nhưng người HK sẽ thấy bạn "rành đời" hơn nếu dùng đúng.
 </Callout>
+
+## Hội thoại 2 — Cha chaan teng buổi trưa
+
+<ChineseDialogue title="Cha chaan teng Wan Chai — ăn trưa nhanh 30 phút">
+
+<ChineseLine
+  speaker="Phục vụ"
+  variant="cantonese"
+  text="一位? 坐呢度啦"
+  romanization="jat1 wai2? co5 ni1 dou6 laa1"
+  vietnamese="Một người hả? Ngồi đây đi."
+/>
+
+<ChineseLine
+  speaker="Lâm"
+  variant="cantonese"
+  text="唔該. 有冇 menu?"
+  romanization="m4 goi1. jau5 mou5 menu?"
+  vietnamese="Cảm ơn. Có menu không?"
+/>
+
+<ChineseLine
+  speaker="Phục vụ"
+  variant="cantonese"
+  text="今日常餐有餐蛋麵或者火腿三文治"
+  romanization="gam1 jat6 soeng4 caan1 jau5 caan1 daan2 min6 waak6 ze2 fo2 teoi2 saam1 man4 zi6"
+  vietnamese="Hôm nay set thường có mì gói trứng-thịt hộp hoặc sandwich jambon."
+/>
+
+<ChineseLine
+  speaker="Lâm"
+  variant="cantonese"
+  text="俾我餐蛋麵啦. 飲品要凍奶茶, 少冰"
+  romanization="bei2 ngo5 caan1 daan2 min6 laa1. jam2 ban2 jiu3 dung3 naai5 caa4, siu2 bing1"
+  vietnamese="Cho mình mì gói trứng-thịt hộp. Đồ uống lấy trà sữa đá, ít đá."
+/>
+
+<ChineseLine
+  speaker="Phục vụ"
+  variant="cantonese"
+  text="要走青嗎?"
+  romanization="jiu3 zau2 cing1 maa3?"
+  vietnamese="Có cần không cho hành không?"
+/>
+
+<ChineseLine
+  speaker="Lâm"
+  variant="cantonese"
+  text="唔使, 落多啲蔥都得. 仲想加多隻蛋"
+  romanization="m4 sai2, lok6 do1 di1 cung1 dou1 dak1. zung6 soeng2 gaa1 do1 zek3 daan2"
+  vietnamese="Không cần, cho nhiều hành cũng được. Muốn thêm một quả trứng nữa."
+/>
+
+<ChineseLine
+  speaker="Phục vụ"
+  variant="cantonese"
+  text="加蛋多五蚊. OK?"
+  romanization="gaa1 daan2 do1 ng5 man1. OK?"
+  vietnamese="Thêm trứng thêm 5 đồng. OK?"
+/>
+
+<ChineseLine
+  speaker="Lâm"
+  variant="cantonese"
+  text="OK, 唔該晒"
+  romanization="OK, m4 goi1 saai3"
+  vietnamese="OK, cảm ơn nhiều."
+/>
+
+<ChineseLine
+  speaker="Phục vụ"
+  variant="cantonese"
+  text="好, 五分鐘左右"
+  romanization="hou2, ng5 fan1 zung1 zo2 jau2"
+  vietnamese="OK, khoảng năm phút."
+/>
+
+<ChineseLine
+  speaker="Lâm"
+  variant="cantonese"
+  text="唔該, 埋單. 用八達通"
+  romanization="m4 goi1, maai4 daan1. jung6 baat3 daat6 tung1"
+  vietnamese="Cho tính tiền. Dùng Octopus."
+/>
+
+</ChineseDialogue>
+
+<Callout type="tip" title="八達通 (Octopus card) — thẻ thần thánh ở HK">
+`八達通 (baat3 daat6 tung1)` — nghĩa đen "tám hướng đều thông" — là thẻ thanh toán không tiếp xúc của HK. Dùng được ở MTR, bus, taxi (một số xe), cha chaan teng, 7-Eleven, McDonald's, siêu thị. Cứ chạm thẻ vào máy là xong, không cần đếm tiền lẻ.
+
+Du khách nên mua thẻ này ngay ở quầy MTR sân bay — giá HK$50 ký quỹ + nạp tiền. Khi nói `用八達通 (jung6 baat3 daat6 tung1)` — "dùng Octopus" — nhân viên hiểu ngay, đưa máy POS ra cho bạn chạm.
+</Callout>
+
+## Tự kiểm tra nhanh
+
+Bấm nghe lại câu `唔該, 埋單!` và `一籠蝦餃` vài lần. Hai câu này gần như đảm bảo bạn không "câm" ở bất kỳ quán dim sum nào tại HK. Sau đó đọc lại hội thoại 2 chú ý cấu trúc `Tôi muốn + món + cách chế biến (走青/少冰/加底)` — đây là công thức gọi món chuẩn ở cha chaan teng.
 
 Bài tiếp theo: **MTR, taxi & hỏi đường** — đi tàu điện ngầm, đưa địa chỉ cho tài xế, hỏi quẹo trái quẹo phải.

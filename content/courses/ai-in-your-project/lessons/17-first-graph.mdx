@@ -47,6 +47,42 @@ async function agentNode(state: GraphState): Promise<Partial<GraphState>> {
 
 If the reply has tool calls, the router will send us to the tools node next. If it doesn't, the router will send us to `END`. Either way, the agent node's job is done.
 
+#### Example — what `agentNode` does on round 1
+
+The runtime has just started. State coming in is the seed transcript — one `HumanMessage`:
+
+```ts
+state.messages = [
+  HumanMessage("Who hasn't ordered in 60 days?")
+]
+```
+
+Inside the node, `model.bindTools(allTools).invoke([HumanMessage(...)])` runs. The model sees `customers.search` among its bound tools and decides it needs to query the database. It returns:
+
+```ts
+AIMessage({
+  content: "",                                    // ← no prose yet — the model is "thinking via a tool"
+  tool_calls: [
+    {
+      id: "call_a3f1",                            // ← unique id assigned by the model
+      name: "customers.search",
+      args: { lastOrderBefore: "2026-03-17", limit: 100 }
+    }
+  ]
+})
+```
+
+`agentNode` returns `{ messages: [aiMessage] }`. The reducer on the `messages` channel appends it. State after the node:
+
+```ts
+[
+  HumanMessage("Who hasn't ordered in 60 days?"),
+  AIMessage(tool_calls: [customers.search])      // ← state.messages.at(-1)
+]
+```
+
+The conditional edge router (section 04) will read `state.messages.at(-1)`, see `tool_calls.length === 1`, and route the runtime to `tools`. If instead the model had returned an `AIMessage` with no `tool_calls` and a finished prose answer, the router would have routed to `END` and we'd be done in a single round.
+
 ## 03 — The tools node
 
 The tools node looks at the most recent message — which the agent just appended — and runs each tool call it finds. Each result is a `ToolMessage` keyed back to the original call's `id`, so the model can match results to requests on the next turn.
@@ -68,6 +104,60 @@ async function toolsNode(state: GraphState): Promise<Partial<GraphState>> {
 ```
 
 `TOOL_REGISTRY` is just a `Record<string, Tool>` you build once at startup from the same tools you bound to the model. The reducer on `messages` appends each `ToolMessage` to the transcript automatically.
+
+#### Example — what `toolsNode` does after the agent decides
+
+Picking up exactly where the agent-node example left off. State coming in:
+
+```ts
+state.messages = [
+  HumanMessage("Who hasn't ordered in 60 days?"),
+  AIMessage({                                     // ← state.messages.at(-1)
+    content: "",
+    tool_calls: [
+      { id: "call_a3f1", name: "customers.search", args: { lastOrderBefore: "2026-03-17", limit: 100 } }
+    ]
+  })
+]
+```
+
+Inside the node, four things happen in order:
+
+1. **Find the trigger.** `state.messages.at(-1)` → the `AIMessage` above.
+2. **Pull the calls.** `last.tool_calls` → an array of one `ToolCall`.
+3. **Execute each call against the registry.** For this single call: `TOOL_REGISTRY['customers.search'].invoke({ lastOrderBefore: '2026-03-17', limit: 100 })`. The tool returns a string (typical pattern — most tools return JSON-as-string):
+
+   ```json
+   [
+     {"id":"c_42","email":"linh@example.com","lastOrderAt":"2025-12-01"},
+     {"id":"c_57","email":"trang@example.com","lastOrderAt":"2025-11-22"}
+   ]
+   ```
+
+4. **Wrap each result in a `ToolMessage`, keyed by `tool_call_id`.** The id is what lets the model match results back to its original requests on the next round.
+
+   ```ts
+   new ToolMessage({
+     tool_call_id: "call_a3f1",                   // ← MUST match the call's id
+     content: '[{"id":"c_42",...},{"id":"c_57",...}]'
+   })
+   ```
+
+`toolsNode` returns `{ messages: [toolMessage] }`. The reducer appends. State after the node:
+
+```ts
+[
+  HumanMessage("Who hasn't ordered in 60 days?"),
+  AIMessage(tool_calls: [customers.search]),
+  ToolMessage(tool_call_id: "call_a3f1", content: "[{...},{...}]")  // ← .at(-1)
+]
+```
+
+The unconditional edge `tools → agent` fires next. The runtime loops back to `agentNode`. On round 2 the model now sees the customer list at the end of the transcript and writes a prose answer (no more `tool_calls`); the router routes to `END`; the run terminates.
+
+<Callout type="tip" title="Why the `tool_call_id` matters">
+If the agent had emitted **two** tool calls in one `AIMessage` (parallel reads — say `customers.search` AND `orders.totalThisWeek`), `toolsNode` would loop twice and emit two `ToolMessage`s. Each carries the `tool_call_id` of the originating call. On the next round, the model sees both results in the transcript and pairs them up by id — *"`call_a3f1` was the customers query, this is its result; `call_b7e2` was the orders query, that's its result."* Drop the id and the model has to guess from positional order — which works until it doesn't (a tool errors out and shifts the array).
+</Callout>
 
 ## 04 — The router
 
@@ -168,6 +258,42 @@ async function agentNode(state: GraphState): Promise<Partial<GraphState>> {
 
 Nếu reply có tool call, router sẽ đưa ta tới tools node. Nếu không, router sẽ đưa ta tới `END`. Dù sao, công việc của agent node đã xong.
 
+#### Ví dụ — `agentNode` làm gì ở vòng 1
+
+Runtime vừa bắt đầu. State đi vào là transcript hạt giống — đúng một `HumanMessage`:
+
+```ts
+state.messages = [
+  HumanMessage("Khách hàng nào chưa đặt hàng 60 ngày qua?")
+]
+```
+
+Bên trong node, `model.bindTools(allTools).invoke([HumanMessage(...)])` chạy. Model thấy có `customers.search` trong danh sách tool đã bind và quyết định cần truy vấn DB. Nó trả về:
+
+```ts
+AIMessage({
+  content: "",                                    // ← chưa có prose — model đang "nghĩ qua tool"
+  tool_calls: [
+    {
+      id: "call_a3f1",                            // ← id duy nhất do model tạo
+      name: "customers.search",
+      args: { lastOrderBefore: "2026-03-17", limit: 100 }
+    }
+  ]
+})
+```
+
+`agentNode` return `{ messages: [aiMessage] }`. Reducer của channel `messages` append nó vào. State sau khi node chạy xong:
+
+```ts
+[
+  HumanMessage("Khách hàng nào chưa đặt hàng 60 ngày qua?"),
+  AIMessage(tool_calls: [customers.search])      // ← state.messages.at(-1)
+]
+```
+
+Router của edge có điều kiện (mục 04) sẽ đọc `state.messages.at(-1)`, thấy `tool_calls.length === 1`, và đẩy runtime sang `tools`. Nếu thay vào đó model trả về `AIMessage` không có `tool_calls` và đã viết câu trả lời prose hoàn chỉnh, router sẽ đẩy thẳng tới `END` — xong trong đúng một vòng.
+
 ## 03 — Tools node
 
 Tools node nhìn vào message mới nhất — cái mà agent vừa append — và chạy mỗi tool call nó tìm thấy. Mỗi kết quả là một `ToolMessage` được khoá lại theo `id` của call gốc, để model có thể đối chiếu kết quả với request ở lượt sau.
@@ -189,6 +315,60 @@ async function toolsNode(state: GraphState): Promise<Partial<GraphState>> {
 ```
 
 `TOOL_REGISTRY` chỉ là một `Record<string, Tool>` bạn build một lần lúc khởi động từ chính những tool bạn đã bind vào model. Reducer trên `messages` tự động append từng `ToolMessage` vào transcript.
+
+#### Ví dụ — `toolsNode` làm gì sau khi agent quyết định
+
+Bắt đúng nơi ví dụ agent node bỏ lại. State đi vào:
+
+```ts
+state.messages = [
+  HumanMessage("Khách hàng nào chưa đặt hàng 60 ngày qua?"),
+  AIMessage({                                     // ← state.messages.at(-1)
+    content: "",
+    tool_calls: [
+      { id: "call_a3f1", name: "customers.search", args: { lastOrderBefore: "2026-03-17", limit: 100 } }
+    ]
+  })
+]
+```
+
+Bên trong node, bốn việc xảy ra theo thứ tự:
+
+1. **Tìm cái "kích hoạt".** `state.messages.at(-1)` → `AIMessage` ở trên.
+2. **Rút danh sách call ra.** `last.tool_calls` → mảng một `ToolCall`.
+3. **Thực thi từng call qua registry.** Với call duy nhất này: `TOOL_REGISTRY['customers.search'].invoke({ lastOrderBefore: '2026-03-17', limit: 100 })`. Tool trả về một string (pattern phổ biến — hầu hết tool trả JSON-stringify):
+
+   ```json
+   [
+     {"id":"c_42","email":"linh@example.com","lastOrderAt":"2025-12-01"},
+     {"id":"c_57","email":"trang@example.com","lastOrderAt":"2025-11-22"}
+   ]
+   ```
+
+4. **Bọc mỗi kết quả vào một `ToolMessage`, keyed theo `tool_call_id`.** Cái id này chính là thứ giúp model đối chiếu kết quả với request ban đầu ở vòng kế tiếp.
+
+   ```ts
+   new ToolMessage({
+     tool_call_id: "call_a3f1",                   // ← BẮT BUỘC trùng id của call
+     content: '[{"id":"c_42",...},{"id":"c_57",...}]'
+   })
+   ```
+
+`toolsNode` return `{ messages: [toolMessage] }`. Reducer append. State sau khi node chạy xong:
+
+```ts
+[
+  HumanMessage("Khách hàng nào chưa đặt hàng 60 ngày qua?"),
+  AIMessage(tool_calls: [customers.search]),
+  ToolMessage(tool_call_id: "call_a3f1", content: "[{...},{...}]")  // ← .at(-1)
+]
+```
+
+Edge vô điều kiện `tools → agent` fire tiếp theo. Runtime quay lại `agentNode`. Ở vòng 2, model giờ đã thấy danh sách khách hàng ở cuối transcript và viết câu trả lời prose (không còn `tool_calls` nữa); router đẩy runtime tới `END`; run kết thúc.
+
+<Callout type="tip" title="Vì sao `tool_call_id` quan trọng?">
+Nếu agent emit **hai** tool call trong cùng một `AIMessage` (đọc song song — ví dụ `customers.search` VÀ `orders.totalThisWeek`), `toolsNode` sẽ lặp hai lần và emit hai `ToolMessage`. Mỗi cái mang `tool_call_id` của call gốc. Ở vòng kế, model thấy cả hai kết quả trong transcript và ghép theo id — *"`call_a3f1` là query khách hàng, đây là kết quả của nó; `call_b7e2` là query orders, đó là kết quả của nó."* Bỏ id đi và model phải đoán theo thứ tự xuất hiện — vẫn chạy đúng cho tới khi không đúng (một tool lỗi và xáo mảng).
+</Callout>
 
 ## 04 — Router
 

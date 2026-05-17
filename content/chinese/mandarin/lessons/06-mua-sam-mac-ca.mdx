@@ -2,14 +2,16 @@ import { Callout } from '@/components/mdx/callout';
 import { ChineseSentence, ChineseDialogue, ChineseLine } from '@/components/mdx/chinese/sentence';
 
 <Callout type="note" title="Trong bài này">
-- Hai câu thần thánh khi mua sắm: `多少钱?` (bao nhiêu?) và `太贵了!` (đắt quá!).
-- Cách xin thử đồ, đổi size, hỏi màu khác.
-- Một đoạn mặc cả ngắn ở chợ đêm — copy là dùng được.
+- Hai câu thần thánh khi mua sắm: `多少钱?` (bao nhiêu?) và `太贵了!` (đắt quá!), kèm bản đầy đủ "đắt quá rồi, bớt chút đi được không?".
+- Cách xin thử đồ, đổi size, hỏi màu khác, hỏi chất liệu.
+- Hai đoạn hội thoại: mặc cả áo ở chợ đêm, và mua trái cây ở chợ sáng theo cân.
 </Callout>
 
 Ở chợ đêm Trung Quốc, mặc cả là chuyện bình thường — người bán còn vui khi khách trả giá (chứng tỏ khách quan tâm). Bạn không cần nói giỏi, chỉ cần đủ tự tin để bật ra `太贵了, 便宜点!` là đã giảm được kha khá.
 
-## Hỏi giá & mặc cả
+Bài này cho hai tầng: bộ câu "lõi" 3-4 chữ để bắt đầu, và bộ câu "người bản xứ" dài hơn — đủ để đối phương thấy bạn không phải khách lần đầu, từ đó báo giá thật hơn.
+
+## Hỏi giá & mặc cả — bản lõi
 
 <ChineseSentence
   variant="mandarin"
@@ -35,11 +37,68 @@ import { ChineseSentence, ChineseDialogue, ChineseLine } from '@/components/mdx/
   literal="rẻ + chút"
 />
 
+<ChineseSentence
+  variant="mandarin"
+  text="可以刷卡吗?"
+  romanization="kě yǐ shuā kǎ ma?"
+  vietnamese="Quẹt thẻ được không?"
+  literal="có thể + quẹt + thẻ + (câu hỏi)"
+/>
+
 <Callout type="tip" title="Bộ ba mặc cả">
 Cứ lặp đúng thứ tự: `多少钱?` → người bán báo giá → bạn nhăn mặt `太贵了!` → tiếp luôn `便宜点!`. Người bán thường giảm 10-30%. Nếu vẫn đắt, làm bộ bỏ đi vài bước — họ hay gọi lại với giá tốt hơn. Đây là kịch bản ai cũng dùng, không có gì phải ngại.
 </Callout>
 
-## Thử đồ, đổi size, đổi màu
+## Hỏi giá & mặc cả — bản người bản xứ hay dùng
+
+Câu ngắn "lộ ra" bạn là khách Tây ngay. Câu dài dưới đây có chút "gia vị" — `这个能不能...`, `算我便宜点`, `我是老顾客了` — khiến đối phương tin bạn biết chợ.
+
+<ChineseSentence
+  variant="mandarin"
+  text="老板, 这个怎么卖? 一斤多少钱?"
+  romanization="lǎo bǎn, zhè ge zěn me mài? yī jīn duō shao qián?"
+  vietnamese="Ông chủ, cái này bán thế nào? Một cân bao nhiêu ạ?"
+  literal="ông chủ, cái này + thế nào + bán, một + cân + bao nhiêu + tiền"
+/>
+
+<ChineseSentence
+  variant="mandarin"
+  text="太贵了吧, 别的地方才一半的价钱"
+  romanization="tài guì le ba, bié de dì fang cái yí bàn de jià qián"
+  vietnamese="Đắt quá rồi, chỗ khác chỉ có nửa giá thôi."
+  literal="quá + đắt + (rồi + nhỉ), khác + (của) + nơi + chỉ + một + nửa + (của) + giá + tiền"
+/>
+
+<ChineseSentence
+  variant="mandarin"
+  text="老板, 算我便宜点, 我多买几件"
+  romanization="lǎo bǎn, suàn wǒ pián yi diǎn, wǒ duō mǎi jǐ jiàn"
+  vietnamese="Ông chủ, tính cho em rẻ chút, em mua thêm vài món."
+  literal="ông chủ, tính + tôi + rẻ + chút, tôi + nhiều + mua + mấy + (lượng từ)"
+/>
+
+<ChineseSentence
+  variant="mandarin"
+  text="一百块, 行不行? 不行我就走了"
+  romanization="yī bǎi kuài, xíng bu xíng? bù xíng wǒ jiù zǒu le"
+  vietnamese="100 tệ thôi nhé? Không được thì em đi đây."
+  literal="một + trăm + (đơn vị tiền), được + không + được, không + được + tôi + thì + đi + (rồi)"
+/>
+
+<ChineseSentence
+  variant="mandarin"
+  text="好吧, 就一百二, 不能再少了"
+  romanization="hǎo ba, jiù yī bǎi èr, bù néng zài shǎo le"
+  vietnamese="Được rồi, vậy 120, không bớt được nữa đâu."
+  literal="tốt + (đi), thì + một + trăm + hai, không + có thể + lại + ít + (rồi)"
+/>
+
+<Callout type="tip" title="Vì sao thêm `老板` và làm bộ bỏ đi?">
+- `老板 (lǎo bǎn)` — ông chủ. Người Trung gọi bất kỳ ai đứng quầy là `老板`, dù họ chỉ bán chuối ngoài chợ. Gọi `老板` thay vì `先生` nghe thân thiện và đúng chợ hơn nhiều.
+- `不行我就走了 (bù xíng wǒ jiù zǒu le)` — "không được thì em đi đây". Đây là "vũ khí hạt nhân" trong mặc cả Trung Quốc. Khi bạn quay người bước đi 2-3 bước, 70% trường hợp người bán sẽ gọi lại với giá thấp hơn. Bí quyết là phải đi thật, không dọa suông.
+</Callout>
+
+## Thử đồ, đổi size, đổi màu — bản lõi
 
 <ChineseSentence
   variant="mandarin"
@@ -73,44 +132,138 @@ Cứ lặp đúng thứ tự: `多少钱?` → người bán báo giá → bạn
   literal="có + khác + màu + (câu hỏi)"
 />
 
+<ChineseSentence
+  variant="mandarin"
+  text="这是什么材料?"
+  romanization="zhè shì shén me cái liào?"
+  vietnamese="Đây là chất liệu gì?"
+  literal="đây + là + cái gì + chất liệu"
+/>
+
 <Callout type="note" title="Mẹo từ vựng">
-`号 (hào)` nghĩa là "số/cỡ" — `大号` size L, `中号` (zhōng hào) size M, `小号` size S. Còn `颜色 (yán sè)` là "màu sắc"; muốn nói màu cụ thể: `红色` (hóng sè — đỏ), `黑色` (hēi sè — đen), `白色` (bái sè — trắng).
+`号 (hào)` nghĩa là "số/cỡ" — `大号` size L, `中号` (zhōng hào) size M, `小号` size S, `加大号` (jiā dà hào) XL. Còn `颜色 (yán sè)` là "màu sắc"; muốn nói màu cụ thể:
+- `红色 (hóng sè)` đỏ
+- `黑色 (hēi sè)` đen
+- `白色 (bái sè)` trắng
+- `蓝色 (lán sè)` xanh dương
+- `绿色 (lǜ sè)` xanh lá
+
+`材料 (cái liào)` = chất liệu. Hỏi `这是纯棉的吗?` (zhè shì chún mián de ma? — có phải cotton 100% không) là cách "show off" rằng bạn biết hàng.
 </Callout>
 
-## Hội thoại ngắn
+## Thử đồ, đổi size — bản người bản xứ hay dùng
 
-<ChineseDialogue title="Mặc cả một chiếc áo ở chợ đêm">
+<ChineseSentence
+  variant="mandarin"
+  text="老板, 这件可以试穿一下吗? 试衣间在哪儿?"
+  romanization="lǎo bǎn, zhè jiàn kě yǐ shì chuān yí xià ma? shì yī jiān zài nǎr?"
+  vietnamese="Ông chủ, cái này thử mặc được không? Phòng thử đồ ở đâu ạ?"
+  literal="ông chủ, cái này + (lượng từ áo) + có thể + thử + mặc + một + chút, thử + áo + gian + ở + đâu"
+/>
+
+<ChineseSentence
+  variant="mandarin"
+  text="这件有点小, 麻烦换个大一号的"
+  romanization="zhè jiàn yǒu diǎn xiǎo, má fan huàn ge dà yī hào de"
+  vietnamese="Cái này hơi nhỏ, làm phiền đổi size lớn hơn một bậc."
+  literal="cái này + (lượng từ áo) + có chút + nhỏ, phiền + đổi + (lượng từ) + lớn + một + cỡ + (của)"
+/>
+
+<ChineseSentence
+  variant="mandarin"
+  text="同款有黑色或者白色吗?"
+  romanization="tóng kuǎn yǒu hēi sè huò zhě bái sè ma?"
+  vietnamese="Mẫu này có màu đen hoặc trắng không ạ?"
+  literal="cùng + kiểu + có + đen + màu + hoặc + trắng + màu + (câu hỏi)"
+/>
+
+<ChineseSentence
+  variant="mandarin"
+  text="这是纯棉的吗? 会不会缩水?"
+  romanization="zhè shì chún mián de ma? huì bu huì suō shuǐ?"
+  vietnamese="Cái này có phải cotton 100% không ạ? Có bị co rút khi giặt không?"
+  literal="đây + là + thuần + cotton + (của) + (câu hỏi), có + không + có + co + nước"
+/>
+
+<ChineseSentence
+  variant="mandarin"
+  text="不太合身, 再看看别的吧, 谢谢"
+  romanization="bú tài hé shēn, zài kàn kan bié de ba, xiè xie"
+  vietnamese="Không vừa người lắm, xem mẫu khác đã nhé, cảm ơn."
+  literal="không + lắm + hợp + người, lại + xem + xem + khác + (đi), cảm ơn"
+/>
+
+<Callout type="tip" title="`合身` và `缩水` — câu hỏi của người mua hàng có kinh nghiệm">
+- `合身 (hé shēn)` — "vừa người". Nói `不太合身` khi đồ rộng/chật, người bán sẽ tự đưa size khác mà không cần bạn yêu cầu.
+- `缩水 (suō shuǐ)` — "co nước" tức là co rút sau khi giặt. Đồ rẻ ngoài chợ Trung Quốc rất hay co lại 1 size sau lần giặt đầu. Hỏi `会不会缩水?` là dấu hiệu bạn không phải khách dễ lừa.
+</Callout>
+
+## Hội thoại 1 — Mặc cả áo ở chợ đêm
+
+<ChineseDialogue title="Chợ đêm Thượng Hải — chọn áo khoác">
 
 <ChineseLine
   speaker="A"
   variant="mandarin"
-  text="老板, 这个多少钱?"
-  romanization="lǎo bǎn, zhè ge duō shao qián?"
-  vietnamese="Ông chủ ơi, cái này bao nhiêu?"
+  text="老板, 这件外套怎么卖? 多少钱?"
+  romanization="lǎo bǎn, zhè jiàn wài tào zěn me mài? duō shao qián?"
+  vietnamese="Ông chủ, cái áo khoác này bán thế nào? Bao nhiêu ạ?"
 />
 
 <ChineseLine
   speaker="B"
   variant="mandarin"
-  text="两百块"
-  romanization="liǎng bǎi kuài"
-  vietnamese="Hai trăm tệ."
+  text="这件三百八, 纯棉的, 质量很好"
+  romanization="zhè jiàn sān bǎi bā, chún mián de, zhì liàng hěn hǎo"
+  vietnamese="Cái này 380, cotton 100%, chất lượng tốt lắm."
 />
 
 <ChineseLine
   speaker="A"
   variant="mandarin"
-  text="太贵了! 便宜点"
-  romanization="tài guì le! pián yi diǎn"
-  vietnamese="Đắt quá! Bớt chút đi."
+  text="太贵了吧! 别的地方才一半的价钱"
+  romanization="tài guì le ba! bié de dì fang cái yí bàn de jià qián"
+  vietnamese="Đắt quá rồi! Chỗ khác chỉ có nửa giá thôi."
 />
 
 <ChineseLine
   speaker="B"
   variant="mandarin"
-  text="一百五, 怎么样?"
-  romanization="yī bǎi wǔ, zěn me yàng?"
-  vietnamese="Một trăm năm, thấy sao?"
+  text="不可能, 一分钱一分货. 你多少能接受?"
+  romanization="bù kě néng, yī fēn qián yī fēn huò. nǐ duō shao néng jiē shòu?"
+  vietnamese="Không thể nào, tiền nào của nấy. Bạn trả bao nhiêu thì được?"
+/>
+
+<ChineseLine
+  speaker="A"
+  variant="mandarin"
+  text="一百五, 行不行? 我多买几件"
+  romanization="yī bǎi wǔ, xíng bu xíng? wǒ duō mǎi jǐ jiàn"
+  vietnamese="150, được không? Mình mua thêm vài cái nữa."
+/>
+
+<ChineseLine
+  speaker="B"
+  variant="mandarin"
+  text="一百五太低了, 两百八吧, 我亏本卖你"
+  romanization="yī bǎi wǔ tài dī le, liǎng bǎi bā ba, wǒ kuī běn mài nǐ"
+  vietnamese="150 thấp quá, vậy 280 đi, tui lỗ vốn bán cho bạn đấy."
+/>
+
+<ChineseLine
+  speaker="A"
+  variant="mandarin"
+  text="不行, 两百块, 不行我就走了"
+  romanization="bù xíng, liǎng bǎi kuài, bù xíng wǒ jiù zǒu le"
+  vietnamese="Không được, 200 tệ, không thì em đi đây."
+/>
+
+<ChineseLine
+  speaker="B"
+  variant="mandarin"
+  text="好吧好吧, 两百二, 不能再少了!"
+  romanization="hǎo ba hǎo ba, liǎng bǎi èr, bù néng zài shǎo le!"
+  vietnamese="Thôi được rồi, 220, không bớt được nữa đâu!"
 />
 
 <ChineseLine
@@ -118,21 +271,143 @@ Cứ lặp đúng thứ tự: `多少钱?` → người bán báo giá → bạn
   variant="mandarin"
   text="可以试试吗? 有大号吗?"
   romanization="kě yǐ shì shi ma? yǒu dà hào ma?"
-  vietnamese="Thử được không? Có size lớn không?"
+  vietnamese="Thử được không ạ? Có size lớn không?"
 />
 
 <ChineseLine
   speaker="B"
   variant="mandarin"
-  text="有, 你试试"
-  romanization="yǒu, nǐ shì shi"
-  vietnamese="Có, anh/chị thử đi."
+  text="有, 试衣间在那边. 你试试看"
+  romanization="yǒu, shì yī jiān zài nà biān. nǐ shì shi kàn"
+  vietnamese="Có, phòng thử ở bên kia. Bạn thử xem."
+/>
+
+<ChineseLine
+  speaker="A"
+  variant="mandarin"
+  text="挺合身的. 好, 就要这件. 可以微信支付吗?"
+  romanization="tǐng hé shēn de. hǎo, jiù yào zhè jiàn. kě yǐ Wēi xìn zhī fù ma?"
+  vietnamese="Khá vừa người. OK, lấy cái này. WeChat Pay được không ạ?"
+/>
+
+<ChineseLine
+  speaker="B"
+  variant="mandarin"
+  text="可以, 扫这个码. 谢谢惠顾!"
+  romanization="kě yǐ, sǎo zhè ge mǎ. xiè xie huì gù!"
+  vietnamese="Được, quét mã này. Cảm ơn đã ủng hộ!"
 />
 
 </ChineseDialogue>
 
+<Callout type="note" title="`一分钱一分货` — câu cửa miệng của người bán">
+`一分钱一分货 (yī fēn qián yī fēn huò)` — "một xu tiền một xu hàng", tương đương "tiền nào của nấy". Người bán Trung Quốc dùng câu này để biện hộ giá cao. Đáp trả thông minh: `质量好我不否认, 但是价格也得合理` (chất lượng tốt em không phủ nhận, nhưng giá cũng phải hợp lý). Câu này quá dài cho người mới — đơn giản nhất là cười và `不行我就走了`.
+</Callout>
+
+## Hội thoại 2 — Mua trái cây ở chợ sáng theo cân
+
+<ChineseDialogue title="Chợ sáng — mua táo và nho">
+
+<ChineseLine
+  speaker="A"
+  variant="mandarin"
+  text="老板早! 这苹果怎么卖? 一斤多少钱?"
+  romanization="lǎo bǎn zǎo! zhè píng guǒ zěn me mài? yī jīn duō shao qián?"
+  vietnamese="Chào sớm ông chủ! Táo này bán thế nào? Một cân bao nhiêu?"
+/>
+
+<ChineseLine
+  speaker="B"
+  variant="mandarin"
+  text="今天的苹果很新鲜, 八块一斤"
+  romanization="jīn tiān de píng guǒ hěn xīn xiān, bā kuài yī jīn"
+  vietnamese="Táo hôm nay tươi lắm, 8 tệ một cân."
+/>
+
+<ChineseLine
+  speaker="A"
+  variant="mandarin"
+  text="可以尝一个吗?"
+  romanization="kě yǐ cháng yí ge ma?"
+  vietnamese="Cho em nếm một quả được không?"
+/>
+
+<ChineseLine
+  speaker="B"
+  variant="mandarin"
+  text="可以, 你尝尝, 又甜又脆"
+  romanization="kě yǐ, nǐ cháng chang, yòu tián yòu cuì"
+  vietnamese="Được, bạn nếm thử đi, vừa ngọt vừa giòn."
+/>
+
+<ChineseLine
+  speaker="A"
+  variant="mandarin"
+  text="确实不错. 给我两斤. 那葡萄呢?"
+  romanization="què shí bú cuò. gěi wǒ liǎng jīn. nà pú tao ne?"
+  vietnamese="Đúng là ngon thật. Cho em 2 cân. Còn nho thì sao?"
+/>
+
+<ChineseLine
+  speaker="B"
+  variant="mandarin"
+  text="葡萄十五块一斤, 进口的"
+  romanization="pú tao shí wǔ kuài yī jīn, jìn kǒu de"
+  vietnamese="Nho 15 tệ một cân, hàng nhập khẩu đấy."
+/>
+
+<ChineseLine
+  speaker="A"
+  variant="mandarin"
+  text="有点贵, 算便宜点, 十二块行不行?"
+  romanization="yǒu diǎn guì, suàn pián yi diǎn, shí èr kuài xíng bu xíng?"
+  vietnamese="Hơi đắt, tính rẻ chút đi, 12 tệ được không?"
+/>
+
+<ChineseLine
+  speaker="B"
+  variant="mandarin"
+  text="十三块, 我送你几个尝尝"
+  romanization="shí sān kuài, wǒ sòng nǐ jǐ ge cháng chang"
+  vietnamese="13 tệ, tui tặng thêm vài quả cho bạn nếm thử."
+/>
+
+<ChineseLine
+  speaker="A"
+  variant="mandarin"
+  text="好, 给我一斤葡萄. 一共多少钱?"
+  romanization="hǎo, gěi wǒ yī jīn pú tao. yī gòng duō shao qián?"
+  vietnamese="OK, cho em 1 cân nho. Tổng cộng bao nhiêu?"
+/>
+
+<ChineseLine
+  speaker="B"
+  variant="mandarin"
+  text="苹果十六, 葡萄十三, 一共二十九块"
+  romanization="píng guǒ shí liù, pú tao shí sān, yī gòng èr shí jiǔ kuài"
+  vietnamese="Táo 16, nho 13, tổng cộng 29 tệ."
+/>
+
+<ChineseLine
+  speaker="A"
+  variant="mandarin"
+  text="扫码付了, 谢谢老板!"
+  romanization="sǎo mǎ fù le, xiè xie lǎo bǎn!"
+  vietnamese="Em quét mã trả rồi, cảm ơn ông chủ!"
+/>
+
+</ChineseDialogue>
+
+<Callout type="note" title="`斤` — đơn vị cân của Trung Quốc">
+`斤 (jīn)` = 500g (tức nửa cân tiếng Việt). Khác với `公斤 (gōng jīn)` = 1kg. Ở chợ Trung Quốc, mọi thứ tính theo `斤` — táo 8 tệ/cân nghĩa là 8 tệ cho 500g. Lưu ý đừng nhầm với cân Việt Nam (1kg) — nếu không bạn sẽ thấy giá "rẻ" nhưng thực ra đắt gấp đôi.
+
+Câu `又甜又脆 (yòu tián yòu cuì)` — "vừa ngọt vừa giòn" — là câu khen trái cây phổ biến nhất. Cấu trúc `又X又Y` rất hữu ích: `又便宜又好` (vừa rẻ vừa tốt), `又快又方便` (vừa nhanh vừa tiện).
+</Callout>
+
 ## Tự kiểm tra nhanh
 
-Tự diễn vai khách: bạn nói `多少钱?`, bạn nhìn giá rồi `太贵了!`, bạn đòi `便宜点!`. Lặp 3 lần là vào não. Lần sau ra chợ, bạn sẽ tự bật ra mà không cần nghĩ.
+Tự diễn vai khách: bạn nói `老板, 这个怎么卖?`, bạn nhìn giá rồi `太贵了, 别的地方才一半的价钱!`, bạn đòi `便宜点!`, người bán cố thuyết phục, bạn ra đòn cuối `不行我就走了`. Lặp 3 lần là vào não. Lần sau ra chợ, bạn sẽ tự bật ra mà không cần nghĩ.
+
+Sau đó luyện hội thoại 2 — mua đồ theo cân là kịch bản đời thường nhất ở Trung Quốc, từ chợ sáng đến siêu thị. Nhớ cụm `一斤多少钱?` và `给我X斤` là gói gọn 80% giao dịch mua trái cây, thịt, rau.
 
 Bài tiếp theo: **Tiếng Trung công sở** — chào sếp, hẹn họp, và câu "vất vả rồi" rất Trung Quốc.
