@@ -77,6 +77,365 @@ Part IV is where the architecture clicks together. Up to now you've had a model,
 
 **End to end (L20)** is the payoff. *"Create a 15% promo for customers who haven't ordered in 60 days, draft them a re-engagement email."* The graph plans, calls read tools to find the cohort, asks for permission on the writes, executes the approved ones, returns a transcript that says exactly what happened. Every prior lesson's piece slots into one place.
 
+## The four words, in detail
+
+If you only remember four words from Part IV, make it **state + node + edge + conditional routing**. Everything LangGraph offers — checkpoints, interrupts, streaming, multi-agent — sits on top of these four primitives. The rest of this section is a one-paragraph reminder of what each one is and what makes it pull its weight.
+
+**State** is a typed object that flows through the graph. One field is almost always `messages` (the transcript); other fields are added as the graph grows — `pendingTool` for the confirmation handshake (L18), `approved` for the human's verdict (L19). Each field declares a *reducer* — a tiny merge function — so a node can return only the slice it wants to change and the runtime knows how to fold that slice into the whole. Append-merge for messages, replace for everything else by default. *Why this matters:* nodes stay small and local because the merging logic lives in one place.
+
+**A node** is a plain async function from state to a partial state update. No class hierarchy, no special interface. `agentNode` calls the model and returns `{ messages: [reply] }`; `toolsNode` runs the pending tool calls and returns `{ messages: results }`. A node that has nothing to say can return `{}` and the state passes through unchanged. *Why this matters:* every node is trivially testable — give it a state, assert on what it returns. No mock graph required.
+
+**An edge** is a declaration of *what comes next*. Two flavours. An *unconditional edge* — `addEdge('tools', 'agent')` — says "after tools, always go back to agent." It's the bottom half of every loop you've written, but expressed once and visible in a diagram instead of buried in a closing brace. The edge is data, not control flow; the runtime reads it. *Why this matters:* the graph's topology is something you can draw, lint, and reason about — not something you have to read code to reconstruct.
+
+<Callout type="note" title="Café analogy — why an edge is *data*, not control flow">
+**The whole question is: where does the rule "after step A, do step B" live?** It can only live in one of two places. Two cafés, same menu, different answer — and the answer is the entire distinction.
+
+**Café A — the rule lives *inside the cashier's head*.** At training, she's told: *"after you ring up the order, walk the ticket to the barista yourself."* She carries that rule with her. She does the next step. If you walk in and ask *"what's the flow of an order?"* — there's nothing to point at. You have to interview every worker and stitch their answers together. If the cashier quits mid-shift while holding a ticket, the ticket leaves with her: nobody else knew where it was going.
+
+> That's a `while` loop. `await toolsNode(...)` is the cashier walking the ticket over. The route lives in the running function. Kill the process, lose the ticket.
+
+**Café B — the rule lives on a *sheet of paper pinned to the wall*.** The cashier is told one thing only: *"stamp the ticket and drop it on the rail."* That's it. She has no idea what comes next, and she doesn't need to. On the wall next to the rail is a sheet:
+
+```
+cashier  →  barista
+barista  →  runner
+runner   →  done
+```
+
+A small motor on the rail reads that sheet and slides each ticket to the next station. The cashier *cannot* walk a ticket over — she has no idea where it goes. She can only stamp and drop.
+
+> That's LangGraph. `graph.addEdge('cashier', 'barista')` is **one line on that wall sheet** — a piece of data, sitting at rest. The runtime is the rail motor. Nodes are workers who only stamp and drop.
+
+**The shift is small but the consequences are huge.** Because the rule is a sheet of paper, not a habit in someone's head:
+
+| Question | Café A (control flow) | Café B (edges-as-data) |
+|---|---|---|
+| Draw me the order flow. | Interview every worker. | Photograph the sheet. *(That's `drawMermaid()`.)* |
+| Cashier collapses holding a ticket. | Ticket is lost. | Ticket is still on the rail. A new cashier walks in, stamps the next ticket. *(That's `interrupt()` + checkpointer — L19/L24.)* |
+| Add a "manager approval" step. | Retrain every worker on the new route. | Pin one new line on the sheet. Workers don't change. |
+| Pause shop overnight, resume tomorrow. | Impossible — workers go home with tickets in hand. | Trivial — the rail still has every ticket exactly where it was. |
+
+**The one-line takeaway:**
+
+> In **control flow**, *"the next step"* is a **verb the worker does**.
+> In **edges-as-data**, *"the next step"* is a **noun pinned to the wall**.
+
+LangGraph's whole bag of tricks — drawing the graph, pausing for human approval, resuming days later from another process, retrying just one node — all of it falls out of that one shift: moving the route from inside the worker to outside, onto paper the runtime can read.
+</Callout>
+
+**Conditional routing** is the same idea, but the next node is chosen by a small router function. `addConditionalEdges('agent', router, { tools: 'tools', await: 'await_confirmation', __end__: END })` says "after agent, ask the router which one." The router reads state — typically the last message — and returns a key from the map. This is where read-vs-write branching lives (L18): if the latest `tool_call` is a read tool, route back to `tools`; if it's a write, route to `await_confirmation` and pause. *Why this matters:* every multi-step plan eventually needs `if/else`. Conditional edges keep that `if/else` in one named place instead of scattering it across the loop.
+
+<Callout type="note" title="Café analogy — the whole graph in one kitchen">
+- **State** is the order ticket pinned to the rail. Every station can read it; no station rewrites the whole thing, they just stamp their part (`{ status: 'paid' }`, `{ items: [...] }`).
+- **Nodes** are stations — cashier, barista, kitchen. Each one reads the ticket, does its job, stamps the slice it owns, and hands it back to the rail.
+- **Edges** are the rail itself. *"After the cashier, the ticket goes to the barista."* The rail decides where the ticket travels — the stations don't shout at each other across the room.
+- **Conditional routing** is the rail's *fork*: hot drink or cold drink? Eat-in or takeaway? A simple check at the fork sends the ticket down the correct branch. The fork is one named point on the rail, not a question every station has to ask itself.
+</Callout>
+
+Put together: state moves along the rail, nodes stamp it as it passes, edges decide where it goes next, and conditional routing is the fork in the rail. That's the whole machine — and the same shape scales from a two-node demo to the lapsed-customer workflow in L20.
+
+<figure style={{ margin: '2rem auto', maxWidth: '820px' }}>
+  {/* === FOUR ROLE CARDS — one per primitive === */}
+  <div style={{ display: 'grid', gap: '0.7rem' }}>
+    {/* ① STATE */}
+    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '1rem', alignItems: 'center', padding: '0.9rem 1rem', border: '1px solid rgba(22,163,74,0.35)', borderLeft: '5px solid #16a34a', borderRadius: '10px', background: 'rgba(22,163,74,0.05)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'stretch' }}>
+        <div style={{ height: '8px', borderRadius: '3px', background: '#16a34a' }} />
+        <div style={{ height: '8px', borderRadius: '3px', background: 'rgba(22,163,74,0.6)' }} />
+        <div style={{ height: '8px', borderRadius: '3px', background: 'rgba(22,163,74,0.3)' }} />
+        <div style={{ textAlign: 'center', fontSize: '0.62rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.1em', marginTop: '2px' }}>SHARED MEMORY</div>
+      </div>
+      <div>
+        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.04em' }}>① STATE</div>
+        <div style={{ fontSize: '0.86rem', marginTop: '0.25rem' }}><strong>Responsibility:</strong> hold the single typed object the whole graph reads and writes. Defines the channels and their reducers — append for transcript, replace for everything else.</div>
+        <div style={{ fontSize: '0.76rem', marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{`type State = { messages: BaseMessage[]; pendingTool: ToolCall | null; approved: boolean }`}</div>
+      </div>
+    </div>
+
+    {/* ② NODE */}
+    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '1rem', alignItems: 'center', padding: '0.9rem 1rem', border: '1px solid rgba(22,163,74,0.35)', borderLeft: '5px solid #16a34a', borderRadius: '10px', background: 'rgba(22,163,74,0.05)' }}>
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div style={{ padding: '0.55rem 0.85rem', border: '2px solid #16a34a', borderRadius: '8px', background: 'rgba(22,163,74,0.15)', fontSize: '0.72rem', fontWeight: 800, color: '#16a34a', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>node()</div>
+      </div>
+      <div>
+        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.04em' }}>② NODE</div>
+        <div style={{ fontSize: '0.86rem', marginTop: '0.25rem' }}><strong>Responsibility:</strong> do one job — call the model, run a tool, or prompt the human — then return only the slice of state that changed. Trivially testable; no class, no inheritance.</div>
+        <div style={{ fontSize: '0.76rem', marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{`async (state: State) => Partial<State>`}</div>
+      </div>
+    </div>
+
+    {/* ③ EDGE */}
+    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '1rem', alignItems: 'center', padding: '0.9rem 1rem', border: '1px solid rgba(22,163,74,0.35)', borderLeft: '5px solid #16a34a', borderRadius: '10px', background: 'rgba(22,163,74,0.05)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+        <div style={{ padding: '0.2rem 0.4rem', border: '1.5px solid #16a34a', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 700, color: '#16a34a', fontFamily: 'ui-monospace, monospace' }}>A</div>
+        <div style={{ width: '20px', height: '2px', background: '#16a34a' }} />
+        <div style={{ color: '#16a34a', fontWeight: 800, fontSize: '0.85rem', lineHeight: 1 }}>▶</div>
+        <div style={{ padding: '0.2rem 0.4rem', border: '1.5px solid #16a34a', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 700, color: '#16a34a', fontFamily: 'ui-monospace, monospace' }}>B</div>
+      </div>
+      <div>
+        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.04em' }}>③ EDGE</div>
+        <div style={{ fontSize: '0.86rem', marginTop: '0.25rem' }}><strong>Responsibility:</strong> declare static topology — "after A, always B." Edges are *data*, not control flow. The runtime, not your code, moves state along them.</div>
+        <div style={{ fontSize: '0.76rem', marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{`graph.addEdge('tools', 'agent')`}</div>
+      </div>
+    </div>
+
+    {/* ④ CONDITIONAL ROUTING */}
+    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '1rem', alignItems: 'center', padding: '0.9rem 1rem', border: '1px solid rgba(22,163,74,0.35)', borderLeft: '5px solid #16a34a', borderRadius: '10px', background: 'rgba(22,163,74,0.05)' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ position: 'relative', width: '58px', height: '58px' }}>
+          <div style={{ position: 'absolute', top: '50%', left: '50%', width: '40px', height: '40px', transform: 'translate(-50%, -50%) rotate(45deg)', border: '2px dashed #16a34a', background: 'rgba(22,163,74,0.1)', borderRadius: '4px' }} />
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.95rem', fontWeight: 800, color: '#16a34a' }}>?</div>
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.04em' }}>④ CONDITIONAL ROUTING</div>
+        <div style={{ fontSize: '0.86rem', marginTop: '0.25rem' }}><strong>Responsibility:</strong> the fork in the road. A tiny router function reads state and returns a key; the map sends the graph to one of several next nodes. This is where the read-vs-write safety branch lives.</div>
+        <div style={{ fontSize: '0.76rem', marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{`graph.addConditionalEdges('agent', router, { tools, await, __end__: END })`}</div>
+      </div>
+    </div>
+  </div>
+
+  {/* === COMPOSED FLOW — CSS Grid, no flex-wrap === */}
+  <div style={{ marginTop: '1.75rem', padding: '1.1rem 1rem 1rem', border: '1px solid rgba(22,163,74,0.35)', borderRadius: '12px', background: 'rgba(22,163,74,0.04)' }}>
+    {/* Inline section header — no longer a floating pill, so nothing gets clipped */}
+    <div style={{ display: 'inline-block', background: '#16a34a', color: 'white', padding: '0.3rem 0.85rem', borderRadius: '999px', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.12em', lineHeight: 1.2, marginBottom: '1rem' }}>HOW THEY COMPOSE</div>
+
+    {/* State band — shows STATE wrapping the whole flow */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '8px', background: 'rgba(22,163,74,0.12)', border: '1px dashed rgba(22,163,74,0.55)', marginBottom: '1.2rem', flexWrap: 'wrap' }}>
+      <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.12em', whiteSpace: 'nowrap' }}>① STATE</span>
+      <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.72rem', opacity: 0.8 }}>&#123; messages, pendingTool, approved &#125;</span>
+      <span style={{ marginLeft: 'auto', fontSize: '0.65rem', opacity: 0.6, fontStyle: 'italic' }}>flows through every node ↓</span>
+    </div>
+
+    {/* Scroll wrapper — the overflow lives HERE (inner), not on the outer card */}
+    <div style={{ overflowX: 'auto', paddingBottom: '0.25rem' }}>
+    {/* The actual graph — deterministic 5-column grid, never wraps */}
+    <div style={{ display: 'grid', gridTemplateColumns: 'auto auto auto auto auto 1fr', alignItems: 'center', columnGap: '0.4rem', rowGap: '0.5rem', minWidth: '620px', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+      {/* row 1: main flow line */}
+      <div style={{ gridColumn: 1, gridRow: '1 / span 3', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+        <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: '#16a34a' }} />
+        <div style={{ fontSize: '0.6rem', opacity: 0.65 }}>entry</div>
+      </div>
+      <div style={{ gridColumn: 2, gridRow: 2, color: '#16a34a', fontWeight: 800, fontSize: '1.2rem', padding: '0 0.15rem' }}>→</div>
+      <div style={{ gridColumn: 3, gridRow: 2, padding: '0.7rem 1rem', border: '2px solid #16a34a', borderRadius: '10px', background: 'rgba(22,163,74,0.14)', textAlign: 'center', minWidth: '90px' }}>
+        <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#16a34a' }}>agent</div>
+        <div style={{ fontSize: '0.6rem', opacity: 0.65, marginTop: '0.1rem', letterSpacing: '0.08em' }}>② NODE</div>
+      </div>
+      <div style={{ gridColumn: 4, gridRow: 2, color: '#16a34a', fontWeight: 800, fontSize: '1.2rem', padding: '0 0.15rem' }}>→</div>
+      <div style={{ gridColumn: 5, gridRow: 2, position: 'relative', width: '74px', height: '74px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '60px', height: '60px', transform: 'translate(-50%, -50%) rotate(45deg)', border: '2px dashed #16a34a', background: 'rgba(22,163,74,0.1)', borderRadius: '6px' }} />
+        <div style={{ position: 'relative', textAlign: 'center', lineHeight: 1.1, zIndex: 1 }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#16a34a' }}>router</div>
+          <div style={{ fontSize: '0.55rem', opacity: 0.65, letterSpacing: '0.08em' }}>④ COND.</div>
+        </div>
+      </div>
+
+      {/* Column 6: three branch destinations stacked */}
+      <div style={{ gridColumn: 6, gridRow: 2, display: 'grid', gridTemplateColumns: 'auto auto 1fr', alignItems: 'center', rowGap: '0.4rem', columnGap: '0.35rem', paddingLeft: '0.4rem' }}>
+        {/* read → tools */}
+        <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 700 }}>read</span>
+        <span style={{ color: '#16a34a', fontWeight: 800 }}>→</span>
+        <div style={{ padding: '0.35rem 0.7rem', border: '2px solid #16a34a', borderRadius: '8px', background: 'rgba(22,163,74,0.14)', fontSize: '0.75rem', fontWeight: 800, color: '#16a34a', textAlign: 'center' }}>tools</div>
+        {/* write → await */}
+        <span style={{ fontSize: '0.65rem', color: '#b45309', fontWeight: 700 }}>write</span>
+        <span style={{ color: '#b45309', fontWeight: 800 }}>→</span>
+        <div style={{ padding: '0.35rem 0.7rem', border: '2px solid #d97706', borderRadius: '8px', background: 'rgba(217,119,6,0.12)', fontSize: '0.75rem', fontWeight: 800, color: '#b45309', textAlign: 'center' }}>await_confirmation</div>
+        {/* done → END */}
+        <span style={{ fontSize: '0.65rem', opacity: 0.7, fontWeight: 700 }}>done</span>
+        <span style={{ opacity: 0.7, fontWeight: 800 }}>→</span>
+        <div style={{ padding: '0.35rem 0.7rem', border: '2px solid currentColor', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, opacity: 0.7, textAlign: 'center' }}>END</div>
+      </div>
+    </div>
+    </div>{/* /scroll wrapper */}
+
+    {/* Loop-back annotation */}
+    <div style={{ marginTop: '1rem', padding: '0.5rem 0.75rem', borderRadius: '8px', background: 'rgba(22,163,74,0.08)', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+      <span style={{ fontSize: '0.95rem', color: '#16a34a' }}>↺</span>
+      <span><strong style={{ color: '#16a34a' }}>③ EDGE</strong> <span style={{ fontFamily: 'ui-monospace, monospace', opacity: 0.85 }}>tools → agent</span> — unconditional loop back so the agent sees the tool result and decides what to do next.</span>
+    </div>
+  </div>
+
+  <figcaption style={{ marginTop: '0.85rem', fontSize: '0.85rem', textAlign: 'center', opacity: 0.7 }}>
+    Top: each primitive's role on its own. Bottom: the same four pieces composed into the agent graph from L17–L18.
+  </figcaption>
+</figure>
+
+## Demo — how the four pieces run and link together
+
+Here is the whole graph as actual TypeScript, then a step-by-step trace of two inputs through it. Watch how each node returns only a slice of state (the reducer concatenates), and watch the router pick the branch.
+
+```ts
+// ① STATE — the shared object every node reads and writes
+type State = {
+  messages: string[];        // append-merged
+  needsApproval: boolean;    // replace-merged
+};
+
+// ② NODES — pure async functions: read state, return a partial slice
+async function agentNode(state: State): Promise<Partial<State>> {
+  const last = state.messages.at(-1) ?? '';
+  if (last.includes('list')) {
+    return { messages: ['call: listProducts()'] };                       // a read
+  }
+  if (last.includes('delete')) {
+    return { messages: ['call: deleteProduct(42)'], needsApproval: true }; // a write
+  }
+  return { messages: ['done.'] };                                        // nothing more to do
+}
+
+async function toolsNode(_state: State): Promise<Partial<State>> {
+  return { messages: ['(read tool ran · 3 rows)'] };                     // simulated tool result
+}
+
+async function awaitNode(_state: State): Promise<Partial<State>> {
+  return { messages: ['paused — needs human approval'] };                // in real code: interrupt()
+}
+
+// Build the graph
+const graph = new StateGraph<State>({
+  channels: {
+    messages: { reducer: (a, b) => a.concat(b), default: () => [] },     // append-merge
+    needsApproval: { reducer: (_a, b) => b, default: () => false },      // replace-merge
+  },
+});
+
+graph.addNode('agent', agentNode);
+graph.addNode('tools', toolsNode);
+graph.addNode('await', awaitNode);
+
+graph.setEntryPoint('agent');
+
+// ③ EDGE — unconditional. After tools, always loop back to agent.
+graph.addEdge('tools', 'agent');
+
+// ④ CONDITIONAL ROUTING — the fork after agent
+graph.addConditionalEdges(
+  'agent',
+  (state) => {                                                           // the router
+    if (state.needsApproval) return 'await';
+    const last = state.messages.at(-1) ?? '';
+    if (last.startsWith('call:')) return 'tools';
+    return '__end__';
+  },
+  { tools: 'tools', await: 'await', __end__: END },                      // router key → next node
+);
+
+const app = graph.compile();
+await app.invoke({ messages: ['list products'] });
+```
+
+<div style={{ margin: '1.5rem 0' }}>
+
+### Trace A — input: `"list products"` (read path)
+
+<div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.75rem' }}>
+  {/* Step 1 */}
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px solid #16a34a', borderRadius: '0 8px 8px 0', background: 'rgba(22,163,74,0.05)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', lineHeight: 1.3 }}>STEP&nbsp;1<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>② NODE</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>agent</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong>Runtime enters the entry point and runs <code>agentNode</code>.</strong> It reads <code>state.messages.at(-1)</code> = <code>"list products"</code>, sees <em>"list"</em>, returns the read-tool call slice.</div>
+      <div style={{ marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.74rem' }}>
+        <div style={{ opacity: 0.7 }}>returns: messages: ["call: listProducts()"]</div>
+        <div style={{ marginTop: '0.15rem' }}>state after reducer:</div>
+        <div>&nbsp;&nbsp;messages: ["list products", "call: listProducts()"]</div>
+        <div>&nbsp;&nbsp;needsApproval: false</div>
+      </div>
+    </div>
+  </div>
+
+  {/* Step 2 — conditional */}
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px dashed #16a34a', borderRadius: '0 8px 8px 0', background: 'rgba(22,163,74,0.03)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', lineHeight: 1.3 }}>STEP&nbsp;2<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>④ COND.</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>router</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong>The conditional edge fires.</strong> Runtime calls the router with the current state. <code>needsApproval</code> is false; last message starts with <code>"call:"</code>; router returns <code>'tools'</code>. Runtime looks up <code>'tools'</code> in the branch map → next node is <code>tools</code>.</div>
+    </div>
+  </div>
+
+  {/* Step 3 */}
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px solid #16a34a', borderRadius: '0 8px 8px 0', background: 'rgba(22,163,74,0.05)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', lineHeight: 1.3 }}>STEP&nbsp;3<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>② NODE</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>tools</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong><code>toolsNode</code> runs.</strong> Returns a single message — the tool result.</div>
+      <div style={{ marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.74rem' }}>
+        <div style={{ opacity: 0.7 }}>returns: messages: ["(read tool ran · 3 rows)"]</div>
+        <div style={{ marginTop: '0.15rem' }}>state after reducer:</div>
+        <div>&nbsp;&nbsp;messages: ["list products", "call: listProducts()", "(read tool ran · 3 rows)"]</div>
+      </div>
+    </div>
+  </div>
+
+  {/* Step 4 — edge */}
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px solid #16a34a', borderRadius: '0 8px 8px 0', background: 'rgba(22,163,74,0.03)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', lineHeight: 1.3 }}>STEP&nbsp;4<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>③ EDGE</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>tools&nbsp;→&nbsp;agent</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong>Unconditional edge fires.</strong> No router, no decision — the runtime reads the registered edge <code>tools → agent</code> and dispatches to <code>agent</code>.</div>
+    </div>
+  </div>
+
+  {/* Step 5 */}
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px solid #16a34a', borderRadius: '0 8px 8px 0', background: 'rgba(22,163,74,0.05)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', lineHeight: 1.3 }}>STEP&nbsp;5<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>② NODE</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>agent</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong><code>agentNode</code> runs again.</strong> Last message is <code>"(read tool ran · 3 rows)"</code> — no <em>"list"</em>, no <em>"delete"</em>. Returns <code>"done."</code>.</div>
+      <div style={{ marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.74rem' }}>
+        <div style={{ opacity: 0.7 }}>returns: messages: ["done."]</div>
+        <div style={{ marginTop: '0.15rem' }}>state after reducer:</div>
+        <div>&nbsp;&nbsp;messages: [..., "(read tool ran · 3 rows)", "done."]</div>
+      </div>
+    </div>
+  </div>
+
+  {/* Step 6 — conditional end */}
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px dashed #16a34a', borderRadius: '0 8px 8px 0', background: 'rgba(22,163,74,0.03)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', lineHeight: 1.3 }}>STEP&nbsp;6<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>④ COND.</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>router</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong>Conditional edge fires again.</strong> Last message is <code>"done."</code>, doesn't start with <code>"call:"</code>; router returns <code>'__end__'</code>. Runtime stops and returns the final state.</div>
+    </div>
+  </div>
+</div>
+
+### Trace B — input: `"delete product 42"` (write path · same graph, different fork)
+
+<div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.75rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px solid #16a34a', borderRadius: '0 8px 8px 0', background: 'rgba(22,163,74,0.05)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', lineHeight: 1.3 }}>STEP&nbsp;1<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>② NODE</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>agent</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong><code>agentNode</code> runs.</strong> Last message contains <em>"delete"</em> → returns the write-tool call <strong>and</strong> sets <code>needsApproval: true</code> on its slice.</div>
+      <div style={{ marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.74rem' }}>
+        <div style={{ opacity: 0.7 }}>returns: messages: ["call: deleteProduct(42)"], needsApproval: true</div>
+        <div style={{ marginTop: '0.15rem' }}>state after reducers:</div>
+        <div>&nbsp;&nbsp;messages: ["delete product 42", "call: deleteProduct(42)"]</div>
+        <div>&nbsp;&nbsp;needsApproval: true&nbsp;&nbsp;&nbsp;<span style={{ color: '#b45309' }}>← flipped</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px dashed #d97706', borderRadius: '0 8px 8px 0', background: 'rgba(217,119,6,0.06)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#b45309', letterSpacing: '0.08em', lineHeight: 1.3 }}>STEP&nbsp;2<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>④ COND.</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>router</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong>Same router, different verdict.</strong> Now <code>state.needsApproval</code> is <code>true</code>, so the first <code>if</code> short-circuits and returns <code>'await'</code> instead of <code>'tools'</code>. Runtime dispatches to <code>await</code>.</div>
+    </div>
+  </div>
+
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px solid #d97706', borderRadius: '0 8px 8px 0', background: 'rgba(217,119,6,0.06)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#b45309', letterSpacing: '0.08em', lineHeight: 1.3 }}>STEP&nbsp;3<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>② NODE</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>await</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong><code>awaitNode</code> runs.</strong> In the demo it appends a "paused" message. In real LangGraph this is where <code>interrupt(&#123; tool, args &#125;)</code> lives (L19) — the graph stops, the runtime checkpoints state to disk, and execution resumes only after a human calls <code>resume()</code>.</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+**What the two traces show together.** *Same code, same nodes, same edges* — only the input differs. The four primitives never had to know about each other:
+
+- **STATE** quietly grew via reducers; no node ever touched another node's data.
+- **NODES** were each three or four lines; none of them said *"next, call X"*.
+- **EDGES** owned the "what comes next" logic — `tools → agent` was a one-line registration, never executed by user code.
+- **CONDITIONAL ROUTING** is the only place where the read vs. write *decision* lives. Move that one router function to a different graph and you've shipped a different agent.
+
+That's the link: state moves, nodes mutate slices, edges and the router decide where state goes next — and the runtime, not your code, is the thing actually moving it.
+
 <Recap>
 - **State + nodes + edges + conditional routing.** The whole LangGraph mental model. Memorise those four words.
 - **Why graphs over loops.** Loops branch with `if`; graphs branch with edges. The second scales when you have three or more decisions per turn.
@@ -163,6 +522,355 @@ Phần IV là chỗ kiến trúc khớp lại với nhau. Cho đến giờ bạn
 **`interrupt()` (L19)** là tính năng "sát thủ" của LangGraph. Một node gọi `interrupt({ tool, args })`, graph tạm dừng, UI của bạn render một thẻ duyệt, người dùng bấm *có* hoặc *không*, graph resume lại từ đúng chỗ đã dừng. State, lịch sử message, công việc còn dang dở — tất cả được giữ nguyên. Vòng lặp thường không có gì tương đương.
 
 **End to end (L20)** là phần thưởng. *"Tạo voucher 15% cho khách hàng không đặt hàng trong 60 ngày, soạn email mời họ quay lại."* Graph lên kế hoạch, gọi tool đọc để tìm tập khách, xin phép cho các thao tác ghi, thực thi cái nào được duyệt, trả về một transcript kể lại chính xác chuyện đã xảy ra. Mảnh của mọi bài trước đều có một chỗ để cắm vào.
+
+## Bốn từ khoá, chi tiết hơn
+
+Nếu Phần IV chỉ còn lại bốn từ trong đầu bạn, hãy để đó là **state + node + edge + conditional routing**. Mọi thứ LangGraph cung cấp — checkpoint, interrupt, streaming, multi-agent — đều dựng trên bốn nguyên thuỷ này. Phần dưới đây nhắc lại mỗi từ trong một đoạn, kèm lý do *vì sao* nó đáng giá chừng đó "đất diễn".
+
+**State** là một object có kiểu chảy xuyên suốt graph. Gần như lúc nào cũng có một field tên `messages` (transcript hội thoại); các field khác được thêm khi graph lớn lên — `pendingTool` cho cú bắt tay xác nhận (L18), `approved` cho phán quyết của con người (L19). Mỗi field khai báo một *reducer* — một hàm merge nhỏ xíu — để một node chỉ cần trả lại đúng lát cắt nó muốn đổi, và runtime biết cách gấp lát đó vào tổng thể. Mặc định: append cho `messages`, replace cho phần còn lại. *Vì sao điều này quan trọng:* các node giữ được tính nhỏ và cục bộ, vì logic merge sống ở một chỗ duy nhất.
+
+**Node** là một hàm async thuần từ state ra một partial state update. Không class hierarchy, không interface đặc biệt. `agentNode` gọi model và trả `{ messages: [reply] }`; `toolsNode` chạy các tool call đang chờ và trả `{ messages: results }`. Một node không có gì để nói có thể trả `{}` và state đi qua nguyên vẹn. *Vì sao điều này quan trọng:* mỗi node test cực dễ — đưa cho nó một state, assert vào cái nó trả về. Không cần mock graph.
+
+**Edge** là một khai báo về *bước kế tiếp*. Hai loại. *Edge vô điều kiện* — `addEdge('tools', 'agent')` — nói "sau `tools`, luôn quay về `agent`." Nó là nửa dưới của mọi vòng lặp bạn từng viết, nhưng được phát biểu một lần và *nhìn thấy được* trên sơ đồ, thay vì chôn trong dấu ngoặc đóng. Edge là dữ liệu, không phải control flow; runtime đọc nó. *Vì sao điều này quan trọng:* topology của graph là thứ bạn có thể vẽ, lint, và lập luận về — không phải thứ bạn phải đọc code mới tái dựng được.
+
+<Callout type="note" title="Phép so sánh quán cà phê — vì sao edge là *dữ liệu*, không phải control flow">
+**Toàn bộ câu hỏi gói gọn trong một câu: cái quy tắc "sau bước A, làm bước B" sống ở đâu?** Nó chỉ có thể sống ở một trong hai chỗ. Hai quán, cùng menu, hai câu trả lời khác nhau — và câu trả lời ấy chính là toàn bộ sự khác biệt.
+
+**Quán A — quy tắc sống *trong đầu cô thu ngân*.** Lúc training, cô được dặn: *"thu xong tiền thì tự bưng ticket qua cho pha chế."* Quy tắc nằm trong đầu cô. Cô là người đi bước kế tiếp. Bạn bước vào quán hỏi *"đơn hàng chạy qua quán này theo trình tự nào?"* — chẳng có gì để chỉ. Bạn phải phỏng vấn từng nhân viên rồi tự ghép câu trả lời lại. Nếu cô thu ngân nghỉ giữa ca trong khi đang cầm một ticket, ticket biến mất theo cô — không ai khác biết nó đang đi đâu.
+
+> Đó chính là một vòng `while`. `await toolsNode(...)` là cô thu ngân bưng ticket đi. Tuyến đường sống trong function đang chạy. Kill process là mất ticket.
+
+**Quán B — quy tắc sống trên *một tờ giấy dán trên tường*.** Cô thu ngân chỉ được dặn đúng một điều: *"đóng dấu lên ticket, rồi thả vào ray."* Hết. Cô không biết bước kế tiếp là gì, và cũng không cần biết. Trên tường cạnh ray dán một tờ giấy:
+
+```
+thu ngân  →  pha chế
+pha chế   →  runner
+runner    →  xong
+```
+
+Một mô-tơ nhỏ trên ray đọc tờ giấy đó và đẩy mỗi ticket tới trạm kế tiếp. Cô thu ngân *không thể* bưng ticket đi — cô không biết nó đi đâu. Cô chỉ có thể đóng dấu và thả.
+
+> Đó chính là LangGraph. `graph.addEdge('cashier', 'barista')` là **một dòng trên tờ giấy đó** — một mẩu dữ liệu, nằm yên trên tường. Runtime là cái mô-tơ ray. Node là nhân viên — chỉ đóng dấu và thả.
+
+**Một thay đổi nhỏ, nhưng hệ quả thì cực lớn.** Vì quy tắc là tờ giấy chứ không phải thói quen trong đầu ai:
+
+| Câu hỏi | Quán A (control flow) | Quán B (edge-là-dữ-liệu) |
+|---|---|---|
+| Vẽ sơ đồ luồng đơn hàng cho tôi. | Phải phỏng vấn từng nhân viên. | Chụp ảnh tờ giấy. *(Chính là `drawMermaid()`.)* |
+| Cô thu ngân ngã bệnh, tay đang cầm ticket. | Mất ticket. | Ticket vẫn trên ray. Thu ngân mới bước vào, đóng dấu ticket tiếp theo. *(Chính là `interrupt()` + checkpointer — L19/L24.)* |
+| Thêm bước "quản lý duyệt". | Đào tạo lại từng nhân viên về tuyến mới. | Dán thêm một dòng vào tờ giấy. Nhân viên không đổi gì. |
+| Đóng cửa qua đêm, mai mở tiếp. | Bất khả — nhân viên cầm ticket về nhà. | Bình thường — ray vẫn giữ từng ticket đúng vị trí cũ. |
+
+**Câu chốt dễ nhớ:**
+
+> Trong **control flow**, *"bước kế tiếp"* là một **động từ nhân viên làm**.
+> Trong **edge-là-dữ-liệu**, *"bước kế tiếp"* là một **danh từ dán trên tường**.
+
+Mọi "phép thuật" của LangGraph — vẽ được sơ đồ graph, tạm dừng chờ con người duyệt, vài ngày sau resume từ một process khác, retry lại đúng một node — tất cả đều rơi ra từ một dịch chuyển duy nhất: chuyển tuyến đường *ra khỏi* nhân viên, *lên* tờ giấy mà runtime có thể đọc.
+</Callout>
+
+**Conditional routing** vẫn cùng ý tưởng, nhưng node kế tiếp do một hàm router nhỏ chọn. `addConditionalEdges('agent', router, { tools: 'tools', await: 'await_confirmation', __end__: END })` nói "sau `agent`, hỏi router xem đi đâu." Router đọc state — thường là message cuối — và trả về một khoá trong map. Đây là chỗ nhánh đọc-vs-ghi sinh sống (L18): nếu `tool_call` mới nhất là tool đọc, đi tới `tools`; nếu là tool ghi, đi tới `await_confirmation` và tạm dừng. *Vì sao điều này quan trọng:* mọi kế hoạch nhiều bước rồi sẽ cần `if/else`. Conditional edge giữ cái `if/else` đó ở một chỗ có tên, thay vì rải khắp vòng lặp.
+
+<Callout type="note" title="Phép so sánh quán cà phê — cả graph gọn trong một bếp">
+- **State** là tờ ticket order kẹp trên ray. Mọi trạm đều đọc được; không trạm nào viết lại cả tờ — họ chỉ đóng dấu phần của mình (`{ status: 'paid' }`, `{ items: [...] }`).
+- **Node** là các trạm — thu ngân, pha chế, bếp. Mỗi trạm đọc ticket, làm việc của mình, đóng dấu lát mình phụ trách, rồi trả ticket về ray.
+- **Edge** chính là cái ray. *"Sau thu ngân, ticket đi tới pha chế."* Cái ray quyết định ticket di chuyển đi đâu — các trạm không hét qua phòng cho nhau nghe.
+- **Conditional routing** là *chỗ rẽ* trên ray: đồ nóng hay đồ lạnh? Ngồi lại hay mang đi? Một câu kiểm tra đơn giản ở chỗ rẽ đưa ticket xuống đúng nhánh. Chỗ rẽ là *một điểm có tên* trên ray, không phải câu hỏi mà trạm nào cũng phải tự đặt cho mình.
+</Callout>
+
+Ghép lại: state chạy dọc theo ray, node đóng dấu khi nó đi qua, edge quyết định nó đi đâu tiếp, và conditional routing là chỗ rẽ trên ray. Toàn bộ cỗ máy chỉ có vậy — và cùng hình dạng đó scale từ demo hai-node cho tới workflow khách hàng ngủ quên ở L20.
+
+<figure style={{ margin: '2rem auto', maxWidth: '820px' }}>
+  {/* === BỐN THẺ VAI TRÒ — mỗi nguyên thuỷ một thẻ === */}
+  <div style={{ display: 'grid', gap: '0.7rem' }}>
+    {/* ① STATE */}
+    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '1rem', alignItems: 'center', padding: '0.9rem 1rem', border: '1px solid rgba(22,163,74,0.35)', borderLeft: '5px solid #16a34a', borderRadius: '10px', background: 'rgba(22,163,74,0.05)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'stretch' }}>
+        <div style={{ height: '8px', borderRadius: '3px', background: '#16a34a' }} />
+        <div style={{ height: '8px', borderRadius: '3px', background: 'rgba(22,163,74,0.6)' }} />
+        <div style={{ height: '8px', borderRadius: '3px', background: 'rgba(22,163,74,0.3)' }} />
+        <div style={{ textAlign: 'center', fontSize: '0.6rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.1em', marginTop: '2px' }}>BỘ NHỚ CHUNG</div>
+      </div>
+      <div>
+        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.04em' }}>① STATE</div>
+        <div style={{ fontSize: '0.86rem', marginTop: '0.25rem' }}><strong>Trách nhiệm:</strong> giữ một object có kiểu mà cả graph cùng đọc và ghi. Khai báo các channel và reducer của chúng — append cho transcript, replace cho phần còn lại.</div>
+        <div style={{ fontSize: '0.76rem', marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{`type State = { messages: BaseMessage[]; pendingTool: ToolCall | null; approved: boolean }`}</div>
+      </div>
+    </div>
+
+    {/* ② NODE */}
+    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '1rem', alignItems: 'center', padding: '0.9rem 1rem', border: '1px solid rgba(22,163,74,0.35)', borderLeft: '5px solid #16a34a', borderRadius: '10px', background: 'rgba(22,163,74,0.05)' }}>
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div style={{ padding: '0.55rem 0.85rem', border: '2px solid #16a34a', borderRadius: '8px', background: 'rgba(22,163,74,0.15)', fontSize: '0.72rem', fontWeight: 800, color: '#16a34a', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>node()</div>
+      </div>
+      <div>
+        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.04em' }}>② NODE</div>
+        <div style={{ fontSize: '0.86rem', marginTop: '0.25rem' }}><strong>Trách nhiệm:</strong> làm đúng một việc — gọi model, chạy tool, hoặc xin con người duyệt — rồi trả về đúng lát cắt state đã thay đổi. Test cực dễ; không class, không kế thừa.</div>
+        <div style={{ fontSize: '0.76rem', marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{`async (state: State) => Partial<State>`}</div>
+      </div>
+    </div>
+
+    {/* ③ EDGE */}
+    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '1rem', alignItems: 'center', padding: '0.9rem 1rem', border: '1px solid rgba(22,163,74,0.35)', borderLeft: '5px solid #16a34a', borderRadius: '10px', background: 'rgba(22,163,74,0.05)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+        <div style={{ padding: '0.2rem 0.4rem', border: '1.5px solid #16a34a', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 700, color: '#16a34a', fontFamily: 'ui-monospace, monospace' }}>A</div>
+        <div style={{ width: '20px', height: '2px', background: '#16a34a' }} />
+        <div style={{ color: '#16a34a', fontWeight: 800, fontSize: '0.85rem', lineHeight: 1 }}>▶</div>
+        <div style={{ padding: '0.2rem 0.4rem', border: '1.5px solid #16a34a', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 700, color: '#16a34a', fontFamily: 'ui-monospace, monospace' }}>B</div>
+      </div>
+      <div>
+        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.04em' }}>③ EDGE</div>
+        <div style={{ fontSize: '0.86rem', marginTop: '0.25rem' }}><strong>Trách nhiệm:</strong> khai báo topology tĩnh — "sau A, luôn tới B." Edge là *dữ liệu*, không phải control flow. Runtime — không phải code của bạn — đẩy state chạy dọc theo edge.</div>
+        <div style={{ fontSize: '0.76rem', marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{`graph.addEdge('tools', 'agent')`}</div>
+      </div>
+    </div>
+
+    {/* ④ CONDITIONAL ROUTING */}
+    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '1rem', alignItems: 'center', padding: '0.9rem 1rem', border: '1px solid rgba(22,163,74,0.35)', borderLeft: '5px solid #16a34a', borderRadius: '10px', background: 'rgba(22,163,74,0.05)' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ position: 'relative', width: '58px', height: '58px' }}>
+          <div style={{ position: 'absolute', top: '50%', left: '50%', width: '40px', height: '40px', transform: 'translate(-50%, -50%) rotate(45deg)', border: '2px dashed #16a34a', background: 'rgba(22,163,74,0.1)', borderRadius: '4px' }} />
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.95rem', fontWeight: 800, color: '#16a34a' }}>?</div>
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.04em' }}>④ CONDITIONAL ROUTING</div>
+        <div style={{ fontSize: '0.86rem', marginTop: '0.25rem' }}><strong>Trách nhiệm:</strong> chỗ rẽ trên đường. Một hàm router nhỏ đọc state và trả về một khoá; map đưa graph tới một trong nhiều node kế tiếp. Đây là nơi nhánh đọc-vs-ghi an toàn sinh sống.</div>
+        <div style={{ fontSize: '0.76rem', marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{`graph.addConditionalEdges('agent', router, { tools, await, __end__: END })`}</div>
+      </div>
+    </div>
+  </div>
+
+  {/* === BỐN MẢNH GHÉP VÀO NHAU — CSS Grid, không flex-wrap === */}
+  <div style={{ marginTop: '1.75rem', padding: '1.1rem 1rem 1rem', border: '1px solid rgba(22,163,74,0.35)', borderRadius: '12px', background: 'rgba(22,163,74,0.04)' }}>
+    {/* Tiêu đề inline — không còn pill nổi nên không bị cắt */}
+    <div style={{ display: 'inline-block', background: '#16a34a', color: 'white', padding: '0.3rem 0.85rem', borderRadius: '999px', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.12em', lineHeight: 1.2, marginBottom: '1rem' }}>GHÉP LẠI</div>
+
+    {/* Dải State — bao trùm toàn bộ flow */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '8px', background: 'rgba(22,163,74,0.12)', border: '1px dashed rgba(22,163,74,0.55)', marginBottom: '1.2rem', flexWrap: 'wrap' }}>
+      <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.12em', whiteSpace: 'nowrap' }}>① STATE</span>
+      <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.72rem', opacity: 0.8 }}>&#123; messages, pendingTool, approved &#125;</span>
+      <span style={{ marginLeft: 'auto', fontSize: '0.65rem', opacity: 0.6, fontStyle: 'italic' }}>chảy qua mọi node ↓</span>
+    </div>
+
+    {/* Wrapper scroll — overflow nằm ở đây (bên trong), không ở card ngoài */}
+    <div style={{ overflowX: 'auto', paddingBottom: '0.25rem' }}>
+    {/* Graph thật sự — grid 5 cột, không bao giờ wrap */}
+    <div style={{ display: 'grid', gridTemplateColumns: 'auto auto auto auto auto 1fr', alignItems: 'center', columnGap: '0.4rem', rowGap: '0.5rem', minWidth: '620px', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+      <div style={{ gridColumn: 1, gridRow: '1 / span 3', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+        <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: '#16a34a' }} />
+        <div style={{ fontSize: '0.6rem', opacity: 0.65 }}>điểm vào</div>
+      </div>
+      <div style={{ gridColumn: 2, gridRow: 2, color: '#16a34a', fontWeight: 800, fontSize: '1.2rem', padding: '0 0.15rem' }}>→</div>
+      <div style={{ gridColumn: 3, gridRow: 2, padding: '0.7rem 1rem', border: '2px solid #16a34a', borderRadius: '10px', background: 'rgba(22,163,74,0.14)', textAlign: 'center', minWidth: '90px' }}>
+        <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#16a34a' }}>agent</div>
+        <div style={{ fontSize: '0.6rem', opacity: 0.65, marginTop: '0.1rem', letterSpacing: '0.08em' }}>② NODE</div>
+      </div>
+      <div style={{ gridColumn: 4, gridRow: 2, color: '#16a34a', fontWeight: 800, fontSize: '1.2rem', padding: '0 0.15rem' }}>→</div>
+      <div style={{ gridColumn: 5, gridRow: 2, position: 'relative', width: '74px', height: '74px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '60px', height: '60px', transform: 'translate(-50%, -50%) rotate(45deg)', border: '2px dashed #16a34a', background: 'rgba(22,163,74,0.1)', borderRadius: '6px' }} />
+        <div style={{ position: 'relative', textAlign: 'center', lineHeight: 1.1, zIndex: 1 }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#16a34a' }}>router</div>
+          <div style={{ fontSize: '0.55rem', opacity: 0.65, letterSpacing: '0.08em' }}>④ COND.</div>
+        </div>
+      </div>
+
+      {/* Cột 6: ba nhánh đích xếp dọc */}
+      <div style={{ gridColumn: 6, gridRow: 2, display: 'grid', gridTemplateColumns: 'auto auto 1fr', alignItems: 'center', rowGap: '0.4rem', columnGap: '0.35rem', paddingLeft: '0.4rem' }}>
+        <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 700 }}>đọc</span>
+        <span style={{ color: '#16a34a', fontWeight: 800 }}>→</span>
+        <div style={{ padding: '0.35rem 0.7rem', border: '2px solid #16a34a', borderRadius: '8px', background: 'rgba(22,163,74,0.14)', fontSize: '0.75rem', fontWeight: 800, color: '#16a34a', textAlign: 'center' }}>tools</div>
+        <span style={{ fontSize: '0.65rem', color: '#b45309', fontWeight: 700 }}>ghi</span>
+        <span style={{ color: '#b45309', fontWeight: 800 }}>→</span>
+        <div style={{ padding: '0.35rem 0.7rem', border: '2px solid #d97706', borderRadius: '8px', background: 'rgba(217,119,6,0.12)', fontSize: '0.75rem', fontWeight: 800, color: '#b45309', textAlign: 'center' }}>await_confirmation</div>
+        <span style={{ fontSize: '0.65rem', opacity: 0.7, fontWeight: 700 }}>xong</span>
+        <span style={{ opacity: 0.7, fontWeight: 800 }}>→</span>
+        <div style={{ padding: '0.35rem 0.7rem', border: '2px solid currentColor', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, opacity: 0.7, textAlign: 'center' }}>END</div>
+      </div>
+    </div>
+    </div>{/* /scroll wrapper */}
+
+    {/* Chú thích edge loop-back */}
+    <div style={{ marginTop: '1rem', padding: '0.5rem 0.75rem', borderRadius: '8px', background: 'rgba(22,163,74,0.08)', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+      <span style={{ fontSize: '0.95rem', color: '#16a34a' }}>↺</span>
+      <span><strong style={{ color: '#16a34a' }}>③ EDGE</strong> <span style={{ fontFamily: 'ui-monospace, monospace', opacity: 0.85 }}>tools → agent</span> — vòng lặp vô điều kiện để agent thấy kết quả của tool và quyết bước tiếp theo.</span>
+    </div>
+  </div>
+
+  <figcaption style={{ marginTop: '0.85rem', fontSize: '0.85rem', textAlign: 'center', opacity: 0.7 }}>
+    Trên: vai trò của từng nguyên thuỷ. Dưới: cả bốn ghép lại thành graph agent ở L17–L18.
+  </figcaption>
+</figure>
+
+## Demo — bốn mảnh chạy và liên kết với nhau ra sao
+
+Dưới đây là toàn bộ graph dưới dạng TypeScript thật, kèm trace từng bước cho hai input chạy xuyên qua nó. Để ý mỗi node chỉ trả về một *lát cắt* state (reducer sẽ ghép lại), và để ý router chọn nhánh.
+
+```ts
+// ① STATE — object chung mà mọi node đều đọc và ghi
+type State = {
+  messages: string[];        // append-merge
+  needsApproval: boolean;    // replace-merge
+};
+
+// ② NODES — hàm async thuần: đọc state, trả về một partial slice
+async function agentNode(state: State): Promise<Partial<State>> {
+  const last = state.messages.at(-1) ?? '';
+  if (last.includes('list')) {
+    return { messages: ['call: listProducts()'] };                       // tool đọc
+  }
+  if (last.includes('delete')) {
+    return { messages: ['call: deleteProduct(42)'], needsApproval: true }; // tool ghi
+  }
+  return { messages: ['done.'] };                                        // không còn gì để làm
+}
+
+async function toolsNode(_state: State): Promise<Partial<State>> {
+  return { messages: ['(read tool ran · 3 rows)'] };                     // kết quả tool giả lập
+}
+
+async function awaitNode(_state: State): Promise<Partial<State>> {
+  return { messages: ['paused — needs human approval'] };                // code thật: interrupt()
+}
+
+// Dựng graph
+const graph = new StateGraph<State>({
+  channels: {
+    messages: { reducer: (a, b) => a.concat(b), default: () => [] },     // append-merge
+    needsApproval: { reducer: (_a, b) => b, default: () => false },      // replace-merge
+  },
+});
+
+graph.addNode('agent', agentNode);
+graph.addNode('tools', toolsNode);
+graph.addNode('await', awaitNode);
+
+graph.setEntryPoint('agent');
+
+// ③ EDGE — vô điều kiện. Sau tools, luôn quay lại agent.
+graph.addEdge('tools', 'agent');
+
+// ④ CONDITIONAL ROUTING — chỗ rẽ sau agent
+graph.addConditionalEdges(
+  'agent',
+  (state) => {                                                           // router
+    if (state.needsApproval) return 'await';
+    const last = state.messages.at(-1) ?? '';
+    if (last.startsWith('call:')) return 'tools';
+    return '__end__';
+  },
+  { tools: 'tools', await: 'await', __end__: END },                      // khoá router → node kế tiếp
+);
+
+const app = graph.compile();
+await app.invoke({ messages: ['list products'] });
+```
+
+<div style={{ margin: '1.5rem 0' }}>
+
+### Trace A — input: `"list products"` (nhánh đọc)
+
+<div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.75rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px solid #16a34a', borderRadius: '0 8px 8px 0', background: 'rgba(22,163,74,0.05)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', lineHeight: 1.3 }}>BƯỚC&nbsp;1<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>② NODE</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>agent</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong>Runtime vào entry point và chạy <code>agentNode</code>.</strong> Nó đọc <code>state.messages.at(-1)</code> = <code>"list products"</code>, thấy <em>"list"</em>, trả về slice gọi tool đọc.</div>
+      <div style={{ marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.74rem' }}>
+        <div style={{ opacity: 0.7 }}>trả về: messages: ["call: listProducts()"]</div>
+        <div style={{ marginTop: '0.15rem' }}>state sau reducer:</div>
+        <div>&nbsp;&nbsp;messages: ["list products", "call: listProducts()"]</div>
+        <div>&nbsp;&nbsp;needsApproval: false</div>
+      </div>
+    </div>
+  </div>
+
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px dashed #16a34a', borderRadius: '0 8px 8px 0', background: 'rgba(22,163,74,0.03)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', lineHeight: 1.3 }}>BƯỚC&nbsp;2<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>④ COND.</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>router</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong>Conditional edge khởi động.</strong> Runtime gọi router với state hiện tại. <code>needsApproval</code> = false; message cuối bắt đầu bằng <code>"call:"</code>; router trả <code>'tools'</code>. Runtime tra <code>'tools'</code> trong map nhánh → node kế tiếp là <code>tools</code>.</div>
+    </div>
+  </div>
+
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px solid #16a34a', borderRadius: '0 8px 8px 0', background: 'rgba(22,163,74,0.05)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', lineHeight: 1.3 }}>BƯỚC&nbsp;3<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>② NODE</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>tools</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong><code>toolsNode</code> chạy.</strong> Trả về đúng một message — kết quả tool.</div>
+      <div style={{ marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.74rem' }}>
+        <div style={{ opacity: 0.7 }}>trả về: messages: ["(read tool ran · 3 rows)"]</div>
+        <div style={{ marginTop: '0.15rem' }}>state sau reducer:</div>
+        <div>&nbsp;&nbsp;messages: ["list products", "call: listProducts()", "(read tool ran · 3 rows)"]</div>
+      </div>
+    </div>
+  </div>
+
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px solid #16a34a', borderRadius: '0 8px 8px 0', background: 'rgba(22,163,74,0.03)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', lineHeight: 1.3 }}>BƯỚC&nbsp;4<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>③ EDGE</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>tools&nbsp;→&nbsp;agent</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong>Edge vô điều kiện khởi động.</strong> Không router, không quyết định — runtime đọc edge đã đăng ký <code>tools → agent</code> và đẩy tới <code>agent</code>.</div>
+    </div>
+  </div>
+
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px solid #16a34a', borderRadius: '0 8px 8px 0', background: 'rgba(22,163,74,0.05)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', lineHeight: 1.3 }}>BƯỚC&nbsp;5<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>② NODE</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>agent</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong><code>agentNode</code> chạy lần nữa.</strong> Message cuối là <code>"(read tool ran · 3 rows)"</code> — không có <em>"list"</em> hay <em>"delete"</em>. Trả về <code>"done."</code>.</div>
+      <div style={{ marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.74rem' }}>
+        <div style={{ opacity: 0.7 }}>trả về: messages: ["done."]</div>
+        <div style={{ marginTop: '0.15rem' }}>state sau reducer:</div>
+        <div>&nbsp;&nbsp;messages: [..., "(read tool ran · 3 rows)", "done."]</div>
+      </div>
+    </div>
+  </div>
+
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px dashed #16a34a', borderRadius: '0 8px 8px 0', background: 'rgba(22,163,74,0.03)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', lineHeight: 1.3 }}>BƯỚC&nbsp;6<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>④ COND.</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>router</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong>Conditional edge khởi động lần nữa.</strong> Message cuối là <code>"done."</code>, không bắt đầu bằng <code>"call:"</code>; router trả <code>'__end__'</code>. Runtime dừng và trả về state cuối cùng.</div>
+    </div>
+  </div>
+</div>
+
+### Trace B — input: `"delete product 42"` (nhánh ghi · cùng graph, khác chỗ rẽ)
+
+<div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.75rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px solid #16a34a', borderRadius: '0 8px 8px 0', background: 'rgba(22,163,74,0.05)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', lineHeight: 1.3 }}>BƯỚC&nbsp;1<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>② NODE</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>agent</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong><code>agentNode</code> chạy.</strong> Message cuối chứa <em>"delete"</em> → trả về call tool ghi <strong>và</strong> đặt <code>needsApproval: true</code> trong slice của mình.</div>
+      <div style={{ marginTop: '0.4rem', padding: '0.35rem 0.55rem', borderRadius: '6px', background: 'rgba(0,0,0,0.04)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.74rem' }}>
+        <div style={{ opacity: 0.7 }}>trả về: messages: ["call: deleteProduct(42)"], needsApproval: true</div>
+        <div style={{ marginTop: '0.15rem' }}>state sau reducer:</div>
+        <div>&nbsp;&nbsp;messages: ["delete product 42", "call: deleteProduct(42)"]</div>
+        <div>&nbsp;&nbsp;needsApproval: true&nbsp;&nbsp;&nbsp;<span style={{ color: '#b45309' }}>← đảo cờ</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px dashed #d97706', borderRadius: '0 8px 8px 0', background: 'rgba(217,119,6,0.06)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#b45309', letterSpacing: '0.08em', lineHeight: 1.3 }}>BƯỚC&nbsp;2<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>④ COND.</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>router</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong>Cùng router, khác phán quyết.</strong> Lần này <code>state.needsApproval</code> là <code>true</code>, nên câu <code>if</code> đầu tiên short-circuit trả <code>'await'</code> thay vì <code>'tools'</code>. Runtime đẩy tới <code>await</code>.</div>
+    </div>
+  </div>
+
+  <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', alignItems: 'stretch', padding: '0.7rem 0.9rem', borderLeft: '4px solid #d97706', borderRadius: '0 8px 8px 0', background: 'rgba(217,119,6,0.06)' }}>
+    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#b45309', letterSpacing: '0.08em', lineHeight: 1.3 }}>BƯỚC&nbsp;3<div style={{ marginTop: '0.2rem', opacity: 0.75 }}>② NODE</div><div style={{ marginTop: '0.1rem', opacity: 0.6, fontWeight: 600 }}>await</div></div>
+    <div>
+      <div style={{ fontSize: '0.86rem' }}><strong><code>awaitNode</code> chạy.</strong> Trong demo nó append một message "paused". Trong LangGraph thật, đây là chỗ <code>interrupt(&#123; tool, args &#125;)</code> sống (L19) — graph dừng, runtime checkpoint state xuống đĩa, và chỉ resume khi có ai gọi <code>resume()</code>.</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+**Hai trace nói gì khi gộp lại.** *Cùng code, cùng node, cùng edge* — chỉ input khác. Bốn nguyên thuỷ không bao giờ phải biết về nhau:
+
+- **STATE** lặng lẽ lớn lên qua reducer; không node nào chạm vào dữ liệu của node khác.
+- **NODES** mỗi cái chỉ ba bốn dòng; không node nào nói *"tiếp theo, gọi X"*.
+- **EDGES** ôm trọn logic "bước kế tiếp" — `tools → agent` là một dòng đăng ký, không bao giờ được user code thực thi.
+- **CONDITIONAL ROUTING** là chỗ *duy nhất* mà quyết định đọc-vs-ghi sống. Đem riêng hàm router đó qua graph khác là bạn đã ship một agent khác.
+
+Đó là sợi dây liên kết: state di chuyển, node mutate slice, edge và router quyết state đi đâu — và runtime, không phải code của bạn, là cái thực sự đẩy nó đi.
 
 <Recap>
 - **State + node + edge + conditional routing.** Toàn bộ mô hình tinh thần của LangGraph. Học thuộc bốn từ này.
