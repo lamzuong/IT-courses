@@ -44,6 +44,10 @@ async function awaitConfirmationNode(state: GraphState): Promise<Partial<GraphSt
 
 Two things are happening in those eight lines. First, you've made the *intent* — "I'm about to write" — a piece of data your UI can render. The payload is structured: tool names, arg objects, anything else you want to show in the confirmation card. Second, you've made the *resumption* a function return: when the graph is resumed, `interrupt()` returns whatever your application supplied as the resume value. That's how the user's decision flows back into the node's local scope.
 
+<Callout type="note" title="What you see in the demo">
+The right-side **confirmation panel** flips from empty to a bordered card labelled *Confirmation required* / *AI wants to create a promo*. Inside the card: the function-call signature `promotions.create({ code: "LAPSED15", … })`, a one-line audience hint, and three buttons — **Approve**, **Reject**, **Edit args** (greyed out). That card is the `interrupt()` payload, rendered.
+</Callout>
+
 ## 02 — Where to put it
 
 Inside the `await_confirmation` node, before the write happens. That sentence sounds like one rule but is actually three.
@@ -53,6 +57,10 @@ The first rule is *inside a node*. `interrupt()` is not a top-level construct; i
 The second rule is *before the write happens*. If you call `interrupt()` after the database mutation, you've already done the thing you were asking permission for. The order has to be: classify → interrupt → wait for resume → mutate. The `write_tools` node, which actually executes the calls, comes *after* `await_confirmation` for exactly this reason.
 
 The third rule is *one interrupt per pause*. Don't loop over the write calls and call `interrupt()` for each — bundle them into one payload and let the user approve or reject the whole batch. Two consecutive interrupts are two graph pauses, two thread states, two round-trips to your UI; almost never what you want.
+
+<Callout type="note" title="What you see in the demo">
+The layout itself enforces the rule. **Left**: the transcript with the plan filling in row by row. **Right**: the confirmation card appears *before* any plan row turns green. The *executing promotions.create…* spinner only shows up *after* you click Approve — never before. That timeline is visual proof the interrupt sits between classify and mutate.
+</Callout>
 
 ## 03 — Resuming with a decision
 
@@ -80,6 +88,20 @@ const final = await graph.invoke(
 
 The same shape works for rejection. Instead of `{ approve: true }`, send `{ approve: false }` and let the node return a graceful cancellation message. The graph still terminates cleanly; nothing wrote.
 
+<Callout type="warning" title="Reject is not a rollback">
+"Nothing wrote" only holds for **the write you're rejecting and everything downstream of it.** If the user already approved an earlier interrupt — say, step 1 created the promo — that mutation has *already happened* in your database. Rejecting step 3 stops step 3; it does **not** delete `LAPSED15`. LangGraph's `interrupt` is a pause/resume primitive, not a transaction.
+
+Three ways to design around this:
+
+1. **Bundle all writes into one interrupt.** Plan first, show the entire batch on one card, approve-or-reject the whole thing. The lesson's "one interrupt per pause" rule (section 02) exists for exactly this reason — the demo splits the cards to teach the mechanic, not as a production pattern.
+2. **Saga / compensating actions.** Pair every write with an "undo" callable. On mid-flight reject, the graph runs compensations in reverse: `promotions.delete('LAPSED15')`, etc. Use this when later decisions genuinely depend on earlier reads.
+3. **Stage, don't commit.** Step 1 writes a draft row (`status: 'pending'`); only the final approval flips everything to `active`. Rejection lets the pending rows expire via TTL or a cancel hook. This is the Stripe / Shopify "preview then commit" shape.
+</Callout>
+
+<Callout type="note" title="What you see in the demo">
+Click **Approve** and the card vanishes, replaced by a green-text spinner *executing promotions.create…*; in the plan list, the matching row's `○` glyph turns into a spinner and then a green `✓`. Click **Reject** and the card is replaced by a red *Plan rejected* banner; an italic red *Cancelled — no changes committed.* line is appended to the transcript — and crucially, **no plan row ever turns green**. Approve resumes the graph; Reject terminates it.
+</Callout>
+
 <Callout type="tip">
   Interrupts only work if the graph state survives between the pause and the resume. That means a checkpointer — `MemorySaver` for development, a SQLite or Postgres backed checkpointer for production. The next lesson covers them in detail; for now, just know that without one your half-completed plan vanishes the moment the user closes the tab.
 </Callout>
@@ -98,9 +120,218 @@ Run it again and click Reject on the first card instead. The graph aborts at the
 
 Confirmation is now a graph primitive, not application logic. That sentence does a lot of work. Before, every write tool had to remember to ask first; every UI had to invent its own approval UI; every agent loop had to track which decisions were pending. After, there is one node where pauses live, one payload shape every approval card consumes, one resume API every UI calls. Adding a new write tool is *only* a registry entry — the gate already covers it. Adding a new approval UI is *only* a card component — the data is already structured. Adding an audit log is *only* a `write_tools` node hook — every committed mutation passed through the same point of control.
 
+<Callout type="note" title="What's an audit log?">
+An **audit log** is a permanent, append-only table that records *who did what, to what, and when* — one row per mutation. Think of it like a security camera recording over a cash register: the register can be used for thousands of legitimate sales a day, but the moment something looks wrong, you go to the tape.
+
+A typical row:
+
+| time                | actor              | action              | payload                          | result |
+| ------------------- | ------------------ | ------------------- | -------------------------------- | ------ |
+| 2026-05-18 14:03:17 | user@example.com   | promotions.create   | `{ code: "LAPSED15", … }`        | ok     |
+| 2026-05-18 14:03:42 | user@example.com   | emails.draft_bulk   | `{ recipients: [7] }`            | ok     |
+| 2026-05-18 14:11:08 | other@example.com  | promotions.deactivate | `{ code: "LAPSED15" }`         | ok     |
+
+Three groups care about this table:
+
+- **Compliance / legal.** When a regulator asks *"who decided to issue those refunds?"*, the audit log answers in one query. Without it, the company has no defence.
+- **Engineers.** When a customer reports *"my discount disappeared"*, you query the log and see the row that deactivated it — and the actor who triggered the deactivation. Debugging mutations without an audit log is guesswork.
+- **Security.** When something looks off — a write at 3 a.m., a write by an actor who shouldn't have access — the audit log is what tells you it happened. No log, no signal.
+
+The reason an audit log fits so cleanly into a graph-with-`write_tools` architecture: every committed mutation in the entire system passes through *one* node. You write a tiny hook there — grab `actor`, `tool_name`, `args`, `result`, `timestamp`, append a row — and you have automatic audit coverage of every write tool, present and future. In the diagram below, "audit log writer" is that hook.
+</Callout>
+
+<div className="my-8 space-y-6">
+
+  <div className="rounded-lg border border-red-300 bg-red-50/40 p-5">
+    <p className="text-[0.7rem] uppercase tracking-wider text-red-700 font-semibold mb-1">Before</p>
+    <p className="text-sm text-[color:var(--color-text-soft)] mb-4">Every write tool re-invents its own gate. Some forget. Audit format drifts.</p>
+
+    <div className="space-y-2 text-sm">
+      <div className="grid grid-cols-[8rem_1rem_9rem_1rem_5rem_1rem_8rem] items-center gap-2">
+        <span className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_A</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded border border-yellow-400 bg-yellow-50 px-2 py-1 text-xs text-center">ad-hoc modal A</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded bg-[color:var(--color-pine)] text-white px-2 py-1 text-xs text-center font-semibold">writes</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="text-xs text-amber-700">logged? maybe</span>
+      </div>
+      <div className="grid grid-cols-[8rem_1rem_9rem_1rem_5rem_1rem_8rem] items-center gap-2">
+        <span className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_B</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded border border-red-400 bg-red-100 px-2 py-1 text-xs text-center italic text-red-700">forgot to ask</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded bg-[color:var(--color-pine)] text-white px-2 py-1 text-xs text-center font-semibold">writes</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="text-xs text-red-700 font-semibold">no log</span>
+      </div>
+      <div className="grid grid-cols-[8rem_1rem_9rem_1rem_5rem_1rem_8rem] items-center gap-2">
+        <span className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_C</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded border border-purple-400 bg-purple-50 px-2 py-1 text-xs text-center">ad-hoc modal C</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded bg-[color:var(--color-pine)] text-white px-2 py-1 text-xs text-center font-semibold">writes</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="text-xs text-amber-700">different format</span>
+      </div>
+      <div className="grid grid-cols-[8rem_1rem_9rem_1rem_5rem_1rem_8rem] items-center gap-2">
+        <span className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_D</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs text-center italic text-gray-600">???</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded bg-[color:var(--color-pine)] text-white px-2 py-1 text-xs text-center font-semibold">writes</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="text-xs text-red-700 font-semibold">no one is sure</span>
+      </div>
+    </div>
+
+    <div className="text-xs italic text-[color:var(--color-text-soft)] mt-4">
+      Four tools, four different stories. Adding a fifth means deciding again — and probably getting it wrong again.
+    </div>
+  </div>
+
+  <div className="rounded-lg border-2 border-[color:var(--color-accent)] bg-[color:var(--color-bg-soft)] p-5">
+    <p className="text-[0.7rem] uppercase tracking-wider text-[color:var(--color-pine)] font-semibold mb-1">After</p>
+    <p className="text-sm text-[color:var(--color-text-soft)] mb-4">Every write funnels into one gate. One pause shape. One audit hook.</p>
+
+    <div className="grid grid-cols-[10rem_2rem_1fr] gap-3 items-center">
+
+      <div className="space-y-1.5">
+        <div className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_A</div>
+        <div className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_B</div>
+        <div className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_C</div>
+        <div className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_N</div>
+      </div>
+
+      <div className="flex flex-col items-center text-[color:var(--color-accent)]">
+        <span className="text-2xl leading-none">⇒</span>
+        <span className="text-[0.6rem] uppercase tracking-wider text-[color:var(--color-text-faint)] mt-1">funnel</span>
+      </div>
+
+      <div className="space-y-3">
+        <div className="rounded-lg border-2 border-[color:var(--color-accent)] bg-white px-3 py-2 text-center shadow-sm">
+          <p className="font-mono text-sm font-semibold text-[color:var(--color-pine)]">await_confirmation</p>
+          <p className="text-[0.7rem] text-[color:var(--color-text-soft)] mt-0.5">the only place the graph pauses</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col items-center">
+            <span className="text-[color:var(--color-accent)] text-base">↗</span>
+            <div className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1.5 text-center w-full">
+              <p className="font-mono text-xs text-[color:var(--color-pine)]">interrupt()</p>
+              <p className="text-[0.7rem] text-[color:var(--color-text-soft)] mt-0.5">→ UI card</p>
+              <p className="text-[0.65rem] text-[color:var(--color-text-faint)]">one payload shape, every tool</p>
+            </div>
+            <p className="text-[0.65rem] text-[color:var(--color-text-faint)] italic mt-1.5">↩ Command(&#123; resume &#125;)</p>
+          </div>
+
+          <div className="flex flex-col items-center">
+            <span className="text-[color:var(--color-accent)] text-base">↘</span>
+            <div className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1.5 text-center w-full space-y-1">
+              <p className="font-mono text-xs">write_tools</p>
+              <p className="text-[color:var(--color-text-faint)]">↓</p>
+              <p className="font-mono text-xs text-[color:var(--color-pine)]">audit log writer</p>
+              <p className="text-[0.65rem] text-[color:var(--color-text-faint)]">records who / what / when</p>
+              <p className="text-[color:var(--color-text-faint)]">↓</p>
+              <p className="font-mono text-xs">END</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div className="mt-5 grid sm:grid-cols-3 gap-2.5 text-xs">
+      <div className="rounded bg-white border border-[color:var(--color-rule)] p-2.5">
+        <p className="font-semibold text-[color:var(--color-pine)] mb-1">+ new write tool</p>
+        <p className="text-[color:var(--color-text-soft)]">one registry entry. The gate already covers it.</p>
+      </div>
+      <div className="rounded bg-white border border-[color:var(--color-rule)] p-2.5">
+        <p className="font-semibold text-[color:var(--color-pine)] mb-1">+ new approval UI</p>
+        <p className="text-[color:var(--color-text-soft)]">one card component. Payload shape is already defined.</p>
+      </div>
+      <div className="rounded bg-white border border-[color:var(--color-rule)] p-2.5">
+        <p className="font-semibold text-[color:var(--color-pine)] mb-1">+ audit logging</p>
+        <p className="text-[color:var(--color-text-soft)]">one hook on write_tools. Every commit passes through here.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
 The other thing that changes: rejection is cheap. A user who would otherwise have to mentally veto an AI agent's decisions before they happened — by reading dense logs, by undoing accidental writes — now gets a clean two-button card before each one. That changes their relationship with the system from "watching a fast process to make sure nothing breaks" to "approving each step at the speed they want." Some users want one click per step. Some build auto-approval rules on top. Both are now configuration, not code.
 
 When you ship this in production, the audit log writes "approved by user@example.com at 14:03:17" next to every mutation, and the regulator's question — *who decided to issue these refunds?* — has a five-character answer. That answer is what makes AI Operators legal.
+
+<Callout type="note" title="What you see in the demo">
+The success state surfaces a green **Workflow committed** badge in the right panel — *1 promo created, 7 drafts saved. The graph reached `END`* — and the assistant bubble on the left says *Done. 7 drafts saved. None sent yet.* Those two artifacts together are the user-visible audit surface. Swap the demo's green badge for a database row stamped *approved by user@example.com* and you have the production answer to the regulator's question.
+</Callout>
+
+<div className="my-8 grid md:grid-cols-[1fr_2.5rem_1fr] gap-4 items-center">
+
+  <div className="rounded-lg border-2 border-[color:var(--color-pine)] bg-white p-4 space-y-3">
+    <div className="text-[0.65rem] uppercase tracking-wider text-[color:var(--color-pine)] font-semibold">
+      Demo — what the user sees today
+    </div>
+
+    <div className="rounded-lg border border-[color:var(--color-pine)] bg-white px-3 py-2">
+      <div className="text-[0.6rem] uppercase tracking-wider text-[color:var(--color-pine)] mb-1">AI Operator</div>
+      <div className="text-sm">Done. 7 drafts saved. None sent yet.</div>
+    </div>
+
+    <div className="rounded-lg border border-[color:var(--color-pine)] bg-[color:var(--color-bg-soft)] px-3 py-2">
+      <div className="text-[0.6rem] uppercase tracking-wider text-[color:var(--color-pine)] font-semibold mb-1">
+        ✓ Workflow committed
+      </div>
+      <div className="text-sm">1 promo created, 7 drafts saved.</div>
+      <div className="text-sm">The graph reached <span className="font-mono text-xs">END</span>.</div>
+    </div>
+
+    <div className="text-[0.7rem] italic text-[color:var(--color-text-soft)] pt-1">
+      Two artifacts, side by side — the user's "audit surface" while sat at the screen.
+    </div>
+  </div>
+
+  <div className="flex md:flex-col items-center justify-center text-[color:var(--color-accent)] py-2">
+    <span className="text-3xl leading-none">→</span>
+    <span className="text-[0.6rem] uppercase tracking-wider text-[color:var(--color-text-faint)] mt-1 text-center md:max-w-[5rem]">
+      swap badge for audit row
+    </span>
+  </div>
+
+  <div className="rounded-lg border-2 border-[color:var(--color-accent)] bg-white p-4 space-y-3">
+    <div className="text-[0.65rem] uppercase tracking-wider text-[color:var(--color-accent)] font-semibold">
+      Production — audit_log row
+    </div>
+
+    <div className="rounded border border-[color:var(--color-rule)] bg-[color:var(--color-bg-soft)] p-3 font-mono text-xs leading-relaxed">
+      <div><span className="text-[color:var(--color-text-faint)]">timestamp:    </span>2026-05-18 14:03:17</div>
+      <div><span className="text-[color:var(--color-text-faint)]">actor:        </span>user@example.com</div>
+      <div><span className="text-[color:var(--color-text-faint)]">action:       </span>promotions.create</div>
+      <div><span className="text-[color:var(--color-text-faint)]">payload:      </span>{`{ code: "LAPSED15", … }`}</div>
+      <div><span className="text-[color:var(--color-text-faint)]">approved_via: </span>interrupt #op-2026-05-18-001</div>
+      <div><span className="text-[color:var(--color-text-faint)]">result:       </span><span className="text-[color:var(--color-pine)] font-semibold">ok</span></div>
+    </div>
+
+    <div className="text-[0.7rem] italic text-[color:var(--color-text-soft)] pt-1 border-t border-[color:var(--color-rule)]">
+      Regulator: <em>"who approved this refund?"</em> → one SQL query, one row, one email address.
+    </div>
+  </div>
+
+</div>
+
+<div className="my-6 rounded-lg bg-[color:var(--color-bg-soft)] border border-[color:var(--color-rule)] p-4 text-sm">
+  <div className="text-[0.65rem] uppercase tracking-wider text-[color:var(--color-pine)] font-semibold mb-2">
+    Where each piece comes from
+  </div>
+  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+    <div><span className="font-mono text-[color:var(--color-accent)]">timestamp</span> ← when the resume event fired</div>
+    <div><span className="font-mono text-[color:var(--color-accent)]">actor</span> ← session user on the resume request</div>
+    <div><span className="font-mono text-[color:var(--color-accent)]">action</span> ← <code>tool_call.name</code> from the interrupt payload</div>
+    <div><span className="font-mono text-[color:var(--color-accent)]">payload</span> ← <code>tool_call.args</code> from the interrupt payload</div>
+    <div><span className="font-mono text-[color:var(--color-accent)]">approved_via</span> ← <code>thread_id</code> on the graph invocation</div>
+    <div><span className="font-mono text-[color:var(--color-accent)]">result</span> ← return value of the <code>write_tools</code> node</div>
+  </div>
+</div>
 
 <Recap>
 - `interrupt(payload)` from `@langchain/langgraph` pauses the graph from inside a node and surfaces the payload to your application.
@@ -155,6 +386,10 @@ async function awaitConfirmationNode(state: GraphState): Promise<Partial<GraphSt
 
 Có hai chuyện đang diễn ra trong tám dòng đó. Thứ nhất, bạn đã biến *ý định* — "tôi sắp ghi" — thành một mảnh dữ liệu mà UI của bạn có thể render. Payload có cấu trúc: tên tool, object args, mọi thứ khác bạn muốn hiển thị trong card xác nhận. Thứ hai, bạn đã biến *việc tiếp tục* thành một giá trị trả về của hàm: khi graph được resume, `interrupt()` trả về đúng cái giá trị resume mà ứng dụng cung cấp. Đó là cách quyết định của người dùng chảy ngược lại vào phạm vi cục bộ của node.
 
+<Callout type="note" title="Bạn thấy gì trong demo">
+**Confirmation panel** ở bên phải đang trống bỗng hiện một card có viền với nhãn *Confirmation required* / *AI wants to create a promo*. Trong card: chữ ký lời gọi hàm `promotions.create({ code: "LAPSED15", … })`, một dòng gợi ý đối tượng khán giả, và ba nút — **Approve**, **Reject**, **Edit args** (bị mờ). Cái card đó chính là payload của `interrupt()` được render ra.
+</Callout>
+
 ## 02 — Đặt nó ở đâu
 
 Bên trong node `await_confirmation`, trước khi thao tác ghi xảy ra. Câu này nghe như một luật, nhưng thực ra là ba.
@@ -164,6 +399,10 @@ Luật thứ nhất là *bên trong một node*. `interrupt()` không phải m�
 Luật thứ hai là *trước khi thao tác ghi xảy ra*. Nếu bạn gọi `interrupt()` sau khi mutate database thì bạn đã làm xong việc mà bạn đang xin phép. Thứ tự phải là: phân loại → interrupt → đợi resume → mutate. Node `write_tools`, cái thực sự chạy các call, đứng *sau* `await_confirmation` đúng vì lý do này.
 
 Luật thứ ba là *mỗi lần dừng chỉ một interrupt*. Đừng loop qua các write call và gọi `interrupt()` cho mỗi cái — gói chúng thành một payload và để người dùng duyệt hoặc từ chối cả batch. Hai interrupt liên tiếp là hai lần dừng graph, hai thread state, hai vòng round-trip tới UI; gần như không bao giờ là cái bạn muốn.
+
+<Callout type="note" title="Bạn thấy gì trong demo">
+Chính layout là bằng chứng cho luật. **Trái**: transcript với kế hoạch điền dần từng dòng. **Phải**: card xác nhận xuất hiện *trước* khi bất kỳ dòng kế hoạch nào chuyển xanh. Spinner *executing promotions.create…* chỉ hiện ra *sau* khi bạn bấm Approve — không bao giờ trước đó. Cái trình tự thị giác đó chứng minh interrupt nằm giữa "phân loại" và "ghi".
+</Callout>
 
 ## 03 — Tiếp tục với một quyết định
 
@@ -191,6 +430,20 @@ const final = await graph.invoke(
 
 Cùng hình dạng đó dùng được cho việc từ chối. Thay vì `{ approve: true }`, gửi `{ approve: false }` và để node trả về một message huỷ nhẹ nhàng. Graph vẫn kết thúc gọn ghẽ; không có gì được ghi.
 
+<Callout type="warning" title="Reject không phải là rollback">
+Câu "không có gì được ghi" **chỉ đúng cho thao tác ghi mà bạn đang từ chối và mọi thứ phía sau nó.** Nếu người dùng đã duyệt một interrupt trước đó — ví dụ bước 1 đã tạo promo — thì mutation đó *đã xảy ra rồi* trong database của bạn. Reject bước 3 sẽ dừng bước 3; nó **không** xoá `LAPSED15`. `interrupt` của LangGraph là primitive pause/resume, không phải transaction.
+
+Ba cách thiết kế để xử lý chuyện này:
+
+1. **Gom mọi thao tác ghi vào một interrupt.** Lập kế hoạch trước, hiện cả batch trên một card, duyệt hoặc từ chối cả gói. Luật "một interrupt mỗi lần dừng" (mục 02) tồn tại đúng vì lý do này — demo chia thành hai card để dạy cơ chế, không phải để làm pattern production.
+2. **Saga / compensating action.** Cặp mỗi write với một hàm "undo". Khi reject giữa chừng, graph chạy các compensation theo thứ tự ngược: `promotions.delete('LAPSED15')`, v.v. Dùng khi quyết định sau thật sự phụ thuộc vào dữ liệu đọc trước.
+3. **Stage chứ đừng commit.** Bước 1 ghi một row nháp (`status: 'pending'`); chỉ lần duyệt cuối mới lật toàn bộ sang `active`. Khi reject, các row pending sẽ hết hạn qua TTL hoặc một hook huỷ. Đây là hình "preview rồi commit" kiểu Stripe / Shopify.
+</Callout>
+
+<Callout type="note" title="Bạn thấy gì trong demo">
+Bấm **Approve**, card biến mất, được thay bằng dòng spinner màu xanh *executing promotions.create…*; trong danh sách kế hoạch, glyph `○` ở dòng tương ứng đổi thành spinner rồi thành `✓` xanh. Bấm **Reject**, card được thay bằng banner đỏ *Plan rejected*; một dòng đỏ in nghiêng *Cancelled — no changes committed.* được thêm vào transcript — và quan trọng nhất, **không có dòng kế hoạch nào chuyển sang xanh**. Approve tiếp tục graph; Reject kết thúc nó.
+</Callout>
+
 <Callout type="tip">
   Interrupt chỉ hoạt động nếu state của graph sống sót giữa lúc dừng và lúc resume. Nghĩa là cần một checkpointer — `MemorySaver` cho development, một checkpointer dùng SQLite hay Postgres cho production. Bài kế tiếp sẽ nói chi tiết; bây giờ, chỉ cần biết rằng nếu không có nó thì kế hoạch đang dở dang của bạn biến mất ngay khoảnh khắc người dùng đóng tab.
 </Callout>
@@ -209,9 +462,218 @@ Chạy lại lần nữa và bấm Reject ở card đầu tiên xem. Graph dừn
 
 Confirmation giờ là một primitive của graph, không phải logic ứng dụng. Câu đó gánh rất nhiều ý nghĩa. Trước đây, mỗi write tool phải nhớ hỏi trước; mỗi UI phải tự nghĩ ra UI duyệt; mỗi vòng agent phải tự theo dõi quyết định nào đang chờ. Sau này, có một node nơi các lần dừng sống ở đó, một hình dạng payload mà mọi card duyệt đều tiêu thụ, một API resume mà mọi UI đều gọi. Thêm một write tool mới *chỉ là* thêm một mục trong registry — cổng đã lo phần còn lại. Thêm một UI duyệt mới *chỉ là* một component card — dữ liệu đã có cấu trúc sẵn. Thêm một audit log *chỉ là* một hook ở node `write_tools` — mọi mutation đã commit đều đi qua cùng một điểm điều khiển.
 
+<Callout type="note" title="Audit log là gì?">
+**Audit log** là một bảng vĩnh viễn, chỉ ghi thêm (append-only), ghi lại *ai đã làm gì, lên cái gì, vào lúc nào* — mỗi mutation một dòng. Hình dung như cái camera an ninh đặt phía trên quầy thu ngân: máy thu ngân có thể xử lý hàng nghìn giao dịch hợp lệ một ngày, nhưng ngay khi có gì đó nghi ngờ, người ta xem lại cuộn băng.
+
+Một dòng điển hình:
+
+| time                | actor              | action              | payload                          | result |
+| ------------------- | ------------------ | ------------------- | -------------------------------- | ------ |
+| 2026-05-18 14:03:17 | user@example.com   | promotions.create   | `{ code: "LAPSED15", … }`        | ok     |
+| 2026-05-18 14:03:42 | user@example.com   | emails.draft_bulk   | `{ recipients: [7] }`            | ok     |
+| 2026-05-18 14:11:08 | other@example.com  | promotions.deactivate | `{ code: "LAPSED15" }`         | ok     |
+
+Ba nhóm người quan tâm tới bảng này:
+
+- **Compliance / pháp lý.** Khi cơ quan quản lý hỏi *"ai đã quyết định hoàn các khoản tiền này?"*, audit log trả lời chỉ bằng một câu query. Không có nó, công ty không có gì để biện hộ.
+- **Kỹ sư.** Khi khách báo *"khuyến mãi của tôi biến mất"*, bạn query log và thấy dòng đã deactivate nó — kèm theo actor đã kích hoạt. Debug mutation mà không có audit log là đoán mò.
+- **Bảo mật.** Khi có gì đó bất thường — một thao tác ghi lúc 3 giờ sáng, một actor không nên có quyền — audit log là thứ cho bạn biết chuyện đó đã xảy ra. Không có log thì không có tín hiệu.
+
+Lý do audit log khớp ngon vào kiến trúc graph-có-`write_tools` là: mọi mutation đã commit trong toàn hệ thống đều đi qua *một* node duy nhất. Bạn viết một hook nhỏ ở đó — lấy `actor`, `tool_name`, `args`, `result`, `timestamp`, append một dòng — và bạn có audit tự động cho mọi write tool, hiện tại lẫn tương lai. Trong biểu đồ bên dưới, "audit log writer" chính là cái hook đó.
+</Callout>
+
+<div className="my-8 space-y-6">
+
+  <div className="rounded-lg border border-red-300 bg-red-50/40 p-5">
+    <p className="text-[0.7rem] uppercase tracking-wider text-red-700 font-semibold mb-1">Trước</p>
+    <p className="text-sm text-[color:var(--color-text-soft)] mb-4">Mỗi write tool tự dựng cổng riêng. Có cái quên. Định dạng log mỗi nơi mỗi khác.</p>
+
+    <div className="space-y-2 text-sm">
+      <div className="grid grid-cols-[8rem_1rem_9rem_1rem_5rem_1rem_8rem] items-center gap-2">
+        <span className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_A</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded border border-yellow-400 bg-yellow-50 px-2 py-1 text-xs text-center">modal tự chế A</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded bg-[color:var(--color-pine)] text-white px-2 py-1 text-xs text-center font-semibold">ghi</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="text-xs text-amber-700">có log? có thể</span>
+      </div>
+      <div className="grid grid-cols-[8rem_1rem_9rem_1rem_5rem_1rem_8rem] items-center gap-2">
+        <span className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_B</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded border border-red-400 bg-red-100 px-2 py-1 text-xs text-center italic text-red-700">quên hỏi</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded bg-[color:var(--color-pine)] text-white px-2 py-1 text-xs text-center font-semibold">ghi</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="text-xs text-red-700 font-semibold">không có log</span>
+      </div>
+      <div className="grid grid-cols-[8rem_1rem_9rem_1rem_5rem_1rem_8rem] items-center gap-2">
+        <span className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_C</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded border border-purple-400 bg-purple-50 px-2 py-1 text-xs text-center">modal tự chế C</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded bg-[color:var(--color-pine)] text-white px-2 py-1 text-xs text-center font-semibold">ghi</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="text-xs text-amber-700">định dạng khác</span>
+      </div>
+      <div className="grid grid-cols-[8rem_1rem_9rem_1rem_5rem_1rem_8rem] items-center gap-2">
+        <span className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_D</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs text-center italic text-gray-600">???</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="rounded bg-[color:var(--color-pine)] text-white px-2 py-1 text-xs text-center font-semibold">ghi</span>
+        <span className="text-center text-[color:var(--color-text-faint)]">→</span>
+        <span className="text-xs text-red-700 font-semibold">không ai chắc</span>
+      </div>
+    </div>
+
+    <div className="text-xs italic text-[color:var(--color-text-soft)] mt-4">
+      Bốn tool, bốn câu chuyện khác nhau. Thêm cái thứ năm là phải quyết lại — và rất có thể lại sai.
+    </div>
+  </div>
+
+  <div className="rounded-lg border-2 border-[color:var(--color-accent)] bg-[color:var(--color-bg-soft)] p-5">
+    <p className="text-[0.7rem] uppercase tracking-wider text-[color:var(--color-pine)] font-semibold mb-1">Sau</p>
+    <p className="text-sm text-[color:var(--color-text-soft)] mb-4">Mọi thao tác ghi dồn vào một cổng. Một hình dạng pause. Một hook audit.</p>
+
+    <div className="grid grid-cols-[10rem_2rem_1fr] gap-3 items-center">
+
+      <div className="space-y-1.5">
+        <div className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_A</div>
+        <div className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_B</div>
+        <div className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_C</div>
+        <div className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1 font-mono text-xs text-center">write_tool_N</div>
+      </div>
+
+      <div className="flex flex-col items-center text-[color:var(--color-accent)]">
+        <span className="text-2xl leading-none">⇒</span>
+        <span className="text-[0.6rem] uppercase tracking-wider text-[color:var(--color-text-faint)] mt-1">dồn về</span>
+      </div>
+
+      <div className="space-y-3">
+        <div className="rounded-lg border-2 border-[color:var(--color-accent)] bg-white px-3 py-2 text-center shadow-sm">
+          <p className="font-mono text-sm font-semibold text-[color:var(--color-pine)]">await_confirmation</p>
+          <p className="text-[0.7rem] text-[color:var(--color-text-soft)] mt-0.5">nơi duy nhất graph dừng lại</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col items-center">
+            <span className="text-[color:var(--color-accent)] text-base">↗</span>
+            <div className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1.5 text-center w-full">
+              <p className="font-mono text-xs text-[color:var(--color-pine)]">interrupt()</p>
+              <p className="text-[0.7rem] text-[color:var(--color-text-soft)] mt-0.5">→ UI card</p>
+              <p className="text-[0.65rem] text-[color:var(--color-text-faint)]">một payload, mọi tool</p>
+            </div>
+            <p className="text-[0.65rem] text-[color:var(--color-text-faint)] italic mt-1.5">↩ Command(&#123; resume &#125;)</p>
+          </div>
+
+          <div className="flex flex-col items-center">
+            <span className="text-[color:var(--color-accent)] text-base">↘</span>
+            <div className="rounded border border-[color:var(--color-rule)] bg-white px-2 py-1.5 text-center w-full space-y-1">
+              <p className="font-mono text-xs">write_tools</p>
+              <p className="text-[color:var(--color-text-faint)]">↓</p>
+              <p className="font-mono text-xs text-[color:var(--color-pine)]">audit log writer</p>
+              <p className="text-[0.65rem] text-[color:var(--color-text-faint)]">ghi ai / làm gì / khi nào</p>
+              <p className="text-[color:var(--color-text-faint)]">↓</p>
+              <p className="font-mono text-xs">END</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div className="mt-5 grid sm:grid-cols-3 gap-2.5 text-xs">
+      <div className="rounded bg-white border border-[color:var(--color-rule)] p-2.5">
+        <p className="font-semibold text-[color:var(--color-pine)] mb-1">+ write tool mới</p>
+        <p className="text-[color:var(--color-text-soft)]">một dòng trong registry. Cổng đã bọc sẵn.</p>
+      </div>
+      <div className="rounded bg-white border border-[color:var(--color-rule)] p-2.5">
+        <p className="font-semibold text-[color:var(--color-pine)] mb-1">+ UI duyệt mới</p>
+        <p className="text-[color:var(--color-text-soft)]">một component card. Payload đã có hình dạng sẵn.</p>
+      </div>
+      <div className="rounded bg-white border border-[color:var(--color-rule)] p-2.5">
+        <p className="font-semibold text-[color:var(--color-pine)] mb-1">+ audit log</p>
+        <p className="text-[color:var(--color-text-soft)]">một hook ở write_tools. Mọi commit đều đi qua đây.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
 Điều khác cũng thay đổi: từ chối trở nên rẻ. Một người dùng đáng lẽ phải ngồi tự veto quyết định của AI agent trong đầu trước khi chúng xảy ra — bằng cách đọc log dày đặc, bằng cách undo các thao tác ghi nhầm — giờ nhận được một card hai nút sạch sẽ trước mỗi lần. Điều đó thay đổi mối quan hệ của họ với hệ thống từ "canh một tiến trình chạy nhanh để chắc không có gì hỏng" sang "duyệt từng bước với tốc độ họ muốn." Có người muốn một click mỗi bước. Có người dựng luật auto-approve ở trên. Cả hai giờ là cấu hình, không phải code.
 
 Khi bạn đem cái này lên production, audit log ghi "approved by user@example.com at 14:03:17" cạnh mỗi mutation, và câu hỏi của cơ quan quản lý — *ai đã quyết định hoàn các khoản tiền này?* — có một câu trả lời năm ký tự. Câu trả lời đó là thứ làm cho AI Operator hợp pháp.
+
+<Callout type="note" title="Bạn thấy gì trong demo">
+Trạng thái thành công hiện một badge xanh **Workflow committed** ở panel phải — *1 promo created, 7 drafts saved. The graph reached `END`* — và bubble của trợ lý bên trái nói *Done. 7 drafts saved. None sent yet.* Hai cái artifact đó cộng lại chính là bề mặt audit mà người dùng nhìn thấy. Đổi cái badge xanh trong demo bằng một row database đóng dấu *approved by user@example.com* thì bạn có đúng câu trả lời production cho câu hỏi của cơ quan quản lý.
+</Callout>
+
+<div className="my-8 grid md:grid-cols-[1fr_2.5rem_1fr] gap-4 items-center">
+
+  <div className="rounded-lg border-2 border-[color:var(--color-pine)] bg-white p-4 space-y-3">
+    <div className="text-[0.65rem] uppercase tracking-wider text-[color:var(--color-pine)] font-semibold">
+      Demo — người dùng nhìn thấy
+    </div>
+
+    <div className="rounded-lg border border-[color:var(--color-pine)] bg-white px-3 py-2">
+      <div className="text-[0.6rem] uppercase tracking-wider text-[color:var(--color-pine)] mb-1">AI Operator</div>
+      <div className="text-sm">Done. 7 drafts saved. None sent yet.</div>
+    </div>
+
+    <div className="rounded-lg border border-[color:var(--color-pine)] bg-[color:var(--color-bg-soft)] px-3 py-2">
+      <div className="text-[0.6rem] uppercase tracking-wider text-[color:var(--color-pine)] font-semibold mb-1">
+        ✓ Workflow committed
+      </div>
+      <div className="text-sm">1 promo created, 7 drafts saved.</div>
+      <div className="text-sm">The graph reached <span className="font-mono text-xs">END</span>.</div>
+    </div>
+
+    <div className="text-[0.7rem] italic text-[color:var(--color-text-soft)] pt-1">
+      Hai artifact cạnh nhau — chính là "bề mặt audit" mà người dùng thấy ngay lúc đó.
+    </div>
+  </div>
+
+  <div className="flex md:flex-col items-center justify-center text-[color:var(--color-accent)] py-2">
+    <span className="text-3xl leading-none">→</span>
+    <span className="text-[0.6rem] uppercase tracking-wider text-[color:var(--color-text-faint)] mt-1 text-center md:max-w-[5rem]">
+      đổi badge thành audit row
+    </span>
+  </div>
+
+  <div className="rounded-lg border-2 border-[color:var(--color-accent)] bg-white p-4 space-y-3">
+    <div className="text-[0.65rem] uppercase tracking-wider text-[color:var(--color-accent)] font-semibold">
+      Production — một dòng audit_log
+    </div>
+
+    <div className="rounded border border-[color:var(--color-rule)] bg-[color:var(--color-bg-soft)] p-3 font-mono text-xs leading-relaxed">
+      <div><span className="text-[color:var(--color-text-faint)]">timestamp:    </span>2026-05-18 14:03:17</div>
+      <div><span className="text-[color:var(--color-text-faint)]">actor:        </span>user@example.com</div>
+      <div><span className="text-[color:var(--color-text-faint)]">action:       </span>promotions.create</div>
+      <div><span className="text-[color:var(--color-text-faint)]">payload:      </span>{`{ code: "LAPSED15", … }`}</div>
+      <div><span className="text-[color:var(--color-text-faint)]">approved_via: </span>interrupt #op-2026-05-18-001</div>
+      <div><span className="text-[color:var(--color-text-faint)]">result:       </span><span className="text-[color:var(--color-pine)] font-semibold">ok</span></div>
+    </div>
+
+    <div className="text-[0.7rem] italic text-[color:var(--color-text-soft)] pt-1 border-t border-[color:var(--color-rule)]">
+      Cơ quan quản lý: <em>"ai đã duyệt khoản hoàn này?"</em> → một câu SQL, một row, một email.
+    </div>
+  </div>
+
+</div>
+
+<div className="my-6 rounded-lg bg-[color:var(--color-bg-soft)] border border-[color:var(--color-rule)] p-4 text-sm">
+  <div className="text-[0.65rem] uppercase tracking-wider text-[color:var(--color-pine)] font-semibold mb-2">
+    Mỗi cột đến từ đâu
+  </div>
+  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+    <div><span className="font-mono text-[color:var(--color-accent)]">timestamp</span> ← lúc resume được kích hoạt</div>
+    <div><span className="font-mono text-[color:var(--color-accent)]">actor</span> ← user của session ở request resume</div>
+    <div><span className="font-mono text-[color:var(--color-accent)]">action</span> ← <code>tool_call.name</code> trong payload interrupt</div>
+    <div><span className="font-mono text-[color:var(--color-accent)]">payload</span> ← <code>tool_call.args</code> trong payload interrupt</div>
+    <div><span className="font-mono text-[color:var(--color-accent)]">approved_via</span> ← <code>thread_id</code> của lần invoke graph</div>
+    <div><span className="font-mono text-[color:var(--color-accent)]">result</span> ← giá trị trả về của node <code>write_tools</code></div>
+  </div>
+</div>
 
 <Recap>
 - `interrupt(payload)` từ `@langchain/langgraph` dừng graph từ bên trong một node và đẩy payload lên ứng dụng.
