@@ -1,0 +1,387 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- The exact moment Docker Compose stops being enough.
+- **Docker Swarm** — Compose's bigger sibling, included with Docker, easy to reach for.
+- **Kubernetes** — the industry standard for production at scale. What it actually adds, and what it costs you.
+- A decision tree: when to stay on Compose, when to graduate to Swarm or K8s, when to use managed platforms (ECS, Cloud Run, Fly.io).
+</Callout>
+
+You have built a five-service Compose stack with healthchecks, secrets, security hardening, and a CI/CD pipeline. That stack runs on one host. For an enormous number of real applications — internal tools, side projects, early-stage startups, B2B SaaS at modest scale — that is genuinely enough. Many companies run on a single beefy server until they have millions of users.
+
+This lesson is about what comes *after*. Not because you should jump there now — but so when the day comes, you reach for the right thing.
+
+## When Compose stops being enough
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Khoảnh khắc chính xác Docker Compose không còn đủ.
+- **Docker Swarm** — đứa em lớn hơn của Compose, đi kèm Docker, dễ với tới.
+- **Kubernetes** — chuẩn công nghiệp cho production ở quy mô lớn. Nó thật sự thêm gì, và bạn trả giá gì.
+- Cây quyết định: khi nào ở lại Compose, khi nào lên Swarm/K8s, khi nào dùng platform được quản lý (ECS, Cloud Run, Fly.io).
+</Callout>
+
+Bạn đã build stack Compose 5 service với healthcheck, secret, hardening bảo mật, và pipeline CI/CD. Stack đó chạy trên một host. Với rất nhiều ứng dụng thật — tool nội bộ, side project, startup giai đoạn đầu, SaaS B2B quy mô vừa — như vậy *thật sự* đủ. Nhiều công ty chạy trên một server khoẻ cho đến khi có hàng triệu user.
+
+Bài này về phần *sau đó*. Không phải vì bạn nên nhảy ngay — mà để khi tới ngày, bạn rút đúng thứ.
+
+## Khi nào Compose không còn đủ
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 820 280"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Decision tree. Q1: one host enough? yes → Compose. no → Q2: small team and low ops budget? yes → Docker Swarm or a managed platform. no → Kubernetes."
+    style={{ width: '100%', maxWidth: '820px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l19-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+    <text x="410" y="24" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">Decision tree</text>
+
+    <rect x="290" y="50" width="240" height="50" rx="10" fill="#e6f4ea" stroke="#1a3a2e" />
+    <text x="410" y="80" fontSize="13" textAnchor="middle" fill="#1a3a2e">Does one host fit your load?</text>
+
+    <line x1="350" y1="100" x2="180" y2="135" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l19-arr)" />
+    <text x="240" y="120" fontSize="11" fill="#1a3a2e">yes</text>
+    <rect x="50" y="145" width="260" height="60" rx="10" fill="#fff7e6" stroke="#d9a441" />
+    <text x="180" y="172" fontSize="13" textAnchor="middle" fill="#1a3a2e" fontWeight="600">stay on Docker Compose</text>
+    <text x="180" y="192" fontSize="11" textAnchor="middle" fill="#3d4f47">it is good for years</text>
+
+    <line x1="470" y1="100" x2="640" y2="135" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l19-arr)" />
+    <text x="580" y="120" fontSize="11" fill="#1a3a2e">no — need more hosts</text>
+    <rect x="510" y="145" width="280" height="50" rx="10" fill="#e6f4ea" stroke="#1a3a2e" />
+    <text x="650" y="175" fontSize="13" textAnchor="middle" fill="#1a3a2e">Have a platform team / DevOps budget?</text>
+
+    <line x1="600" y1="195" x2="550" y2="225" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l19-arr)" />
+    <text x="555" y="218" fontSize="11" fill="#1a3a2e">no</text>
+    <rect x="430" y="230" width="260" height="40" rx="8" fill="#fdebd0" stroke="#d9a441" />
+    <text x="560" y="255" fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">Swarm  or  managed (Cloud Run, ECS, Fly)</text>
+
+    <line x1="700" y1="195" x2="750" y2="225" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l19-arr)" />
+    <text x="755" y="218" fontSize="11" fill="#1a3a2e">yes</text>
+    <rect x="700" y="230" width="110" height="40" rx="8" fill="#fbe6e6" stroke="#a83232" />
+    <text x="755" y="255" fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">Kubernetes</text>
+  </svg>
+</figure>
+
+<EN>
+
+The honest pain points that push you off Compose:
+
+1. **One host is the failure domain.** Reboot the server, every service is down. For uptime targets above 99% you need at least two hosts.
+2. **You need horizontal scaling.** *"Run three API replicas behind a load balancer."* Compose has `deploy.replicas`, but no actual load balancing or self-healing across hosts.
+3. **You need rolling updates with rollback.** Compose's `up -d` is best-effort. Multi-host orchestrators do this with real guarantees.
+4. **You need declarative scheduling across many machines.** *"Run this on a GPU node only."* *"Spread these pods across zones."* Compose has no concept of this.
+
+If you hit none of those, you do not need to leave Compose. People love telling you to use Kubernetes; they are often wrong for your scale.
+
+## Docker Swarm — the gentlest step up
+
+Swarm is built into Docker. No extra binary, no extra cluster setup. It turns a fleet of Docker hosts into one logical pool, and it speaks **Compose's YAML** with a few extras.
+
+```bash
+# On the first node:
+docker swarm init                                                    # → become a manager
+# Returns a `docker swarm join` command — run that on every worker.
+```
+
+Then deploy your existing Compose file:
+
+```bash
+docker stack deploy -c docker-compose.yml coffee
+docker stack services coffee
+docker service logs coffee_api -f
+docker service scale coffee_api=3                                    # → run 3 replicas across the cluster
+```
+
+What you gain over plain Compose:
+
+- **Multiple hosts.** Add a node with `docker swarm join`; Swarm starts placing containers on it.
+- **Replicas with load balancing.** `deploy.replicas: 3` actually means three running copies, behind Swarm's built-in routing mesh.
+- **Rolling updates and rollback.** `docker service update --image new:tag api` does a one-at-a-time roll; failure auto-rolls-back.
+- **Secrets and configs as first-class objects** (`docker secret create`).
+
+What you do not gain:
+
+- **A rich ecosystem.** Swarm has barely grown in years; tooling is sparse compared to K8s.
+- **Multi-cloud portability and a job market.** Most companies hiring "Docker / containers" are hiring for Kubernetes.
+
+Swarm is a *real* answer for a 2–10 host cluster, a small team, and Compose already in hand. It dies quietly at "we have 50 services and three squads"; that is where K8s lives.
+
+## Kubernetes — the standard
+
+Kubernetes is the operating system of distributed containers. It runs on every major cloud, has a vast ecosystem (helm, ArgoCD, Istio, Prometheus, …), and is what 90% of larger companies use.
+
+The trade is *complexity*. You learn an entire vocabulary: Pod, Deployment, Service, Ingress, ConfigMap, Secret, StatefulSet, Job, CronJob, RBAC, NetworkPolicy, PV/PVC, etc. None of it maps 1:1 to Compose, though there is a rough analogy:
+
+| Compose | Kubernetes |
+|---------|-----------|
+| `services:` | Deployments |
+| service name on the network | Service (the resource) |
+| `ports:` | Service of type ClusterIP / NodePort / LoadBalancer + Ingress |
+| `volumes:` (named) | PersistentVolumeClaim |
+| `secrets:` | Secret (and the same name) |
+| `environment:` | env / envFrom + ConfigMap |
+| `healthcheck:` | livenessProbe / readinessProbe |
+| `depends_on:` | (no direct equivalent; init containers or readiness gates) |
+| `deploy.replicas:` | Deployment replicas + HorizontalPodAutoscaler |
+
+A minimal `api` deployment in K8s:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: coffee-api }
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: coffee-api }
+  template:
+    metadata:
+      labels: { app: coffee-api }
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/myteam/coffee-api:1.4.2
+          ports: [{ containerPort: 4000 }]
+          envFrom: [{ secretRef: { name: coffee-secrets } }]
+          livenessProbe:
+            httpGet: { path: /health, port: 4000 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /ready,  port: 4000 }
+            periodSeconds: 5
+          resources:
+            limits:   { cpu: '500m', memory: '256Mi' }
+            requests: { cpu: '100m', memory: '64Mi' }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: coffee-api }
+spec:
+  selector: { app: coffee-api }
+  ports: [{ port: 4000, targetPort: 4000 }]
+```
+
+You can see the lineage. Containers, images, env, healthchecks, resource limits — every concept you learned in this course is here, just named differently and packed into more YAML.
+
+**`kompose`** is a tool that converts a Compose file into a starter K8s manifest. Useful as a translator, not as a final answer:
+
+```bash
+kompose convert -f docker-compose.yml                                # → emits k8s yaml files
+```
+
+## Managed platforms — the third path
+
+A genuinely under-discussed option: skip Swarm and K8s, run your containers on a managed platform.
+
+- **Google Cloud Run** — push an OCI image, get an HTTPS URL. Scales to zero. You write zero ops code.
+- **AWS Fargate / ECS** — Amazon's container runtime; you write a task definition (~Compose) and AWS runs it.
+- **Fly.io** — a fly.toml (almost the same shape as Compose) and `flyctl deploy`. Multi-region, very developer-friendly.
+- **Railway / Render** — push, runs. Great for small teams.
+
+These all run the same container images you have built. The shift is *who manages the orchestration*. If your team is two people and you do not want to run a cluster, this path is correct more often than the engineering blogs suggest.
+
+## What you should *not* do
+
+</EN>
+
+<VI>
+
+Những điểm đau thật sự đẩy bạn rời Compose:
+
+1. **Một host là failure domain.** Reboot server, mọi service tắt. Uptime trên 99% cần ít nhất hai host.
+2. **Cần scale ngang.** *"Chạy 3 replica API sau load balancer."* Compose có `deploy.replicas`, nhưng không có load balancing thật hay self-healing giữa các host.
+3. **Cần rolling update kèm rollback.** `up -d` của Compose là best-effort. Orchestrator nhiều host làm việc này có bảo đảm thật.
+4. **Cần lịch chạy khai báo qua nhiều máy.** *"Chạy trên node GPU."* *"Phân tán pod qua các zone."* Compose không có khái niệm.
+
+Không gặp cái nào thì không cần rời Compose. Người ta thích bảo bạn lên Kubernetes; thường họ sai với quy mô của bạn.
+
+## Docker Swarm — bước lên nhẹ nhất
+
+Swarm có sẵn trong Docker. Không binary thêm, không cluster setup riêng. Nó biến một dàn host Docker thành một pool logic, và **hiểu YAML Compose** với vài thứ thêm.
+
+```bash
+# Trên node đầu tiên:
+docker swarm init                                                    # → trở thành manager
+# Trả về một lệnh `docker swarm join` — chạy trên mọi worker.
+```
+
+Rồi deploy file Compose hiện có:
+
+```bash
+docker stack deploy -c docker-compose.yml coffee
+docker stack services coffee
+docker service logs coffee_api -f
+docker service scale coffee_api=3                                    # → chạy 3 replica xuyên cluster
+```
+
+So với Compose:
+
+- **Nhiều host.** Thêm node bằng `docker swarm join`; Swarm bắt đầu đặt container vào.
+- **Replica kèm load balancing.** `deploy.replicas: 3` thật sự là 3 bản chạy, sau routing mesh của Swarm.
+- **Rolling update và rollback.** `docker service update --image new:tag api` cuộn từng cái; lỗi auto rollback.
+- **Secret và config là object hạng nhất** (`docker secret create`).
+
+Cái không có:
+
+- **Hệ sinh thái phong phú.** Swarm gần như không phát triển nhiều năm nay; tooling thưa so với K8s.
+- **Tính portable đa cloud và thị trường việc.** Đa số công ty tuyển "Docker / container" là tuyển Kubernetes.
+
+Swarm là câu trả lời *thật* cho cluster 2–10 host, team nhỏ, đã có Compose. Nó lặng lẽ chết khi "có 50 service và 3 squad"; chỗ đó là của K8s.
+
+## Kubernetes — chuẩn
+
+Kubernetes là hệ điều hành của container phân tán. Chạy trên mọi cloud lớn, có hệ sinh thái khổng lồ (helm, ArgoCD, Istio, Prometheus, …), và là cái 90% công ty lớn dùng.
+
+Đánh đổi là *độ phức tạp*. Bạn học cả bộ từ vựng: Pod, Deployment, Service, Ingress, ConfigMap, Secret, StatefulSet, Job, CronJob, RBAC, NetworkPolicy, PV/PVC, v.v. Không cái nào ánh xạ 1:1 sang Compose, nhưng có tương đồng đại khái:
+
+| Compose | Kubernetes |
+|---------|-----------|
+| `services:` | Deployment |
+| tên service trên network | Service (resource) |
+| `ports:` | Service ClusterIP / NodePort / LoadBalancer + Ingress |
+| `volumes:` (named) | PersistentVolumeClaim |
+| `secrets:` | Secret (cùng tên) |
+| `environment:` | env / envFrom + ConfigMap |
+| `healthcheck:` | livenessProbe / readinessProbe |
+| `depends_on:` | (không có tương đương trực tiếp; init container hoặc readiness gate) |
+| `deploy.replicas:` | Deployment replicas + HorizontalPodAutoscaler |
+
+Deployment `api` tối thiểu trong K8s:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: coffee-api }
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: coffee-api }
+  template:
+    metadata:
+      labels: { app: coffee-api }
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/myteam/coffee-api:1.4.2
+          ports: [{ containerPort: 4000 }]
+          envFrom: [{ secretRef: { name: coffee-secrets } }]
+          livenessProbe:
+            httpGet: { path: /health, port: 4000 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /ready,  port: 4000 }
+            periodSeconds: 5
+          resources:
+            limits:   { cpu: '500m', memory: '256Mi' }
+            requests: { cpu: '100m', memory: '64Mi' }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: coffee-api }
+spec:
+  selector: { app: coffee-api }
+  ports: [{ port: 4000, targetPort: 4000 }]
+```
+
+Có thể thấy dòng dõi. Container, image, env, healthcheck, resource limit — mọi khái niệm bạn học trong khoá đều có, chỉ đổi tên và nhồi vào nhiều YAML hơn.
+
+**`kompose`** là tool chuyển file Compose thành manifest K8s khởi điểm. Hữu ích như công cụ dịch, không phải đáp án cuối:
+
+```bash
+kompose convert -f docker-compose.yml                                # → sinh các file yaml k8s
+```
+
+## Platform được quản lý — con đường thứ ba
+
+Một lựa chọn ít được bàn: bỏ qua Swarm và K8s, chạy container trên platform managed.
+
+- **Google Cloud Run** — push một OCI image, nhận URL HTTPS. Scale về 0. Không viết code ops nào.
+- **AWS Fargate / ECS** — container runtime của Amazon; bạn viết task definition (~Compose) và AWS chạy.
+- **Fly.io** — file fly.toml (gần giống Compose) và `flyctl deploy`. Multi-region, rất thân thiện dev.
+- **Railway / Render** — push, chạy. Tốt cho team nhỏ.
+
+Tất cả đều chạy cùng image container bạn đã build. Khác biệt là *ai quản orchestration*. Team 2 người, không muốn vận hành cluster, con đường này đúng nhiều hơn các blog kỹ thuật gợi ý.
+
+## Cái bạn **không nên** làm
+
+</VI>
+
+<EN>
+
+- Adopt Kubernetes because *"this is how big companies do it."* If your traffic is 100 req/min, you are paying tax in complexity for nothing.
+- Move to Swarm because Docker keeps suggesting it. It is real but quietly fading; check whether your team has any reason to invest there.
+- Stay on a single-host Compose stack for an app whose downtime costs you money. Two cheap VMs + a load balancer + a managed Postgres beat one $500/month box.
+
+## What graduating actually feels like
+
+</EN>
+
+<VI>
+
+- Lên Kubernetes chỉ vì *"công ty lớn đều làm thế"*. Traffic 100 req/phút mà bạn nộp thuế phức tạp cho không.
+- Chuyển sang Swarm vì Docker cứ gợi ý. Nó tồn tại nhưng đang phai dần; coi team bạn có lý do gì để đầu tư không.
+- Bám Compose một host cho app có downtime đắt tiền. Hai VM rẻ + một load balancer + một Postgres managed thắng một con $500/tháng.
+
+## Lên hạng thật sự cảm thấy thế nào
+
+</VI>
+
+<EN>
+
+When you do move off Compose, you keep almost everything:
+
+- Your Dockerfiles are identical.
+- Your image-tagging and registry workflows are identical.
+- Your healthchecks become probes; your env vars become ConfigMaps; your secrets become Secrets.
+- Your `.env`-driven config maps cleanly to `kustomize` or `helm` values.
+
+You are not throwing this course away. You are extending it. Compose teaches the model; K8s applies it at scale. The cost is mostly YAML and ops time, not a re-learning of containers.
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+Khi rời Compose, bạn giữ gần như mọi thứ:
+
+- Dockerfile giữ nguyên.
+- Workflow tag image và registry giữ nguyên.
+- Healthcheck thành probe; env var thành ConfigMap; secret thành Secret.
+- Config theo `.env` ánh xạ gọn sang giá trị `kustomize` hay `helm`.
+
+Bạn không vứt khoá này đi. Bạn mở rộng nó. Compose dạy mô hình; K8s áp dụng ở quy mô. Cái giá phần lớn là YAML và thời gian ops, không phải học lại container.
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** Compose is *running one café really well*. Swarm is *opening a few branches in the same city and routing customers between them when one is busy*. Kubernetes is *managing a national chain with regional managers, supply-chain logistics, multiple suppliers, dedicated branch openings, and a head office of policy*. Managed platforms are *franchising* — you focus on the recipes; somebody else handles the buildings, the staff scheduling, the supply contracts.
+
+**VI —** Compose là *vận hành một quán cà phê thật tốt*. Swarm là *mở vài chi nhánh cùng thành phố và điều khách giữa các chi nhánh khi một bên đông*. Kubernetes là *quản chuỗi quy mô quốc gia có quản lý vùng, logistics chuỗi cung ứng, nhiều nhà cung cấp, đội mở chi nhánh chuyên trách, và tổng hành dinh chính sách*. Platform managed là *nhượng quyền* — bạn tập trung công thức; người khác lo nhà cửa, lịch nhân viên, hợp đồng cung ứng.
+</Callout>
+
+<Recap>
+- Compose works for one host. The triggers to leave are: you outgrow the host, you need real HA, you need rolling-update guarantees, or you need cross-node scheduling.
+- Docker Swarm is the gentlest step up: same YAML, multi-host, replicas, rolling updates. Real but waning.
+- Kubernetes is the industry standard. More YAML, more concepts, larger ecosystem. Reach for it when you have the team to operate it.
+- Managed platforms (Cloud Run, ECS, Fly, Railway) run your same images and skip the orchestration entirely. Often the right call for small teams. The last lesson is the troubleshooting cheat sheet — the 20 commands and 10 failure patterns to keep handy.
+</Recap>

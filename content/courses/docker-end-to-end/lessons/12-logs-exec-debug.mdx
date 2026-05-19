@@ -1,0 +1,404 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- The five debugging commands that solve 90% of "my container is broken" moments: `logs`, `exec`, `inspect`, `stats`, `top`.
+- The single rule for logs: applications must write to **stdout and stderr**. Files inside the container are a trap.
+- How to debug a container that crashes on start — without rebuilding the image.
+- Disk and memory hygiene: `docker system df`, `prune`, and what they actually delete.
+</Callout>
+
+A container that runs forever is rare. A container that misbehaves and you need to debug *right now* is common. This lesson is the toolkit you reach for in that moment, in roughly the order you reach for it.
+
+## The mental model: a container is a process
+
+Everything you would do to debug a misbehaving Linux process — read its logs, attach to it, look at its memory, check its environment — you can do to a container. Docker just wraps those commands behind its CLI.
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Năm lệnh debug giải quyết 90% khoảnh khắc "container hỏng": `logs`, `exec`, `inspect`, `stats`, `top`.
+- Quy tắc duy nhất cho log: app phải ghi ra **stdout và stderr**. File log trong container là cái bẫy.
+- Cách debug container chết ngay khi start — mà không phải rebuild image.
+- Dọn disk và memory: `docker system df`, `prune`, và chúng thật sự xoá cái gì.
+</Callout>
+
+Container chạy mãi là hiếm. Container hành xử bất thường và bạn cần debug *ngay* mới là thường. Bài này là bộ đồ nghề rút ra trong khoảnh khắc đó, đại khái theo thứ tự bạn rút.
+
+## Mô hình tư duy: container là một process
+
+Mọi thứ bạn làm để debug một process Linux có lỗi — đọc log, attach vào, xem RAM, kiểm tra env — đều làm được với container. Docker chỉ gói các lệnh đó sau CLI của nó.
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 820 320"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="A diagnostic decision tree: 'is the container running?' → no → docker logs and docker inspect for exit code; yes → docker logs, then docker exec for live state, docker stats for resource use, docker top for processes."
+    style={{ width: '100%', maxWidth: '820px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l12-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+
+    <text x="410" y="24" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">Diagnostic decision tree</text>
+
+    <rect x="320" y="40" width="180" height="50" rx="10" fill="#fff7e6" stroke="#d9a441" />
+    <text x="410" y="72" fontSize="13" textAnchor="middle" fill="#1a3a2e">docker ps -a</text>
+
+    <line x1="410" y1="90" x2="410" y2="115" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l12-arr)" />
+
+    <rect x="290" y="125" width="240" height="40" rx="6" fill="#e6f4ea" stroke="#1a3a2e" />
+    <text x="410" y="150" fontSize="12" textAnchor="middle" fill="#1a3a2e">Is the container running?</text>
+
+    {/* No branch */}
+    <line x1="350" y1="165" x2="180" y2="200" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l12-arr)" />
+    <text x="240" y="184" fontSize="11" fill="#a83232" fontWeight="600">no — exited</text>
+    <rect x="40" y="210" width="280" height="100" rx="10" fill="#fbe6e6" stroke="#a83232" />
+    <text x="180" y="232" fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">docker logs &lt;name&gt;</text>
+    <text x="180" y="252" fontSize="11" textAnchor="middle" fill="#3d4f47">→ what was the last output?</text>
+    <text x="180" y="278" fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">docker inspect &lt;name&gt; --format '{`{`}.State.ExitCode{`}`}'</text>
+    <text x="180" y="298" fontSize="11" textAnchor="middle" fill="#3d4f47">→ 0=clean, 137=OOM, 139=segfault, …</text>
+
+    {/* Yes branch */}
+    <line x1="470" y1="165" x2="640" y2="200" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l12-arr)" />
+    <text x="600" y="184" fontSize="11" fill="#1a3a2e" fontWeight="600">yes — Up</text>
+    <rect x="500" y="210" width="280" height="100" rx="10" fill="#e6f4ea" stroke="#1a3a2e" />
+    <text x="640" y="232" fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">docker logs -f &lt;name&gt;</text>
+    <text x="640" y="252" fontSize="11" textAnchor="middle" fill="#3d4f47">→ live stream</text>
+    <text x="640" y="278" fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">docker exec -it &lt;name&gt; sh</text>
+    <text x="640" y="298" fontSize="11" textAnchor="middle" fill="#3d4f47">→ poke around live</text>
+  </svg>
+</figure>
+
+<EN>
+
+## 1. `docker logs` — the always-first command
+
+```bash
+docker logs api                                                      # → all output so far
+docker logs -f api                                                   # → follow (like tail -f)
+docker logs --since 5m api                                           # → last 5 minutes
+docker logs --tail 100 -f api                                        # → last 100 lines, then follow
+docker logs --timestamps api                                         # → prefix each line with a timestamp
+```
+
+This works because Docker captures whatever your process writes to **stdout** and **stderr** and saves it as the container's log. Hence the rule:
+
+> **Write logs to stdout/stderr. Never to a file inside the container.**
+
+If your app writes logs to `/var/log/myapp.log`, that file is inside the writable layer; `docker logs` will not see it; and the moment the container is removed, your logs are gone. Configure every framework to log to stdout (most do by default).
+
+## 2. `docker exec` — get a shell inside the container
+
+When logs are not enough, climb in and look around:
+
+```bash
+docker exec -it api sh                                               # → most-portable shell
+docker exec -it api bash                                             # → only if the image has bash (alpine doesn't by default)
+
+# Inside the container:
+ls -la /app
+env
+cat /etc/hosts
+ps aux
+netstat -tlnp     # if installed
+curl http://db:5432  # quick connectivity check
+```
+
+What you can do here is whatever the image's tooling supports. Alpine has very little; debian-slim has more; distroless has nothing — there is no shell at all (which is fine for production and fine for sandboxing, painful for debugging).
+
+For a distroless container you cannot `exec` into, see the `nicolaka/netshoot` trick under "the side-car debugger" below.
+
+## 3. `docker inspect` — every fact about the container
+
+```bash
+docker inspect api                                                   # → giant JSON: image, state, network, mounts, env
+docker inspect api --format '{{.State.Status}}'                      # → just 'running' / 'exited' / 'restarting'
+docker inspect api --format '{{.State.ExitCode}}'                    # → exit code (only meaningful if exited)
+docker inspect api --format '{{.NetworkSettings.IPAddress}}'         # → IP on its network
+docker inspect api --format '{{json .Config.Env}}' | jq             # → env vars as JSON
+```
+
+The `--format` flag is Go templates. You usually do not need to memorise the structure — pipe the full JSON to `jq` or grep.
+
+The most useful field is `.State.ExitCode`. A non-zero exit code is a roadmap:
+
+</EN>
+
+<VI>
+
+## 1. `docker logs` — lệnh luôn đi đầu
+
+```bash
+docker logs api                                                      # → toàn bộ output từ đầu
+docker logs -f api                                                   # → follow (như tail -f)
+docker logs --since 5m api                                           # → 5 phút gần nhất
+docker logs --tail 100 -f api                                        # → 100 dòng cuối rồi follow
+docker logs --timestamps api                                         # → thêm timestamp cho mỗi dòng
+```
+
+Hoạt động được vì Docker capture mọi thứ process bạn ghi ra **stdout** và **stderr** và lưu thành log của container. Vì vậy quy tắc:
+
+> **Ghi log ra stdout/stderr. Đừng bao giờ ra file trong container.**
+
+Nếu app ghi log vào `/var/log/myapp.log`, file đó nằm trong layer writable; `docker logs` không thấy; container vừa bị xoá là log biến. Cấu hình framework ghi ra stdout (đa số mặc định đã vậy).
+
+## 2. `docker exec` — mở shell trong container
+
+Khi log không đủ, leo vào nhìn:
+
+```bash
+docker exec -it api sh                                               # → shell portable nhất
+docker exec -it api bash                                             # → chỉ khi image có bash (alpine mặc định không)
+
+# Trong container:
+ls -la /app
+env
+cat /etc/hosts
+ps aux
+netstat -tlnp     # nếu cài rồi
+curl http://db:5432  # check kết nối nhanh
+```
+
+Làm được gì tuỳ tool có trong image. Alpine rất ít; debian-slim nhiều hơn; distroless không có gì — không shell luôn (lành cho production, lành cho sandbox, đau khi debug).
+
+Cho container distroless không `exec` vào được, xem mẹo `nicolaka/netshoot` ở phần "debugger side-car" bên dưới.
+
+## 3. `docker inspect` — mọi sự thật về container
+
+```bash
+docker inspect api                                                   # → JSON to: image, state, network, mount, env
+docker inspect api --format '{{.State.Status}}'                      # → chỉ 'running' / 'exited' / 'restarting'
+docker inspect api --format '{{.State.ExitCode}}'                    # → exit code (chỉ có nghĩa nếu đã exit)
+docker inspect api --format '{{.NetworkSettings.IPAddress}}'         # → IP trên network
+docker inspect api --format '{{json .Config.Env}}' | jq             # → env var dạng JSON
+```
+
+Cờ `--format` là Go template. Thường không cần học cấu trúc — pipe JSON đầy đủ vào `jq` hoặc grep.
+
+Field hữu dụng nhất là `.State.ExitCode`. Mã exit khác 0 là bản đồ:
+
+</VI>
+
+<EN>
+
+| Exit code | Meaning |
+|-----------|---------|
+| 0 | Process exited cleanly. |
+| 1 | Generic application error — check the logs. |
+| 125 | Docker CLI error (bad flag, missing image). |
+| 126 | The command exists but is not executable. |
+| 127 | The command was not found in PATH. |
+| 137 | Killed by SIGKILL — usually **out-of-memory** (the kernel OOM killer) or `docker kill`. |
+| 139 | Segmentation fault. |
+| 143 | Received SIGTERM (normal `docker stop`) and exited. |
+
+## 4. `docker stats` and `docker top` — what is it doing right now?
+
+```bash
+docker stats                                                         # → live CPU/mem/network/IO for all running containers
+docker stats api db                                                  # → just two
+docker top api                                                       # → process list inside the container
+docker top api -eo pid,ppid,cmd                                      # → same, custom format
+```
+
+`docker stats` is the quickest way to spot a runaway: 99% CPU, climbing memory, or thrashing IO. `docker top` shows the processes — especially handy when an image surprises you with init/supervisor/cron sidecars you did not realise it spawned.
+
+## Debugging a container that crashes on start
+
+The painful case: your container exits within a second of starting. `docker logs` shows one line. You cannot `exec` into something that no longer exists.
+
+The trick: override the entrypoint with a shell, so the container *cannot* crash:
+
+```bash
+docker run --rm -it --entrypoint sh myapp                            # → shell instead of the real CMD
+# inside:
+ls /app
+cat package.json
+node src/index.js                                                    # → run the real command manually, see the actual error
+```
+
+Same idea with Compose:
+
+```bash
+docker compose run --rm --entrypoint sh api                          # → drops you into a shell of the api service
+```
+
+Now you have a healthy container with all the right env vars and mounts, and you can poke around without rebuilding.
+
+## The side-car debugger trick
+
+When the target image has nothing (distroless, minimal alpine), launch a *debug* container that shares its network and PID namespace:
+
+```bash
+# share network namespace with 'api' to debug DNS / connectivity:
+docker run --rm -it --network container:api nicolaka/netshoot
+
+# inside the debug container, but from api's network point of view:
+curl http://db:5432
+dig db
+ss -tlnp
+```
+
+`nicolaka/netshoot` is a maintained image full of network tools. It has no privileged access — just shares one namespace with the target. This is how you debug a distroless container in production.
+
+## Disk and memory hygiene
+
+</EN>
+
+<VI>
+
+| Exit code | Nghĩa |
+|-----------|---------|
+| 0 | Process thoát sạch. |
+| 1 | Lỗi ứng dụng chung — xem log. |
+| 125 | Lỗi CLI Docker (sai flag, thiếu image). |
+| 126 | Command tồn tại nhưng không executable. |
+| 127 | Command không tìm thấy trong PATH. |
+| 137 | Bị kill bằng SIGKILL — thường là **hết RAM** (OOM killer của kernel) hoặc `docker kill`. |
+| 139 | Segmentation fault. |
+| 143 | Nhận SIGTERM (lệnh `docker stop` bình thường) rồi thoát. |
+
+## 4. `docker stats` và `docker top` — nó đang làm gì?
+
+```bash
+docker stats                                                         # → CPU/mem/network/IO live cho mọi container đang chạy
+docker stats api db                                                  # → chỉ hai
+docker top api                                                       # → list process trong container
+docker top api -eo pid,ppid,cmd                                      # → cùng vậy, format tự chọn
+```
+
+`docker stats` là cách nhanh nhất phát hiện runaway: CPU 99%, memory leo, IO thrashing. `docker top` show process — đặc biệt hữu ích khi image làm bạn ngạc nhiên bằng init/supervisor/cron sidecar bạn không biết nó đẻ ra.
+
+## Debug container chết ngay khi start
+
+Cảnh đau: container thoát trong 1 giây sau khi start. `docker logs` chỉ một dòng. Bạn không `exec` vào cái đã không còn.
+
+Mẹo: override entrypoint thành shell, container *không thể* crash:
+
+```bash
+docker run --rm -it --entrypoint sh myapp                            # → shell thay vì CMD thật
+# bên trong:
+ls /app
+cat package.json
+node src/index.js                                                    # → chạy lệnh thật bằng tay, xem lỗi thật
+```
+
+Tương tự với Compose:
+
+```bash
+docker compose run --rm --entrypoint sh api                          # → vào shell của service api
+```
+
+Giờ bạn có container khoẻ mạnh với đầy đủ env và mount, có thể chọc mà không phải rebuild.
+
+## Mẹo debugger side-car
+
+Khi image đích không có gì (distroless, alpine tối giản), bật một container *debug* dùng chung network và PID namespace:
+
+```bash
+# share network namespace với 'api' để debug DNS / kết nối:
+docker run --rm -it --network container:api nicolaka/netshoot
+
+# trong container debug, nhưng nhìn dưới góc network của api:
+curl http://db:5432
+dig db
+ss -tlnp
+```
+
+`nicolaka/netshoot` là image được maintain đầy đủ công cụ network. Không có quyền đặc biệt — chỉ share một namespace với target. Đây là cách debug container distroless trên production.
+
+## Dọn disk và memory
+
+</VI>
+
+<EN>
+
+Docker hoards. After a few weeks of dev, your disk fills with stopped containers, dangling images, and orphaned volumes:
+
+```bash
+docker system df                                                     # → breakdown: images, containers, volumes, build cache
+docker system df -v                                                  # → verbose: list each item
+```
+
+Cleaning, safest to most aggressive:
+
+```bash
+docker container prune                                               # → remove all STOPPED containers (safe)
+docker image prune                                                   # → remove dangling images only (no tag)
+docker image prune -a                                                # → remove all images not used by any container
+docker volume prune                                                  # → remove volumes not used by any container
+docker builder prune                                                 # → remove build cache (rebuild will be slow once)
+docker system prune                                                  # → containers + dangling images + networks
+docker system prune -a --volumes                                     # → ☢️ everything not currently in use
+```
+
+`prune -a --volumes` is destructive — it will happily delete a database volume from a stopped project. Read the list it shows before confirming.
+
+On a CI machine the right pattern is a periodic conservative prune:
+
+```bash
+docker container prune -f --filter "until=24h"                       # → containers stopped >24h ago
+docker image prune -af --filter "until=168h"                         # → images unused for a week
+```
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+Docker tích trữ. Vài tuần dev là ổ đầy bởi container đã dừng, image lơ lửng, volume mồ côi:
+
+```bash
+docker system df                                                     # → bảng: image, container, volume, build cache
+docker system df -v                                                  # → chi tiết: list từng món
+```
+
+Dọn, từ an toàn nhất đến mạnh tay nhất:
+
+```bash
+docker container prune                                               # → xoá mọi container ĐÃ DỪNG (an toàn)
+docker image prune                                                   # → xoá chỉ image lơ lửng (không tag)
+docker image prune -a                                                # → xoá mọi image không container nào dùng
+docker volume prune                                                  # → xoá volume không container nào dùng
+docker builder prune                                                 # → xoá build cache (lần build kế sẽ chậm)
+docker system prune                                                  # → container + image lơ lửng + network
+docker system prune -a --volumes                                     # → ☢️ mọi thứ không đang dùng
+```
+
+`prune -a --volumes` mạnh tay — sẵn sàng xoá volume database của một project đang tắt. Đọc list trước khi confirm.
+
+Trên máy CI, pattern đúng là prune định kỳ thận trọng:
+
+```bash
+docker container prune -f --filter "until=24h"                       # → container dừng >24h
+docker image prune -af --filter "until=168h"                         # → image không dùng cả tuần
+```
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** `docker logs` is the *order ticket pile* — everything the kitchen has said today. `docker exec` is *you walking into the kitchen yourself* — slower but you see everything. `docker inspect` is *the inventory clipboard* — every metadata fact about a container in one place. `docker stats` is *the kitchen's dashboard* — live CPU and RAM gauges. `docker top` is *peeking through the swing door to see who is at which station*. When a container dies on start, the "override entrypoint with sh" trick is *unlocking the kitchen door even though the chef left* — you get to walk the line and find the broken station.
+
+**VI —** `docker logs` là *xấp phiếu order* — mọi thứ bếp đã nói hôm nay. `docker exec` là *bạn tự đi vào bếp* — chậm hơn nhưng thấy hết. `docker inspect` là *kẹp inventory* — mọi metadata về container ở một chỗ. `docker stats` là *bảng dashboard của bếp* — đồng hồ CPU/RAM live. `docker top` là *hé cửa lùa coi ai ở trạm nào*. Khi container chết lúc start, mẹo "override entrypoint bằng sh" là *mở khoá cửa bếp dù bếp trưởng đã đi* — bạn được đi dọc dây chuyền tìm trạm hỏng.
+</Callout>
+
+<Recap>
+- Five commands cover most debugging: `docker logs (-f, --tail, --since)`, `docker exec -it`, `docker inspect (--format)`, `docker stats`, `docker top`.
+- Apps must log to stdout/stderr — never to files inside the container. Files die with the container; `docker logs` reads only the std streams.
+- Container crashes on start? Re-run with `--entrypoint sh` and execute the real command by hand to see the actual error. For minimal images, use `nicolaka/netshoot` as a side-car sharing the target's network namespace.
+- `docker system df` shows where disk goes; `prune` reclaims it. Be deliberate with `prune -a --volumes`. Next, Part 4: Docker Compose, the file format that ties multi-container apps together.
+</Recap>

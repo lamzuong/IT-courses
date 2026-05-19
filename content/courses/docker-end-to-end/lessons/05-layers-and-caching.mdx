@@ -1,0 +1,348 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- Why a Dockerfile is *ordered*: every line is a cache key, and the order of lines decides what gets rebuilt.
+- The single rule that makes builds 10× faster: *copy what changes rarely before what changes often.*
+- How to read `docker build` output and tell which layers were cached vs rebuilt.
+- The "dependency lock first, source last" pattern. Use it in every project.
+</Callout>
+
+You will rebuild the same image a hundred times in a project's life. Five seconds versus fifty seconds matters. The difference between those two numbers is *cache hit rate*, and the cache hit rate is entirely a function of how you ordered the lines in your Dockerfile.
+
+## How the cache decides
+
+When Docker executes a Dockerfile, it walks instructions top to bottom. For each instruction, it asks one question:
+
+> *"Have I built this exact instruction on top of this exact previous layer before? If yes, reuse the cached result. If no, run it fresh — and from this point onward, nothing further can be cached."*
+
+That last clause is the cliff. The moment one line *misses* the cache, every line after it also misses. Even if line 10 is byte-identical to last build, it follows line 5 which changed, so its base is different, so the cache key is different, so Docker re-runs it.
+
+That means **earlier lines are more important than later lines**. Put the stable stuff (base image, package manifest, dependency install) early. Put the volatile stuff (your source code) late.
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Vì sao Dockerfile *có thứ tự*: mỗi dòng là một cache key, và thứ tự các dòng quyết định cái gì bị build lại.
+- Một quy tắc duy nhất giúp build nhanh hơn 10×: *copy thứ ít đổi trước, thứ hay đổi sau.*
+- Cách đọc output `docker build` để biết layer nào dùng cache, layer nào build mới.
+- Pattern "lock dependency trước, source code sau". Dùng cho mọi project.
+</Callout>
+
+Trong vòng đời một project bạn rebuild image cả trăm lần. Năm giây hay năm mươi giây — *rất* quan trọng. Khoảng cách giữa hai con số đó chính là *cache hit rate*, và cache hit rate hoàn toàn phụ thuộc vào cách bạn sắp xếp các dòng trong Dockerfile.
+
+## Cache quyết định ra sao
+
+Khi Docker chạy Dockerfile, nó đi từ trên xuống. Mỗi instruction, nó hỏi đúng một câu:
+
+> *"Tôi đã build chính instruction này bên trên chính layer trước đó này chưa? Có → dùng kết quả cache. Không → chạy mới — và từ điểm này trở đi, không gì còn cache được nữa."*
+
+Mệnh đề cuối là vực sâu. Khoảnh khắc một dòng *miss* cache, mọi dòng sau cũng miss. Dù dòng 10 giống y lần build trước từng byte, nó vẫn theo sau dòng 5 đã đổi → base khác → cache key khác → Docker build lại.
+
+Nghĩa là **dòng trước quan trọng hơn dòng sau**. Đặt thứ ổn định (base image, manifest dependency, cài deps) lên trên. Đặt thứ hay đổi (source code) xuống dưới.
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 820 380"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Two Dockerfiles side by side. The bad one copies all source first then installs deps — a code change busts the dep cache. The good one copies package files first, installs deps, then copies source — a code change only invalidates the last layer."
+    style={{ width: '100%', maxWidth: '820px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l5-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+
+    {/* BAD */}
+    <text x="200" y="24" fontSize="14" textAnchor="middle" fill="#a83232" fontWeight="700">❌ Bad order</text>
+    {[
+      { l: 'FROM node:20-alpine',       cached: true,  why: '' },
+      { l: 'WORKDIR /app',              cached: true,  why: '' },
+      { l: 'COPY . .',                  cached: false, why: '← source changed' },
+      { l: 'RUN npm ci --omit=dev',     cached: false, why: '← cache busted ⇒ reinstall (~40 s)' },
+      { l: 'EXPOSE 3000',               cached: false, why: '← downstream of miss' },
+      { l: 'CMD ["node","src/index.js"]', cached: false, why: '← downstream of miss' },
+    ].map((row, idx) => {
+      const y = 50 + idx * 42;
+      return (
+        <g key={idx}>
+          <rect x="30" y={y} width="220" height="32" rx="4"
+            fill={row.cached ? '#e6f4ea' : '#fbe6e6'} stroke={row.cached ? '#1a3a2e' : '#a83232'} />
+          <text x="42" y={y + 21} fontSize="11" fill="#1a3a2e" fontFamily="monospace">{row.l}</text>
+          <text x="260" y={y + 21} fontSize="11" fill={row.cached ? '#3d4f47' : '#a83232'} fontStyle="italic">{row.why}</text>
+        </g>
+      );
+    })}
+
+    {/* GOOD */}
+    <text x="620" y="24" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">✅ Good order</text>
+    {[
+      { l: 'FROM node:20-alpine',       cached: true,  why: '' },
+      { l: 'WORKDIR /app',              cached: true,  why: '' },
+      { l: 'COPY package*.json ./',     cached: true,  why: '← unchanged' },
+      { l: 'RUN npm ci --omit=dev',     cached: true,  why: '← reused (~0 s)' },
+      { l: 'COPY . .',                  cached: false, why: '← source changed' },
+      { l: 'CMD ["node","src/index.js"]', cached: false, why: '' },
+    ].map((row, idx) => {
+      const y = 50 + idx * 42;
+      return (
+        <g key={idx}>
+          <rect x="450" y={y} width="220" height="32" rx="4"
+            fill={row.cached ? '#e6f4ea' : '#fff7e6'} stroke="#1a3a2e" />
+          <text x="462" y={y + 21} fontSize="11" fill="#1a3a2e" fontFamily="monospace">{row.l}</text>
+          <text x="680" y={y + 21} fontSize="11" fill="#3d4f47" fontStyle="italic">{row.why}</text>
+        </g>
+      );
+    })}
+
+    <text x="410" y="365" fontSize="11" textAnchor="middle" fill="#3d4f47" fontStyle="italic">
+      Same Dockerfile content, different order. The "good" order rebuilds only the last 1–2 layers on every code change.
+    </text>
+  </svg>
+</figure>
+
+<EN>
+
+## The pattern that wins
+
+This is the single most important pattern in a Dockerfile. Memorise it.
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+
+# ① Copy ONLY the dependency manifests first.
+COPY package*.json ./
+
+# ② Install deps. As long as package.json + lock don't change, this layer is cached.
+RUN npm ci --omit=dev
+
+# ③ Now copy the rest of the source. Code changes only bust this layer.
+COPY . .
+
+CMD ["node", "src/index.js"]
+```
+
+Why it works:
+
+- Lines 1–4 only re-run when `package.json` or `package-lock.json` changes — i.e., when you add/remove a dependency. That happens maybe once a week.
+- Line 5 (`COPY . .`) runs on every code change. That happens fifty times a day.
+- The expensive thing (`npm ci`, often 30–60 seconds) sits *above* line 5, so it stays in cache.
+
+Result: typical rebuild after a code change goes from ~60 s to ~2 s.
+
+## What the build output is telling you
+
+Run `docker build .` and look at every line. The keywords are everything:
+
+```text
+ => [internal] load build definition from Dockerfile           0.0s
+ => => transferring dockerfile: 312B                            0.0s
+ => [internal] load .dockerignore                              0.0s
+ => => transferring context: 67B                                0.0s
+ => [1/5] FROM docker.io/library/node:20-alpine                0.0s
+ => CACHED [2/5] WORKDIR /app                                  0.0s    ← cached
+ => CACHED [3/5] COPY package*.json ./                          0.0s    ← cached
+ => CACHED [4/5] RUN npm ci --omit=dev                          0.0s    ← cached ⇐ the big win
+ => [5/5] COPY . .                                              0.1s    ← rebuilt (no CACHED keyword)
+ => exporting to image                                         0.2s
+```
+
+Two words to spot: `CACHED` (good) and the absence of it (rebuilt). If you see `CACHED [4/5] RUN npm ci` you have done it right.
+
+## How to *intentionally* bust the cache
+
+</EN>
+
+<VI>
+
+## Pattern thắng cuộc
+
+Đây là pattern quan trọng *nhất* trong một Dockerfile. Thuộc lòng.
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+
+# ① Copy CHỈ các file manifest trước.
+COPY package*.json ./
+
+# ② Cài deps. Bao lâu package.json + lock không đổi, layer này còn cache.
+RUN npm ci --omit=dev
+
+# ③ Bây giờ mới copy phần source còn lại. Sửa code chỉ làm vỡ layer này.
+COPY . .
+
+CMD ["node", "src/index.js"]
+```
+
+Vì sao chạy:
+
+- Dòng 1–4 chỉ build lại khi `package.json` hoặc `package-lock.json` đổi — tức khi bạn add/remove dependency. Việc đó cả tuần xảy ra một lần.
+- Dòng 5 (`COPY . .`) chạy mỗi lần sửa code. Việc đó xảy ra 50 lần/ngày.
+- Cái đắt tiền (`npm ci`, thường 30–60 giây) nằm *bên trên* dòng 5, nên còn cache.
+
+Kết quả: rebuild sau khi sửa code thường từ ~60 s xuống ~2 s.
+
+## Output build đang nói gì
+
+Chạy `docker build .` và đọc kỹ từng dòng. Từ khoá là tất cả:
+
+```text
+ => [internal] load build definition from Dockerfile           0.0s
+ => => transferring dockerfile: 312B                            0.0s
+ => [internal] load .dockerignore                              0.0s
+ => => transferring context: 67B                                0.0s
+ => [1/5] FROM docker.io/library/node:20-alpine                0.0s
+ => CACHED [2/5] WORKDIR /app                                  0.0s    ← cached
+ => CACHED [3/5] COPY package*.json ./                          0.0s    ← cached
+ => CACHED [4/5] RUN npm ci --omit=dev                          0.0s    ← cached ⇐ thắng lớn
+ => [5/5] COPY . .                                              0.1s    ← build lại (không có chữ CACHED)
+ => exporting to image                                         0.2s
+```
+
+Hai từ cần nhìn: `CACHED` (tốt) và sự *vắng mặt* của nó (build lại). Thấy `CACHED [4/5] RUN npm ci` là bạn làm đúng.
+
+## Cố ý làm vỡ cache lúc nào
+
+</VI>
+
+<EN>
+
+Cache hits are usually what you want, but not always. Two cases where you must bust it on purpose:
+
+```bash
+docker build --no-cache -t myapp .                                # → ignore the cache entirely
+docker build --pull -t myapp .                                    # → re-pull base image even if locally cached
+```
+
+- `--no-cache` — *"start fresh."* Use when you suspect cache poisoning, or when a `RUN apt-get install` is silently picking up an old package list.
+- `--pull` — *"make sure my base image is the latest tag."* `node:20-alpine` moves forward with security patches. Without `--pull`, you stay on the version you first downloaded forever.
+
+A subtle one inside the Dockerfile itself:
+
+```dockerfile
+# Cache-busting "marker" instruction. Bumping the date forces everything below to rebuild.
+ARG CACHE_BUST=2026-05-19
+RUN echo "$CACHE_BUST" > /tmp/cachebust
+```
+
+Niche, but useful when you have a `RUN git clone …` or `RUN curl …` whose result you want to refresh on demand.
+
+## Combine `RUN` instructions to keep image small
+
+Each `RUN` becomes a layer, and layers carry their full filesystem diff. If you install `curl` in one layer and then remove it in the next, the first layer *still* contains curl on disk forever.
+
+```dockerfile
+# ❌ Bad: curl stays in the image even after the "removal"
+RUN apk add --no-cache curl
+RUN curl -L https://example.com/file.tar.gz -o /tmp/f.tar.gz
+RUN tar -xz -C /usr/local -f /tmp/f.tar.gz && rm /tmp/f.tar.gz
+RUN apk del curl
+
+# ✅ Good: download, extract, remove the tool all in one layer
+RUN apk add --no-cache --virtual .build-deps curl \
+ && curl -L https://example.com/file.tar.gz -o /tmp/f.tar.gz \
+ && tar -xz -C /usr/local -f /tmp/f.tar.gz \
+ && rm /tmp/f.tar.gz \
+ && apk del .build-deps
+```
+
+The `--virtual .build-deps` trick is Alpine-specific: it groups installed packages under a label so a single `apk del .build-deps` removes them all. Debian/Ubuntu equivalent: `apt-get install` + `apt-get remove --purge`.
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+Cache hit thường là cái bạn muốn, nhưng không phải lúc nào. Hai trường hợp phải cố ý làm vỡ:
+
+```bash
+docker build --no-cache -t myapp .                                # → bỏ cache hoàn toàn
+docker build --pull -t myapp .                                    # → kéo lại base image dù đã có local
+```
+
+- `--no-cache` — *"làm lại từ đầu."* Dùng khi nghi cache nhiễm, hoặc khi một `RUN apt-get install` đang âm thầm xài danh sách package cũ.
+- `--pull` — *"đảm bảo base image của tôi là tag mới nhất."* `node:20-alpine` vẫn được vá bảo mật. Không `--pull` là kẹt mãi ở bản đầu tiên bạn tải.
+
+Một mẹo tinh tế trong chính Dockerfile:
+
+```dockerfile
+# Instruction "marker" làm vỡ cache. Đổi ngày là mọi dòng phía dưới build lại.
+ARG CACHE_BUST=2026-05-19
+RUN echo "$CACHE_BUST" > /tmp/cachebust
+```
+
+Ít dùng, nhưng hữu ích khi có `RUN git clone …` hay `RUN curl …` mà bạn muốn refresh on demand.
+
+## Gộp các `RUN` để image nhỏ
+
+Mỗi `RUN` là một layer, và layer giữ trọn diff filesystem. Cài `curl` ở một layer rồi xoá ở layer kế, layer đầu *vẫn* chứa curl trên đĩa, mãi mãi.
+
+```dockerfile
+# ❌ Sai: curl còn trong image dù đã "xoá"
+RUN apk add --no-cache curl
+RUN curl -L https://example.com/file.tar.gz -o /tmp/f.tar.gz
+RUN tar -xz -C /usr/local -f /tmp/f.tar.gz && rm /tmp/f.tar.gz
+RUN apk del curl
+
+# ✅ Đúng: tải, giải nén, xoá tool trong cùng một layer
+RUN apk add --no-cache --virtual .build-deps curl \
+ && curl -L https://example.com/file.tar.gz -o /tmp/f.tar.gz \
+ && tar -xz -C /usr/local -f /tmp/f.tar.gz \
+ && rm /tmp/f.tar.gz \
+ && apk del .build-deps
+```
+
+Mẹo `--virtual .build-deps` chỉ có ở Alpine: gom các package đã cài dưới một nhãn để một lệnh `apk del .build-deps` xoá hết. Trên Debian/Ubuntu: `apt-get install` + `apt-get remove --purge`.
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** Imagine you make the same drink fifty times a day. You only restock the *beans* once a week (rare change) but you refill the *cup* every time (frequent change). A sane barista keeps the bean grinder set up and warm (cached) and only swaps cups. A confused barista re-grinds the beans every order — same coffee, but every customer waits 45 seconds extra. The Dockerfile ordering rule is: *grinder before cup. Beans before milk. Slow-to-change before fast-to-change.*
+
+**VI —** Hình dung bạn pha cùng một thức uống 50 lần/ngày. Bạn chỉ nhập *hạt* mỗi tuần một lần (ít đổi), nhưng *ly* thì thay mỗi lần (hay đổi). Barista tỉnh táo giữ máy xay nóng sẵn (cache) và chỉ thay ly. Barista bối rối xay lại hạt mỗi đơn — cùng cà phê, nhưng mỗi khách đợi thêm 45 giây. Quy tắc thứ tự Dockerfile là: *máy xay trước ly. Hạt trước sữa. Ít đổi trước hay đổi.*
+</Callout>
+
+<EN>
+
+## Three exercises you can do right now
+
+1. Take the Dockerfile from lesson 4. Change one line in `src/index.js`. Run `docker build` and time it. Now move `COPY . .` to *before* `COPY package*.json ./` and `RUN npm ci`. Change `src/index.js` again. Time it again. You will see the difference in seconds, live.
+
+2. In a fresh build, add a Python-only requirements file and a `pip install`. Verify that subsequent code changes still use the npm install cache. Mixed-language images are normal; the ordering principle holds across all package managers.
+
+3. Add `RUN apk add --no-cache curl` somewhere in the middle of the file. Run `docker image history` after build and find that layer's size. Then move it to the very last `RUN` (still keep the install grouped with `&& apk del curl` in one line). Re-run history. See the difference in image size.
+
+</EN>
+
+<VI>
+
+## Ba bài tập có thể làm ngay
+
+1. Lấy Dockerfile bài 4. Sửa một dòng trong `src/index.js`. Chạy `docker build` và bấm giờ. Giờ chuyển `COPY . .` lên *trước* `COPY package*.json ./` và `RUN npm ci`. Sửa lại `src/index.js`. Bấm giờ lần nữa. Bạn sẽ thấy khoảng cách bằng giây, trực tiếp.
+
+2. Trong một image mới, thêm một file requirements Python và một `pip install`. Kiểm tra rằng các lần sửa code sau vẫn dùng cache npm install. Image lai ngôn ngữ là bình thường; quy tắc thứ tự áp dụng cho mọi package manager.
+
+3. Thêm `RUN apk add --no-cache curl` đâu đó giữa file. Chạy `docker image history` sau khi build và tìm size của layer đó. Sau đó chuyển nó xuống `RUN` cuối cùng (vẫn gộp với `&& apk del curl` trong một dòng). Chạy history lại. Xem image nhỏ đi cỡ nào.
+
+</VI>
+
+<Recap>
+- Every Dockerfile instruction is a layer with a cache key. One miss invalidates everything below it.
+- The golden order: **stable on top, volatile on bottom**. `COPY package*.json ./` then `RUN npm ci` *before* `COPY . .`. Code changes stop triggering a full reinstall.
+- Read the build log for `CACHED` vs no-CACHED. Cache hits are visible.
+- Combine related `RUN` commands with `&&` and clean up in the same layer; leftover packages stay on disk if you remove them in a later layer. Lesson 6 takes the next step — multi-stage builds let you ship an image that does not include your build tools at all.
+</Recap>

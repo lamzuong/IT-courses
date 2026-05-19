@@ -1,0 +1,450 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- The single biggest optimisation a Dockerfile can give you: building in one image and shipping in another.
+- The exact pattern for a Node app: from 1.2 GB single-stage image down to 90 MB multi-stage image.
+- How `COPY --from=builder` actually works.
+- Multi-stage for Next.js, for a Go binary, for Python. Same idea, three flavours.
+</Callout>
+
+You have a problem. The image you built in lesson 4 contains:
+
+- The Alpine base (~10 MB) — needed at runtime.
+- The Node.js runtime (~30 MB) — needed at runtime.
+- Your source code (~3 MB) — needed at runtime.
+- `node_modules` with `devDependencies` (~200 MB) — *only needed at build*.
+- The TypeScript compiler, build tools, test runners (~400 MB) — *only needed at build*.
+- npm's cache (~100 MB) — *not needed at all*.
+
+You are shipping nearly a gigabyte of stuff to your servers that has no business being there. It is slow to push, slow to pull, and a security surface (every build tool is a potential attack target).
+
+**Multi-stage builds** are the fix. One Dockerfile, two `FROM`s. The first stage is your *workshop* — it has the compilers, the dev deps, all the heavy tools. The second stage is your *shop window* — it has only the finished artifact and the bare minimum to run it. When the build finishes, only the final stage is kept. The workshop is thrown away.
+
+## The shape
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Tối ưu lớn nhất mà Dockerfile có thể mang lại: build ở image này, ship bằng image khác.
+- Pattern chính xác cho app Node: từ image 1.2 GB một-stage xuống image 90 MB multi-stage.
+- `COPY --from=builder` thực sự làm gì.
+- Multi-stage cho Next.js, cho Go binary, cho Python. Cùng ý tưởng, ba hương vị.
+</Callout>
+
+Bạn có một vấn đề. Image build ở bài 4 chứa:
+
+- Alpine base (~10 MB) — runtime cần.
+- Runtime Node.js (~30 MB) — runtime cần.
+- Source code của bạn (~3 MB) — runtime cần.
+- `node_modules` kèm `devDependencies` (~200 MB) — *chỉ cần lúc build*.
+- TypeScript compiler, build tool, test runner (~400 MB) — *chỉ cần lúc build*.
+- Cache của npm (~100 MB) — *không cần luôn*.
+
+Bạn đang ship gần 1 GB rác lên server, không có lý do gì để chúng ở đó. Push chậm, pull chậm, và là bề mặt bảo mật (mỗi build tool là một mục tiêu tấn công tiềm năng).
+
+**Multi-stage build** là lời giải. Một Dockerfile, hai `FROM`. Stage đầu là *xưởng* — có compiler, dev deps, công cụ nặng. Stage hai là *tủ trưng bày* — chỉ có artifact đã hoàn thiện và mức tối thiểu để chạy. Khi build xong, chỉ stage cuối được giữ. Xưởng bị vứt đi.
+
+## Hình dáng
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 820 340"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Two stages side by side. The builder stage on the left contains source, devDependencies, build tools, and produces a dist folder. An arrow labeled COPY --from=builder /app/dist points to the runtime stage on the right, which contains only the alpine base, prod node_modules, and the dist folder. The builder stage is shown crossed out as discarded."
+    style={{ width: '100%', maxWidth: '820px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l6-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+
+    {/* Builder stage */}
+    <rect x="30" y="60" width="340" height="220" rx="14" fill="#fdebd0" stroke="#d9a441" strokeDasharray="6 4" />
+    <text x="200" y="48" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">Stage 1: builder  (≈ 1.2 GB)</text>
+    {[
+      'FROM node:20  (full image, ~300 MB)',
+      'devDependencies (TS, eslint, vitest…)',
+      'production dependencies',
+      'source code (.ts, .tsx)',
+      'npm cache',
+      '→ produces /app/dist (compiled JS)',
+    ].map((line, i) => (
+      <text key={i} x="50" y={90 + i * 30} fontSize="12" fill="#3d4f47">• {line}</text>
+    ))}
+    <text x="200" y="295" fontSize="11" textAnchor="middle" fill="#a83232" fontWeight="600">🗑  thrown away after build</text>
+
+    {/* Arrow */}
+    <line x1="380" y1="170" x2="450" y2="170" stroke="#1a3a2e" strokeWidth="2.5" markerEnd="url(#l6-arr)" />
+    <text x="415" y="155" fontSize="11" textAnchor="middle" fill="#3d4f47" fontStyle="italic">COPY --from=builder</text>
+    <text x="415" y="190" fontSize="11" textAnchor="middle" fill="#3d4f47" fontStyle="italic">/app/dist  ./dist</text>
+
+    {/* Runtime stage */}
+    <rect x="460" y="60" width="340" height="220" rx="14" fill="#e6f4ea" stroke="#1a3a2e" />
+    <text x="630" y="48" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">Stage 2: runtime  (≈ 90 MB)</text>
+    {[
+      'FROM node:20-alpine  (~40 MB)',
+      'production node_modules ONLY',
+      'just the compiled /dist',
+      '(no source, no dev deps, no caches)',
+    ].map((line, i) => (
+      <text key={i} x="478" y={90 + i * 30} fontSize="12" fill="#3d4f47">• {line}</text>
+    ))}
+    <text x="630" y="265" fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">✅ this is what ships</text>
+  </svg>
+  <figcaption style={{ fontSize: '0.85rem', color: '#3d4f47', textAlign: 'center' }}>
+    Two `FROM` statements. Compile in stage 1. Copy only the output to stage 2. Stage 1 evaporates.
+  </figcaption>
+</figure>
+
+<EN>
+
+## A real multi-stage Dockerfile for a TypeScript Node app
+
+```dockerfile
+# ── Stage 1 ── builder ────────────────────────────────────────────
+FROM node:20 AS builder                                            # → full Node image; has python, gcc for native modules
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci                                                          # → install ALL deps (dev + prod) for the build
+
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build                                                   # → produces /app/dist
+
+# ── Stage 2 ── runtime ────────────────────────────────────────────
+FROM node:20-alpine AS runtime                                      # → tiny base; no compilers
+WORKDIR /app
+
+ENV NODE_ENV=production
+COPY package*.json ./
+RUN npm ci --omit=dev                                               # → prod deps only — much smaller
+
+COPY --from=builder /app/dist ./dist                                # → bring only the compiled output across
+
+EXPOSE 3000
+CMD ["node", "dist/index.js"]
+```
+
+Read it top to bottom:
+
+1. `FROM node:20 AS builder` — first stage. The `AS builder` label is the handle other stages will use to refer back to it.
+2. We install **all** dependencies, including dev, because we need the TypeScript compiler.
+3. We compile: `npm run build` runs `tsc`, output goes to `/app/dist`.
+4. `FROM node:20-alpine AS runtime` — second stage. **Completely fresh image.** It does *not* inherit anything from the builder.
+5. We install **only production** deps. Smaller and faster.
+6. `COPY --from=builder /app/dist ./dist` — *the* multi-stage line. Reach back into the builder stage's filesystem and copy that one folder over.
+7. The final image contains: alpine + node + prod node_modules + dist. Nothing else.
+
+Build and compare:
+
+```bash
+docker build -t myapp:multi .
+docker images myapp                                                 # → look at the SIZE column. ~90 MB vs ~1.2 GB.
+```
+
+## What `--from` can reference
+
+</EN>
+
+<VI>
+
+## Một Dockerfile multi-stage thật cho app Node + TypeScript
+
+```dockerfile
+# ── Stage 1 ── builder ────────────────────────────────────────────
+FROM node:20 AS builder                                            # → image Node đầy đủ; có python, gcc cho native module
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci                                                          # → cài TOÀN BỘ deps (dev + prod) để build
+
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build                                                   # → sinh /app/dist
+
+# ── Stage 2 ── runtime ────────────────────────────────────────────
+FROM node:20-alpine AS runtime                                      # → base nhỏ; không có compiler
+WORKDIR /app
+
+ENV NODE_ENV=production
+COPY package*.json ./
+RUN npm ci --omit=dev                                               # → chỉ prod deps — nhỏ hơn nhiều
+
+COPY --from=builder /app/dist ./dist                                # → mang đúng folder output sang
+
+EXPOSE 3000
+CMD ["node", "dist/index.js"]
+```
+
+Đọc từ trên xuống:
+
+1. `FROM node:20 AS builder` — stage đầu. Nhãn `AS builder` là tên các stage khác sẽ dùng để gọi ngược về nó.
+2. Cài **tất cả** dependency, kể cả dev, vì cần TypeScript compiler.
+3. Compile: `npm run build` chạy `tsc`, output ra `/app/dist`.
+4. `FROM node:20-alpine AS runtime` — stage hai. **Image hoàn toàn mới.** *Không* kế thừa bất cứ gì từ builder.
+5. Chỉ cài **prod** deps. Nhỏ hơn, nhanh hơn.
+6. `COPY --from=builder /app/dist ./dist` — *dòng* multi-stage. Vươn vào filesystem của stage builder và copy đúng cái folder đó qua.
+7. Image cuối chứa: alpine + node + prod node_modules + dist. Hết.
+
+Build và so sánh:
+
+```bash
+docker build -t myapp:multi .
+docker images myapp                                                 # → nhìn cột SIZE. ~90 MB so với ~1.2 GB.
+```
+
+## `--from` tham chiếu được những gì
+
+</VI>
+
+<EN>
+
+```dockerfile
+COPY --from=builder /app/dist ./dist                                # → another stage by name
+COPY --from=0       /app/dist ./dist                                # → another stage by index (0 = first FROM)
+COPY --from=nginx:alpine /etc/nginx/conf.d /default-conf            # → an external image, not in this file!
+```
+
+The third form is wildly useful. You can yank a config file out of the published `nginx` image without ever installing nginx in your build context. Same idea for grabbing tools (`busybox`, `curl-tool`, certificate bundles).
+
+## Multi-stage for Next.js (the standalone output trick)
+
+Next.js has a built-in optimisation called the **standalone output**. Set `output: 'standalone'` in `next.config.js` and `next build` produces a self-contained `.next/standalone/` folder with only the dependencies the app actually imports — sometimes 90% smaller than the full `node_modules`.
+
+```dockerfile
+# ── deps ───────────────────────────────────────────────────────────
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+
+# ── builder ────────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build                                                   # → produces .next/standalone
+
+# ── runtime ────────────────────────────────────────────────────────
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+EXPOSE 3000
+CMD ["node", "server.js"]                                           # → Next produces this entrypoint
+```
+
+Three stages this time:
+
+- `deps` — install dependencies. Cached as long as `package.json` is unchanged.
+- `builder` — reuse the deps layer, copy source, run `next build`.
+- `runtime` — copy only the standalone server + static assets. Final image often <100 MB even for a sizeable Next app.
+
+## Multi-stage for a Go binary (the dramatic one)
+
+</EN>
+
+<VI>
+
+```dockerfile
+COPY --from=builder /app/dist ./dist                                # → tham chiếu stage theo tên
+COPY --from=0       /app/dist ./dist                                # → tham chiếu theo index (0 = FROM đầu)
+COPY --from=nginx:alpine /etc/nginx/conf.d /default-conf            # → một image bên ngoài, không có trong file này!
+```
+
+Dạng thứ ba cực kỳ hữu ích. Bạn có thể "móc" một file config ra từ image `nginx` đã publish mà chẳng cần cài nginx vào build context. Tương tự để lấy tool (`busybox`, `curl-tool`, bundle chứng chỉ).
+
+## Multi-stage cho Next.js (mẹo standalone output)
+
+Next.js có một tối ưu tích hợp tên là **standalone output**. Đặt `output: 'standalone'` trong `next.config.js`, và `next build` sinh ra folder `.next/standalone/` tự đủ chỉ với những dependency app thật sự import — đôi khi nhỏ hơn `node_modules` đầy đủ 90%.
+
+```dockerfile
+# ── deps ───────────────────────────────────────────────────────────
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+
+# ── builder ────────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build                                                   # → sinh .next/standalone
+
+# ── runtime ────────────────────────────────────────────────────────
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+EXPOSE 3000
+CMD ["node", "server.js"]                                           # → Next sinh sẵn entrypoint này
+```
+
+Lần này 3 stage:
+
+- `deps` — cài dependency. Còn cache bao lâu `package.json` không đổi.
+- `builder` — tái dùng layer deps, copy source, chạy `next build`.
+- `runtime` — copy chỉ server standalone + asset tĩnh. Image cuối thường <100 MB ngay cả với Next app cỡ vừa.
+
+## Multi-stage cho binary Go (cú đẹp nhất)
+
+</VI>
+
+<EN>
+
+This is where the technique really shines. Go compiles to a static binary. The "runtime" needs nothing — no language runtime, no libc, often not even a shell.
+
+```dockerfile
+FROM golang:1.23 AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /out/server ./cmd/server   # → static binary, ~15 MB
+
+FROM scratch                                                        # → literally empty. No OS.
+COPY --from=builder /out/server /server
+EXPOSE 8080
+ENTRYPOINT ["/server"]
+```
+
+Final image: ~15 MB. There is *nothing* in it except your binary. No shell to exec into, no curl, no anything. Hard to attack a container that has no commands.
+
+## Multi-stage for Python (deps in builder, copy site-packages over)
+
+```dockerfile
+FROM python:3.13-slim AS builder
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends gcc \
+ && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt           # → installs into /root/.local
+
+FROM python:3.13-slim AS runtime
+WORKDIR /app
+COPY --from=builder /root/.local /root/.local                       # → packages, no gcc
+COPY . .
+ENV PATH=/root/.local/bin:$PATH
+CMD ["python", "-m", "myapp"]
+```
+
+Same trick: builder has the compiler for native wheels, runtime gets only the resulting `site-packages` via `--user`'s tidy install location.
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+Đây là chỗ kỹ thuật này toả sáng. Go compile ra binary tĩnh. "Runtime" không cần gì cả — không runtime ngôn ngữ, không libc, thậm chí không cần shell.
+
+```dockerfile
+FROM golang:1.23 AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /out/server ./cmd/server   # → binary tĩnh, ~15 MB
+
+FROM scratch                                                        # → trống hoàn toàn. Không có OS.
+COPY --from=builder /out/server /server
+EXPOSE 8080
+ENTRYPOINT ["/server"]
+```
+
+Image cuối: ~15 MB. Trong đó *không có gì* ngoài binary của bạn. Không shell để exec vào, không curl, không gì. Container không có command nào thì khó tấn công.
+
+## Multi-stage cho Python (deps trong builder, copy site-packages qua)
+
+```dockerfile
+FROM python:3.13-slim AS builder
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends gcc \
+ && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt           # → cài vào /root/.local
+
+FROM python:3.13-slim AS runtime
+WORKDIR /app
+COPY --from=builder /root/.local /root/.local                       # → package, không gcc
+COPY . .
+ENV PATH=/root/.local/bin:$PATH
+CMD ["python", "-m", "myapp"]
+```
+
+Cùng mẹo: builder có compiler cho native wheel, runtime chỉ nhận `site-packages` qua location gọn của `--user`.
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** A bakery has a *prep kitchen* (flour everywhere, mixers, ovens, three trainees, a bag of failures) and a *display counter* (a clean glass case with finished croissants). Customers never see the prep kitchen. The dirty work happens out of sight; what reaches the customer is the finished thing. Multi-stage builds are exactly that: stage 1 is the prep kitchen, stage 2 is the display counter. `COPY --from=builder` is the tray that crosses the swing door.
+
+**VI —** Một tiệm bánh có *bếp chuẩn bị* (bột bay khắp nơi, máy đánh, lò, ba bạn học việc, một bịch bánh hỏng) và *quầy trưng bày* (tủ kính sạch với mấy chiếc croissant đã hoàn thiện). Khách không bao giờ thấy bếp. Việc bẩn xảy ra phía sau; cái tới tay khách là sản phẩm hoàn thiện. Multi-stage build chính xác như vậy: stage 1 là bếp chuẩn bị, stage 2 là quầy trưng bày. `COPY --from=builder` là cái khay đi qua cửa lùa.
+</Callout>
+
+<EN>
+
+## Building only one stage
+
+```bash
+docker build --target builder -t myapp:dev .                        # → stop at the builder stage
+docker run --rm -it myapp:dev sh                                    # → poke around the dev image (has TS, etc.)
+```
+
+`--target` lets you build only up to a named stage. Useful for a dev image that includes the toolchain, while the default build produces the slim runtime image. One Dockerfile, two outputs.
+
+## Three common mistakes
+
+1. **Copying `node_modules` from builder to runtime** — you copy a folder full of compiled native binaries that were built against the *builder* image's libc. Often works, sometimes does not (musl vs glibc). Safer: run `npm ci --omit=dev` in the runtime stage and only `COPY --from=builder` the *compiled output*.
+2. **Forgetting `--omit=dev` in runtime** — defeats the whole point. The whole reason to have a runtime stage is to ditch dev deps.
+3. **Using `AS` labels that collide with Docker keywords** — `AS production` is fine; `AS final` is fine; `AS RUN` will confuse things. Stick to lowercase descriptive names.
+
+</EN>
+
+<VI>
+
+## Build chỉ một stage
+
+```bash
+docker build --target builder -t myapp:dev .                        # → dừng ở stage builder
+docker run --rm -it myapp:dev sh                                    # → vào image dev khám phá (có TS, v.v.)
+```
+
+`--target` cho phép build chỉ tới một stage nhất định. Hữu ích khi muốn image dev có toolchain, còn build mặc định cho image runtime gọn. Một Dockerfile, hai output.
+
+## Ba lỗi hay gặp
+
+1. **Copy `node_modules` từ builder sang runtime** — bạn đang copy folder chứa binary native build cho libc của image *builder*. Đôi khi chạy, đôi khi không (musl vs glibc). An toàn hơn: chạy `npm ci --omit=dev` trong stage runtime và chỉ `COPY --from=builder` *output đã compile*.
+2. **Quên `--omit=dev` trong runtime** — phá toàn bộ ý nghĩa. Lý do duy nhất có stage runtime là vứt dev deps.
+3. **Đặt nhãn `AS` trùng từ khoá Docker** — `AS production` được; `AS final` được; `AS RUN` thì rắc rối. Dùng chữ thường mô tả là an toàn.
+
+</VI>
+
+<Recap>
+- Multi-stage = two (or more) `FROM` lines. Build in one, ship from another. The build stage is discarded.
+- `COPY --from=<stage>` is the bridge — only the named files cross over. Everything else from the build stage is gone.
+- For Node: builder has all deps + source, runtime has only prod deps + compiled output. Typical reduction: 1.2 GB → 90 MB.
+- For Go: builder + `FROM scratch`. Final image is just your binary. Tens of MB. Lesson 7 takes the next step — `.dockerignore`, distroless images, BuildKit cache mounts.
+</Recap>

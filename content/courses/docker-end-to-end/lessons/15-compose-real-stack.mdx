@@ -1,0 +1,411 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- One Compose file that stands up the full coffee-shop stack: Nginx, Next.js, Node API, Postgres, Redis.
+- How every concept from lessons 1–14 shows up in one file: multi-stage build images, named volumes, two networks, healthchecks, `depends_on` with conditions, `.env`-driven config.
+- The minimal Nginx config that proxies `/` to web and `/api` to the API.
+- A 60-second walkthrough of `docker compose up -d`.
+</Callout>
+
+This is the lesson where everything in Parts 1–4 lands in a single working stack. Read it as a reference implementation: each block points at a previous lesson that introduced it.
+
+## Repository layout
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Một file Compose dựng toàn bộ stack quán cà phê: Nginx, Next.js, Node API, Postgres, Redis.
+- Mọi khái niệm từ bài 1–14 đều xuất hiện trong một file: image multi-stage, named volume, hai network, healthcheck, `depends_on` có condition, config qua `.env`.
+- Config Nginx tối thiểu: proxy `/` về web, `/api` về API.
+- Đi xuyên 60 giây của `docker compose up -d`.
+</Callout>
+
+Đây là bài mọi thứ ở Phần 1–4 ráp vào một stack chạy được. Đọc như bản tham chiếu: mỗi block có chỉ về bài giới thiệu nó.
+
+## Cấu trúc repo
+
+</VI>
+
+```
+coffee-shop/
+  .env                        # secrets (not committed)
+  .env.example                # placeholders (committed)
+  docker-compose.yml          # the file below
+  nginx/
+    Dockerfile
+    nginx.conf
+  web/                        # Next.js
+    Dockerfile                # multi-stage; lesson 6
+    next.config.js
+    package.json
+    src/...
+  api/                        # Node/Express
+    Dockerfile                # multi-stage; lesson 6
+    package.json
+    src/index.ts
+  db/
+    init.sql                  # schema + seed; mounted at first start
+```
+
+## The Compose file
+
+```yaml
+# docker-compose.yml
+services:
+
+  # ── 1. Nginx reverse proxy ────────────────────────────────────────
+  # The ONLY service publishing a host port. Everything else is internal.
+  nginx:
+    build: ./nginx
+    image: coffee-nginx:${TAG:-dev}
+    container_name: coffee-nginx
+    ports:
+      - "80:80"
+    depends_on:
+      web: { condition: service_started }
+      api: { condition: service_healthy }
+    networks: [frontend-net]
+    restart: unless-stopped
+
+  # ── 2. Next.js front-end ──────────────────────────────────────────
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: /api                                   # → relative; nginx routes it
+    image: coffee-web:${TAG:-dev}
+    container_name: coffee-web
+    environment:
+      NODE_ENV: production
+    networks: [frontend-net, backend-net]
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+
+  # ── 3. Node/Express API ───────────────────────────────────────────
+  api:
+    build: ./api
+    image: coffee-api:${TAG:-dev}
+    container_name: coffee-api
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL:    redis://cache:6379
+      JWT_SECRET:   ${JWT_SECRET}
+    networks: [backend-net]
+    depends_on:
+      db:    { condition: service_healthy }
+      cache: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ── 4. Postgres ───────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: coffee-db
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB:       ${POSTGRES_DB}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [backend-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ── 5. Redis ──────────────────────────────────────────────────────
+  cache:
+    image: redis:7-alpine
+    container_name: coffee-cache
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - cache-data:/data
+    networks: [backend-net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+# ── networks ────────────────────────────────────────────────────────
+networks:
+  frontend-net:
+  backend-net:
+
+# ── volumes ─────────────────────────────────────────────────────────
+volumes:
+  db-data:
+  cache-data:
+```
+
+## The `.env` and `.env.example`
+
+`.env.example` (committed to git):
+
+```text
+# Postgres
+POSTGRES_USER=app
+POSTGRES_PASSWORD=change-me
+POSTGRES_DB=coffee
+
+# API
+JWT_SECRET=change-me-long-random-string
+
+# Image tag for prod overrides
+TAG=dev
+```
+
+`.env` (not committed; copy from example, fill real values):
+
+```text
+POSTGRES_USER=app
+POSTGRES_PASSWORD=s8r3K-not-this
+POSTGRES_DB=coffee
+JWT_SECRET=long-actually-random-string-here
+TAG=dev
+```
+
+## The Nginx config
+
+`nginx/nginx.conf`:
+
+```nginx
+events {}
+
+http {
+  upstream web_upstream { server web:3000; }
+  upstream api_upstream { server api:4000; }
+
+  server {
+    listen 80;
+    server_name _;
+
+    location /api/ {
+      proxy_pass         http://api_upstream/;
+      proxy_set_header   Host              $host;
+      proxy_set_header   X-Real-IP         $remote_addr;
+      proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+      proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+      proxy_pass         http://web_upstream;
+      proxy_set_header   Host              $host;
+      proxy_set_header   X-Real-IP         $remote_addr;
+      proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+      proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+  }
+}
+```
+
+`nginx/Dockerfile`:
+
+```dockerfile
+FROM nginx:1.27-alpine
+COPY nginx.conf /etc/nginx/nginx.conf
+EXPOSE 80
+```
+
+<EN>
+
+## The 60-second walkthrough of `docker compose up -d`
+
+</EN>
+
+<VI>
+
+## Đi xuyên 60 giây của `docker compose up -d`
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 820 320"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Boot sequence: t=0 networks and volumes created; t=2 db and cache start; t=8 both pass their healthchecks; t=10 api starts; t=14 api passes its healthcheck; t=15 web and nginx start; t=16 the stack accepts requests on port 80."
+    style={{ width: '100%', maxWidth: '820px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l15-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+    <text x="410" y="24" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">Boot sequence — wall-clock seconds</text>
+
+    {[
+      { t: 0,  label: 'create networks + volumes' },
+      { t: 2,  label: 'start db + cache' },
+      { t: 8,  label: 'db healthy ✓  cache healthy ✓' },
+      { t: 10, label: 'start api' },
+      { t: 14, label: 'api healthy ✓' },
+      { t: 15, label: 'start web + nginx' },
+      { t: 16, label: 'http://localhost ready' },
+    ].map((step, i) => {
+      const y = 70 + i * 30;
+      return (
+        <g key={i}>
+          <text x="60" y={y + 4} fontSize="13" textAnchor="end" fill="#1a3a2e" fontWeight="600">t = {step.t}s</text>
+          <line x1="70" y1={y} x2="90" y2={y} stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l15-arr)" />
+          <text x="100" y={y + 4} fontSize="12" fill="#1a3a2e">{step.label}</text>
+        </g>
+      );
+    })}
+    <text x="100" y="290" fontSize="11" fill="#3d4f47" fontStyle="italic">
+      Healthchecks gate the order. `depends_on: service_healthy` is what makes this deterministic.
+    </text>
+  </svg>
+</figure>
+
+<EN>
+
+## Bringing it up
+
+```bash
+cp .env.example .env                                                 # → fill in real values
+docker compose up -d --build                                          # → build images, start stack
+docker compose ps                                                     # → 5 services, all healthy
+curl http://localhost                                                 # → Next.js home page
+curl http://localhost/api/health                                      # → API health endpoint
+```
+
+If something looks off:
+
+```bash
+docker compose logs -f api                                           # → tail one service
+docker compose exec db psql -U app -d coffee -c '\dt'                # → list tables in Postgres
+docker compose exec cache redis-cli ping                             # → ping Redis
+docker compose config                                                # → see the rendered Compose with .env substituted
+```
+
+When you are done for the day:
+
+```bash
+docker compose stop                                                  # → stop containers, keep them around
+docker compose start                                                 # → resume tomorrow, fast
+docker compose down                                                  # → stop AND remove containers (volumes survive)
+docker compose down -v                                               # → also drop named volumes (☢️ data loss)
+```
+
+## What each block came from
+
+</EN>
+
+<VI>
+
+## Bật lên
+
+```bash
+cp .env.example .env                                                 # → điền giá trị thật
+docker compose up -d --build                                          # → build image, bật stack
+docker compose ps                                                     # → 5 service, đều healthy
+curl http://localhost                                                 # → trang chủ Next.js
+curl http://localhost/api/health                                      # → endpoint health của API
+```
+
+Nếu có gì lệch:
+
+```bash
+docker compose logs -f api                                           # → tail một service
+docker compose exec db psql -U app -d coffee -c '\dt'                # → list table Postgres
+docker compose exec cache redis-cli ping                             # → ping Redis
+docker compose config                                                # → xem Compose đã render với .env thay vào
+```
+
+Hết ngày:
+
+```bash
+docker compose stop                                                  # → tắt container, giữ lại
+docker compose start                                                 # → mai chạy lại, nhanh
+docker compose down                                                  # → tắt VÀ xoá container (volume còn)
+docker compose down -v                                               # → xoá luôn named volume (☢️ mất data)
+```
+
+## Mỗi khối từ bài nào ra
+
+</VI>
+
+<EN>
+
+| Block | From | What it does |
+|-------|------|------|
+| Multi-stage Dockerfiles in `web/` and `api/` | Lesson 6 | Final images <150 MB. |
+| `.dockerignore` in each | Lesson 7 | Excludes `node_modules`, `.git`, `.env`. |
+| `image:` tag on every service | Lesson 8 | Tagged consistently with `${TAG}` from `.env`. |
+| `db-data` + `cache-data` named volumes | Lesson 9 | Data survives `docker compose down`. |
+| `frontend-net` and `backend-net` | Lesson 10 | Network isolation. Only nginx is reachable from the host. |
+| `.env` + `${VAR}` substitution | Lesson 11 | Secrets in `.env`, never in the image. |
+| `healthcheck:` on every backing service | Lesson 14 | Real readiness, not just process-started. |
+| `depends_on: condition: service_healthy` | Lesson 14 | Boot order is deterministic on a cold machine. |
+| `restart: unless-stopped` | Lesson 16 (next) | Survives reboots and process crashes. |
+
+## Make it your own
+
+</EN>
+
+<VI>
+
+| Khối | Từ bài | Làm gì |
+|-------|------|------|
+| Dockerfile multi-stage trong `web/` và `api/` | Bài 6 | Image cuối <150 MB. |
+| `.dockerignore` ở mỗi cái | Bài 7 | Loại `node_modules`, `.git`, `.env`. |
+| Tag `image:` ở mọi service | Bài 8 | Tag đồng nhất qua `${TAG}` từ `.env`. |
+| Named volume `db-data` + `cache-data` | Bài 9 | Data sống qua `docker compose down`. |
+| `frontend-net` và `backend-net` | Bài 10 | Cô lập network. Chỉ nginx ra ngoài host. |
+| `.env` + thay `${VAR}` | Bài 11 | Secret trong `.env`, không bao giờ trong image. |
+| `healthcheck:` ở mọi service phụ trợ | Bài 14 | Sẵn sàng thật sự, không chỉ "process đã start". |
+| `depends_on: condition: service_healthy` | Bài 14 | Thứ tự boot xác định trên máy nguội. |
+| `restart: unless-stopped` | Bài 16 (kế) | Sống qua reboot và crash process. |
+
+## Biến nó thành của bạn
+
+</VI>
+
+<EN>
+
+Three exercises that turn this into a portfolio piece:
+
+1. **Add a one-shot migrator service.** Re-use the `api` image, run `npm run migrate`, gate the API on `migrate: condition: service_completed_successfully`.
+2. **Add Adminer or pgAdmin** behind a `profiles: [admin]` gate so it only starts when you `--profile admin up`.
+3. **Add `compose.prod.yml`** that swaps `build:` for pulled `image:` from GHCR, marks volumes `external: true`, and bumps `restart: always`.
+
+By the end you will have something I genuinely encourage you to drop into your CV. *"Designed and ran a five-service Compose stack with healthcheck-gated startup, isolated networks, persistent volumes, and a CI pipeline that builds and pushes to GHCR"* is a real sentence about a real thing.
+
+</EN>
+
+<VI>
+
+Ba bài tập biến nó thành tác phẩm bỏ vào portfolio:
+
+1. **Thêm service migrator one-shot.** Tái dùng image `api`, chạy `npm run migrate`, API gate trên `migrate: condition: service_completed_successfully`.
+2. **Thêm Adminer hoặc pgAdmin** sau gate `profiles: [admin]` để chỉ start khi `--profile admin up`.
+3. **Thêm `compose.prod.yml`** đổi `build:` sang `image:` pull từ GHCR, đánh dấu volume `external: true`, và nâng `restart: always`.
+
+Xong là bạn có một thứ tôi thật lòng khuyên cho vào CV. *"Thiết kế và vận hành stack Compose 5 service với startup gated bằng healthcheck, network cô lập, volume bền vững, kèm pipeline CI build và push lên GHCR"* là câu thật về một thứ thật.
+
+</VI>
+
+<Recap>
+- One Compose file, five services: nginx → web + api → db + cache. Only nginx publishes a port; backend services are unreachable from the host.
+- Healthcheck-gated `depends_on` makes the boot order deterministic on cold machines.
+- Volumes survive `down`; only `down -v` drops them. Mark critical volumes `external: true` to prevent accidents.
+- `.env` for secrets, `.env.example` for shape, `docker compose config` for verification. Lesson 16 starts Part 5 with healthchecks, restart policies, and graceful shutdown — promoting this stack to something that survives in the wild.
+</Recap>

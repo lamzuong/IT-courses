@@ -1,0 +1,463 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- The Dockerfile in one paragraph: a text recipe that the daemon turns into an image, one instruction per layer.
+- The eight instructions that cover 95% of real Dockerfiles: `FROM`, `WORKDIR`, `COPY`, `RUN`, `ENV`, `EXPOSE`, `CMD`, `ENTRYPOINT`.
+- The single biggest beginner trap: `CMD` vs `ENTRYPOINT`. We will fix it for life.
+- Build and run a real Node/Express image from a blank folder.
+</Callout>
+
+So far we have used images other people built. Now we build our own. The thing that turns "a folder with my code" into "an image I can `docker run`" is a single text file called the **Dockerfile**.
+
+A Dockerfile is a recipe in the most literal sense: a list of instructions, top to bottom, each one applied to the result of the one before it. The daemon reads it, executes each instruction in a temporary container, and snapshots the result as a new layer. When it reaches the end, it bundles all those layers with a bit of metadata (default command, exposed ports, working directory) and you have an image.
+
+## The minimum viable Dockerfile
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Dockerfile gói gọn một đoạn: file text dạng "công thức", daemon đọc và biến thành image, mỗi instruction là một layer.
+- Tám instruction xài hằng ngày: `FROM`, `WORKDIR`, `COPY`, `RUN`, `ENV`, `EXPOSE`, `CMD`, `ENTRYPOINT`.
+- Cái bẫy lớn nhất với người mới: `CMD` vs `ENTRYPOINT`. Hôm nay giải quyết hẳn.
+- Build và chạy một image Node/Express từ thư mục rỗng.
+</Callout>
+
+Từ đầu khoá tới giờ ta toàn xài image của người khác. Giờ tự build. Cái biến "một thư mục code" thành "một image có thể `docker run`" là một file text duy nhất: **Dockerfile**.
+
+Dockerfile là công thức nấu ăn theo nghĩa đen: danh sách instruction, từ trên xuống, mỗi cái áp dụng lên kết quả của cái phía trước. Daemon đọc, chạy từng instruction trong một container tạm, snapshot kết quả thành layer mới. Đến cuối, gom tất cả layer cộng với metadata (command mặc định, port mở, thư mục làm việc) lại thành image.
+
+## Dockerfile nhỏ nhất
+
+</VI>
+
+```dockerfile
+# Dockerfile
+FROM node:20-alpine                # → start from official Node 20 on Alpine Linux
+WORKDIR /app                       # → cd /app inside the image (creates the dir if missing)
+COPY package*.json ./              # → copy package.json + lockfile from host into /app
+RUN npm ci --omit=dev              # → install only production deps; produces a new layer
+COPY . .                           # → copy the rest of the source code
+EXPOSE 3000                        # → document: this app listens on 3000 (does NOT publish it)
+CMD ["node", "src/index.js"]       # → default command when the container starts
+```
+
+<EN>
+
+That is a complete, production-shaped Dockerfile for a Node app. Eight lines, eight ideas. Now we walk them.
+
+## The eight instructions
+
+</EN>
+
+<VI>
+
+Đó là một Dockerfile đầy đủ, có dáng production cho app Node. Tám dòng, tám ý. Giờ đi qua từng cái.
+
+## Tám instruction
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 780 380"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Vertical flow showing each Dockerfile instruction producing a new layer in the resulting image. FROM, WORKDIR, COPY package, RUN npm ci, COPY rest, EXPOSE, CMD."
+    style={{ width: '100%', maxWidth: '780px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l4-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+
+    <text x="160" y="24" fontSize="13" textAnchor="middle" fill="#1a3a2e" fontWeight="700">Dockerfile</text>
+    <text x="600" y="24" fontSize="13" textAnchor="middle" fill="#1a3a2e" fontWeight="700">Resulting image layers</text>
+
+    {[
+      { i: 'FROM node:20-alpine',     layer: 'L1: Alpine + Node 20  (≈ 40 MB)', meta: false },
+      { i: 'WORKDIR /app',            layer: 'L2: just sets metadata (no MB)',  meta: true },
+      { i: 'COPY package*.json ./',   layer: 'L3: package.json + lock  (~few KB)', meta: false },
+      { i: 'RUN npm ci --omit=dev',   layer: 'L4: node_modules  (≈ 30–80 MB)',  meta: false },
+      { i: 'COPY . .',                layer: 'L5: your source code  (≈ a few MB)', meta: false },
+      { i: 'EXPOSE 3000',             layer: 'L6: metadata only',               meta: true },
+      { i: 'CMD ["node","src/index.js"]', layer: 'L7: metadata only',           meta: true },
+    ].map((row, idx) => {
+      const y = 50 + idx * 44;
+      return (
+        <g key={idx}>
+          <rect x="20" y={y} width="280" height="34" rx="4" fill="#fff7e6" stroke="#d9a441" />
+          <text x="32" y={y + 22} fontSize="12" fill="#1a3a2e" fontFamily="monospace">{row.i}</text>
+          <line x1="305" y1={y + 17} x2="430" y2={y + 17} stroke="#1a3a2e" strokeWidth="1.6" markerEnd="url(#l4-arr)" />
+          <rect x="435" y={y} width="320" height="34" rx="4" fill={row.meta ? '#f0f0f0' : '#e6f4ea'} stroke="#1a3a2e" />
+          <text x="445" y={y + 22} fontSize="12" fill="#1a3a2e">{row.layer}</text>
+        </g>
+      );
+    })}
+
+    <text x="390" y="365" fontSize="11" textAnchor="middle" fill="#3d4f47" fontStyle="italic">
+      Each instruction = one layer. Layers in grey are metadata-only (zero MB on disk).
+    </text>
+  </svg>
+</figure>
+
+<EN>
+
+### 1. `FROM` — the starting point
+
+`FROM` declares the base image you build *on top of*. Without it, you have nothing — there is no kernel, no filesystem, nothing. The base image is somebody else's published image; it has already done the work of *"a Linux box with the right runtime installed"*.
+
+```dockerfile
+FROM node:20-alpine                # → small, official, fast to pull
+FROM python:3.13-slim              # → official Python
+FROM scratch                       # → truly empty (Go binaries; advanced)
+```
+
+Pick the most specific tag you reasonably can. `node:20-alpine` is better than `node:latest` because `latest` rolls forward without warning. Pinning beats surprise.
+
+### 2. `WORKDIR` — set the working directory
+
+`WORKDIR /app` is equivalent to *"`mkdir -p /app && cd /app`, for this and every subsequent instruction"*. It also sets the default directory when the container starts. Use it; without it you end up with `COPY . /usr/src/app` repeated everywhere.
+
+### 3. `COPY` — pull files from the host into the image
+
+`COPY <src> <dest>`. Source paths are relative to the **build context** (the folder you pass to `docker build`). Destination paths are inside the image, anchored at `WORKDIR`.
+
+```dockerfile
+COPY package*.json ./              # → just dependency manifests; both 'package.json' and 'package-lock.json'
+COPY src/ ./src/                   # → only the src directory
+COPY . .                           # → everything in the build context (respects .dockerignore — see lesson 7)
+```
+
+A sibling instruction `ADD` exists. Use `COPY` 99% of the time. `ADD` has magic (auto-extract tar archives, fetch URLs) that surprises people; stick to `COPY`.
+
+### 4. `RUN` — execute a command at build time
+
+`RUN` runs a command *inside* a throwaway container based on the current state, and snapshots the result. This is how you install packages, compile code, generate files.
+
+```dockerfile
+RUN npm ci --omit=dev              # → install production npm deps
+RUN apk add --no-cache curl        # → install curl using Alpine's package manager
+RUN npm run build                  # → run a build script
+```
+
+Each `RUN` makes a new layer. Combining related commands with `&&` keeps the layer count and the image size sensible — we will see this more in lesson 5.
+
+### 5. `ENV` — set environment variables
+
+```dockerfile
+ENV NODE_ENV=production            # → visible to the process at runtime
+ENV PORT=3000
+```
+
+Anything set with `ENV` is baked into the image. The process inside the container will read it via `process.env.NODE_ENV` etc. Do not put secrets here — they end up in the image history forever (we cover the right way in lesson 11).
+
+### 6. `EXPOSE` — document a port
+
+`EXPOSE 3000` is **documentation only**. It does *not* publish the port to the host. Without `-p 3000:3000` (or a Compose equivalent), nothing on your laptop can reach the container's 3000. `EXPOSE` just tells humans and tools *"this app expects to be reached on port 3000."*
+
+### 7. `CMD` — the default command
+
+`CMD` is what the container runs when no command is passed to `docker run`. Two forms:
+
+```dockerfile
+CMD ["node", "src/index.js"]       # → exec form (preferred). PID 1 is node directly.
+CMD node src/index.js              # → shell form. PID 1 is /bin/sh -c, which then runs node.
+```
+
+Use the **exec form** (the JSON array) for anything you care about. Why? Because in shell form, your app does not receive SIGTERM cleanly — the shell does. That breaks graceful shutdown. The exec form makes your process PID 1 in the container, which is what you almost always want.
+
+### 8. `ENTRYPOINT` — the unconfigurable part of the command
+
+`ENTRYPOINT` and `CMD` confuse everyone. Here is the rule that fixes it:
+
+</EN>
+
+<VI>
+
+### 1. `FROM` — điểm khởi đầu
+
+`FROM` khai báo image gốc bạn build *bên trên*. Không có nó là tay không — không kernel, không filesystem, không gì. Image gốc là image do người khác đã publish; nó làm sẵn cái việc *"một máy Linux có sẵn runtime cần thiết"*.
+
+```dockerfile
+FROM node:20-alpine                # → nhỏ, official, kéo nhanh
+FROM python:3.13-slim              # → Python official
+FROM scratch                       # → rỗng thật sự (cho binary Go; nâng cao)
+```
+
+Chọn tag cụ thể nhất hợp lý. `node:20-alpine` tốt hơn `node:latest` vì `latest` âm thầm trượt tới phiên bản mới. Pin tốt hơn bị ngạc nhiên.
+
+### 2. `WORKDIR` — đặt thư mục làm việc
+
+`WORKDIR /app` tương đương *"`mkdir -p /app && cd /app`, cho instruction này và mọi instruction phía sau"*. Đồng thời đặt thư mục mặc định khi container start. Dùng nó; không dùng là viết `COPY . /usr/src/app` lặp đi lặp lại.
+
+### 3. `COPY` — kéo file từ host vào image
+
+`COPY <src> <dest>`. Source tương đối so với **build context** (thư mục bạn truyền cho `docker build`). Destination nằm trong image, neo theo `WORKDIR`.
+
+```dockerfile
+COPY package*.json ./              # → chỉ manifest dependencies; cả 'package.json' lẫn 'package-lock.json'
+COPY src/ ./src/                   # → chỉ thư mục src
+COPY . .                           # → toàn bộ build context (tuân theo .dockerignore — bài 7)
+```
+
+Có một instruction "anh em" là `ADD`. 99% trường hợp xài `COPY`. `ADD` có phép thuật (tự giải nén tar, fetch URL) hay làm người ta ngạc nhiên; bám lấy `COPY` cho lành.
+
+### 4. `RUN` — chạy command lúc build
+
+`RUN` chạy command *bên trong* một container tạm dựa trên trạng thái hiện tại, rồi snapshot kết quả. Đây là cách bạn cài package, compile code, sinh file.
+
+```dockerfile
+RUN npm ci --omit=dev              # → cài npm deps production
+RUN apk add --no-cache curl        # → cài curl bằng package manager của Alpine
+RUN npm run build                  # → chạy script build
+```
+
+Mỗi `RUN` tạo một layer mới. Gộp các command liên quan bằng `&&` giúp số layer và kích thước image hợp lý — bài 5 sẽ rõ hơn.
+
+### 5. `ENV` — đặt biến môi trường
+
+```dockerfile
+ENV NODE_ENV=production            # → process thấy biến này lúc runtime
+ENV PORT=3000
+```
+
+Mọi thứ đặt bằng `ENV` được nướng vào image. Process trong container đọc qua `process.env.NODE_ENV` v.v. Đừng nhét secret vào đây — nó nằm trong image history vĩnh viễn (bài 11 sẽ chỉ cách đúng).
+
+### 6. `EXPOSE` — chỉ là tài liệu
+
+`EXPOSE 3000` **chỉ là tài liệu**. Nó *không* publish port ra host. Không có `-p 3000:3000` (hoặc tương đương trong Compose) thì máy bạn không gọi tới được port 3000 trong container. `EXPOSE` chỉ nói với con người và tool *"app này muốn được gọi tới qua port 3000"*.
+
+### 7. `CMD` — command mặc định
+
+`CMD` là cái container chạy khi bạn không truyền command cho `docker run`. Có hai dạng:
+
+```dockerfile
+CMD ["node", "src/index.js"]       # → dạng exec (nên dùng). PID 1 là node thẳng.
+CMD node src/index.js              # → dạng shell. PID 1 là /bin/sh -c, sau đó nó chạy node.
+```
+
+Dùng **dạng exec** (mảng JSON) cho mọi thứ bạn quan tâm. Vì sao? Vì dạng shell, app của bạn không nhận SIGTERM đàng hoàng — shell nhận. Hỏng luôn graceful shutdown. Dạng exec giúp process của bạn là PID 1 trong container, đó là cái bạn gần như luôn muốn.
+
+### 8. `ENTRYPOINT` — phần không cấu hình được của command
+
+`ENTRYPOINT` và `CMD` làm cả thế giới rối. Đây là quy tắc giải quyết:
+
+</VI>
+
+<Callout type="note" title="CMD vs ENTRYPOINT — the rule that fixes everything">
+**EN —** Mental model: `ENTRYPOINT` is the **fixed binary**; `CMD` is the **default arguments**. At container start, Docker runs `ENTRYPOINT + CMD` concatenated. Anything you pass to `docker run <image> <args>` **replaces `CMD`**, but leaves `ENTRYPOINT` alone.
+
+```dockerfile
+ENTRYPOINT ["node"]
+CMD ["src/index.js"]
+```
+
+- `docker run myapp` → runs `node src/index.js` (default).
+- `docker run myapp src/cli.js` → runs `node src/cli.js` (overrode args).
+- `docker run myapp` cannot accidentally run anything other than `node`. That is the safety `ENTRYPOINT` buys you.
+
+For 90% of web apps, **only `CMD`** is fine. Use `ENTRYPOINT` when your image is a *tool* (a CLI, a database, anything you want to lock to one binary).
+
+**VI —** Mô hình tư duy: `ENTRYPOINT` là **binary cố định**; `CMD` là **default arguments**. Lúc container start, Docker chạy `ENTRYPOINT + CMD` nối lại. Cái bạn truyền cho `docker run <image> <args>` **thay thế `CMD`**, nhưng `ENTRYPOINT` vẫn nguyên.
+
+```dockerfile
+ENTRYPOINT ["node"]
+CMD ["src/index.js"]
+```
+
+- `docker run myapp` → chạy `node src/index.js` (mặc định).
+- `docker run myapp src/cli.js` → chạy `node src/cli.js` (đè args).
+- `docker run myapp` không lỡ tay chạy gì khác ngoài `node`. Đó là cái an toàn `ENTRYPOINT` mang lại.
+
+90% web app, **chỉ cần `CMD`** là đủ. Dùng `ENTRYPOINT` khi image của bạn là *công cụ* (một CLI, một database, thứ bạn muốn khoá vào đúng một binary).
+</Callout>
+
+<EN>
+
+## A complete, runnable example
+
+Make a folder, put four files in it, and you have a real Dockerised app.
+
+`package.json`:
+
+```json
+{
+  "name": "first-image",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "scripts": { "start": "node src/index.js" },
+  "dependencies": { "express": "^4.21.0" }
+}
+```
+
+`src/index.js`:
+
+```js
+import express from 'express';
+const app = express();
+app.get('/', (_, res) => res.send('hello from a container'));
+app.listen(3000, () => console.log('listening on 3000'));
+```
+
+`Dockerfile`:
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY . .
+EXPOSE 3000
+CMD ["node", "src/index.js"]
+```
+
+`.dockerignore` (we will go deeper in lesson 7):
+
+```
+node_modules
+.git
+.env
+```
+
+Build and run:
+
+```bash
+docker build -t first-image:1.0 .                                  # → build, tag as 'first-image:1.0'. The '.' is the build context.
+docker run --rm -p 3000:3000 first-image:1.0                       # → run, expose port 3000
+curl http://localhost:3000                                          # → "hello from a container"
+```
+
+What just happened in seven steps:
+
+1. The daemon read every file in `.` (the build context) and sent it to itself.
+2. It pulled `node:20-alpine` from Docker Hub (only the first time).
+3. It set `/app` as the working directory.
+4. It copied your two manifest files; ran `npm ci`; snapshot the `node_modules` layer.
+5. It copied the rest of your code.
+6. It tagged the final layer stack as `first-image:1.0`.
+7. `docker run` started a container from that image, mapped port 3000, and the Express server replied to your `curl`.
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+## Một ví dụ hoàn chỉnh, chạy được
+
+Tạo một thư mục, đặt vào 4 file, là bạn có app Docker thật sự.
+
+`package.json`:
+
+```json
+{
+  "name": "first-image",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "scripts": { "start": "node src/index.js" },
+  "dependencies": { "express": "^4.21.0" }
+}
+```
+
+`src/index.js`:
+
+```js
+import express from 'express';
+const app = express();
+app.get('/', (_, res) => res.send('chào từ container'));
+app.listen(3000, () => console.log('listening on 3000'));
+```
+
+`Dockerfile`:
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY . .
+EXPOSE 3000
+CMD ["node", "src/index.js"]
+```
+
+`.dockerignore` (bài 7 sẽ đi sâu):
+
+```
+node_modules
+.git
+.env
+```
+
+Build và chạy:
+
+```bash
+docker build -t first-image:1.0 .                                  # → build, tag 'first-image:1.0'. Dấu '.' là build context.
+docker run --rm -p 3000:3000 first-image:1.0                       # → chạy, mở port 3000
+curl http://localhost:3000                                          # → "chào từ container"
+```
+
+Vừa xảy ra 7 bước:
+
+1. Daemon đọc mọi file trong `.` (build context) và gửi cho chính nó.
+2. Pull `node:20-alpine` từ Docker Hub (chỉ lần đầu).
+3. Set `/app` làm thư mục làm việc.
+4. Copy hai file manifest; chạy `npm ci`; snapshot layer `node_modules`.
+5. Copy phần code còn lại.
+6. Tag chồng layer cuối là `first-image:1.0`.
+7. `docker run` start container từ image đó, map port 3000, Express server trả lời `curl` của bạn.
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** A Dockerfile is the *recipe card pinned in the kitchen*, read line by line by a new junior chef every morning. *"Start with the espresso base. Cd to the prep station. Bring in the milk and the sugar (cheap stuff first — see lesson 5). Steam the milk. Pour the espresso. Hand the cup to the customer."* Every step makes a small intermediate result (the espresso shot, the foamed milk) the chef can reuse if she has to make a second cup. `docker build` is the chef working her way through the card with a timer running.
+
+**VI —** Dockerfile là *thẻ công thức ghim trên tường bếp*, mỗi sáng có một bạn mới đọc lại từ trên xuống. *"Bắt đầu bằng espresso. Sang quầy chuẩn bị. Lấy sữa và đường (cái nào ít đổi để trước — bài 5 sẽ giải thích). Đánh sữa. Rót espresso. Đưa ly cho khách."* Mỗi bước cho ra một kết quả trung gian (shot espresso, sữa đánh bông) mà bạn nhỏ có thể tái dùng cho ly thứ hai. `docker build` là bạn nhỏ ấy lần theo thẻ với đồng hồ chạy bên cạnh.
+</Callout>
+
+<EN>
+
+## Five mistakes new authors make
+
+</EN>
+
+<VI>
+
+## Năm lỗi người mới hay mắc
+
+</VI>
+
+<EN>
+
+1. **No `.dockerignore`** — your `node_modules` gets copied *and then npm install runs anyway*. Builds become slow and image becomes huge. Lesson 7 covers `.dockerignore` properly.
+2. **Copying everything before installing deps** — every code change busts the dependency cache, so every build re-installs node_modules. Lesson 5 explains why ordering matters.
+3. **Shell-form `CMD`** — `CMD node src/index.js` instead of `CMD ["node", "src/index.js"]`. Breaks SIGTERM. Always use exec form.
+4. **Putting secrets in `ENV`** — they end up in the image. Anyone who pulls the image can read them via `docker image inspect`. Use runtime env (`-e` or `--env-file`) instead.
+5. **Forgetting `EXPOSE` is documentation only** — and being surprised that `localhost:3000` does not work because no `-p` was passed.
+
+</EN>
+
+<VI>
+
+1. **Không có `.dockerignore`** — `node_modules` bị copy vào *rồi npm install vẫn chạy*. Build chậm, image to. Bài 7 chỉ chi tiết `.dockerignore`.
+2. **Copy tất cả trước khi cài deps** — chỉ cần sửa code là cache deps vỡ, build nào cũng cài lại node_modules. Bài 5 giải thích thứ tự rất quan trọng.
+3. **`CMD` dạng shell** — `CMD node src/index.js` thay vì `CMD ["node", "src/index.js"]`. Hỏng SIGTERM. Luôn dùng exec form.
+4. **Nhét secret vào `ENV`** — nó nằm trong image. Ai pull image về cũng đọc được qua `docker image inspect`. Dùng env lúc runtime (`-e` hoặc `--env-file`) thay vì vậy.
+5. **Quên rằng `EXPOSE` chỉ là tài liệu** — rồi ngạc nhiên vì `localhost:3000` không vào được do quên `-p`.
+
+</VI>
+
+<Recap>
+- A Dockerfile is a text recipe. Each instruction makes one image layer. `FROM, WORKDIR, COPY, RUN, ENV, EXPOSE, CMD, ENTRYPOINT` cover 95% of real files.
+- `EXPOSE` documents a port; `-p` publishes it. They are not the same.
+- `CMD` is overridable defaults; `ENTRYPOINT` is the fixed binary. For web apps you usually only need `CMD`. Always use the JSON-array (exec) form.
+- `docker build -t name:tag .` builds the current folder. The `.` is the build context — everything in it (minus `.dockerignore`) gets shipped to the daemon. Lesson 5 explains why ordering the instructions changes rebuild speed by 10×.
+</Recap>

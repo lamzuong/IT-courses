@@ -1,0 +1,386 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- Why `docker rm` deletes your data, and why this is intentional.
+- The three storage options: **bind mount**, **named volume**, **tmpfs**. When to use each.
+- Where your Postgres data actually lives on disk.
+- Backing up and restoring a volume in one command.
+</Callout>
+
+In lesson 3 we learned that a container has a writable layer that *gets deleted* the moment you run `docker rm`. That is fine for ephemeral things — temp files, logs, caches — but it is catastrophic for anything that matters. Database files. Uploaded images. Anything a user paid you to keep.
+
+The fix is: do not store important data *in* the container. Store it *next to* the container, in a place Docker manages separately and the container only *mounts* into its filesystem. That place is called a **volume**.
+
+## The three storage options
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Vì sao `docker rm` xoá luôn dữ liệu, và vì sao điều đó là cố ý.
+- Ba lựa chọn lưu trữ: **bind mount**, **named volume**, **tmpfs**. Dùng cái nào khi nào.
+- Dữ liệu Postgres của bạn thực sự nằm ở đâu trên đĩa.
+- Backup và restore một volume bằng đúng một lệnh.
+</Callout>
+
+Ở bài 3 ta đã biết container có một layer writable, *bị xoá* ngay khi bạn `docker rm`. Điều đó hợp lý cho mấy thứ tạm — file tạm, log, cache — nhưng thảm hoạ cho mọi thứ quan trọng. File database. Ảnh user upload. Bất cứ thứ gì user trả tiền để bạn giữ.
+
+Cách chữa: đừng lưu dữ liệu quan trọng *bên trong* container. Lưu *bên cạnh* container, ở chỗ Docker quản lý riêng, container chỉ *mount* vào filesystem. Chỗ đó gọi là **volume**.
+
+## Ba lựa chọn lưu trữ
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 820 340"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Three storage options: bind mount maps a host folder into the container, named volume is managed by Docker on the host's docker root, tmpfs lives in RAM only and disappears on stop. Each option drawn as the container plus a square showing where the data actually lives."
+    style={{ width: '100%', maxWidth: '820px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l9-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+
+    {[
+      {
+        title: 'Bind mount',
+        color: '#fff7e6',
+        edge: '#d9a441',
+        host: 'Host folder you pick',
+        host_sub: '/Users/me/project/db-data',
+        useCase: 'dev: live code reload, share files',
+        gotcha: 'permissions, host paths leak',
+      },
+      {
+        title: 'Named volume',
+        color: '#e6f4ea',
+        edge: '#1a3a2e',
+        host: 'Docker-managed area',
+        host_sub: '/var/lib/docker/volumes/coffee_db/_data',
+        useCase: 'prod: databases, persistent app data',
+        gotcha: 'opaque path; you barely touch the host fs',
+      },
+      {
+        title: 'tmpfs',
+        color: '#fdebd0',
+        edge: '#a83232',
+        host: 'RAM — not on disk at all',
+        host_sub: 'gone on container stop',
+        useCase: 'caches, scratch, sensitive temp data',
+        gotcha: 'eats memory; never persists',
+      },
+    ].map((s, i) => {
+      const x = 30 + i * 270;
+      return (
+        <g key={i}>
+          <text x={x + 120} y="28" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">{s.title}</text>
+
+          <rect x={x} y="50" width="240" height="60" rx="8" fill="#e6f4ea" stroke="#1a3a2e" />
+          <text x={x + 120} y="74" fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">container</text>
+          <text x={x + 120} y="92" fontSize="11" textAnchor="middle" fill="#3d4f47">mounts at /var/lib/...</text>
+
+          <line x1={x + 120} y1="110" x2={x + 120} y2="135" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l9-arr)" />
+
+          <rect x={x} y="145" width="240" height="60" rx="8" fill={s.color} stroke={s.edge} />
+          <text x={x + 120} y="170" fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">{s.host}</text>
+          <text x={x + 120} y="188" fontSize="10" textAnchor="middle" fill="#3d4f47" fontFamily="monospace">{s.host_sub}</text>
+
+          <text x={x + 120} y="240" fontSize="11" textAnchor="middle" fill="#1a3a2e">use case:</text>
+          <text x={x + 120} y="256" fontSize="10" textAnchor="middle" fill="#3d4f47" fontStyle="italic">{s.useCase}</text>
+          <text x={x + 120} y="285" fontSize="11" textAnchor="middle" fill="#a83232">watch out:</text>
+          <text x={x + 120} y="301" fontSize="10" textAnchor="middle" fill="#3d4f47" fontStyle="italic">{s.gotcha}</text>
+        </g>
+      );
+    })}
+  </svg>
+</figure>
+
+<EN>
+
+### Bind mount — map a host folder into the container
+
+```bash
+docker run -d \
+  -v /Users/me/project/db-data:/var/lib/postgresql/data \             # → host_path : container_path
+  -e POSTGRES_PASSWORD=secret \
+  --name pg postgres:16-alpine
+```
+
+The container sees `/var/lib/postgresql/data` as a normal folder. Underneath, Docker is reading and writing to your `/Users/me/project/db-data` on the host. The two are the same files; edits in one show up in the other immediately.
+
+When this is great:
+
+- **Local development.** Mount your source code into the container so a code edit on your host shows up inside the container instantly (`-v "$PWD":/app`). The container's process can hot-reload your edits.
+- **Sharing files between containers and your host** — uploads, generated reports, anything you want to inspect from your editor.
+
+When this hurts:
+
+- **Production.** The host path becomes part of your deployment story. You have to provision and back up that folder; permissions issues are common (the UID inside the container may not match the one outside).
+- **Cross-platform pain.** Docker Desktop on Mac/Windows shuttles file changes between the VM and the host filesystem — this is slow for big trees (think `node_modules`).
+
+### Named volume — let Docker manage the storage
+
+```bash
+docker volume create coffee-db                                       # → create a named volume
+docker run -d \
+  -v coffee-db:/var/lib/postgresql/data \                            # → no slash → volume name, not a path
+  -e POSTGRES_PASSWORD=secret \
+  --name pg postgres:16-alpine
+```
+
+The difference is in the host side: instead of a path you pick, you give a **name**. Docker stores the data in its own area (on Linux: `/var/lib/docker/volumes/coffee-db/_data`). You almost never need to look there — you reference the volume by name in every command.
+
+Why this is the production default:
+
+- **Portable.** The volume name `coffee-db` is the same on every machine. No host-path leakage.
+- **Managed.** Docker handles permissions, growth, and cleanup. `docker volume rm coffee-db` is the only way to lose the data — there is no `rm -rf` accident.
+- **Performant on Docker Desktop.** Named volumes live entirely in the VM; no Mac/Windows ⇄ Linux file shuttling.
+
+### tmpfs — RAM only
+
+```bash
+docker run --rm \
+  --tmpfs /scratch:rw,size=128m \                                    # → mounts a 128 MB tmpfs at /scratch
+  alpine sh -c 'dd if=/dev/zero of=/scratch/junk bs=1M count=64 && df -h /scratch'
+```
+
+A tmpfs mount is a RAM-backed filesystem. The container sees a directory; behind the scenes nothing touches the disk. As soon as the container stops, the data evaporates.
+
+Use it for: scratch space that should never hit disk (think CI workspaces), caches you can rebuild, sensitive data you want gone the moment the container exits.
+
+## Volumes are stoppable / restartable / re-attachable
+
+The killer property: **the same named volume can be attached to many containers, over time.** You can stop your Postgres container, delete it, start a new one of a newer Postgres version, attach the same volume — and your data is right there.
+
+```bash
+docker stop pg && docker rm pg                                       # → container gone, volume still exists
+docker volume ls                                                     # → 'coffee-db' is still listed
+docker run -d -v coffee-db:/var/lib/postgresql/data \
+  -e POSTGRES_PASSWORD=secret --name pg postgres:16-alpine            # → new container, same data
+```
+
+This is why volumes are the answer. The container can come and go; the data does not.
+
+## Concrete example: Postgres + a bind mount for init.sql
+
+</EN>
+
+<VI>
+
+### Bind mount — ánh xạ thư mục host vào container
+
+```bash
+docker run -d \
+  -v /Users/me/project/db-data:/var/lib/postgresql/data \             # → host_path : container_path
+  -e POSTGRES_PASSWORD=secret \
+  --name pg postgres:16-alpine
+```
+
+Container thấy `/var/lib/postgresql/data` như một thư mục bình thường. Bên dưới, Docker đọc/ghi vào `/Users/me/project/db-data` trên host. Hai bên là cùng file; sửa bên này hiện ngay bên kia.
+
+Khi nào tuyệt vời:
+
+- **Dev local.** Mount source code vào container để sửa code ở host hiện ngay trong container (`-v "$PWD":/app`). Process trong container hot-reload được code bạn sửa.
+- **Chia sẻ file giữa container và host** — upload, report sinh ra, thứ bạn muốn xem từ editor.
+
+Khi nào đau:
+
+- **Production.** Path host trở thành một phần câu chuyện deploy. Phải cấp folder, phải backup; vấn đề permission rất hay gặp (UID trong container có thể khác UID ngoài).
+- **Cross-platform.** Docker Desktop trên Mac/Win shuttle thay đổi file giữa VM và host — chậm với cây file lớn (kiểu `node_modules`).
+
+### Named volume — để Docker quản lý
+
+```bash
+docker volume create coffee-db                                       # → tạo named volume
+docker run -d \
+  -v coffee-db:/var/lib/postgresql/data \                            # → không có dấu / → tên volume, không phải path
+  -e POSTGRES_PASSWORD=secret \
+  --name pg postgres:16-alpine
+```
+
+Khác biệt nằm ở phía host: thay vì path bạn chọn, bạn cho một **cái tên**. Docker lưu data trong khu của nó (trên Linux: `/var/lib/docker/volumes/coffee-db/_data`). Bạn gần như không phải mò vào đó — luôn gọi volume theo tên.
+
+Vì sao đây là mặc định cho production:
+
+- **Portable.** Tên volume `coffee-db` giống nhau ở mọi máy. Không lộ path host.
+- **Được quản lý.** Docker xử lý permission, size, cleanup. `docker volume rm coffee-db` là cách duy nhất mất dữ liệu — không có tai nạn `rm -rf`.
+- **Nhanh trên Docker Desktop.** Named volume sống hoàn toàn trong VM; không có shuttle file Mac/Win ⇄ Linux.
+
+### tmpfs — chỉ RAM
+
+```bash
+docker run --rm \
+  --tmpfs /scratch:rw,size=128m \                                    # → mount tmpfs 128 MB tại /scratch
+  alpine sh -c 'dd if=/dev/zero of=/scratch/junk bs=1M count=64 && df -h /scratch'
+```
+
+Mount tmpfs là filesystem nằm trong RAM. Container thấy một thư mục; bên dưới không gì chạm đĩa. Container dừng là dữ liệu bay hơi.
+
+Dùng cho: scratch space không nên xuống đĩa (kiểu workspace CI), cache có thể tái tạo, dữ liệu nhạy cảm muốn biến mất ngay khi container thoát.
+
+## Volume tắt được / bật lại được / gắn lại được
+
+Tính chất đắt giá: **một named volume có thể gắn cho nhiều container, qua thời gian.** Bạn có thể tắt Postgres container, xoá nó, dựng container Postgres phiên bản mới hơn, gắn cùng volume — và dữ liệu còn nguyên.
+
+```bash
+docker stop pg && docker rm pg                                       # → container biến, volume còn
+docker volume ls                                                     # → 'coffee-db' vẫn nằm trong list
+docker run -d -v coffee-db:/var/lib/postgresql/data \
+  -e POSTGRES_PASSWORD=secret --name pg postgres:16-alpine            # → container mới, cùng dữ liệu
+```
+
+Đây là lý do volume là câu trả lời. Container đến rồi đi; dữ liệu ở lại.
+
+## Ví dụ cụ thể: Postgres + bind mount cho init.sql
+
+</VI>
+
+<EN>
+
+Postgres's official image runs any `*.sql` file in `/docker-entrypoint-initdb.d/` on first start. Mount your seed script with a bind mount, mount your data with a named volume:
+
+```bash
+docker run -d \
+  -v coffee-db:/var/lib/postgresql/data \                            # → persistent: named volume
+  -v "$PWD/db/init.sql":/docker-entrypoint-initdb.d/init.sql:ro \    # → read-only bind mount for the seed file
+  -e POSTGRES_PASSWORD=secret \
+  -p 5432:5432 \
+  --name pg postgres:16-alpine
+
+docker exec -it pg psql -U postgres -c '\dt'                         # → tables created by init.sql are there
+```
+
+Two mounts in one container, two purposes. The `:ro` flag makes the bind mount read-only — Postgres cannot accidentally overwrite your seed file.
+
+## Backing up and restoring a volume
+
+Volumes are just folders inside the Docker-managed area; the easiest way to back one up is to mount it into a tiny one-shot container and `tar` it out:
+
+```bash
+# Back up volume 'coffee-db' to a tarball on the host
+docker run --rm \
+  -v coffee-db:/data:ro \
+  -v "$PWD":/backup \
+  alpine tar czf /backup/coffee-db-$(date +%F).tgz -C /data .
+
+# Restore (into a fresh volume) — careful: this writes!
+docker volume create coffee-db
+docker run --rm \
+  -v coffee-db:/data \
+  -v "$PWD":/backup \
+  alpine sh -c 'cd /data && tar xzf /backup/coffee-db-2026-05-19.tgz'
+```
+
+Memorise the shape: *"mount volume + mount a host folder for the tarball + run alpine with tar."* It works for any volume.
+
+## Useful commands
+
+</EN>
+
+<VI>
+
+Image Postgres chính thức chạy mọi file `*.sql` trong `/docker-entrypoint-initdb.d/` lần khởi động đầu. Mount script seed bằng bind mount, mount data bằng named volume:
+
+```bash
+docker run -d \
+  -v coffee-db:/var/lib/postgresql/data \                            # → bền vững: named volume
+  -v "$PWD/db/init.sql":/docker-entrypoint-initdb.d/init.sql:ro \    # → bind mount chỉ đọc cho file seed
+  -e POSTGRES_PASSWORD=secret \
+  -p 5432:5432 \
+  --name pg postgres:16-alpine
+
+docker exec -it pg psql -U postgres -c '\dt'                         # → table sinh từ init.sql có rồi
+```
+
+Hai mount trong một container, hai mục đích. Cờ `:ro` làm bind mount read-only — Postgres không lỡ ghi đè file seed.
+
+## Backup và restore volume
+
+Volume thực ra là folder trong khu Docker quản lý; cách dễ nhất để backup là mount nó vào một container nhỏ, `tar` ra:
+
+```bash
+# Backup volume 'coffee-db' thành tarball trên host
+docker run --rm \
+  -v coffee-db:/data:ro \
+  -v "$PWD":/backup \
+  alpine tar czf /backup/coffee-db-$(date +%F).tgz -C /data .
+
+# Restore (vào một volume mới) — cẩn thận: ghi đè!
+docker volume create coffee-db
+docker run --rm \
+  -v coffee-db:/data \
+  -v "$PWD":/backup \
+  alpine sh -c 'cd /data && tar xzf /backup/coffee-db-2026-05-19.tgz'
+```
+
+Thuộc cái shape này: *"mount volume + mount folder host cho tarball + chạy alpine với tar."* Áp dụng cho mọi volume.
+
+## Lệnh hữu dụng
+
+</VI>
+
+<EN>
+
+```bash
+docker volume ls                                                     # → list volumes
+docker volume inspect coffee-db                                      # → JSON; shows the host path under Mountpoint
+docker volume rm coffee-db                                           # → delete (will refuse if a container still uses it)
+docker volume prune                                                  # → delete UNUSED volumes (read the list first)
+```
+
+`docker volume prune` is *not* automatic. Volumes survive `docker rm`. Run it occasionally on dev machines; never blindly on production.
+
+## A few rules I follow
+
+1. **Databases always get a named volume.** Bind mount only for the seed/init scripts.
+2. **Source code gets a bind mount in dev, never in prod.** In prod, the source is *in the image*.
+3. **Anything I cannot afford to lose lives in a named volume that has a backup job pointing at it.**
+4. **Never use `--rm` on a container that owns a bind mount with real data** — the flag does not delete the mount, but I once typo'd a path and lost an evening, so I just do not type `--rm` next to important data.
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+```bash
+docker volume ls                                                     # → list volume
+docker volume inspect coffee-db                                      # → JSON; xem path host ở field Mountpoint
+docker volume rm coffee-db                                           # → xoá (sẽ từ chối nếu còn container dùng)
+docker volume prune                                                  # → xoá volume KHÔNG dùng (đọc danh sách trước)
+```
+
+`docker volume prune` *không* tự động. Volume sống qua `docker rm`. Thỉnh thoảng chạy trên máy dev; đừng bao giờ chạy mù trên production.
+
+## Vài quy tắc tôi theo
+
+1. **Database luôn dùng named volume.** Bind mount chỉ cho script seed/init.
+2. **Source code dùng bind mount trong dev, không bao giờ trong prod.** Production, source nằm *trong image*.
+3. **Cái gì mất là chết nằm trong named volume có job backup trỏ vào.**
+4. **Đừng `--rm` lên container có bind mount chứa data thật** — cờ này không xoá mount, nhưng tôi từng gõ sai path và mất một buổi tối, nên tôi không gõ `--rm` cạnh data quan trọng.
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** The container is the *espresso machine* — a piece of equipment you can replace at any time. The volume is the *bag of beans on the shelf*. You can wheel the machine out for service, swap in a newer model, and as long as the new machine takes the same bean bag, the menu does not change. A bind mount is *the supplier delivering beans into a labelled bin on your wall* — you know exactly where the beans came from. A named volume is *Docker maintains a bean cellar for you* — same beans, different storage philosophy. A tmpfs is *milk you froth on demand* — it never goes into storage at all.
+
+**VI —** Container là *máy espresso* — thiết bị có thể thay bất cứ lúc nào. Volume là *bịch hạt cà phê trên kệ*. Bạn có thể đẩy máy đi bảo trì, đổi đời máy mới, miễn máy mới nhận cùng bịch hạt là menu không đổi. Bind mount là *nhà cung cấp đổ hạt vào một thùng dán nhãn trên tường nhà bạn* — biết đích xác hạt từ đâu. Named volume là *Docker giữ một hầm cà phê dùm bạn* — cùng hạt, triết lý lưu trữ khác. tmpfs là *sữa đánh bông theo yêu cầu* — không bao giờ vào kho.
+</Callout>
+
+<Recap>
+- The container's writable layer dies with `docker rm`. Important data must live in a **volume** — outside the container.
+- Three flavours: **bind mount** (host folder you pick — best for dev), **named volume** (Docker-managed — best for prod databases), **tmpfs** (RAM only — best for sensitive scratch).
+- Volumes outlive containers. Stop the container, delete it, attach a new container to the same volume — your data is intact.
+- Back up with a one-shot `alpine + tar` container. Same pattern for any volume. Lesson 10 picks up the other half of runtime infrastructure — container networking.
+</Recap>

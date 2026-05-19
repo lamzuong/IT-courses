@@ -1,0 +1,228 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- Why containers exist at all — the problem they solve, in one sentence.
+- The honest difference between a container and a virtual machine.
+- The coffee-shop story we will containerise across the next 19 lessons.
+- The mental model: image is a recipe, container is the running dish.
+</Callout>
+
+Docker exists because of one sentence: *"it works on my machine."* That sentence has destroyed more weekends than any other in software. Containers are the answer to it — a way to package an application together with the exact filesystem, libraries, and runtime it needs, so that the box you tested on your laptop is bit-for-bit the same box that runs in production.
+
+Everything else in this course — Dockerfiles, layers, volumes, networks, Compose, registries, healthchecks — is just refinement of that one idea: ship the environment with the code.
+
+## Why not just use a VM?
+
+That was the previous answer, and it still works. A virtual machine boots a whole operating system on top of your operating system. It is reliable and it is isolated. It is also slow to start (minutes), heavy on disk (gigabytes), and brutal on RAM. You cannot ship 30 services this way on a laptop.
+
+A container is the same idea — *"give me an isolated environment"* — but it shares the host's kernel instead of booting its own. The result is wildly cheaper:
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Tại sao container ra đời — vấn đề nó giải, gói gọn trong một câu.
+- Container vs máy ảo (VM) khác nhau thật sự ở chỗ nào.
+- Câu chuyện quán cà phê — thứ ta sẽ container hoá trong 19 bài tiếp theo.
+- Mô hình tư duy: image là công thức, container là dĩa món ăn đã ra.
+</Callout>
+
+Docker sinh ra vì một câu nói: *"trên máy tao chạy được mà."* Câu đó đã ăn tươi nuốt sống nhiều cuối tuần của lập trình viên hơn bất kỳ câu nào khác. Container là lời đáp cho nó — một cách đóng gói ứng dụng cùng với toàn bộ filesystem, thư viện, và runtime cần thiết, để cái hộp bạn test trên laptop *bit-for-bit* giống cái hộp đang chạy ở production.
+
+Tất cả phần còn lại của khoá học — Dockerfile, layer, volume, network, Compose, registry, healthcheck — chỉ là chi tiết hoá thêm ý tưởng đó: *gửi luôn môi trường đi cùng với code.*
+
+## Tại sao không dùng VM cho rồi?
+
+Đó là câu trả lời cũ, và đến nay nó vẫn chạy được. Một máy ảo (VM) khởi động cả một hệ điều hành trên hệ điều hành của bạn. Đáng tin, cô lập tốt. Nhưng khởi động chậm (vài phút), nặng đĩa (vài GB), và ngốn RAM khủng khiếp. Không có cách nào nhét 30 service kiểu đó vào một cái laptop.
+
+Container cùng ý tưởng — *"cho tôi một môi trường cô lập"* — nhưng dùng chung kernel với host thay vì tự khởi động kernel riêng. Hệ quả là rẻ hơn nhiều lần:
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 760 320"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Two stacks side by side. The VM stack has guest OS kernels above each app, sitting on a hypervisor, sitting on the host OS. The container stack has just the apps and their libs sitting on the Docker engine, which sits directly on the host OS kernel."
+    style={{ width: '100%', maxWidth: '760px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l1-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+
+    {/* Left: VM */}
+    <text x="160" y="22" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">Virtual machines</text>
+    <rect x="40" y="40" width="240" height="36" fill="#fff7e6" stroke="#d9a441" />
+    <text x="160" y="63" fontSize="12" textAnchor="middle" fill="#1a3a2e">App A</text>
+    <rect x="40" y="80" width="240" height="36" fill="#fdebd0" stroke="#d9a441" />
+    <text x="160" y="103" fontSize="12" textAnchor="middle" fill="#1a3a2e">Guest OS  (≈ 1–2 GB)</text>
+    <rect x="40" y="120" width="240" height="36" fill="#fff7e6" stroke="#d9a441" />
+    <text x="160" y="143" fontSize="12" textAnchor="middle" fill="#1a3a2e">App B</text>
+    <rect x="40" y="160" width="240" height="36" fill="#fdebd0" stroke="#d9a441" />
+    <text x="160" y="183" fontSize="12" textAnchor="middle" fill="#1a3a2e">Guest OS  (≈ 1–2 GB)</text>
+    <rect x="40" y="200" width="240" height="36" fill="#e6f4ea" stroke="#1a3a2e" />
+    <text x="160" y="223" fontSize="12" textAnchor="middle" fill="#1a3a2e">Hypervisor</text>
+    <rect x="40" y="240" width="240" height="36" fill="#d8e8de" stroke="#1a3a2e" />
+    <text x="160" y="263" fontSize="12" textAnchor="middle" fill="#1a3a2e">Host OS</text>
+    <rect x="40" y="280" width="240" height="20" fill="#1a3a2e" />
+    <text x="160" y="294" fontSize="11" textAnchor="middle" fill="#e6f4ea">Hardware</text>
+
+    {/* Right: Containers */}
+    <text x="600" y="22" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">Containers</text>
+    <rect x="480" y="40" width="240" height="28" fill="#fff7e6" stroke="#d9a441" />
+    <text x="600" y="58" fontSize="11" textAnchor="middle" fill="#1a3a2e">App A  + libs (10–100 MB)</text>
+    <rect x="480" y="72" width="240" height="28" fill="#fff7e6" stroke="#d9a441" />
+    <text x="600" y="90" fontSize="11" textAnchor="middle" fill="#1a3a2e">App B  + libs (10–100 MB)</text>
+    <rect x="480" y="104" width="240" height="28" fill="#fff7e6" stroke="#d9a441" />
+    <text x="600" y="122" fontSize="11" textAnchor="middle" fill="#1a3a2e">App C  + libs (10–100 MB)</text>
+    <rect x="480" y="136" width="240" height="28" fill="#fff7e6" stroke="#d9a441" />
+    <text x="600" y="154" fontSize="11" textAnchor="middle" fill="#1a3a2e">App D  + libs (10–100 MB)</text>
+
+    <rect x="480" y="180" width="240" height="36" fill="#e6f4ea" stroke="#1a3a2e" />
+    <text x="600" y="203" fontSize="12" textAnchor="middle" fill="#1a3a2e">Docker engine</text>
+    <rect x="480" y="220" width="240" height="36" fill="#d8e8de" stroke="#1a3a2e" />
+    <text x="600" y="243" fontSize="12" textAnchor="middle" fill="#1a3a2e">Host OS kernel  (shared)</text>
+    <rect x="480" y="260" width="240" height="20" fill="#1a3a2e" />
+    <text x="600" y="274" fontSize="11" textAnchor="middle" fill="#e6f4ea">Hardware</text>
+
+    {/* Annotation arrow */}
+    <line x1="290" y1="98" x2="470" y2="56" stroke="#3d4f47" strokeWidth="1.5" markerEnd="url(#l1-arr)" strokeDasharray="4 3" />
+    <text x="380" y="74" fontSize="11" textAnchor="middle" fill="#3d4f47" fontStyle="italic">no guest OS = fast, small</text>
+  </svg>
+  <figcaption style={{ fontSize: '0.85rem', color: '#3d4f47', textAlign: 'center' }}>
+    VMs ship a whole OS per app. Containers share the host kernel and ship only the app + its libs.
+  </figcaption>
+</figure>
+
+<EN>
+
+A container starts in milliseconds, weighs tens of megabytes, and lets you pack dozens of services on a single laptop without sweating. That is the entire trade-off.
+
+## The recipe / dish metaphor
+
+Two words you must never confuse:
+
+- **Image** — the recipe. A read-only template. Built once, shared, versioned, pulled from a registry.
+- **Container** — a dish that came out of the recipe. The running thing. Has state, logs, a PID, can be stopped, started, deleted.
+
+One recipe ⇒ many dishes. From a single `node:20-alpine` image you can spin up a hundred containers, each isolated from the others, each with its own writable layer on top.
+
+## The story we will containerise
+
+Across this course we are going to build, step by step, a real-looking online ordering site for a small coffee shop. Here is what the finished thing has, so you know where every lesson is heading:
+
+- A **Next.js** frontend the customer sees.
+- A **Node/Express** API the frontend calls.
+- A **Postgres** database where orders live.
+- A **Redis** cache for session and cart state.
+- An **Nginx** reverse proxy in front, so there is one domain and one port exposed to the outside.
+
+Five services. By lesson 15 they are all running together with one `docker compose up`. By lesson 18 they auto-build and ship on every `git push`.
+
+</EN>
+
+<VI>
+
+Container khởi động trong vài mili-giây, nặng vài chục MB, và cho phép nhồi cả chục service lên một cái laptop không đổ mồ hôi. Toàn bộ trade-off chỉ có vậy.
+
+## Phép so sánh: công thức / dĩa món
+
+Hai từ đừng bao giờ lẫn lộn:
+
+- **Image** — công thức nấu ăn. Read-only, dùng làm khuôn. Build một lần, share, version, kéo về từ registry.
+- **Container** — dĩa món ra từ công thức. Cái đang chạy thật. Có state, có log, có PID, có thể stop / start / xoá.
+
+Một công thức ⇒ nhiều dĩa món. Từ image `node:20-alpine` bạn có thể bật một trăm container, mỗi cái cô lập riêng, mỗi cái có lớp ghi đè riêng bên trên.
+
+## Câu chuyện ta sẽ container hoá
+
+Xuyên suốt khoá học, ta sẽ build từng bước một trang đặt hàng online cho một quán cà phê nhỏ. Đây là hình hài cuối cùng, để bạn biết các bài đang dắt tới đâu:
+
+- Một frontend **Next.js** cho khách hàng.
+- Một API **Node/Express** mà frontend gọi.
+- Một database **Postgres** lưu order.
+- Một **Redis** cache cho session và giỏ hàng.
+- Một **Nginx** reverse proxy đứng trước, để chỉ phơi ra ngoài đúng một domain và một port.
+
+Năm service. Đến bài 15, tất cả chạy chung bằng đúng một lệnh `docker compose up`. Đến bài 18, mọi `git push` đều tự build và deploy được.
+
+</VI>
+
+<Callout type="note" title="Café analogy / Ví dụ quán cà phê">
+**EN —** Image is the printed recipe pinned on the kitchen wall. Container is the actual cup of coffee on the counter. The chef can crank out a hundred cups from one recipe; each cup is independent — drinking from one doesn't change the others. Throw a cup in the sink (`docker rm`), the recipe (`image`) is still on the wall.
+
+**VI —** Image là tờ công thức dán trên tường bếp. Container là ly cà phê đặt trên quầy. Một tờ công thức pha ra cả trăm ly; mỗi ly độc lập — uống ly này không ảnh hưởng ly kia. Đập một ly vào bồn (`docker rm`), công thức (`image`) vẫn còn dán trên tường.
+</Callout>
+
+<EN>
+
+## What you need to follow along
+
+- A laptop with **Docker Desktop** installed (Mac, Windows, or Linux). We install it in lesson 2.
+- About 4 GB of free RAM and 10 GB of free disk. Not negotiable — images and volumes eat space.
+- Familiarity with the terminal. You should be comfortable with `cd`, `ls`, basic shell commands, and reading error output.
+- *Optional but lovely:* a code editor with Docker syntax support (VS Code with the Docker extension is what most of us use).
+
+You do not need to know Kubernetes. You do not need to have run a server before. You do not need to know what a kernel is. We explain everything before we use it.
+
+## How the lessons are structured
+
+Every lesson follows the same shape, and the shape is deliberate:
+
+1. **Why** — what problem this concept solves. If you skip this you will be typing commands you cannot debug.
+2. **What** — the new idea or syntax.
+3. **Examples** — three runnable snippets, increasing in realism. The first is the smallest possible thing that works; the last is something that looks like real code.
+4. **Diagram** — an SVG so you can see, not just read, what is happening.
+5. **Recap** — four bullets you can come back to without re-reading the lesson.
+
+You can read every lesson in roughly 15 minutes. You can do it hands-on in 30. Total course time, hands-on with the project: **two solid weekends**.
+
+## A small promise
+
+By lesson 20, you will be the person at work who actually knows how this stuff works. Not "I copied a Dockerfile from Stack Overflow" knows. *Knows.* Can write the Dockerfile from a blank file. Can debug why a container restarts five seconds after it boots. Can read a Compose file and predict the network topology without running it. That is what *end-to-end* means in the title.
+
+</EN>
+
+<VI>
+
+## Bạn cần gì để học
+
+- Một laptop có **Docker Desktop** (Mac, Windows, hoặc Linux). Bài 2 hướng dẫn cài.
+- Khoảng 4 GB RAM trống và 10 GB ổ cứng trống. Không thương lượng — image và volume ngốn ổ.
+- Quen với terminal. Bạn nên thoải mái với `cd`, `ls`, các lệnh shell cơ bản, và đọc được error output.
+- *Có thì tốt:* một editor hỗ trợ Docker syntax (đa số dùng VS Code + extension Docker).
+
+Không cần biết Kubernetes. Không cần từng dựng server. Không cần biết kernel là gì. Cái gì dùng tới ta giải thích trước.
+
+## Cấu trúc một bài học
+
+Mỗi bài đều theo cùng một khung, và khung này cố ý:
+
+1. **Vì sao (Why)** — vấn đề mà khái niệm này giải. Bỏ qua phần này là gõ lệnh mà không debug được.
+2. **Cái gì (What)** — ý tưởng hoặc cú pháp mới.
+3. **Ví dụ (Examples)** — ba đoạn code chạy được, độ thật tăng dần. Cái đầu là phiên bản nhỏ nhất chạy được; cái cuối giống code thật.
+4. **Diagram** — SVG để bạn *nhìn* thấy, không chỉ *đọc*, chuyện đang xảy ra.
+5. **Recap** — 4 gạch đầu dòng có thể quay lại tra sau mà không cần đọc lại bài.
+
+Mỗi bài đọc khoảng 15 phút, làm tay khoảng 30 phút. Toàn khoá làm tay cùng project: **hai cuối tuần đủ.**
+
+## Một lời hứa nhỏ
+
+Đến bài 20, bạn sẽ là người trong công ty *thật sự* hiểu cái này hoạt động ra sao. Không phải kiểu "copy Dockerfile từ Stack Overflow". *Thật sự hiểu.* Tự viết Dockerfile từ file rỗng. Debug được tại sao container vừa start xong là chết sau 5 giây. Đọc một file Compose và đoán được network topology mà không cần chạy. *End-to-end* trong tên khoá có nghĩa như vậy.
+
+</VI>
+
+<Recap>
+- Containers exist to kill *"it works on my machine"*. Ship the environment with the code.
+- Container ≠ VM. Containers share the host kernel: milliseconds to start, tens of MB on disk.
+- Image is the recipe (read-only template). Container is the dish (running, stateful).
+- We will build a 5-service coffee-shop stack: Next.js + Node API + Postgres + Redis + Nginx. Lesson 2 installs Docker and runs your first container.
+</Recap>

@@ -1,0 +1,481 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- The implicit network Compose creates, and when to define your own networks explicitly.
+- How service names become hostnames — and how `aliases` give you a second one.
+- Named volumes in Compose, including the `external:` flag for "I want to keep this across re-creations."
+- The `depends_on` trap and the correct form: `condition: service_healthy`.
+</Callout>
+
+A Compose file feels declarative because the runtime *does the wiring for you*. This lesson opens up that wiring — what is being created behind the scenes when you write `services:`, and how to tweak it when you need more control.
+
+## The implicit network
+
+Every Compose project gets a default bridge network named after the project (folder). Every service is attached to it. Every service can reach every other by service name. You can write a perfectly good multi-service Compose file without ever mentioning `networks:`.
+
+When you should mention it:
+
+- You want multiple networks for **isolation** (e.g., a frontend net and a private backend net).
+- You want **specific aliases** beyond the service name.
+- You want to connect to an **external network** that already exists.
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Network ngầm mà Compose tự tạo, và khi nào nên tự khai báo network.
+- Tên service thành hostname — và `aliases` cho bạn một tên thứ hai.
+- Named volume trong Compose, kèm cờ `external:` cho "tôi muốn giữ qua các lần dựng lại".
+- Bẫy `depends_on` và dạng đúng: `condition: service_healthy`.
+</Callout>
+
+File Compose cảm giác khai báo vì runtime *tự ráp dây* cho bạn. Bài này mở phần ráp dây đó — chuyện gì được tạo phía sau khi bạn viết `services:`, và cách chỉnh khi cần kiểm soát nhiều hơn.
+
+## Network ngầm
+
+Mỗi project Compose nhận một bridge network mặc định đặt tên theo project (thư mục). Mọi service đều gắn vào đó. Mỗi service gọi service khác qua tên service. Bạn có thể viết file Compose nhiều service đầy đủ mà không bao giờ nhắc tới `networks:`.
+
+Khi nào nên nhắc:
+
+- Cần nhiều network để **cô lập** (vd. frontend net và backend private net).
+- Cần **alias riêng** ngoài tên service.
+- Cần kết nối **network bên ngoài** đã có sẵn.
+
+</VI>
+
+## Two networks for the coffee shop
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 820 340"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Two networks: frontend-net contains nginx and web; backend-net contains web, api, db, cache. Web sits on both — the only bridge between the two. Nginx is the only thing publishing a port to the host."
+    style={{ width: '100%', maxWidth: '820px', height: 'auto', display: 'block' }}
+  >
+    {/* frontend-net */}
+    <rect x="20" y="50" width="280" height="240" rx="14" fill="none" stroke="#d9a441" strokeDasharray="6 4" />
+    <text x="160" y="72" fontSize="12" fill="#3d4f47" fontStyle="italic">frontend-net</text>
+    <rect x="60" y="100" width="100" height="50" rx="8" fill="#fff7e6" stroke="#d9a441" />
+    <text x="110" y="130" fontSize="12" textAnchor="middle" fill="#1a3a2e">nginx</text>
+    <rect x="180" y="100" width="100" height="50" rx="8" fill="#fff7e6" stroke="#d9a441" />
+    <text x="230" y="130" fontSize="12" textAnchor="middle" fill="#1a3a2e">web</text>
+
+    {/* backend-net */}
+    <rect x="220" y="50" width="580" height="240" rx="14" fill="none" stroke="#1a3a2e" strokeDasharray="6 4" />
+    <text x="660" y="72" fontSize="12" fill="#3d4f47" fontStyle="italic">backend-net</text>
+    <rect x="380" y="100" width="100" height="50" rx="8" fill="#e6f4ea" stroke="#1a3a2e" />
+    <text x="430" y="130" fontSize="12" textAnchor="middle" fill="#1a3a2e">api</text>
+    <rect x="510" y="100" width="100" height="50" rx="8" fill="#e6f4ea" stroke="#1a3a2e" />
+    <text x="560" y="130" fontSize="12" textAnchor="middle" fill="#1a3a2e">db</text>
+    <rect x="640" y="100" width="100" height="50" rx="8" fill="#e6f4ea" stroke="#1a3a2e" />
+    <text x="690" y="130" fontSize="12" textAnchor="middle" fill="#1a3a2e">cache</text>
+
+    {/* Host (with port) */}
+    <rect x="60" y="200" width="100" height="50" rx="8" fill="#fdebd0" stroke="#a83232" />
+    <text x="110" y="220" fontSize="12" textAnchor="middle" fill="#1a3a2e">Host</text>
+    <text x="110" y="240" fontSize="11" textAnchor="middle" fill="#3d4f47">:80</text>
+
+    <line x1="110" y1="200" x2="110" y2="150" stroke="#a83232" strokeWidth="2" />
+    <text x="160" y="178" fontSize="10" fill="#a83232">-p 80:80</text>
+
+    <text x="410" y="320" fontSize="11" textAnchor="middle" fill="#3d4f47" fontStyle="italic">
+      `web` is on both networks. `db` and `cache` are NOT on frontend-net — nginx cannot reach them directly.
+    </text>
+  </svg>
+</figure>
+
+```yaml
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    networks: [frontend-net]
+    depends_on:
+      web:
+        condition: service_started
+
+  web:
+    build: ./web
+    networks: [frontend-net, backend-net]
+    environment:
+      API_URL: http://api:4000
+
+  api:
+    build: ./api
+    networks: [backend-net]
+    environment:
+      DATABASE_URL: postgres://app:secret@db:5432/coffee
+      REDIS_URL:    redis://cache:6379
+
+  db:
+    image: postgres:16-alpine
+    networks: [backend-net]
+    environment:
+      POSTGRES_PASSWORD: secret
+
+  cache:
+    image: redis:7-alpine
+    networks: [backend-net]
+
+networks:
+  frontend-net:
+  backend-net:
+```
+
+<EN>
+
+What this buys you: `nginx` cannot accidentally reach `db` or `cache` even if a config bug points it there. `db` and `cache` are physically unreachable from the network nginx is on. That is a layered defense at no extra cost.
+
+## Service aliases
+
+`aliases:` adds extra DNS names on a network:
+
+```yaml
+services:
+  db:
+    image: postgres:16-alpine
+    networks:
+      backend-net:
+        aliases:
+          - postgres                                                 # → can be reached as 'db' OR 'postgres'
+          - primary-db
+```
+
+Useful when migrating: rename a service to something cleaner without breaking every client.
+
+## Named volumes in Compose
+
+You met named volumes in lesson 9. In Compose they get the same treatment as networks — declare at the top level, reference per service:
+
+```yaml
+services:
+  db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_PASSWORD: secret }
+    volumes:
+      - db-data:/var/lib/postgresql/data                              # → mount the named volume
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro         # → bind mount, read-only
+
+volumes:
+  db-data:                                                            # → declare the named volume
+```
+
+Two volume kinds in one service: a named volume for the persistent data, a bind mount for the seed script.
+
+The named volume is **scoped to the project**: Compose names it `<project>_db-data`. `docker compose down` does *not* delete it. `docker compose down -v` *does*. That destructive form lives next to your dangerous keys for a reason.
+
+### Keeping a volume across `down -v`
+
+If a volume's data must persist even through accidental `down -v`, declare it as `external:`. Compose then refuses to delete it and refuses to create it — it expects the volume to already exist:
+
+```yaml
+volumes:
+  db-data:
+    external: true                                                    # → Compose will NOT manage this; just look it up
+```
+
+```bash
+docker volume create db-data                                          # → create it once, by hand
+docker compose up -d
+docker compose down -v                                                # → other volumes go; db-data stays
+```
+
+Pattern for production: keep critical volumes external. Compose treats them as read-only-from-Compose's-perspective.
+
+## The `depends_on` trap
+
+</EN>
+
+<VI>
+
+Cái lợi: `nginx` không lỡ chạm tới `db` hay `cache` ngay cả khi config sai. `db` và `cache` *vật lý* không gọi được từ network nginx đang ở. Đó là phòng thủ phân tầng miễn phí.
+
+## Alias service
+
+`aliases:` thêm DNS name cho service trên một network:
+
+```yaml
+services:
+  db:
+    image: postgres:16-alpine
+    networks:
+      backend-net:
+        aliases:
+          - postgres                                                 # → có thể gọi qua 'db' HOẶC 'postgres'
+          - primary-db
+```
+
+Hữu ích khi migrate: đổi tên service cho gọn mà không phá mọi client.
+
+## Named volume trong Compose
+
+Bài 9 đã giới thiệu named volume. Trong Compose, chúng được đối xử như network — khai báo ở top-level, tham chiếu theo service:
+
+```yaml
+services:
+  db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_PASSWORD: secret }
+    volumes:
+      - db-data:/var/lib/postgresql/data                              # → mount named volume
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro         # → bind mount, chỉ đọc
+
+volumes:
+  db-data:                                                            # → khai báo named volume
+```
+
+Hai loại mount trong một service: named volume cho data bền vững, bind mount cho file seed.
+
+Named volume **gắn scope vào project**: Compose đặt tên `<project>_db-data`. `docker compose down` *không* xoá nó. `docker compose down -v` *có*. Dạng huỷ hoại đó nằm cạnh các phím nguy hiểm là có lý do.
+
+### Giữ volume qua `down -v`
+
+Nếu dữ liệu của một volume phải tồn tại cả khi lỡ tay `down -v`, khai báo `external:`. Compose sẽ từ chối xoá và từ chối tạo — coi như volume đã có sẵn:
+
+```yaml
+volumes:
+  db-data:
+    external: true                                                    # → Compose KHÔNG quản; chỉ lookup
+```
+
+```bash
+docker volume create db-data                                          # → tạo tay một lần
+docker compose up -d
+docker compose down -v                                                # → volume khác đi; db-data còn
+```
+
+Pattern cho production: volume quan trọng để external. Compose coi chúng như chỉ-đọc-từ-góc-nhìn-Compose.
+
+## Bẫy `depends_on`
+
+</VI>
+
+<EN>
+
+The simple form is misleading:
+
+```yaml
+services:
+  api:
+    depends_on: [db]                                                 # → starts db before api
+```
+
+This only guarantees that the **container `db` has started**, not that Postgres inside it is **ready to accept connections**. On a fresh machine, the API will start a few seconds before Postgres finishes its startup, fail to connect, and crash.
+
+The fix is the **long form**, which lets you depend on a *health condition*:
+
+```yaml
+services:
+  db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_PASSWORD: secret }
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]                   # → succeeds when Postgres accepts connections
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./api
+    depends_on:
+      db:
+        condition: service_healthy                                    # → wait until db's healthcheck passes
+```
+
+Now `api` literally waits for `pg_isready` to succeed before it starts. The flaky-cold-start race disappears.
+
+Three accepted conditions:
+
+- `service_started` — same as the short form.
+- `service_healthy` — wait for the dependency's `healthcheck` to pass.
+- `service_completed_successfully` — wait for the dependency to exit with 0. Great for one-shot migrators that run before the API.
+
+Lesson 16 takes a full lap around `HEALTHCHECK` itself; for now, the form above is enough to make multi-service Compose stacks behave on a fresh machine.
+
+## A one-shot migrator pattern
+
+```yaml
+services:
+  db:
+    image: postgres:16-alpine
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U postgres"], interval: 5s, retries: 10 }
+
+  migrate:
+    build: ./api
+    command: ["npm", "run", "migrate"]                                # → override the default CMD
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"                                                     # → do not restart; it is one-shot
+
+  api:
+    build: ./api
+    depends_on:
+      migrate: { condition: service_completed_successfully }          # → wait until migrate exits 0
+      db:      { condition: service_healthy }
+```
+
+Boot order: db up → wait for db healthy → run migrate → wait for migrate to exit 0 → start api. Add a seeder under a `profiles: [setup]` gate if you only want it on first run.
+
+## Multiple Compose files for environments
+
+</EN>
+
+<VI>
+
+Dạng ngắn dễ đánh lừa:
+
+```yaml
+services:
+  api:
+    depends_on: [db]                                                 # → start db trước api
+```
+
+Chỉ đảm bảo **container `db` đã start**, không đảm bảo Postgres bên trong **sẵn sàng nhận kết nối**. Trên máy mới, API start vài giây trước khi Postgres khởi động xong, kết nối thất bại, crash.
+
+Cách chữa là **dạng dài**, cho phép phụ thuộc *điều kiện sức khoẻ*:
+
+```yaml
+services:
+  db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_PASSWORD: secret }
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]                   # → thành công khi Postgres nhận kết nối
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./api
+    depends_on:
+      db:
+        condition: service_healthy                                    # → đợi healthcheck của db pass
+```
+
+Giờ `api` thực sự đợi `pg_isready` thành công mới start. Race cold-start chập chờn biến mất.
+
+Ba điều kiện hợp lệ:
+
+- `service_started` — giống dạng ngắn.
+- `service_healthy` — đợi `healthcheck` của dependency pass.
+- `service_completed_successfully` — đợi dependency thoát với 0. Tuyệt cho migrator one-shot chạy trước API.
+
+Bài 16 đi vòng đầy đủ về `HEALTHCHECK`; tạm thời dạng trên đủ để stack Compose nhiều service hoạt động trên máy mới.
+
+## Pattern migrator one-shot
+
+```yaml
+services:
+  db:
+    image: postgres:16-alpine
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U postgres"], interval: 5s, retries: 10 }
+
+  migrate:
+    build: ./api
+    command: ["npm", "run", "migrate"]                                # → override CMD mặc định
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"                                                     # → đừng restart; nó là one-shot
+
+  api:
+    build: ./api
+    depends_on:
+      migrate: { condition: service_completed_successfully }          # → đợi migrate thoát 0
+      db:      { condition: service_healthy }
+```
+
+Thứ tự boot: db lên → đợi db healthy → chạy migrate → đợi migrate thoát 0 → start api. Thêm seeder dưới gate `profiles: [setup]` nếu chỉ muốn chạy lần đầu.
+
+## Nhiều file Compose cho nhiều môi trường
+
+</VI>
+
+<EN>
+
+Two patterns coexist:
+
+- **Auto-override**: `docker-compose.yml` + `docker-compose.override.yml`. Compose merges them automatically on `up`. Lesson 13 covered this.
+- **Explicit -f**: pick files for each environment.
+
+```bash
+docker compose -f compose.yml -f compose.prod.yml up -d              # → merge prod overrides on top
+docker compose -f compose.yml -f compose.ci.yml run --rm tests       # → use the CI variant for tests
+```
+
+A `compose.prod.yml` might shrink to a few overrides:
+
+```yaml
+services:
+  api:
+    image: ghcr.io/myteam/coffee-api:${TAG}                          # → use the registry image, do not build
+    restart: unless-stopped
+  web:
+    image: ghcr.io/myteam/coffee-web:${TAG}
+  db:
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  db-data:
+    external: true                                                    # → managed outside Compose in prod
+```
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+Hai pattern song song:
+
+- **Auto-override**: `docker-compose.yml` + `docker-compose.override.yml`. Compose merge tự động khi `up`. Bài 13 đã chỉ.
+- **`-f` tường minh**: chọn file cho mỗi môi trường.
+
+```bash
+docker compose -f compose.yml -f compose.prod.yml up -d              # → merge prod override lên trên
+docker compose -f compose.yml -f compose.ci.yml run --rm tests       # → dùng biến thể CI cho test
+```
+
+`compose.prod.yml` có thể chỉ là vài override:
+
+```yaml
+services:
+  api:
+    image: ghcr.io/myteam/coffee-api:${TAG}                          # → dùng image trên registry, không build
+    restart: unless-stopped
+  web:
+    image: ghcr.io/myteam/coffee-web:${TAG}
+  db:
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  db-data:
+    external: true                                                    # → quản lý ngoài Compose ở prod
+```
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** A coffee shop has a *customer side* and a *staff side*, separated by a swing door. Customers can speak to the cashier (frontend-net). Staff back there pass messages between barista, kitchen, and the bean storeroom (backend-net). The swing door is where the *web* tier crosses — it is the only thing that sees both sides. Volumes are the *bean storeroom*; an `external` volume is the *neighbouring shared warehouse the chain owns*, where every shop's grinder can pull beans from. Healthchecks are *staff giving each other a thumbs-up before opening*: the cashier does not unlock the door until the kitchen says ready.
+
+**VI —** Quán có *phía khách* và *phía nhân viên*, ngăn bởi cửa lùa. Khách nói chuyện với thu ngân (frontend-net). Nhân viên phía sau chuyền tin giữa barista, bếp, kho hạt (backend-net). Cửa lùa là chỗ tier *web* đi qua — thứ duy nhất thấy cả hai phía. Volume là *kho hạt*; volume `external` là *kho chung của chuỗi cửa hàng* mà mọi máy xay đều lấy hạt từ đó. Healthcheck là *nhân viên giơ ngón tay cái cho nhau trước khi mở*: thu ngân không mở cửa cho đến khi bếp báo sẵn sàng.
+</Callout>
+
+<Recap>
+- Compose creates an implicit default network. Declare your own only when you need isolation, aliases, or external nets.
+- Service name = DNS name. `aliases:` adds more names. Multiple networks let you keep `db`/`cache` unreachable from public-facing services.
+- Volumes are scoped to the project. `external: true` makes Compose look up an existing volume instead of managing it — the safety net for critical data.
+- `depends_on` short form only waits for *container start*. Use the long form with `condition: service_healthy` (or `service_completed_successfully` for migrators) to actually wait. Lesson 15 ties everything from Parts 1–4 into one runnable five-service stack.
+</Recap>

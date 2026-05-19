@@ -2,9 +2,10 @@ import { course as dragDropReact } from './drag-drop-react/course';
 import { course as aiInYourProject } from './ai-in-your-project/course';
 import { course as langchainLanggraphToolkit } from './langchain-langgraph-toolkit/course';
 import { course as claudeEffectively } from './claude-effectively/course';
+import { course as dockerEndToEnd } from './docker-end-to-end/course';
 import type { Course } from './types';
 
-export const allCourses: Course[] = [aiInYourProject, langchainLanggraphToolkit, claudeEffectively, dragDropReact];
+export const allCourses: Course[] = [aiInYourProject, langchainLanggraphToolkit, claudeEffectively, dockerEndToEnd, dragDropReact];
 
 export type PlaceholderCourse = {
   title: string;

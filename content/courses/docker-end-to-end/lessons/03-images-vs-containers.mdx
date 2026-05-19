@@ -1,0 +1,367 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- The single most important Docker idea: image = read-only template, container = running instance with a writable layer on top.
+- The container lifecycle: created → running → paused → stopped → removed.
+- Why the layered filesystem makes 100 containers from one image cheap.
+- The five everyday commands: `images`, `pull`, `ps`, `run`, `rm`.
+</Callout>
+
+If you only ever remember one diagram from this course, make it this one. Almost every Docker confusion — *"why did my data disappear?"*, *"why are there so many things on disk?"*, *"why is rebuilding so fast?"* — collapses once this picture is in your head.
+
+## Image = recipe. Container = dish.
+
+An **image** is a read-only stack of filesystem layers plus a tiny bit of metadata (what command to run, which port to expose, which env vars are set by default). You build it once, push it to a registry, pull it back anywhere. Nothing about it changes.
+
+A **container** is what you get when the daemon takes an image and adds a thin **writable layer** on top. Anything the running process writes — log files, temp files, downloaded packages — lives in that writable layer. Two containers from the same image have their own writable layers; they cannot see each other's writes.
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Ý tưởng quan trọng nhất của Docker: image = template read-only, container = phiên bản đang chạy có thêm một lớp writable bên trên.
+- Vòng đời container: created → running → paused → stopped → removed.
+- Tại sao filesystem dạng "layer" giúp tạo 100 container từ một image rất rẻ.
+- Năm lệnh dùng hằng ngày: `images`, `pull`, `ps`, `run`, `rm`.
+</Callout>
+
+Nếu cả khoá này bạn chỉ giữ lại được một sơ đồ, hãy giữ cái này. Gần như mọi rối rắm Docker — *"dữ liệu của tôi đi đâu mất?"*, *"sao ổ đầy nhanh vậy?"*, *"sao build lại nhanh thế?"* — đều tan biến khi hình này ở sẵn trong đầu.
+
+## Image = công thức. Container = dĩa món.
+
+**Image** là một chồng layer filesystem read-only, kèm chút metadata (chạy command nào, mở port nào, env mặc định ra sao). Build một lần, push lên registry, pull về bất cứ đâu. Không có gì thay đổi.
+
+**Container** là cái bạn có khi daemon lấy image đó và thêm một **layer writable** mỏng lên trên. Tiến trình chạy ghi gì — log, file tạm, package tải về — đều rơi vào layer writable đó. Hai container cùng image có hai layer writable riêng; không nhìn thấy thứ bên kia ghi.
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 760 380"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="On the left, an image shown as a stack of three read-only layers labeled base OS, runtime, app. On the right, two containers each show the same three read-only layers shared, plus their own writable layer on top."
+    style={{ width: '100%', maxWidth: '760px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l3-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+
+    <text x="130" y="30" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">Image</text>
+    <text x="130" y="48" fontSize="11" textAnchor="middle" fill="#3d4f47" fontStyle="italic">read-only, built once</text>
+
+    {/* Image layers */}
+    <rect x="50" y="80"  width="160" height="40" fill="#fdebd0" stroke="#d9a441" />
+    <text x="130" y="105" fontSize="12" textAnchor="middle" fill="#1a3a2e">L3 — app code</text>
+    <rect x="50" y="120" width="160" height="40" fill="#fdebd0" stroke="#d9a441" />
+    <text x="130" y="145" fontSize="12" textAnchor="middle" fill="#1a3a2e">L2 — node runtime</text>
+    <rect x="50" y="160" width="160" height="40" fill="#fdebd0" stroke="#d9a441" />
+    <text x="130" y="185" fontSize="12" textAnchor="middle" fill="#1a3a2e">L1 — base OS (alpine)</text>
+
+    <text x="130" y="230" fontSize="11" textAnchor="middle" fill="#3d4f47">3 layers, ~80 MB on disk</text>
+
+    {/* Arrow */}
+    <line x1="225" y1="140" x2="290" y2="140" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l3-arr)" />
+    <text x="257" y="132" fontSize="10" textAnchor="middle" fill="#3d4f47" fontStyle="italic">docker run</text>
+
+    {/* Container A */}
+    <text x="430" y="30" fontSize="13" textAnchor="middle" fill="#1a3a2e" fontWeight="700">Container A</text>
+    <rect x="330" y="60" width="200" height="34" fill="#e6f4ea" stroke="#1a3a2e" strokeWidth="2" />
+    <text x="430" y="82" fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">writable layer (logs, /tmp)</text>
+    <rect x="330" y="100" width="200" height="34" fill="#fdebd0" stroke="#d9a441" />
+    <text x="430" y="122" fontSize="11" textAnchor="middle" fill="#3d4f47">L3 app  (shared)</text>
+    <rect x="330" y="138" width="200" height="34" fill="#fdebd0" stroke="#d9a441" />
+    <text x="430" y="160" fontSize="11" textAnchor="middle" fill="#3d4f47">L2 runtime  (shared)</text>
+    <rect x="330" y="176" width="200" height="34" fill="#fdebd0" stroke="#d9a441" />
+    <text x="430" y="198" fontSize="11" textAnchor="middle" fill="#3d4f47">L1 base OS  (shared)</text>
+
+    {/* Container B */}
+    <text x="650" y="30" fontSize="13" textAnchor="middle" fill="#1a3a2e" fontWeight="700">Container B</text>
+    <rect x="550" y="60" width="200" height="34" fill="#e6f4ea" stroke="#1a3a2e" strokeWidth="2" />
+    <text x="650" y="82" fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">writable layer (its own)</text>
+    <rect x="550" y="100" width="200" height="34" fill="#fdebd0" stroke="#d9a441" />
+    <text x="650" y="122" fontSize="11" textAnchor="middle" fill="#3d4f47">L3 app  (shared)</text>
+    <rect x="550" y="138" width="200" height="34" fill="#fdebd0" stroke="#d9a441" />
+    <text x="650" y="160" fontSize="11" textAnchor="middle" fill="#3d4f47">L2 runtime  (shared)</text>
+    <rect x="550" y="176" width="200" height="34" fill="#fdebd0" stroke="#d9a441" />
+    <text x="650" y="198" fontSize="11" textAnchor="middle" fill="#3d4f47">L1 base OS  (shared)</text>
+
+    {/* Caption note */}
+    <text x="540" y="250" fontSize="11" textAnchor="middle" fill="#3d4f47" fontStyle="italic">Read-only layers are shared on disk. Only the writable top layer is per-container.</text>
+
+    {/* What happens on rm */}
+    <rect x="220" y="290" width="500" height="60" rx="8" fill="#fff7e6" stroke="#d9a441" />
+    <text x="470" y="312" fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">docker rm container_A</text>
+    <text x="470" y="332" fontSize="11" textAnchor="middle" fill="#3d4f47">→ deletes ONLY A's writable layer. Image and other containers untouched.</text>
+  </svg>
+  <figcaption style={{ fontSize: '0.85rem', color: '#3d4f47', textAlign: 'center' }}>
+    Many containers share the same read-only image layers on disk. Each one gets its own writable layer on top.
+  </figcaption>
+</figure>
+
+<EN>
+
+This is also why your **data disappears when you remove a container**. The writable layer is part of the container; `docker rm` deletes it. Anything you cared about — database files, uploaded images — needs to live in a **volume** (lesson 9), which is outside the writable layer.
+
+## The container lifecycle
+
+A container is not just "running" or "stopped". It has five states, and knowing them stops a lot of confusion:
+
+</EN>
+
+<VI>
+
+Đây cũng là lý do **dữ liệu của bạn biến mất khi xoá container**. Layer writable nằm bên trong container; `docker rm` xoá luôn nó. Cái gì bạn cần giữ — file database, ảnh upload — phải sống trong **volume** (bài 9), nằm ngoài layer writable.
+
+## Vòng đời container
+
+Container không chỉ "đang chạy" hoặc "đã tắt". Nó có năm trạng thái — biết rõ tránh được khối nhầm lẫn:
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 780 240"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Container lifecycle states: created, running, paused, stopped, removed. Arrows showing docker create, start, pause/unpause, stop, rm transitions."
+    style={{ width: '100%', maxWidth: '780px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l3b-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+    {[
+      { x: 30,  y: 90, label: 'created', sub: 'docker create' },
+      { x: 200, y: 90, label: 'running', sub: 'docker start' },
+      { x: 370, y: 30, label: 'paused',  sub: 'docker pause' },
+      { x: 370, y: 150, label: 'stopped', sub: 'docker stop' },
+      { x: 560, y: 150, label: 'removed', sub: 'docker rm — gone' },
+    ].map((s, i) => (
+      <g key={i}>
+        <rect x={s.x} y={s.y} width="140" height="60" rx="10" fill="#e6f4ea" stroke="#1a3a2e" />
+        <text x={s.x + 70} y={s.y + 27} fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="600">{s.label}</text>
+        <text x={s.x + 70} y={s.y + 47} fontSize="11" textAnchor="middle" fill="#3d4f47">{s.sub}</text>
+      </g>
+    ))}
+    <line x1="170" y1="120" x2="200" y2="120" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l3b-arr)" />
+    <line x1="340" y1="110" x2="370" y2="80"  stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l3b-arr)" />
+    <line x1="370" y1="80"  x2="340" y2="105" stroke="#1a3a2e" strokeWidth="2" strokeDasharray="3 2" markerEnd="url(#l3b-arr)" />
+    <line x1="340" y1="130" x2="370" y2="170" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l3b-arr)" />
+    <line x1="370" y1="170" x2="345" y2="135" stroke="#1a3a2e" strokeWidth="2" strokeDasharray="3 2" markerEnd="url(#l3b-arr)" />
+    <line x1="510" y1="180" x2="560" y2="180" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l3b-arr)" />
+    <text x="500" y="98" fontSize="10" fill="#3d4f47" fontStyle="italic">unpause</text>
+    <text x="495" y="148" fontSize="10" fill="#3d4f47" fontStyle="italic">start</text>
+    <text x="320" y="220" fontSize="11" textAnchor="middle" fill="#3d4f47" fontStyle="italic">Once removed, the writable layer is gone forever. The image is untouched.</text>
+  </svg>
+</figure>
+
+<EN>
+
+- **created** — container exists on disk but has never run. `docker create` produces this state. Useful in scripts where you want to configure mounts/networks before starting.
+- **running** — your process is alive inside the container.
+- **paused** — all processes inside are frozen via the Linux *cgroup freezer*. Memory is preserved; CPU is taken away. `docker pause` / `unpause`. Niche, but useful when debugging a race condition.
+- **stopped (exited)** — process exited (normally or because you `docker stop`-ed it). Filesystem is still there. You can `start` it again or `rm` it.
+- **removed** — gone. Writable layer deleted. Image untouched.
+
+## Image storage: where does it actually live?
+
+When you `docker pull nginx`, the daemon downloads the layers and stores them under its data root (on Linux: `/var/lib/docker`). On Mac/Windows the daemon lives inside the VM, but the principle is identical.
+
+Each layer is content-addressed by a SHA-256 hash. *"If a layer with that hash already exists, do not download it again."* This is how pulling a second image based on the same `node:20-alpine` base is nearly instant — Docker already has those layers.
+
+Three commands to look at this reality:
+
+```bash
+docker images                                                     # → list images (REPOSITORY  TAG  IMAGE ID  SIZE)
+docker image inspect nginx                                        # → JSON: layers, env, cmd, config
+docker image history nginx                                        # → one row per layer, with size and command that made it
+```
+
+Run that last one. It is a peek behind the curtain.
+
+## Pulling vs running
+
+</EN>
+
+<VI>
+
+- **created** — container đã có trên đĩa nhưng chưa từng chạy. `docker create` sinh ra trạng thái này. Hữu ích trong script muốn cấu hình mount/network trước khi start.
+- **running** — process bên trong đang sống.
+- **paused** — toàn bộ process bên trong bị đóng băng bằng *cgroup freezer* của Linux. Còn RAM, không còn CPU. `docker pause` / `unpause`. Ít dùng, nhưng có ích khi debug race condition.
+- **stopped (exited)** — process đã thoát (do tự nó, hoặc do `docker stop`). Filesystem vẫn còn. Có thể `start` lại hoặc `rm`.
+- **removed** — biến mất. Layer writable bị xoá. Image không bị động tới.
+
+## Image nằm ở đâu trên đĩa?
+
+Khi `docker pull nginx`, daemon tải các layer về và lưu trong data root (trên Linux: `/var/lib/docker`). Trên Mac/Windows, daemon ở trong VM, nhưng nguyên tắc giống nhau.
+
+Mỗi layer được định danh bằng hash SHA-256 của nội dung. *"Nếu layer với hash đó đã có rồi, không tải lại."* Đây là lý do kéo image thứ hai cùng base `node:20-alpine` gần như tức thì — Docker đã có sẵn layer đó.
+
+Ba lệnh nhìn thấy việc này:
+
+```bash
+docker images                                                     # → list image (REPOSITORY  TAG  IMAGE ID  SIZE)
+docker image inspect nginx                                        # → JSON: layer, env, cmd, config
+docker image history nginx                                        # → mỗi dòng là một layer, kèm size và command tạo ra nó
+```
+
+Chạy lệnh cuối. Đó là một lần ngó vào hậu trường.
+
+## `pull` vs `run`
+
+</VI>
+
+<EN>
+
+```bash
+docker pull node:20-alpine                                        # → only downloads the image
+docker run node:20-alpine node -e "console.log('hi')"             # → run a one-shot command in it
+```
+
+`pull` only ever downloads. `run` will pull-if-missing, then create, then start. 95% of the time you only need `run` — but knowing they are separable is what lets you write a CI step that *pre-pulls* images on a build machine while doing other work.
+
+## Three runs, three lessons
+
+```bash
+# 1. One-shot — run, print, exit.
+docker run --rm alpine echo "from inside the container"            # → 'from inside the container'
+
+# 2. Interactive — open a shell, poke around, exit.
+docker run --rm -it alpine sh                                      # → drops you in /# prompt
+# inside: ls /, cat /etc/os-release, exit
+
+# 3. Long-running — server in background, browser visit, then clean up.
+docker run -d -p 8080:80 --name web nginx                          # → start nginx detached
+curl http://localhost:8080                                          # → HTML of welcome page
+docker stop web && docker rm web                                   # → clean up
+```
+
+Two new flags worth committing:
+
+- `--rm` — **auto-remove on exit**. Without it, every one-shot container piles up in `docker ps -a`. With it, the container is gone the instant it exits. Use it for anything throwaway.
+- `-it` — **interactive + TTY**. The two flags you need when you want to actually type into the container.
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+```bash
+# 1. One-shot — chạy, in ra, thoát.
+docker run --rm alpine echo "từ bên trong container"               # → in dòng đó ra
+
+# 2. Tương tác — mở shell, chọc chọc, thoát.
+docker run --rm -it alpine sh                                      # → bạn rơi vào prompt /#
+# bên trong: ls /, cat /etc/os-release, exit
+
+# 3. Chạy lâu — server chạy nền, mở trình duyệt, dọn dẹp.
+docker run -d -p 8080:80 --name web nginx                          # → bật nginx chạy nền
+curl http://localhost:8080                                          # → HTML trang chào
+docker stop web && docker rm web                                   # → dọn
+```
+
+Hai cờ mới nên thuộc:
+
+- `--rm` — **tự xoá khi thoát**. Không có nó, mỗi container one-shot đều chất đống trong `docker ps -a`. Có nó, container biến mất ngay khi thoát. Dùng cho mọi thứ chạy xài rồi vứt.
+- `-it` — **interactive + TTY**. Hai cờ phải có khi bạn muốn thật sự *gõ* vào container.
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** The image is the *laminated recipe card* — durable, never changes, hung on a hook. Each container is a *physical cup of latte* the barista pours. Five customers order at once → five cups, identical to the recipe, completely independent. Customer C spills sugar into her cup; nobody else's drink is affected (per-container writable layer). When she walks out and the cup hits the dishwasher (`docker rm`), the *cup* is gone but the *recipe* is still on its hook. Tomorrow the barista can pour a hundred more from the same card.
+
+**VI —** Image là *thẻ công thức ép plastic* — bền, không đổi, móc trên móc treo. Mỗi container là *một ly latte cụ thể* mà barista pha. Năm khách order cùng lúc → năm ly, giống y công thức, độc lập hoàn toàn. Khách C đổ thêm đường vào ly cô ấy; không ai khác bị ảnh hưởng (layer writable riêng). Cô ấy đi về, ly đem rửa (`docker rm`), *cái ly* mất nhưng *công thức* vẫn nằm trên móc. Hôm sau barista pha thêm trăm ly nữa từ cùng tấm thẻ.
+</Callout>
+
+<EN>
+
+## What you can prove right now
+
+Run these and notice the times. The point is to *see* sharing in action:
+
+```bash
+# Pull a base image once.
+docker pull node:20-alpine                                         # → first time: ~40 MB downloaded
+
+# Pull anything else built on the same base — see how fast.
+docker pull keymetrics/pm2:latest-alpine                           # → only the new layers download
+
+# See the layer reuse.
+docker image history node:20-alpine
+docker image history keymetrics/pm2:latest-alpine
+```
+
+The bottom layers will be byte-identical (same SHA-256). That is the layered filesystem paying you back.
+
+## Cleaning up
+
+</EN>
+
+<VI>
+
+## Bạn có thể tự chứng minh ngay
+
+Chạy mấy lệnh sau, để ý thời gian. Mục tiêu là *thấy* việc dùng chung layer:
+
+```bash
+# Kéo image base một lần.
+docker pull node:20-alpine                                         # → lần đầu: ~40 MB tải về
+
+# Kéo thứ khác build trên cùng base — xem nhanh ra sao.
+docker pull keymetrics/pm2:latest-alpine                           # → chỉ tải các layer mới
+
+# Xem layer dùng chung.
+docker image history node:20-alpine
+docker image history keymetrics/pm2:latest-alpine
+```
+
+Các layer phía dưới sẽ giống nhau từng byte (cùng SHA-256). Đó là filesystem dạng layer trả ơn bạn.
+
+## Dọn dẹp
+
+</VI>
+
+<EN>
+
+```bash
+docker ps -a -q | xargs -r docker rm                              # → remove all stopped containers
+docker image prune                                                # → remove dangling images (no tag, no use)
+docker system prune                                               # → containers + dangling images + unused networks
+docker system prune -a --volumes                                  # → ☢️ nuclear: also drops unused images and volumes
+```
+
+`docker system prune -a --volumes` is destructive — it deletes images you might still want. Read what it lists *before* you confirm. We come back to safe pruning in lesson 12.
+
+</EN>
+
+<VI>
+
+```bash
+docker ps -a -q | xargs -r docker rm                              # → xoá mọi container đã dừng
+docker image prune                                                # → xoá image "lơ lửng" (không tag, không ai dùng)
+docker system prune                                               # → container + image lơ lửng + network không dùng
+docker system prune -a --volumes                                  # → ☢️ bom tấn: xoá cả image không dùng và volume
+```
+
+`docker system prune -a --volumes` rất "tàn nhẫn" — nó xoá luôn image bạn có thể còn cần. Đọc list nó báo *trước khi* bạn confirm. Bài 12 sẽ học cách dọn an toàn.
+
+</VI>
+
+<Recap>
+- Image is a read-only stack of layers (built once, shared). Container = image + a per-instance writable layer. `docker rm` only deletes the writable layer; the image stays.
+- Lifecycle: created → running → paused / stopped → removed. Each transition is a different command (`create`, `start`, `pause`, `stop`, `rm`).
+- Layers are content-addressed by SHA-256, so two images sharing a base do not store it twice. `docker image history <name>` shows the layers.
+- Day-one flags: `--rm` (auto-clean throwaway containers), `-it` (interactive shell), `-d` (background), `-p` (ports), `--name` (memorable name).
+</Recap>

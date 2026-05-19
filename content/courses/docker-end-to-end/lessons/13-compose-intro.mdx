@@ -1,0 +1,468 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- What Compose is and what changes when you adopt it: one YAML file instead of a shell script of `docker run`s.
+- The minimum viable `docker-compose.yml`: two services that talk.
+- The five commands you will type a thousand times: `up`, `down`, `logs`, `ps`, `exec`.
+- `build:` vs `image:`, environment, ports, volumes — same primitives you already know, expressed declaratively.
+</Callout>
+
+You can run a two-service app with two `docker run` commands. You can run a five-service app with five. By eight you have a shell script you forget to update, by ten you have a bug. Docker Compose replaces that script with a single YAML file that *declares* what your stack looks like and lets Docker bring it into existence.
+
+This is not a different runtime. Under the hood, `docker compose up` is calling the same daemon, creating the same containers, attaching the same networks. The win is *declarative* — you describe the goal, Compose figures out the diff.
+
+## The minimum viable Compose file
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Compose là gì và đời bạn đổi gì khi dùng: một file YAML thay cho một script shell đầy `docker run`.
+- File `docker-compose.yml` nhỏ nhất chạy được: hai service nói chuyện với nhau.
+- Năm lệnh sẽ gõ cả ngàn lần: `up`, `down`, `logs`, `ps`, `exec`.
+- `build:` vs `image:`, environment, ports, volumes — vẫn là những primitive bạn đã biết, viết kiểu khai báo.
+</Callout>
+
+App hai service: hai lệnh `docker run` là chạy. Năm service: năm lệnh. Đến tám là bạn có một script shell quên cập nhật, đến mười là có bug. Docker Compose thay script đó bằng một file YAML duy nhất *khai báo* stack trông ra sao, để Docker đem nó vào đời.
+
+Đây không phải runtime khác. Bên dưới, `docker compose up` vẫn gọi cùng daemon, vẫn tạo cùng container, vẫn gắn cùng network. Cú thắng là *khai báo* — bạn mô tả mục tiêu, Compose tự tính diff.
+
+## File Compose nhỏ nhất chạy được
+
+</VI>
+
+```yaml
+# docker-compose.yml
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+
+  redis:
+    image: redis:7-alpine
+```
+
+<EN>
+
+That is a complete Compose file. Two services, one Compose project. Bring it up:
+
+```bash
+docker compose up                                                    # → start everything, attach to logs
+docker compose up -d                                                 # → start everything, detach
+docker compose ps                                                    # → list services in this project
+docker compose logs -f web                                           # → follow one service's logs
+docker compose down                                                  # → stop and remove everything
+docker compose down -v                                               # → also remove named volumes (☢️)
+```
+
+What just happened on `up`:
+
+1. Compose read the file.
+2. It created a **network** named after the folder you ran it in (e.g., `coffee-shop_default`).
+3. It created a **container** for each service, attached to that network, with the service name as a DNS hostname.
+4. It started them.
+
+Two containers, one network, one command. The thing you would have done with three `docker network create` + `docker run` lines just got compressed.
+
+## How a Compose file maps to flags you already know
+
+</EN>
+
+<VI>
+
+Đó là file Compose hoàn chỉnh. Hai service, một project Compose. Bật lên:
+
+```bash
+docker compose up                                                    # → start tất cả, attach log
+docker compose up -d                                                 # → start tất cả, detach
+docker compose ps                                                    # → list service trong project này
+docker compose logs -f web                                           # → follow log của một service
+docker compose down                                                  # → tắt và xoá tất cả
+docker compose down -v                                               # → xoá luôn named volume (☢️)
+```
+
+Khi `up`, chuyện vừa xảy ra:
+
+1. Compose đọc file.
+2. Tạo một **network** đặt tên theo thư mục bạn chạy lệnh (vd `coffee-shop_default`).
+3. Tạo một **container** cho mỗi service, gắn vào network đó, lấy tên service làm DNS hostname.
+4. Khởi động.
+
+Hai container, một network, một lệnh. Cái mà bạn lẽ ra phải làm bằng ba dòng `docker network create` + `docker run` vừa bị nén lại.
+
+## File Compose ánh xạ tới các cờ bạn đã biết
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 820 360"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="A side-by-side mapping: a docker-compose.yml service block on the left and the equivalent docker run command on the right, with arrows from each YAML key to the matching CLI flag."
+    style={{ width: '100%', maxWidth: '820px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l13-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#3d4f47" />
+      </marker>
+    </defs>
+
+    <text x="180" y="22" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">docker-compose.yml</text>
+    <text x="620" y="22" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">equivalent `docker run`</text>
+
+    {[
+      { yaml: 'image: nginx:alpine',          cli: 'nginx:alpine',         y: 60 },
+      { yaml: 'container_name: web',          cli: '--name web',           y: 96 },
+      { yaml: 'ports: "8080:80"',             cli: '-p 8080:80',           y: 132 },
+      { yaml: 'environment: NODE_ENV=prod',   cli: '-e NODE_ENV=prod',     y: 168 },
+      { yaml: 'env_file: .env',               cli: '--env-file .env',      y: 204 },
+      { yaml: 'volumes: db:/var/lib/data',    cli: '-v db:/var/lib/data',  y: 240 },
+      { yaml: 'networks: [coffee-net]',       cli: '--network coffee-net', y: 276 },
+      { yaml: 'restart: unless-stopped',      cli: '--restart unless-stopped', y: 312 },
+    ].map((r, i) => (
+      <g key={i}>
+        <rect x="30" y={r.y} width="300" height="28" rx="4" fill="#fff7e6" stroke="#d9a441" />
+        <text x="42" y={r.y + 19} fontSize="12" fontFamily="monospace" fill="#1a3a2e">{r.yaml}</text>
+        <line x1="335" y1={r.y + 14} x2="470" y2={r.y + 14} stroke="#3d4f47" strokeWidth="1.4" markerEnd="url(#l13-arr)" />
+        <rect x="475" y={r.y} width="320" height="28" rx="4" fill="#e6f4ea" stroke="#1a3a2e" />
+        <text x="487" y={r.y + 19} fontSize="12" fontFamily="monospace" fill="#1a3a2e">{r.cli}</text>
+      </g>
+    ))}
+  </svg>
+</figure>
+
+<EN>
+
+Same primitives. Different syntax. Once you have read a few Compose files, your eyes pattern-match every key to the `docker run` flag it replaces.
+
+## Two services that talk
+
+The point of Compose is the second service. Here is a Node API plus Redis, with the API talking to Redis by service name:
+
+```yaml
+# docker-compose.yml
+services:
+  api:
+    build: ./api                                                    # → look in ./api for a Dockerfile, build it
+    image: coffee-api:dev                                           # → tag the resulting image
+    ports:
+      - "4000:3000"
+    environment:
+      REDIS_URL: redis://cache:6379                                  # → 'cache' is the OTHER service's name
+      NODE_ENV: production
+    depends_on:
+      - cache
+
+  cache:
+    image: redis:7-alpine
+    volumes:
+      - cache-data:/data                                            # → named volume for Redis persistence
+
+volumes:
+  cache-data:                                                        # → declares the named volume
+```
+
+A few new pieces:
+
+- **`build:`** — if a service has `build:`, Compose runs `docker build` against that directory before starting the container. `image:` then becomes the *tag* applied to the built image.
+- **`depends_on:`** — start `cache` before `api`. *Caveat:* this only waits for the container to start, not for the service inside to be ready. Lesson 14 covers the healthcheck-gated form that actually waits.
+- **`volumes:`** at the top level declares named volumes. Each service then references them.
+
+Bring it up:
+
+```bash
+docker compose up -d --build                                         # → --build forces a rebuild before starting
+docker compose ps                                                    # → both services Up
+docker compose logs -f api                                           # → tail the API
+curl http://localhost:4000                                           # → hit the API
+docker compose exec api sh                                           # → shell into the API container
+```
+
+## The five commands you will type every day
+
+</EN>
+
+<VI>
+
+Cùng primitive. Cú pháp khác. Đọc vài file Compose là mắt bạn tự nhận pattern, mỗi key tương ứng cờ `docker run` nào.
+
+## Hai service nói chuyện với nhau
+
+Trọng tâm của Compose là service thứ hai. Đây là API Node + Redis, API gọi Redis qua tên service:
+
+```yaml
+# docker-compose.yml
+services:
+  api:
+    build: ./api                                                    # → tìm Dockerfile trong ./api để build
+    image: coffee-api:dev                                           # → tag cho image kết quả
+    ports:
+      - "4000:3000"
+    environment:
+      REDIS_URL: redis://cache:6379                                  # → 'cache' là tên service KIA
+      NODE_ENV: production
+    depends_on:
+      - cache
+
+  cache:
+    image: redis:7-alpine
+    volumes:
+      - cache-data:/data                                            # → named volume cho Redis
+
+volumes:
+  cache-data:                                                        # → khai báo named volume
+```
+
+Vài thứ mới:
+
+- **`build:`** — nếu service có `build:`, Compose chạy `docker build` trên thư mục đó trước khi start container. `image:` lúc này là *tag* gắn lên image vừa build.
+- **`depends_on:`** — start `cache` trước `api`. *Cẩn thận:* mới chỉ đợi container start, không đợi service bên trong sẵn sàng. Bài 14 chỉ dạng có healthcheck thật sự đợi.
+- **`volumes:`** ở top-level khai báo named volume. Service tham chiếu vào sau đó.
+
+Bật lên:
+
+```bash
+docker compose up -d --build                                         # → --build buộc rebuild trước khi start
+docker compose ps                                                    # → cả hai service Up
+docker compose logs -f api                                           # → tail API
+curl http://localhost:4000                                           # → gọi API
+docker compose exec api sh                                           # → shell vào container API
+```
+
+## Năm lệnh gõ mỗi ngày
+
+</VI>
+
+<EN>
+
+```bash
+docker compose up [-d] [--build]                                     # → bring the stack up (detached, rebuild if needed)
+docker compose down [-v]                                             # → tear down. -v also drops named volumes.
+docker compose ps                                                    # → list services in this project
+docker compose logs -f [service]                                     # → tail logs of one service or all
+docker compose exec <service> sh                                     # → shell into a running service
+```
+
+Two more worth knowing:
+
+```bash
+docker compose restart api                                           # → restart one service (does NOT rebuild)
+docker compose run --rm api npm test                                 # → one-shot: run a command in a new container
+```
+
+`compose run` is the right tool for migrations, seeders, tests. It uses your service's config (env, mounts, network) but runs a *different* command for one-shot work.
+
+## Project name and isolation
+
+Compose names everything after a "project". By default, the project name is the **folder name** the Compose file lives in. So `coffee-shop/docker-compose.yml` produces:
+
+- network: `coffee-shop_default`
+- container: `coffee-shop-api-1`, `coffee-shop-cache-1`
+- volume: `coffee-shop_cache-data`
+
+Override the project name when you want multiple copies side-by-side:
+
+```bash
+docker compose -p staging up -d                                      # → same file, different project, no clashes
+docker compose -p staging down
+```
+
+Useful for testing two branches at once.
+
+## Variable substitution and `.env` (preview of lesson 14)
+
+</EN>
+
+<VI>
+
+```bash
+docker compose up [-d] [--build]                                     # → bật stack (detached, rebuild nếu cần)
+docker compose down [-v]                                             # → tắt. -v xoá luôn named volume.
+docker compose ps                                                    # → list service trong project
+docker compose logs -f [service]                                     # → tail log một service hoặc tất cả
+docker compose exec <service> sh                                     # → shell vào service đang chạy
+```
+
+Hai cái nữa nên biết:
+
+```bash
+docker compose restart api                                           # → restart một service (KHÔNG rebuild)
+docker compose run --rm api npm test                                 # → one-shot: chạy command trong container mới
+```
+
+`compose run` là tool đúng cho migration, seeder, test. Nó dùng config của service (env, mount, network) nhưng chạy lệnh *khác* cho việc one-shot.
+
+## Project name và cô lập
+
+Compose đặt tên mọi thứ theo "project". Mặc định, project name là **tên thư mục** chứa file Compose. Nên `coffee-shop/docker-compose.yml` sinh ra:
+
+- network: `coffee-shop_default`
+- container: `coffee-shop-api-1`, `coffee-shop-cache-1`
+- volume: `coffee-shop_cache-data`
+
+Override project name khi muốn nhiều bản chạy song song:
+
+```bash
+docker compose -p staging up -d                                      # → cùng file, project khác, không đụng
+docker compose -p staging down
+```
+
+Hữu ích khi test hai branch cùng lúc.
+
+## Thay biến và `.env` (xem trước bài 14)
+
+</VI>
+
+<EN>
+
+A `.env` file in the same folder as `docker-compose.yml` is read automatically:
+
+```text
+# .env
+TAG=1.4.2
+POSTGRES_PASSWORD=secret
+```
+
+```yaml
+services:
+  api:
+    image: coffee-api:${TAG}                                         # → coffee-api:1.4.2 at runtime
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+```
+
+The `${VAR:-default}` form provides a fallback:
+
+```yaml
+image: coffee-api:${TAG:-latest}                                     # → :latest if TAG is unset
+```
+
+`docker compose config` is the X-ray for substitution: it prints the rendered file after all variables are resolved, so you can verify what is actually about to run.
+
+## Profiles — turn services on per scenario
+
+You often have services that should not always start (a one-shot seeder, a metrics scraper). `profiles:` lets you gate a service on a label:
+
+```yaml
+services:
+  seeder:
+    build: ./seeder
+    profiles: [setup]                                                # → only starts when 'setup' profile is active
+```
+
+```bash
+docker compose up -d                                                 # → seeder is NOT started
+docker compose --profile setup up -d                                 # → seeder IS started
+```
+
+Use it for one-shot setup, optional admin tools, dev-only debuggers.
+
+## Overrides — `docker-compose.override.yml`
+
+A `docker-compose.override.yml` next to your main file is **automatically merged** on top of it. The classic split:
+
+- `docker-compose.yml` — the production-shaped definition.
+- `docker-compose.override.yml` — local-dev tweaks (bind mounts for source, additional ports for debuggers, looser limits).
+
+Compose merges them when you run plain `docker compose up`. CI/prod skips the override with `-f`:
+
+```bash
+# Dev: both files merged automatically.
+docker compose up
+
+# Prod: only the main file.
+docker compose -f docker-compose.yml up
+```
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+File `.env` cùng thư mục với `docker-compose.yml` được đọc tự động:
+
+```text
+# .env
+TAG=1.4.2
+POSTGRES_PASSWORD=secret
+```
+
+```yaml
+services:
+  api:
+    image: coffee-api:${TAG}                                         # → coffee-api:1.4.2 lúc runtime
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+```
+
+Dạng `${VAR:-default}` cho fallback:
+
+```yaml
+image: coffee-api:${TAG:-latest}                                     # → :latest nếu TAG chưa set
+```
+
+`docker compose config` là kính X-quang cho substitution: in file đã render sau khi mọi biến được resolve, kiểm chứng cái sắp chạy.
+
+## Profile — bật service theo kịch bản
+
+Thường có service không nên luôn start (seeder one-shot, scraper metrics). `profiles:` cho phép gate service bằng một label:
+
+```yaml
+services:
+  seeder:
+    build: ./seeder
+    profiles: [setup]                                                # → chỉ start khi profile 'setup' active
+```
+
+```bash
+docker compose up -d                                                 # → seeder KHÔNG start
+docker compose --profile setup up -d                                 # → seeder ĐƯỢC start
+```
+
+Dùng cho setup one-shot, công cụ admin tuỳ chọn, debugger chỉ dev.
+
+## Override — `docker-compose.override.yml`
+
+File `docker-compose.override.yml` cạnh file chính được **tự động merge** lên trên. Cách tách kinh điển:
+
+- `docker-compose.yml` — định nghĩa dáng production.
+- `docker-compose.override.yml` — chỉnh cho dev local (bind mount source, port debugger thêm, giới hạn lỏng hơn).
+
+Compose merge khi bạn chạy `docker compose up`. CI/prod bỏ override với `-f`:
+
+```bash
+# Dev: cả hai file merge tự động.
+docker compose up
+
+# Prod: chỉ file chính.
+docker compose -f docker-compose.yml up
+```
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** A `docker run` per service is *giving the kitchen one verbal order at a time* — fine when you have two stations, exhausting at five. A Compose file is *the laminated opening checklist taped to the wall* — *"open these stations, in this order, with these ingredients."* Every morning the staff brings the kitchen to life by running the checklist top to bottom. Closing time, they take it down. The shop opens identically every day.
+
+**VI —** Mỗi service một lệnh `docker run` là *hô bằng miệng từng món cho bếp* — ổn khi có hai trạm, mệt khi có năm. File Compose là *checklist mở quán ép plastic dán trên tường* — *"mở các trạm này, theo thứ tự, với nguyên liệu này."* Mỗi sáng nhân viên đem bếp dậy bằng cách chạy checklist từ trên xuống. Đến giờ đóng, gỡ xuống. Quán mở y hệt nhau mỗi ngày.
+</Callout>
+
+<Recap>
+- Compose replaces a pile of `docker run` lines with a single declarative `docker-compose.yml`. Same primitives — network, volume, env, ports — different syntax.
+- Five everyday commands: `up`, `down`, `ps`, `logs`, `exec`. Add `restart` and `run` for finer control.
+- Project name = folder name by default. Override with `-p` to run multiple stacks side-by-side.
+- `.env` is auto-loaded for variable substitution. `docker-compose.override.yml` auto-merges for dev; skip it with `-f` for prod. Lesson 14 zooms into the networking, volumes, and `depends_on`/healthchecks that make Compose worth the file.
+</Recap>

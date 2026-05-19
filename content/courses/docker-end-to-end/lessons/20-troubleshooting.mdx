@@ -1,0 +1,442 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- The 20 commands that solve 90% of Docker problems, grouped by what you would be doing.
+- The 10 failure patterns that hit every team, with the diagnosis and the fix for each.
+- A printable one-page mental checklist for *"my container is broken — now what?"*
+- Where to go after this course — what to read, what to build, what to deploy.
+</Callout>
+
+You finished the course. Some day soon, something in Docker will misbehave and the documentation will not be open. This lesson exists for that day.
+
+## The 20 commands
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- 20 lệnh giải 90% vấn đề Docker, gộp theo việc bạn đang làm.
+- 10 pattern lỗi mà team nào cũng gặp, kèm chẩn đoán và cách sửa từng cái.
+- Một checklist tư duy một trang in được cho *"container hỏng — giờ sao?"*
+- Sau khoá này đi đâu — đọc gì, build gì, deploy gì.
+</Callout>
+
+Bạn hoàn thành khoá học. Hôm nào đó sắp tới, một thứ Docker sẽ giở chứng và tài liệu không mở sẵn. Bài này có để dành cho ngày đó.
+
+## 20 lệnh
+
+</VI>
+
+<EN>
+
+### See what is happening
+
+```bash
+docker ps                                                            # → running containers
+docker ps -a                                                         # → all containers (incl. stopped)
+docker images                                                        # → images on disk
+docker network ls                                                    # → networks
+docker volume ls                                                     # → volumes
+docker system df                                                     # → disk usage breakdown
+```
+
+### Investigate one thing
+
+```bash
+docker logs -f --tail 100 <name>                                     # → recent + live logs
+docker exec -it <name> sh                                            # → shell inside
+docker inspect <name>                                                # → full JSON
+docker inspect <name> --format '{{.State.ExitCode}}'                 # → exit code
+docker stats                                                         # → live CPU/mem/IO
+docker top <name>                                                    # → processes inside
+```
+
+### Move things around
+
+```bash
+docker pull <ref>                                                    # → fetch image
+docker tag <local> <remote>                                          # → add another name
+docker push <ref>                                                    # → upload
+docker compose pull                                                  # → pull all images in this stack
+```
+
+### Build and run
+
+```bash
+docker build -t myapp:1.0 .                                          # → build current folder
+docker run --rm -it --entrypoint sh myapp:1.0                        # → debug-shell into the image
+docker compose up -d --build                                         # → bring stack up, rebuild changed services
+docker compose down -v                                               # → tear down, drop volumes (☢️)
+```
+
+Twenty commands. Every advanced Docker user has these in their fingers.
+
+## The 10 failure patterns
+
+### 1. `Cannot connect to the Docker daemon`
+
+The daemon is not running. On Mac/Windows: open Docker Desktop. On Linux: `sudo systemctl start docker`. If `docker info` works for `sudo` but not for your user, you are missing the `docker` group — `sudo usermod -aG docker $USER`, log out, log in.
+
+### 2. `port is already allocated`
+
+Another process on your host already uses that port. Either stop that process or change the host side of `-p`. To find the culprit:
+
+```bash
+sudo lsof -i :8080                                                   # → who is on 8080?
+docker ps --format 'table {{.Names}}\t{{.Ports}}'                     # → who in Docker is on 8080?
+```
+
+### 3. Container exits immediately on start
+
+Exit code 1 with very little output: re-run with `--entrypoint sh` and execute the real command by hand to see the actual error.
+
+```bash
+docker run --rm -it --entrypoint sh myapp                            # → drop into a shell
+node dist/index.js                                                    # → see the real failure
+```
+
+Exit code 137: out-of-memory. Either raise `--memory` or fix the leak. Exit code 139: segfault — usually a native binary built for a different libc (musl vs glibc) — switch base image (`-slim` instead of `-alpine`).
+
+### 4. Web container "running" but unreachable
+
+Two checks, in order:
+
+1. Did you publish a port? `docker port <name>` — empty means you forgot `-p host:container`.
+2. Is the app binding to `0.0.0.0`, not `127.0.0.1`? An app bound to `127.0.0.1` inside the container is unreachable from outside the container — it only listens on the container's loopback. Bind to `0.0.0.0`.
+
+### 5. Container A cannot reach container B
+
+You almost certainly forgot the user-defined bridge. Either both containers must be on the same `docker network create`'d bridge, or both Compose services must be on the same `networks:` entry. The default `bridge` network does not do DNS by name.
+
+```bash
+docker network inspect coffee-net                                    # → confirms both are members
+docker exec api getent hosts db                                      # → resolves to db's IP?
+```
+
+### 6. Disk full / "no space left on device"
+
+Docker has hoarded. Check and reclaim:
+
+```bash
+docker system df                                                     # → see breakdown
+docker system prune                                                  # → containers + dangling images + networks
+docker image prune -a --filter "until=168h"                          # → images unused >1 week
+docker builder prune                                                 # → build cache (slow rebuild once after)
+docker volume prune                                                  # → unused volumes (read the list first!)
+```
+
+### 7. Build is suddenly slow / cache is missing
+
+Almost always: you reordered something in the Dockerfile, breaking cache for everything below it. Check `docker build` output for the first instruction that lacks `CACHED`. Reorder so volatile things (your code) come *after* stable things (deps).
+
+If the cache is right but CI is still slow: you forgot `cache-from: type=gha` / `cache-to: type=gha,mode=max` in the workflow (lesson 18).
+
+### 8. Postgres data disappeared after a restart
+
+You did not mount a volume. The container's writable layer was deleted by `docker rm`. Going forward:
+
+```yaml
+db:
+  image: postgres:16-alpine
+  volumes:
+    - db-data:/var/lib/postgresql/data                                # → named volume
+volumes:
+  db-data:
+```
+
+For volumes you cannot afford to lose, declare them `external: true` so `docker compose down -v` cannot wipe them (lesson 14).
+
+### 9. SIGTERM is ignored / deploys drop requests
+
+Shell-form `CMD` and/or no signal handler. Two changes (lesson 16):
+
+- `CMD ["node", "dist/index.js"]` (exec form, not shell).
+- Wire a SIGTERM handler in your app that closes the HTTP server and DB pool before exiting.
+
+If you cannot easily edit the app, add `tini` as the entrypoint to forward signals.
+
+### 10. Image is huge
+
+Run `docker history` and find the fat layer:
+
+```bash
+docker history myapp                                                 # → SIZE column per layer
+docker run --rm -it myapp sh -c 'du -sh /*'                          # → biggest top-level dirs
+```
+
+The usual culprits: shipping the build toolchain (fix with multi-stage, lesson 6), shipping `node_modules` with dev deps (fix with `--omit=dev` in runtime stage), no `.dockerignore` (lesson 7), wrong base image (`-slim` or `-alpine` instead of full).
+
+## The one-page mental checklist
+
+</EN>
+
+<VI>
+
+### Xem chuyện đang xảy ra
+
+```bash
+docker ps                                                            # → container đang chạy
+docker ps -a                                                         # → tất cả container (kể cả đã tắt)
+docker images                                                        # → image trên đĩa
+docker network ls                                                    # → network
+docker volume ls                                                     # → volume
+docker system df                                                     # → bảng dung lượng
+```
+
+### Soi một thứ
+
+```bash
+docker logs -f --tail 100 <name>                                     # → log gần đây + live
+docker exec -it <name> sh                                            # → shell vào trong
+docker inspect <name>                                                # → JSON đầy đủ
+docker inspect <name> --format '{{.State.ExitCode}}'                 # → exit code
+docker stats                                                         # → CPU/mem/IO live
+docker top <name>                                                    # → process bên trong
+```
+
+### Di chuyển
+
+```bash
+docker pull <ref>                                                    # → kéo image
+docker tag <local> <remote>                                          # → thêm tên
+docker push <ref>                                                    # → upload
+docker compose pull                                                  # → kéo tất cả image của stack
+```
+
+### Build và chạy
+
+```bash
+docker build -t myapp:1.0 .                                          # → build thư mục hiện tại
+docker run --rm -it --entrypoint sh myapp:1.0                        # → shell debug vào image
+docker compose up -d --build                                         # → bật stack, rebuild service đổi
+docker compose down -v                                               # → tắt, xoá volume (☢️)
+```
+
+20 lệnh. Mọi Docker user khá đều có sẵn trong đầu ngón tay.
+
+## 10 pattern lỗi
+
+### 1. `Cannot connect to the Docker daemon`
+
+Daemon chưa chạy. Mac/Win: mở Docker Desktop. Linux: `sudo systemctl start docker`. Nếu `docker info` chạy được với `sudo` nhưng không với user của bạn, là thiếu group `docker` — `sudo usermod -aG docker $USER`, logout, login.
+
+### 2. `port is already allocated`
+
+Một process khác trên host đã dùng port đó. Tắt nó hoặc đổi phía host của `-p`. Tìm thủ phạm:
+
+```bash
+sudo lsof -i :8080                                                   # → ai trên 8080?
+docker ps --format 'table {{.Names}}\t{{.Ports}}'                     # → trong Docker, ai trên 8080?
+```
+
+### 3. Container chết ngay khi start
+
+Exit 1 mà ít output: chạy lại với `--entrypoint sh` rồi gõ lệnh thật bằng tay để thấy lỗi thật.
+
+```bash
+docker run --rm -it --entrypoint sh myapp                            # → vào shell
+node dist/index.js                                                    # → xem lỗi thật
+```
+
+Exit 137: hết RAM. Hoặc nâng `--memory` hoặc fix leak. Exit 139: segfault — thường là binary native build cho libc khác (musl vs glibc) — đổi base image (`-slim` thay vì `-alpine`).
+
+### 4. Container web "đang chạy" mà gọi không được
+
+Hai check, theo thứ tự:
+
+1. Có publish port không? `docker port <name>` — trống là bạn quên `-p host:container`.
+2. App bind vào `0.0.0.0` hay `127.0.0.1`? App bind `127.0.0.1` trong container không gọi được từ ngoài — nó chỉ lắng loopback của container. Bind `0.0.0.0`.
+
+### 5. Container A không gọi được container B
+
+Gần như chắc chắn bạn quên user-defined bridge. Hai container phải cùng bridge `docker network create` hoặc hai service Compose cùng entry `networks:`. Bridge `bridge` mặc định không DNS theo tên.
+
+```bash
+docker network inspect coffee-net                                    # → cả hai đều là thành viên?
+docker exec api getent hosts db                                      # → resolve được IP của db?
+```
+
+### 6. Đầy ổ / "no space left on device"
+
+Docker tích trữ. Kiểm tra và lấy lại:
+
+```bash
+docker system df                                                     # → bảng
+docker system prune                                                  # → container + image lơ lửng + network
+docker image prune -a --filter "until=168h"                          # → image không dùng >1 tuần
+docker builder prune                                                 # → build cache (lần rebuild kế chậm 1 lần)
+docker volume prune                                                  # → volume không dùng (đọc list trước!)
+```
+
+### 7. Build đột nhiên chậm / mất cache
+
+Gần như luôn: bạn đổi thứ tự trong Dockerfile, phá cache cho mọi dòng phía dưới. Đọc output `docker build` tìm instruction đầu tiên *không có* `CACHED`. Sắp lại để thứ hay đổi (code) đứng *sau* thứ ổn định (deps).
+
+Nếu cache đúng mà CI vẫn chậm: bạn quên `cache-from: type=gha` / `cache-to: type=gha,mode=max` trong workflow (bài 18).
+
+### 8. Dữ liệu Postgres biến mất sau restart
+
+Bạn chưa mount volume. Layer writable của container bị xoá bởi `docker rm`. Từ giờ:
+
+```yaml
+db:
+  image: postgres:16-alpine
+  volumes:
+    - db-data:/var/lib/postgresql/data                                # → named volume
+volumes:
+  db-data:
+```
+
+Volume không thể mất, khai báo `external: true` để `docker compose down -v` không xoá được (bài 14).
+
+### 9. SIGTERM bị bỏ qua / deploy rơi request
+
+`CMD` dạng shell và/hoặc không có signal handler. Hai thay đổi (bài 16):
+
+- `CMD ["node", "dist/index.js"]` (exec form, không phải shell).
+- Wire SIGTERM handler trong app: đóng HTTP server và DB pool trước khi exit.
+
+Khó sửa app thì thêm `tini` làm entrypoint để forward signal.
+
+### 10. Image to khổng lồ
+
+Chạy `docker history` tìm layer mập:
+
+```bash
+docker history myapp                                                 # → cột SIZE từng layer
+docker run --rm -it myapp sh -c 'du -sh /*'                          # → thư mục top-level lớn nhất
+```
+
+Thủ phạm hay gặp: ship build toolchain (multi-stage, bài 6), ship `node_modules` kèm dev deps (`--omit=dev` trong stage runtime), không `.dockerignore` (bài 7), base image sai (`-slim` hoặc `-alpine` thay vì full).
+
+## Checklist tư duy một trang
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 820 420"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="A printable mental checklist. Top question: what is broken? Branches: build broken, container won't start, container running but wrong, multi-service won't talk, deploy broken. Each branch lists 3 concrete checks."
+    style={{ width: '100%', maxWidth: '820px', height: 'auto', display: 'block' }}
+  >
+    <text x="410" y="24" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">"My Docker is broken" — five-branch checklist</text>
+
+    {[
+      {
+        x: 20, y: 60, w: 380, h: 110, color: '#fff7e6',
+        title: 'BUILD won\'t complete',
+        items: [
+          'Read first non-CACHED line — that\'s where it hurts',
+          'Is .dockerignore right? Build context size sane?',
+          'For network errors: --network host or check DNS',
+        ],
+      },
+      {
+        x: 420, y: 60, w: 380, h: 110, color: '#fbe6e6',
+        title: 'CONTAINER exits on start',
+        items: [
+          'docker logs <name> — what\'s the last line?',
+          'docker inspect --format \'{{.State.ExitCode}}\'',
+          'Re-run with --entrypoint sh, run CMD by hand',
+        ],
+      },
+      {
+        x: 20, y: 190, w: 380, h: 110, color: '#e6f4ea',
+        title: 'CONTAINER running but wrong',
+        items: [
+          'docker logs -f (recent output)',
+          'docker exec -it sh; env, ps, curl localhost',
+          'docker stats — CPU/mem out of bounds?',
+        ],
+      },
+      {
+        x: 420, y: 190, w: 380, h: 110, color: '#fdebd0',
+        title: 'TWO services won\'t talk',
+        items: [
+          'Same user-defined bridge?',
+          'App listening on 0.0.0.0, not 127.0.0.1?',
+          'docker exec A getent hosts B',
+        ],
+      },
+      {
+        x: 220, y: 320, w: 380, h: 110, color: '#f0f0f0',
+        title: 'DEPLOY broke / requests drop',
+        items: [
+          'Healthcheck: starting → healthy? start_period long enough?',
+          'CMD exec form + SIGTERM handler in app?',
+          'stop_grace_period long enough?',
+        ],
+      },
+    ].map((box, i) => (
+      <g key={i}>
+        <rect x={box.x} y={box.y} width={box.w} height={box.h} rx="10" fill={box.color} stroke="#1a3a2e" />
+        <text x={box.x + 12} y={box.y + 22} fontSize="12" fill="#1a3a2e" fontWeight="700">{box.title}</text>
+        {box.items.map((it, j) => (
+          <text key={j} x={box.x + 12} y={box.y + 44 + j * 18} fontSize="11" fill="#3d4f47">• {it}</text>
+        ))}
+      </g>
+    ))}
+  </svg>
+</figure>
+
+<EN>
+
+## Where to go from here
+
+You finished a 20-lesson Docker course. You have:
+
+- A mental model that holds: image vs container, layers, namespaces, volumes, networks, registries.
+- A Dockerfile vocabulary big enough to write or read any image.
+- A Compose stack — five services, healthchecks, isolation, persistent data — that is the shape of real production work.
+- A CI/CD pipeline that ships changes automatically with no manual steps.
+- Production hygiene: limits, security, troubleshooting reflexes.
+
+Real next steps, in roughly the order I would recommend:
+
+1. **Ship something.** Containerise a side project, push it to GHCR, deploy it on a $5 VPS. The first deploy is the most useful learning hour of the course.
+2. **Read official docs once.** [docs.docker.com](https://docs.docker.com) for Docker; [docs.docker.com/compose](https://docs.docker.com/compose) for Compose. The reference is concise and you now have the vocabulary for it.
+3. **Pick a managed platform.** Try Cloud Run, Fly.io, or Railway. Watch how the same image you built runs unchanged in another world.
+4. **Then — and only then — pick up Kubernetes.** With Docker fluency, K8s is "Compose at scale with more YAML." Start with `kubectl run` and `kubectl apply` on Docker Desktop's built-in cluster.
+5. **Build the project from lesson 15 fully.** It is the most concrete way to consolidate everything.
+
+Containers are a craft, not a fact. The more stacks you build, the more taste you develop for what is enough and what is excess. Welcome to the side of the team that *knows* how this stuff works.
+
+</EN>
+
+<VI>
+
+## Sau đây đi đâu
+
+Bạn vừa hoàn thành khoá Docker 20 bài. Bạn đã có:
+
+- Mô hình tư duy đứng vững: image vs container, layer, namespace, volume, network, registry.
+- Vốn từ Dockerfile đủ rộng để viết hoặc đọc bất kỳ image nào.
+- Một stack Compose — 5 service, healthcheck, cô lập, dữ liệu bền — đúng dáng việc production thật.
+- Pipeline CI/CD tự động ship thay đổi không cần bước thủ công.
+- Vệ sinh production: limit, bảo mật, phản xạ troubleshoot.
+
+Bước kế thực tế, theo thứ tự tôi gợi ý:
+
+1. **Ship một cái gì đó.** Container hoá một side project, push lên GHCR, deploy lên VPS $5. Lần deploy đầu là giờ học hữu ích nhất trong khoá.
+2. **Đọc tài liệu chính chủ một lần.** [docs.docker.com](https://docs.docker.com) cho Docker; [docs.docker.com/compose](https://docs.docker.com/compose) cho Compose. Tài liệu reference ngắn gọn, và giờ bạn đã có từ vựng để đọc.
+3. **Chọn một platform managed.** Thử Cloud Run, Fly.io, hoặc Railway. Quan sát cùng image bạn build chạy không sửa ở một thế giới khác.
+4. **Sau đó — và chỉ sau đó — chạm vào Kubernetes.** Có sự thông thạo Docker, K8s là "Compose ở quy mô với nhiều YAML hơn". Bắt đầu với `kubectl run` và `kubectl apply` trên cluster sẵn của Docker Desktop.
+5. **Build project bài 15 đến hết.** Đó là cách cụ thể nhất để củng cố mọi thứ.
+
+Container là nghề thủ công, không phải sự kiện. Stack bạn build càng nhiều, gu của bạn về "đủ" và "thừa" càng sắc. Chào mừng bạn sang phía những người *thật sự hiểu* cái này hoạt động ra sao.
+
+</VI>
+
+<Recap>
+- 20 commands handle 90% of daily Docker work. Memorise them; they reward repetition.
+- 10 failure patterns cover almost every "it's broken" moment. The five-branch checklist gives you a starting point even when nothing is obvious.
+- After the course: ship a real container, try a managed platform, only then approach Kubernetes if you actually need it.
+- Containers are a craft. Build the next stack, read the docs, and you graduate from "I can use Docker" to "I can teach this." Thank you for finishing the course.
+</Recap>

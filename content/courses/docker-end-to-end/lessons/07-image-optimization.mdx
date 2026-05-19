@@ -1,0 +1,370 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- `.dockerignore` — the fastest performance win in any Docker project.
+- Choosing a base image: full vs slim vs alpine vs distroless, in plain trade-offs.
+- BuildKit cache mounts: keep your npm/pip cache across rebuilds without baking it into the image.
+- The "pruning" pass: how to strip junk that snuck in.
+</Callout>
+
+After multi-stage you can still leave performance on the table. This lesson is the four-knob optimisation kit you reach for after the structural win.
+
+## 1. `.dockerignore` — the first thing you forget
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- `.dockerignore` — tối ưu nhanh nhất trong mọi project Docker.
+- Chọn base image: full vs slim vs alpine vs distroless, đánh đổi rõ ràng.
+- BuildKit cache mount: giữ cache npm/pip qua các lần rebuild mà không nướng vào image.
+- "Pruning pass": cách dọn rác lén lút.
+</Callout>
+
+Sau multi-stage bạn vẫn còn nhiều cú đẹp chưa dùng. Bài này là bộ bốn núm vặn bạn rút ra sau cú thắng cấu trúc.
+
+## 1. `.dockerignore` — thứ luôn quên đầu tiên
+
+</VI>
+
+<EN>
+
+Every `docker build` starts by sending the *build context* (the folder you pass) from the CLI to the daemon. **Everything** in that folder, even if your Dockerfile never `COPY`s it, gets sent. Without a `.dockerignore`, your `node_modules` (300 MB), your `.git` folder (50 MB), your local logs, your `.env` files — all of it gets streamed to the daemon for every build.
+
+The fix is one file in the same folder as your Dockerfile:
+
+```text
+# .dockerignore — looks like .gitignore, behaves like .gitignore
+node_modules
+.git
+.next
+dist
+build
+coverage
+.env
+.env.*
+*.log
+.vscode
+.idea
+.DS_Store
+**/__pycache__
+**/*.pyc
+README.md      # if you really do not need it in the image
+```
+
+What it gives you:
+
+- **Smaller, faster context transfer.** A 500 MB context becomes a 5 MB context.
+- **Better cache reuse.** Without it, `COPY . .` invalidates because of every log file Webpack writes.
+- **Security.** Your `.env` cannot accidentally end up baked into the image.
+
+Run this once to see what is currently being shipped:
+
+```bash
+du -sh .                                                            # → total folder size on disk
+docker build . 2>&1 | head -5                                       # → first line shows "transferring context: XX MB"
+```
+
+The two numbers should not be in the same ballpark. If they are, you do not have a `.dockerignore`.
+
+## 2. Choosing a base image
+
+</EN>
+
+<VI>
+
+Mỗi `docker build` bắt đầu bằng việc gửi *build context* (thư mục bạn truyền) từ CLI sang daemon. **Toàn bộ** thư mục đó, dù Dockerfile không `COPY` tới, đều được gửi. Không có `.dockerignore`, `node_modules` (300 MB), folder `.git` (50 MB), log local, file `.env` — tất cả stream sang daemon mỗi lần build.
+
+Cách chữa là một file cùng thư mục với Dockerfile:
+
+```text
+# .dockerignore — nhìn giống .gitignore, cư xử giống .gitignore
+node_modules
+.git
+.next
+dist
+build
+coverage
+.env
+.env.*
+*.log
+.vscode
+.idea
+.DS_Store
+**/__pycache__
+**/*.pyc
+README.md      # nếu thật sự không cần trong image
+```
+
+Nó cho bạn gì:
+
+- **Context nhỏ hơn, gửi nhanh hơn.** Context 500 MB còn 5 MB.
+- **Cache tái dùng tốt hơn.** Không có nó, `COPY . .` mất cache vì mỗi file log Webpack ghi ra.
+- **Bảo mật.** `.env` của bạn không lỡ nướng vào image.
+
+Chạy thử để biết hiện đang ship cái gì:
+
+```bash
+du -sh .                                                            # → tổng dung lượng thư mục
+docker build . 2>&1 | head -5                                       # → dòng đầu hiện "transferring context: XX MB"
+```
+
+Hai con số đừng nên gần nhau. Nếu gần — bạn chưa có `.dockerignore`.
+
+## 2. Chọn base image
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 820 280"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Four bars comparing base image sizes: node:20 (~380 MB), node:20-slim (~180 MB), node:20-alpine (~40 MB), gcr.io/distroless/nodejs20 (~120 MB but minimal attack surface). Trade-offs listed under each."
+    style={{ width: '100%', maxWidth: '820px', height: 'auto', display: 'block' }}
+  >
+    <text x="410" y="24" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">Common base image trade-offs (Node example)</text>
+    {[
+      { name: 'node:20',                size: 380, pros: 'has everything: apt, gcc, bash',  cons: 'huge, big attack surface' },
+      { name: 'node:20-slim',           size: 180, pros: 'Debian-based, glibc native',      cons: 'still has apt; medium size' },
+      { name: 'node:20-alpine',         size: 40,  pros: 'tiniest of "normal" images',      cons: 'musl libc — some native deps quirky' },
+      { name: 'distroless/nodejs20',    size: 120, pros: 'no shell, no package manager',    cons: 'cannot exec into it to debug' },
+    ].map((row, i) => {
+      const x = 30 + i * 200;
+      const barH = row.size * 0.45;
+      return (
+        <g key={i}>
+          <rect x={x + 20} y={220 - barH} width="100" height={barH} fill="#1a3a2e" />
+          <text x={x + 70} y={220 - barH - 6} fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">{row.size} MB</text>
+          <text x={x + 70} y={238} fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">{row.name}</text>
+          <text x={x + 70} y={254} fontSize="10" textAnchor="middle" fill="#3d4f47" fontStyle="italic">{row.pros}</text>
+          <text x={x + 70} y={268} fontSize="10" textAnchor="middle" fill="#a83232" fontStyle="italic">{row.cons}</text>
+        </g>
+      );
+    })}
+  </svg>
+</figure>
+
+<EN>
+
+A practical decision tree:
+
+- **Use `*-alpine`** for most production runtime images. ~40 MB base. Watch out for native modules: if `npm install` complains about `python` or `gcc`, install them temporarily in the builder stage, not the runtime stage.
+- **Use `*-slim`** (Debian-based) when alpine causes pain (TLS gotchas, native libs only shipping glibc wheels, e.g., some Python ML packages).
+- **Use the full image** (`node:20`, `python:3.13`) only in *builder* stages. Never ship it.
+- **Use `distroless`** when you want the smallest possible attack surface in production. Google's distroless images contain just the language runtime — no shell, no package manager, nothing else. Operationally a bit harder (you cannot `docker exec -it … sh`), but the security trade is real.
+
+```dockerfile
+FROM gcr.io/distroless/nodejs20-debian12                            # → no /bin/sh, no apt, no anything
+COPY --from=builder /app/dist /app/dist
+COPY --from=builder /app/node_modules /app/node_modules
+WORKDIR /app
+CMD ["dist/index.js"]                                                # → distroless: CMD args go directly to the runtime
+```
+
+## 3. BuildKit cache mounts
+
+</EN>
+
+<VI>
+
+Cây quyết định thực dụng:
+
+- **Dùng `*-alpine`** cho hầu hết image runtime production. Base ~40 MB. Cẩn thận native module: nếu `npm install` than về `python` hay `gcc`, cài tạm trong stage builder, không phải runtime.
+- **Dùng `*-slim`** (Debian) khi alpine gây đau (gặp TLS, lib native chỉ phát hành wheel glibc, ví dụ vài package ML Python).
+- **Dùng image full** (`node:20`, `python:3.13`) chỉ trong stage *builder*. Đừng bao giờ ship.
+- **Dùng `distroless`** khi muốn bề mặt tấn công nhỏ nhất ở production. Image distroless của Google chỉ chứa runtime ngôn ngữ — không shell, không package manager, không gì khác. Vận hành hơi khó hơn (không `docker exec -it … sh` được), nhưng trade an toàn là thật.
+
+```dockerfile
+FROM gcr.io/distroless/nodejs20-debian12                            # → không có /bin/sh, không apt, không gì
+COPY --from=builder /app/dist /app/dist
+COPY --from=builder /app/node_modules /app/node_modules
+WORKDIR /app
+CMD ["dist/index.js"]                                                # → distroless: arg của CMD đi thẳng vào runtime
+```
+
+## 3. BuildKit cache mount
+
+</VI>
+
+<EN>
+
+BuildKit is Docker's modern build engine, on by default since Docker 23. One of its best features is `--mount=type=cache`: a directory mounted at build time that **persists across builds**, but does **not** end up in the final image.
+
+This is the magic that makes `npm install` fast on CI:
+
+```dockerfile
+# syntax=docker/dockerfile:1.7
+
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev
+```
+
+What happens:
+
+- BuildKit keeps `/root/.npm` (the npm cache) on the build host, indexed by a content key.
+- Next build, that directory is mounted again into the build container at the same path. npm sees its cache; downloads are mostly skipped.
+- The cache directory is **not copied into the resulting layer**. It only lives on the build host. Your image stays small.
+
+The first line, `# syntax=docker/dockerfile:1.7`, opts into newer Dockerfile syntax for the cache-mount feature. Always include it when you use `--mount`.
+
+Equivalent for pip:
+
+```dockerfile
+# syntax=docker/dockerfile:1.7
+FROM python:3.13-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r requirements.txt
+```
+
+Equivalent for apt:
+
+```dockerfile
+RUN --mount=type=cache,target=/var/cache/apt \
+    --mount=type=cache,target=/var/lib/apt/lists \
+    apt-get update && apt-get install -y curl
+```
+
+A CI build that used to download 300 packages every time now downloads only the new ones. Build times often drop 50–80%.
+
+## 4. The pruning pass
+
+</EN>
+
+<VI>
+
+BuildKit là engine build hiện đại của Docker, mặc định từ Docker 23 trở đi. Một trong những tính năng đáng giá nhất là `--mount=type=cache`: một thư mục mount lúc build, **bền vững qua nhiều lần build**, nhưng **không** đi vào image cuối.
+
+Đây là phép thuật giúp `npm install` trên CI nhanh:
+
+```dockerfile
+# syntax=docker/dockerfile:1.7
+
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev
+```
+
+Chuyện xảy ra:
+
+- BuildKit giữ `/root/.npm` (cache của npm) trên build host, đánh index bằng content key.
+- Lần build sau, thư mục đó mount lại vào container build cùng path. npm thấy cache; download phần lớn được bỏ qua.
+- Thư mục cache **không** được copy vào layer kết quả. Nó chỉ sống trên build host. Image của bạn vẫn nhỏ.
+
+Dòng đầu, `# syntax=docker/dockerfile:1.7`, bật cú pháp Dockerfile mới hơn cho tính năng cache-mount. Luôn để khi dùng `--mount`.
+
+Tương đương cho pip:
+
+```dockerfile
+# syntax=docker/dockerfile:1.7
+FROM python:3.13-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r requirements.txt
+```
+
+Tương đương cho apt:
+
+```dockerfile
+RUN --mount=type=cache,target=/var/cache/apt \
+    --mount=type=cache,target=/var/lib/apt/lists \
+    apt-get update && apt-get install -y curl
+```
+
+Một build CI trước đây tải 300 package mỗi lần, giờ chỉ tải cái mới. Build thường giảm 50–80%.
+
+## 4. Pruning pass
+
+</VI>
+
+<EN>
+
+Even with all the above, junk creeps in. A pruning pass at the end of the builder stage removes:
+
+```dockerfile
+RUN apt-get clean \
+ && rm -rf /var/lib/apt/lists/*                                     # → Debian: package lists, 30+ MB
+RUN find . -name "*.test.ts" -delete \
+ && find . -name "*.spec.ts" -delete                                # → strip test files
+RUN npm prune --production                                          # → remove devDependencies left over
+```
+
+In multi-stage land, most of this is moot — the builder stage is thrown away. But if you keep a single stage (smaller projects, scripts, prototypes), the prune pass is the cleanup at the very end.
+
+## What good looks like
+
+Run this on a finished image:
+
+```bash
+docker images myapp                                                 # → SIZE column
+docker history myapp                                                # → which layer holds what
+docker run --rm -it myapp sh                                        # → poke around the filesystem; what is in there?
+du -sh /app /usr/local /var                                         # → biggest folders inside the container
+```
+
+Good Node runtime targets: **<150 MB total, <50 MB writable layer**. Good Go runtime targets: **<25 MB total**. Good Python web runtime: **<200 MB total** (Python's stdlib is fat).
+
+If you are far above these, the prune commands above plus a `.dockerignore` audit usually find the leak.
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+Dù làm hết các bước trên, rác vẫn lén vào. Một pass dọn ở cuối stage builder bóc đi:
+
+```dockerfile
+RUN apt-get clean \
+ && rm -rf /var/lib/apt/lists/*                                     # → Debian: list package, 30+ MB
+RUN find . -name "*.test.ts" -delete \
+ && find . -name "*.spec.ts" -delete                                # → bóc file test
+RUN npm prune --production                                          # → bỏ devDependencies còn sót
+```
+
+Trong thế giới multi-stage, phần lớn việc trên không cần — stage builder bị vứt. Nhưng nếu giữ một stage duy nhất (project nhỏ, script, prototype), pass prune là dọn cuối cùng.
+
+## "Tốt" trông ra sao
+
+Chạy với image đã build xong:
+
+```bash
+docker images myapp                                                 # → cột SIZE
+docker history myapp                                                # → layer nào ôm cái gì
+docker run --rm -it myapp sh                                        # → vào filesystem ngó; có gì trong đó?
+du -sh /app /usr/local /var                                         # → thư mục lớn nhất trong container
+```
+
+Mục tiêu cho Node runtime tốt: **<150 MB tổng, <50 MB layer writable**. Cho Go runtime: **<25 MB tổng**. Cho Python web: **<200 MB tổng** (stdlib Python "to mập").
+
+Nếu bạn vượt xa các con số đó, lệnh prune phía trên + audit `.dockerignore` thường tìm ra chỗ rò.
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** `.dockerignore` is the *staff door sign* — *"do not bring this stuff into the kitchen."* It saves you carrying the recycling, the cardboard, the printer paper through the prep area every time you make a drink. Choosing alpine over the full image is asking *"do I need a full restaurant or am I running a coffee cart?"* — answer: a cart, almost always. BuildKit cache mounts are the *bag of pre-ground beans the supplier left on the back step*: you use it every morning, but it never enters the customer-facing storefront.
+
+**VI —** `.dockerignore` là *biển trên cửa nhân viên* — *"đừng đem mấy thứ này vào bếp."* Đỡ phải bưng đồ tái chế, thùng giấy, giấy in qua khu chuẩn bị mỗi lần pha một ly. Chọn alpine thay vì image full là hỏi *"tôi cần nguyên nhà hàng hay đang chạy xe cà phê?"* — đáp: xe đẩy, gần như luôn vậy. BuildKit cache mount là *bịch hạt đã xay sẵn nhà cung cấp để ở cửa sau*: dùng mỗi sáng, nhưng không bao giờ vào mặt tiền khách thấy.
+</Callout>
+
+<Recap>
+- `.dockerignore` is the cheapest, highest-impact change in any Docker project. Add it before optimising anything else.
+- Base image choice: alpine for most runtimes, slim for native-lib pain, distroless when security is paramount, full only in builder stages.
+- BuildKit cache mounts (`RUN --mount=type=cache,…`) persist npm/pip/apt caches across builds without leaking into the final image. Add `# syntax=docker/dockerfile:1.7` at the top.
+- Targets: Node <150 MB, Go <25 MB, Python web <200 MB. If you are far above, run `docker history` and `du -sh` inside the container — the leak shows up. Next lesson: tags and registries — where these tiny, beautiful images actually go.
+</Recap>

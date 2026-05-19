@@ -1,0 +1,443 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- `HEALTHCHECK`: what it actually does, and the three states (`starting`, `healthy`, `unhealthy`).
+- Restart policies: `no`, `on-failure`, `always`, `unless-stopped` — picking the right one.
+- SIGTERM, PID 1, and graceful shutdown — why your Node app drops requests today, and how to fix it.
+- A production-ready Dockerfile + Compose snippet that ties healthchecks + restart + graceful shutdown together.
+</Callout>
+
+A container that runs is not the same as a service that *works*. This lesson is about the four mechanisms Docker gives you to bridge that gap: declaring when a container is ready, restarting it when it fails, telling it to stop in a polite way, and making sure your code listens.
+
+## Healthchecks — *"I'm alive"* vs *"I'm ready"*
+
+A healthcheck is a command Docker runs *inside* the container on a schedule. If the command exits 0, the container is **healthy**. Non-zero, **unhealthy**. Before either, **starting**.
+
+```dockerfile
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
+  CMD wget -qO- http://localhost:3000/health || exit 1
+```
+
+The four knobs:
+
+- `--interval` — how often to run the check (default 30s).
+- `--timeout` — fail the probe if it takes longer than this (default 30s).
+- `--start-period` — grace period after start; failures during this window do **not** count toward `retries` (default 0s, but production apps almost always need 10–60s here).
+- `--retries` — consecutive failures before marking unhealthy (default 3).
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- `HEALTHCHECK`: nó thật sự làm gì, và ba trạng thái (`starting`, `healthy`, `unhealthy`).
+- Restart policy: `no`, `on-failure`, `always`, `unless-stopped` — chọn cái nào.
+- SIGTERM, PID 1, và graceful shutdown — vì sao app Node của bạn đang rơi request, và cách sửa.
+- Một Dockerfile + Compose snippet sẵn sàng cho production, gộp healthcheck + restart + graceful shutdown.
+</Callout>
+
+Container chạy không đồng nghĩa service *hoạt động*. Bài này về bốn cơ chế Docker cho bạn lấp khoảng cách đó: khai báo khi container sẵn sàng, restart khi nó hỏng, bảo nó dừng đàng hoàng, và đảm bảo code của bạn lắng nghe.
+
+## Healthcheck — *"Tôi sống"* vs *"Tôi sẵn sàng"*
+
+Healthcheck là command Docker chạy *trong* container theo lịch. Exit 0 → container **healthy**. Khác 0 → **unhealthy**. Trước đó → **starting**.
+
+```dockerfile
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
+  CMD wget -qO- http://localhost:3000/health || exit 1
+```
+
+Bốn núm vặn:
+
+- `--interval` — bao lâu chạy lại (mặc định 30s).
+- `--timeout` — probe quá thời gian này là fail (mặc định 30s).
+- `--start-period` — thời gian ân hạn sau khi start; fail trong cửa sổ này **không** tính vào `retries` (mặc định 0s, nhưng app production gần như luôn cần 10–60s).
+- `--retries` — số lần fail liên tiếp trước khi đánh dấu unhealthy (mặc định 3).
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 820 280"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Three states. starting (gray) for the first start-period; if probe passes, transition to healthy (green); if retries fail consecutively, transition to unhealthy (red). Arrows show transitions."
+    style={{ width: '100%', maxWidth: '820px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l16-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+
+    <text x="410" y="24" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">Healthcheck state machine</text>
+
+    <rect x="60" y="70" width="180" height="80" rx="10" fill="#f0f0f0" stroke="#3d4f47" />
+    <text x="150" y="100" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">starting</text>
+    <text x="150" y="120" fontSize="11" textAnchor="middle" fill="#3d4f47">first start-period;</text>
+    <text x="150" y="136" fontSize="11" textAnchor="middle" fill="#3d4f47">failures do NOT count</text>
+
+    <rect x="320" y="70" width="180" height="80" rx="10" fill="#e6f4ea" stroke="#1a3a2e" />
+    <text x="410" y="100" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">healthy</text>
+    <text x="410" y="120" fontSize="11" textAnchor="middle" fill="#3d4f47">last probe exited 0</text>
+
+    <rect x="580" y="70" width="180" height="80" rx="10" fill="#fbe6e6" stroke="#a83232" />
+    <text x="670" y="100" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">unhealthy</text>
+    <text x="670" y="120" fontSize="11" textAnchor="middle" fill="#3d4f47">retries consecutive fails</text>
+
+    <line x1="240" y1="110" x2="320" y2="110" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l16-arr)" />
+    <text x="280" y="100" fontSize="10" textAnchor="middle" fill="#3d4f47" fontStyle="italic">probe ok</text>
+
+    <line x1="500" y1="110" x2="580" y2="110" stroke="#a83232" strokeWidth="2" markerEnd="url(#l16-arr)" />
+    <text x="540" y="100" fontSize="10" textAnchor="middle" fill="#3d4f47" fontStyle="italic">N fails</text>
+
+    <line x1="650" y1="150" x2="430" y2="155" stroke="#1a3a2e" strokeWidth="2" strokeDasharray="3 2" markerEnd="url(#l16-arr)" />
+    <text x="540" y="175" fontSize="10" textAnchor="middle" fill="#3d4f47" fontStyle="italic">probe recovers</text>
+
+    <text x="410" y="240" fontSize="11" textAnchor="middle" fill="#3d4f47" fontStyle="italic">
+      Set start-period generously. A Postgres or Java app may need 30–60s before its probe will succeed.
+    </text>
+  </svg>
+</figure>
+
+<EN>
+
+Inspect a container's health:
+
+```bash
+docker inspect api --format '{{.State.Health.Status}}'               # → 'starting' / 'healthy' / 'unhealthy'
+docker inspect api --format '{{json .State.Health}}' | jq            # → full log of recent probes
+```
+
+Compose syntax — exactly what we used in lesson 15:
+
+```yaml
+api:
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+    interval: 10s
+    timeout: 3s
+    start_period: 30s
+    retries: 3
+```
+
+### What makes a *good* `/health` endpoint
+
+A health probe is not the same as a *deep* check. Two good practices:
+
+- **Liveness probe**: tiny endpoint that returns `200 OK` if the process is alive. No DB call. Cheap, fast, cannot be wrong unless the process is wedged.
+- **Readiness probe**: optional, deeper. Verifies DB connection, cache reachability, anything the service needs to *serve real traffic*. Use this for `depends_on: service_healthy` and for load-balancer gating.
+
+A common shape:
+
+```ts
+// liveness — used by HEALTHCHECK
+app.get('/health',  (_, res) => res.send('ok'));
+
+// readiness — used by orchestrator / load balancer
+app.get('/ready',   async (_, res) => {
+  try {
+    await pool.query('SELECT 1');                                    // → DB reachable
+    await redis.ping();                                              // → cache reachable
+    res.send('ready');
+  } catch (e) {
+    res.status(503).send('not ready');
+  }
+});
+```
+
+For most Docker-only setups, *liveness on `/health`* is enough; Kubernetes lets you wire both.
+
+## Restart policies
+
+Containers exit. The kernel kills them. Your code segfaults. Power blips. Docker can restart them automatically; you pick the policy:
+
+</EN>
+
+<VI>
+
+Kiểm tra health của container:
+
+```bash
+docker inspect api --format '{{.State.Health.Status}}'               # → 'starting' / 'healthy' / 'unhealthy'
+docker inspect api --format '{{json .State.Health}}' | jq            # → log đầy đủ các probe gần nhất
+```
+
+Cú pháp Compose — đúng như bài 15 đã dùng:
+
+```yaml
+api:
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+    interval: 10s
+    timeout: 3s
+    start_period: 30s
+    retries: 3
+```
+
+### Endpoint `/health` *tốt* là gì
+
+Probe sức khoẻ không phải check *sâu*. Hai practice tốt:
+
+- **Liveness probe**: endpoint nhỏ, return `200 OK` nếu process còn sống. Không gọi DB. Rẻ, nhanh, không sai trừ khi process kẹt cứng.
+- **Readiness probe**: tuỳ chọn, sâu hơn. Kiểm DB, cache, mọi thứ service cần để *phục vụ traffic thật*. Dùng cho `depends_on: service_healthy` và cho load-balancer gating.
+
+Mẫu hay gặp:
+
+```ts
+// liveness — dùng cho HEALTHCHECK
+app.get('/health',  (_, res) => res.send('ok'));
+
+// readiness — dùng cho orchestrator / load balancer
+app.get('/ready',   async (_, res) => {
+  try {
+    await pool.query('SELECT 1');                                    // → DB tới được
+    await redis.ping();                                              // → cache tới được
+    res.send('ready');
+  } catch (e) {
+    res.status(503).send('not ready');
+  }
+});
+```
+
+Với setup chỉ Docker, *liveness `/health`* đủ; Kubernetes cho bạn nối cả hai.
+
+## Restart policy
+
+Container thoát. Kernel kill. Code segfault. Mất điện. Docker tự restart được; bạn chọn policy:
+
+</VI>
+
+<EN>
+
+```yaml
+services:
+  api:
+    restart: unless-stopped                                          # → recommended for long-running services
+```
+
+| Policy | Behavior |
+|--------|----------|
+| `no` (default) | Never restart. Useful for one-shot jobs and migrators. |
+| `on-failure[:max]` | Restart only if the container exits non-zero. Optional retry cap. |
+| `always` | Restart no matter what. *Even if you `docker stop` it*, the daemon will start it again on next boot. |
+| `unless-stopped` | Restart on failure and on daemon restart, but **respect a manual `docker stop`**. |
+
+Pick `unless-stopped` for almost every long-running service. The difference between `always` and `unless-stopped` only shows up when you intentionally stop a container — `always` will undo you on the next reboot; `unless-stopped` remembers.
+
+## SIGTERM, PID 1, and graceful shutdown
+
+Now the part that breaks production silently.
+
+When you (or Docker, or Compose) ask a container to stop, Docker sends **SIGTERM** to the process inside, then waits 10 seconds, then sends **SIGKILL**. A well-behaved app catches SIGTERM and:
+
+1. Stops accepting new connections.
+2. Finishes any in-flight requests.
+3. Closes DB pools and other resources.
+4. Exits 0.
+
+If your app does not catch SIGTERM, you drop in-flight requests every deploy.
+
+### Two common gotchas
+
+1. **Shell-form `CMD` swallows SIGTERM.** Remember from lesson 4: `CMD node src/index.js` makes `/bin/sh -c` PID 1, and the shell does not propagate SIGTERM to `node`. Docker waits 10s, kills `sh`, your Node process dies abruptly. **Fix**: use exec form: `CMD ["node", "src/index.js"]`.
+
+2. **Node does not catch SIGTERM by default.** Express does not magically wrap a shutdown handler around your server. You have to write it:
+
+```ts
+import express from 'express';
+const app = express();
+// … your routes …
+const server = app.listen(3000);
+
+let shuttingDown = false;
+function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log('SIGTERM received, shutting down');
+  server.close(async () => {                                         // → stop accepting new conns; wait for in-flight to finish
+    await pool.end();                                                // → close PG pool
+    await redis.quit();                                              // → close Redis
+    console.log('clean exit');
+    process.exit(0);
+  });
+  // Failsafe: don't hang forever if a client refuses to close.
+  setTimeout(() => process.exit(1), 9_000).unref();
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT',  shutdown);
+```
+
+The combination — *exec-form CMD* + *signal handler* — turns *"deploy = 10 seconds of dropped requests"* into *"deploy = invisible to users."*
+
+Compose lets you tune the grace period:
+
+```yaml
+api:
+  stop_grace_period: 30s                                             # → wait 30s for SIGTERM before SIGKILL
+  stop_signal: SIGTERM                                               # → the default; override if your app expects SIGINT
+```
+
+### The `tini` shortcut
+
+If you cannot easily rewrite signal handling (or you are debugging a third-party image), insert `tini` as PID 1. It is a tiny init that forwards signals correctly:
+
+```dockerfile
+RUN apk add --no-cache tini
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "src/index.js"]
+```
+
+`tini` becomes PID 1, your Node process becomes its child, SIGTERM flows down. Many official images already include `tini` (or equivalents); the `node:*` images do not by default.
+
+## Putting it together
+
+</EN>
+
+<VI>
+
+```yaml
+services:
+  api:
+    restart: unless-stopped                                          # → khuyến nghị cho service chạy dài
+```
+
+| Policy | Hành vi |
+|--------|----------|
+| `no` (mặc định) | Không bao giờ restart. Tốt cho job one-shot và migrator. |
+| `on-failure[:max]` | Chỉ restart khi container exit khác 0. Có thể giới hạn retry. |
+| `always` | Restart dù gì. *Ngay cả khi bạn `docker stop`*, daemon vẫn start lại ở lần boot kế. |
+| `unless-stopped` | Restart khi lỗi và khi daemon restart, nhưng **tôn trọng `docker stop` thủ công**. |
+
+Chọn `unless-stopped` cho gần như mọi service chạy dài. Khác biệt giữa `always` và `unless-stopped` chỉ lộ ra khi bạn cố tình stop — `always` sẽ undo bạn ở reboot kế; `unless-stopped` nhớ.
+
+## SIGTERM, PID 1, và graceful shutdown
+
+Đây là phần phá production trong im lặng.
+
+Khi bạn (hoặc Docker, hoặc Compose) bảo container dừng, Docker gửi **SIGTERM** cho process bên trong, đợi 10 giây, rồi gửi **SIGKILL**. App tử tế bắt SIGTERM và:
+
+1. Ngừng nhận kết nối mới.
+2. Hoàn tất request đang phục vụ.
+3. Đóng pool DB và resource khác.
+4. Exit 0.
+
+App không bắt SIGTERM → mỗi lần deploy bạn rơi request.
+
+### Hai bẫy thường gặp
+
+1. **`CMD` dạng shell nuốt SIGTERM.** Nhớ bài 4: `CMD node src/index.js` làm `/bin/sh -c` thành PID 1, và shell không truyền SIGTERM cho `node`. Docker đợi 10s, kill `sh`, process Node chết đột ngột. **Sửa**: dùng exec form: `CMD ["node", "src/index.js"]`.
+
+2. **Node không tự bắt SIGTERM.** Express không tự bọc shutdown handler quanh server. Bạn phải viết:
+
+```ts
+import express from 'express';
+const app = express();
+// … route của bạn …
+const server = app.listen(3000);
+
+let shuttingDown = false;
+function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log('SIGTERM, đang shutdown');
+  server.close(async () => {                                         // → ngừng nhận conn mới; đợi in-flight xong
+    await pool.end();                                                // → đóng pool PG
+    await redis.quit();                                              // → đóng Redis
+    console.log('thoát sạch');
+    process.exit(0);
+  });
+  // Failsafe: đừng treo mãi nếu client không chịu đóng.
+  setTimeout(() => process.exit(1), 9_000).unref();
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT',  shutdown);
+```
+
+Combo — *CMD exec form* + *signal handler* — biến *"deploy = 10 giây mất request"* thành *"deploy = user không thấy gì"*.
+
+Compose cho phép chỉnh grace period:
+
+```yaml
+api:
+  stop_grace_period: 30s                                             # → đợi 30s SIGTERM trước SIGKILL
+  stop_signal: SIGTERM                                               # → mặc định; override nếu app cần SIGINT
+```
+
+### Mẹo `tini`
+
+Nếu khó viết lại signal handling (hoặc đang debug image bên thứ ba), nhét `tini` làm PID 1. Nó là init nhỏ xíu, forward signal đúng cách:
+
+```dockerfile
+RUN apk add --no-cache tini
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "src/index.js"]
+```
+
+`tini` thành PID 1, process Node thành con, SIGTERM chảy xuống. Nhiều image chính thức đã có sẵn `tini` (hoặc tương đương); image `node:*` mặc định thì không.
+
+## Ráp lại
+
+</VI>
+
+```dockerfile
+# api/Dockerfile  (excerpt — runtime stage)
+FROM node:20-alpine AS runtime
+WORKDIR /app
+RUN apk add --no-cache tini wget                                    # → tini for signals; wget for the healthcheck
+COPY --from=builder /app/dist ./dist
+COPY --from=deps    /app/node_modules ./node_modules
+ENV NODE_ENV=production
+EXPOSE 4000
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
+  CMD wget -qO- http://localhost:4000/health || exit 1
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "dist/index.js"]
+```
+
+```yaml
+# excerpt
+api:
+  build: ./api
+  restart: unless-stopped
+  stop_grace_period: 30s
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+    interval: 10s
+    timeout: 3s
+    start_period: 30s
+    retries: 3
+```
+
+<EN>
+
+Now: deploy by `docker compose up -d --build`. Compose stops old containers with SIGTERM, waits 30s for graceful shutdown, starts the new ones, waits for them to pass health, only then routes load to them. End users see nothing.
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+Giờ: deploy bằng `docker compose up -d --build`. Compose dừng container cũ bằng SIGTERM, đợi 30s graceful, bật container mới, đợi pass health, mới chuyển tải sang. Khách không thấy gì.
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** A healthcheck is *the barista periodically calling out "still good!"* — a small public signal that lets everyone trust her station is running. A restart policy is *the back-office rule "if a barista faints, send in the spare"*. SIGTERM is *"hey, last call — finish what you are pouring and head out, please"*. SIGKILL is *the bouncer dragging you out 10 seconds later*. Graceful shutdown is the barista finishing the espresso she already pulled before walking off, instead of dropping the cup mid-pour.
+
+**VI —** Healthcheck là *barista định kỳ hô "vẫn ổn!"* — tín hiệu công khai để mọi người tin trạm của cô ấy đang chạy. Restart policy là *quy định của văn phòng "barista xỉu thì cử người thay"*. SIGTERM là *"này, last call — pha xong ly đang pha rồi nghỉ nhé"*. SIGKILL là *bảo vệ kéo bạn ra sau 10 giây*. Graceful shutdown là barista pha xong shot đã rút trước khi rời ca, thay vì rớt ly giữa chừng.
+</Callout>
+
+<Recap>
+- `HEALTHCHECK` (Dockerfile) or `healthcheck:` (Compose) drives the `starting → healthy → unhealthy` state machine. Use it. Set `start_period` generously.
+- Restart policies: `unless-stopped` for almost everything long-running. `no` for one-shot. `always` only when you want stop-resistance.
+- SIGTERM graceful shutdown requires exec-form `CMD`, a signal handler in your app, and an adequate `stop_grace_period`. Add `tini` if the image cannot propagate signals.
+- A liveness `/health` plus a readiness `/ready` is the modern split — the first feeds `HEALTHCHECK`, the second feeds load balancers. Lesson 17 keeps the production focus — resource limits and the security hardening you ship with.
+</Recap>

@@ -1,0 +1,377 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- Install Docker on Mac / Windows / Linux without surprises.
+- The three parts of "Docker" you actually talk to: CLI, daemon, registry.
+- Run `docker run hello-world` and understand every single thing that just happened.
+- Run a real container (nginx) and visit it in your browser.
+</Callout>
+
+You are about to install Docker. Before you do, it helps to know *what* you are installing — because the word "Docker" actually refers to three things wearing the same hat.
+
+## What "Docker" actually is
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Cài Docker trên Mac / Windows / Linux không gặp bất ngờ.
+- Ba phần của "Docker" mà bạn thật sự tương tác: CLI, daemon, registry.
+- Chạy `docker run hello-world` và hiểu rõ *từng* thứ vừa xảy ra.
+- Chạy một container thật (nginx) và mở trình duyệt xem nó.
+</Callout>
+
+Bạn sắp cài Docker. Trước khi cài, nên biết *cái đang cài* là cái gì — vì chữ "Docker" thực ra ám chỉ ba thứ đội chung một cái mũ.
+
+## "Docker" thật sự là gì
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 760 320"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Three components: Docker CLI (what you type), Docker daemon (the long-running process that does the work), Docker registry (the remote image library). CLI talks to daemon over a local socket; daemon talks to registry over HTTPS."
+    style={{ width: '100%', maxWidth: '760px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l2-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+
+    {/* Your machine box */}
+    <rect x="20" y="40" width="500" height="240" rx="14" fill="none" stroke="#a8d8b9" strokeDasharray="6 4" />
+    <text x="36" y="62" fontSize="12" fill="#3d4f47" fontStyle="italic">Your machine</text>
+
+    {/* CLI */}
+    <rect x="60" y="100" width="180" height="80" rx="8" fill="#fff7e6" stroke="#d9a441" />
+    <text x="150" y="130" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">docker CLI</text>
+    <text x="150" y="150" fontSize="11" textAnchor="middle" fill="#3d4f47">what you type</text>
+    <text x="150" y="166" fontSize="11" textAnchor="middle" fill="#3d4f47">in the terminal</text>
+
+    {/* Daemon */}
+    <rect x="290" y="100" width="200" height="80" rx="8" fill="#e6f4ea" stroke="#1a3a2e" />
+    <text x="390" y="130" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">docker daemon</text>
+    <text x="390" y="150" fontSize="11" textAnchor="middle" fill="#3d4f47">dockerd — long-running</text>
+    <text x="390" y="166" fontSize="11" textAnchor="middle" fill="#3d4f47">process that does the work</text>
+
+    {/* CLI → daemon arrow */}
+    <line x1="240" y1="140" x2="290" y2="140" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l2-arr)" />
+    <text x="265" y="132" fontSize="10" textAnchor="middle" fill="#3d4f47">socket</text>
+
+    {/* Registry */}
+    <rect x="570" y="100" width="170" height="80" rx="8" fill="#fff" stroke="#1a3a2e" />
+    <text x="655" y="130" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">registry</text>
+    <text x="655" y="150" fontSize="11" textAnchor="middle" fill="#3d4f47">Docker Hub, GHCR,</text>
+    <text x="655" y="166" fontSize="11" textAnchor="middle" fill="#3d4f47">your private registry</text>
+
+    {/* Daemon → registry arrow */}
+    <line x1="490" y1="140" x2="570" y2="140" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l2-arr)" />
+    <text x="530" y="132" fontSize="10" textAnchor="middle" fill="#3d4f47">HTTPS</text>
+
+    {/* Inside daemon */}
+    <text x="390" y="225" fontSize="11" textAnchor="middle" fill="#3d4f47" fontStyle="italic">manages: images, containers, volumes, networks</text>
+  </svg>
+  <figcaption style={{ fontSize: '0.85rem', color: '#3d4f47', textAlign: 'center' }}>
+    You type into the CLI. The daemon does the real work. The registry is where images live.
+  </figcaption>
+</figure>
+
+<EN>
+
+1. **`docker` CLI** — the command-line tool you type. `docker run`, `docker ps`, `docker build`. It does almost nothing on its own. It is a thin client that sends your commands to…
+2. **The Docker daemon (`dockerd`)** — a long-running background process. *This* is the part that actually creates containers, manages images, isolates filesystems, attaches networks. When people say "Docker is running," they mean the daemon is running.
+3. **A registry** — the remote library of images. Docker Hub is the default. GitHub has GHCR. Companies host their own. Every `docker pull` fetches from a registry.
+
+When you type `docker run nginx`:
+
+- The CLI sends a request to the daemon.
+- The daemon checks: do I have the `nginx` image locally? No → pull it from the registry. Yes → skip.
+- The daemon builds an isolated environment (filesystem, network, processes), starts nginx inside it, and prints the container ID.
+
+That is every Docker command, ever. Knowing those three boxes is more than half the battle.
+
+## Installing Docker
+
+</EN>
+
+<VI>
+
+1. **CLI `docker`** — công cụ dòng lệnh bạn gõ. `docker run`, `docker ps`, `docker build`. Bản thân nó gần như không làm gì. Nó là client mỏng, gửi lệnh của bạn đến…
+2. **Docker daemon (`dockerd`)** — một process nền chạy lâu dài. *Đây* mới là phần thật sự tạo container, quản lý image, cô lập filesystem, gắn network. Khi ai đó nói "Docker đang chạy", họ đang nói daemon đang chạy.
+3. **Registry** — thư viện image ở xa. Mặc định là Docker Hub. GitHub có GHCR. Công ty có thể tự host. Mỗi lệnh `docker pull` đều kéo từ một registry.
+
+Khi bạn gõ `docker run nginx`:
+
+- CLI gửi yêu cầu cho daemon.
+- Daemon kiểm tra: trong máy đã có image `nginx` chưa? Chưa → kéo từ registry. Rồi → bỏ qua bước kéo.
+- Daemon dựng một môi trường cô lập (filesystem, network, process), khởi động nginx trong đó, in container ID ra.
+
+Mọi lệnh Docker xưa nay đều như vậy. Hiểu ba cái hộp đó là hơn nửa trận đấu rồi.
+
+## Cài Docker
+
+</VI>
+
+<Callout type="note" title="Pick your OS / Chọn hệ điều hành">
+**Mac / Windows** — install **Docker Desktop** from [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop). It bundles the daemon + CLI + a small Linux VM (because the kernel namespaces Docker needs are Linux-only). After installing, open the app once so the daemon starts.
+
+**Linux** — install the `docker` package from your distro's repo, or use the official convenience script:
+
+```bash
+curl -fsSL https://get.docker.com | sh                            # → installs docker engine
+sudo usermod -aG docker $USER                                     # → run docker without sudo (log out + back in)
+```
+
+**Why a VM on Mac/Windows?** Docker containers use Linux kernel features (namespaces, cgroups). macOS and Windows do not have those. Docker Desktop quietly runs a tiny Linux VM that hosts the daemon and the containers. You will not see it; just know it is why Docker Desktop uses 1–2 GB of RAM at idle.
+
+**Tại sao Mac/Windows phải có VM?** Container Docker dùng tính năng của kernel Linux (namespace, cgroup). macOS và Windows không có. Docker Desktop âm thầm chạy một VM Linux tí hon để host daemon và container. Bạn không thấy nó; chỉ cần biết đó là lý do Docker Desktop xài 1–2 GB RAM lúc rảnh.
+</Callout>
+
+<EN>
+
+After installing, verify in your terminal:
+
+```bash
+docker --version                                                  # → e.g. Docker version 27.3.1
+docker info                                                       # → daemon status + system info
+```
+
+If `docker info` says *"Cannot connect to the Docker daemon"*, the daemon is not running. On Mac/Windows: open Docker Desktop. On Linux: `sudo systemctl start docker`.
+
+## Your first container
+
+The traditional first command:
+
+```bash
+docker run hello-world
+```
+
+Read the output before moving on. It tells you, in plain English, exactly what just happened. Here is the same story:
+
+</EN>
+
+<VI>
+
+Cài xong, kiểm tra trong terminal:
+
+```bash
+docker --version                                                  # → ví dụ: Docker version 27.3.1
+docker info                                                       # → trạng thái daemon + thông tin hệ thống
+```
+
+Nếu `docker info` báo *"Cannot connect to the Docker daemon"*, tức daemon chưa chạy. Mac/Windows: mở app Docker Desktop. Linux: `sudo systemctl start docker`.
+
+## Container đầu tiên
+
+Lệnh truyền thống:
+
+```bash
+docker run hello-world
+```
+
+Đọc kỹ output trước khi đi tiếp. Nó nói thẳng tiếng Anh, *từng bước* vừa xảy ra. Mình tóm lại bằng tiếng Việt:
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 780 320"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Five-step timeline of docker run hello-world: you type the command, the CLI talks to the daemon, the daemon does not have the image so it pulls from Docker Hub, then creates a container, runs it, prints output, exits."
+    style={{ width: '100%', maxWidth: '780px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l2b-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+    {[
+      { x: 20,  label: '1. You type', detail: '`docker run\n hello-world`' },
+      { x: 175, label: '2. CLI → daemon', detail: 'send request' },
+      { x: 330, label: '3. Pull image', detail: 'from Docker Hub\n(not in cache)' },
+      { x: 485, label: '4. Create + run', detail: 'isolated\ncontainer' },
+      { x: 640, label: '5. Print + exit', detail: 'hello-world\nmessage' },
+    ].map((s, i) => (
+      <g key={i}>
+        <rect x={s.x} y="80" width="130" height="100" rx="10" fill="#e6f4ea" stroke="#1a3a2e" />
+        <text x={s.x + 65} y="108" fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">{s.label}</text>
+        {s.detail.split('\n').map((line, j) => (
+          <text key={j} x={s.x + 65} y={130 + j * 16} fontSize="11" textAnchor="middle" fill="#3d4f47">{line.trim()}</text>
+        ))}
+      </g>
+    ))}
+    {[150, 305, 460, 615].map((x, i) => (
+      <line key={i} x1={x} y1="130" x2={x + 25} y2="130" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l2b-arr)" />
+    ))}
+    <text x="390" y="50" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">What `docker run hello-world` actually does</text>
+    <text x="390" y="220" fontSize="11" textAnchor="middle" fill="#3d4f47" fontStyle="italic">The container exits after step 5 — its only job was to print the message.</text>
+  </svg>
+</figure>
+
+<EN>
+
+Verify the container actually existed for those few milliseconds:
+
+```bash
+docker ps                                                         # → empty (only RUNNING containers)
+docker ps -a                                                      # → shows the exited hello-world container too
+```
+
+`docker ps` only lists *running* containers. Add `-a` to see the dead ones. The hello-world container did its job (print a message) and exited; it is still on disk until you remove it.
+
+## A more interesting first run
+
+`hello-world` exits immediately. Let's run something that stays alive: nginx.
+
+```bash
+docker run -d -p 8080:80 --name web nginx                         # → start nginx, detached, port-mapped
+```
+
+Open `http://localhost:8080` in your browser. You should see the nginx welcome page. Five flags worth knowing now:
+
+- `-d` — **detached**. Run in the background. Without it, the container's logs would attach to your terminal and Ctrl-C would stop it.
+- `-p 8080:80` — **port map**. *host port : container port*. Inside the container, nginx listens on 80. Outside, your browser hits 8080. Without this flag, the container is unreachable.
+- `--name web` — give the container a memorable name. Without it, Docker invents something like `boring_einstein`.
+- `nginx` — the image. Pulled from Docker Hub (the default registry) if you don't have it.
+- *(implicit)* the daemon picks a unique container ID for you, prints it, and detaches.
+
+</EN>
+
+<VI>
+
+Kiểm tra container đó thật sự đã tồn tại vài mili-giây:
+
+```bash
+docker ps                                                         # → trống (chỉ liệt kê container ĐANG chạy)
+docker ps -a                                                      # → hiện luôn cả container hello-world đã tắt
+```
+
+`docker ps` chỉ liệt kê container *đang chạy*. Thêm `-a` để thấy mấy con đã chết. Container hello-world làm xong việc (in một thông điệp) rồi tự thoát; nó vẫn nằm trong ổ đĩa cho đến khi bạn xoá.
+
+## Một lượt chạy thật hơn
+
+`hello-world` thoát ngay. Giờ chạy thứ ở lại lâu: nginx.
+
+```bash
+docker run -d -p 8080:80 --name web nginx                         # → bật nginx, chạy nền, map port
+```
+
+Mở `http://localhost:8080` trong trình duyệt. Bạn sẽ thấy trang chào của nginx. Năm cờ nên thuộc lòng ngay:
+
+- `-d` — **detached**. Chạy nền. Không có cờ này, log của container sẽ gắn vào terminal và Ctrl-C là tắt container luôn.
+- `-p 8080:80` — **map port**. *port của host : port của container*. Trong container nginx nghe port 80. Bên ngoài, trình duyệt gõ 8080. Không có cờ này thì container không ai gọi tới được.
+- `--name web` — đặt tên dễ nhớ. Không thì Docker tự đặt kiểu `boring_einstein`.
+- `nginx` — tên image. Nếu máy chưa có, Docker kéo từ Docker Hub (registry mặc định).
+- *(ngầm)* daemon tự sinh container ID độc nhất, in ra, rồi tách khỏi terminal.
+
+</VI>
+
+<EN>
+
+## Looking inside
+
+```bash
+docker ps                                                         # → 'web' is listed, status: Up
+docker logs web                                                   # → nginx access/error logs
+docker exec -it web sh                                            # → open a shell INSIDE the container
+# inside: ls, ps aux, exit
+docker stop web                                                   # → graceful stop
+docker rm web                                                     # → delete the stopped container
+```
+
+`exec -it` is the one to memorise. It is your X-ray vision: open a shell *inside* a running container and look around like it is its own little Linux box. `i` keeps stdin open, `t` allocates a TTY — same flags as `ssh` muscle memory.
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+## Nhìn vào bên trong
+
+```bash
+docker ps                                                         # → 'web' nằm trong list, status: Up
+docker logs web                                                   # → log access/error của nginx
+docker exec -it web sh                                            # → mở shell BÊN TRONG container
+# bên trong: ls, ps aux, exit
+docker stop web                                                   # → tắt êm
+docker rm web                                                     # → xoá container đã tắt
+```
+
+`exec -it` là lệnh phải thuộc lòng. Nó là kính X-quang: mở shell *trong* container đang chạy và đi lại như trong một máy Linux nhỏ. `i` giữ stdin mở, `t` cấp TTY — cùng cờ với `ssh`, gõ riết quen tay.
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** Think of the Docker daemon as the **barista**. The CLI is the **order ticket** you slide across the counter. The registry is the **pantry of recipes** in the back. You write *"flat white"* on a ticket (`docker run flat-white`). The barista checks if she remembers the recipe (image cache). If not, she runs to the pantry (registry pull). Then she pulls beans, milk, a cup, and makes you a drink (container). Each cup is its own thing; another customer ordering the same drink gets a fresh cup, not a sip of yours.
+
+**VI —** Hình dung Docker daemon là **barista**. CLI là **phiếu order** bạn đẩy qua quầy. Registry là **tủ công thức** ở phía sau. Bạn viết *"flat white"* lên phiếu (`docker run flat-white`). Barista xem mình có nhớ công thức chưa (image cache). Chưa thì chạy ra tủ phía sau (kéo từ registry). Rồi lấy hạt cà phê, sữa, ly và pha cho bạn (container). Mỗi ly là một thứ riêng; khách khác order cùng món được pha ly mới, không phải uống ké ly của bạn.
+</Callout>
+
+<EN>
+
+## Three useful commands you will run every day
+
+```bash
+docker images                                                     # → list images on disk (the recipes)
+docker ps -a                                                      # → list all containers, running or not
+docker system df                                                  # → disk usage breakdown: images, containers, volumes
+```
+
+`docker system df` is the one nobody mentions and everybody needs the day their laptop runs out of disk. Docker hoards images and volumes. We will learn to prune them in lesson 12.
+
+## What went wrong if…
+
+</EN>
+
+<VI>
+
+## Ba lệnh hữu dụng bạn sẽ gõ mỗi ngày
+
+```bash
+docker images                                                     # → list image trên đĩa (đám công thức)
+docker ps -a                                                      # → list mọi container, đang chạy hay đã tắt
+docker system df                                                  # → bảng dung lượng: image, container, volume
+```
+
+`docker system df` là lệnh không ai dạy nhưng ai cũng cần đến ngày laptop báo full ổ. Docker tích trữ image và volume rất khoẻ. Bài 12 sẽ học cách dọn.
+
+## Lỡ có lỗi…
+
+</VI>
+
+<EN>
+
+- *"Cannot connect to the Docker daemon"* — daemon is not running. Open Docker Desktop (Mac/Win) or `systemctl start docker` (Linux).
+- *"Port is already allocated"* — something on your machine already uses port 8080. Change the host side: `-p 8081:80`.
+- *"permission denied while trying to connect to the Docker daemon socket"* — Linux user not in the `docker` group. `sudo usermod -aG docker $USER` and log out / log back in.
+- *Pull is incredibly slow* — Docker Hub anonymous rate limit, or your network. `docker login` lifts the rate; mirrors fix the network.
+
+</EN>
+
+<VI>
+
+- *"Cannot connect to the Docker daemon"* — daemon chưa chạy. Mở Docker Desktop (Mac/Win) hoặc `systemctl start docker` (Linux).
+- *"Port is already allocated"* — máy bạn đã có ai đó dùng port 8080. Đổi phía host: `-p 8081:80`.
+- *"permission denied while trying to connect to the Docker daemon socket"* — user Linux chưa nằm trong group `docker`. Chạy `sudo usermod -aG docker $USER` rồi logout / login lại.
+- *Kéo image rất chậm* — bị giới hạn ẩn danh của Docker Hub hoặc do mạng. `docker login` nâng giới hạn; dùng mirror để chữa mạng.
+
+</VI>
+
+<Recap>
+- "Docker" = CLI (you type) + daemon (does the work) + registry (where images live).
+- `docker run hello-world` walks the full pipeline: CLI → daemon → registry pull → create container → run → exit.
+- Useful flags on day one: `-d` (detached), `-p host:container` (port map), `--name` (memorable name), `-it` (interactive TTY).
+- Memorise: `docker ps -a`, `docker logs <name>`, `docker exec -it <name> sh`, `docker stop`/`rm`, `docker system df`. The next lesson goes deeper into images vs containers — what is actually stored, what is throwaway.
+</Recap>

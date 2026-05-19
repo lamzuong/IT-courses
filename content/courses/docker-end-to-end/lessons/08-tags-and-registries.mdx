@@ -1,0 +1,364 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- The full anatomy of an image reference: `registry/namespace/name:tag@digest`. Every part matters.
+- Why `:latest` is dangerous and what to use instead.
+- Pushing to Docker Hub and to GitHub Container Registry (GHCR), with login.
+- Image digests — the only way to pin a deployment to *exactly the bytes you tested*.
+</Callout>
+
+You have a great image. Now what? It is sitting on your laptop's daemon. You need it on the build server, on staging, in production. The system that moves it around is a **registry**, and the address of an image in a registry is more layered than people realise.
+
+## The anatomy of an image reference
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Giải phẫu đầy đủ một image reference: `registry/namespace/name:tag@digest`. Mỗi phần đều quan trọng.
+- Vì sao `:latest` nguy hiểm và nên dùng gì thay.
+- Push lên Docker Hub và GitHub Container Registry (GHCR), kèm login.
+- Image digest — cách duy nhất để pin một deployment vào *đúng byte bạn đã test*.
+</Callout>
+
+Bạn có image tuyệt. Giờ sao? Nó đang nằm trên daemon của laptop bạn. Bạn cần nó trên build server, staging, production. Hệ thống vận chuyển nó là **registry**, và địa chỉ của một image trong registry nhiều tầng hơn người ta tưởng.
+
+## Giải phẫu một image reference
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 820 220"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Breakdown of the image reference ghcr.io/myteam/coffee-api:1.4.2@sha256:abc123. Each part labeled: registry host, namespace/org, repository name, human tag, content digest."
+    style={{ width: '100%', maxWidth: '820px', height: 'auto', display: 'block' }}
+  >
+    <text x="410" y="30" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">An image reference, fully qualified</text>
+    <rect x="60" y="60" width="700" height="44" rx="6" fill="#fff7e6" stroke="#d9a441" />
+    <text x="410" y="90" fontSize="16" textAnchor="middle" fontFamily="monospace" fill="#1a3a2e">
+      ghcr.io / myteam / coffee-api : 1.4.2 @ sha256:abc123…
+    </text>
+    {[
+      { x: 85,  w: 75,  label: 'registry host',  detail: 'where it lives' },
+      { x: 170, w: 95,  label: 'namespace/org',  detail: 'who owns it' },
+      { x: 275, w: 145, label: 'repository name', detail: 'what it is' },
+      { x: 430, w: 60,  label: 'tag',            detail: 'human label' },
+      { x: 500, w: 220, label: 'digest (sha256)', detail: 'exact content fingerprint' },
+    ].map((p, i) => (
+      <g key={i}>
+        <line x1={p.x + p.w / 2} y1="105" x2={p.x + p.w / 2} y2="125" stroke="#1a3a2e" strokeWidth="1.2" />
+        <text x={p.x + p.w / 2} y="142" fontSize="12" textAnchor="middle" fill="#1a3a2e" fontWeight="600">{p.label}</text>
+        <text x={p.x + p.w / 2} y="158" fontSize="11" textAnchor="middle" fill="#3d4f47" fontStyle="italic">{p.detail}</text>
+      </g>
+    ))}
+    <text x="410" y="200" fontSize="11" textAnchor="middle" fill="#3d4f47" fontStyle="italic">
+      Registry defaults to docker.io. Namespace defaults to library. Tag defaults to latest. Digest is optional but the only guarantee.
+    </text>
+  </svg>
+</figure>
+
+<EN>
+
+That string is the full form. When you wrote `docker pull nginx` in lesson 2, Docker silently expanded it to `docker.io/library/nginx:latest`. Let us walk every part:
+
+1. **Registry host** — `ghcr.io`. The default when omitted is `docker.io` (Docker Hub). Other common ones: `gcr.io` (Google), `public.ecr.aws` (AWS public), `quay.io` (Red Hat), your company's own.
+2. **Namespace / organisation** — `myteam`. The user or org that owns the repository. The default on Docker Hub is `library` (so `nginx` = `library/nginx`).
+3. **Repository name** — `coffee-api`. The image itself.
+4. **Tag** — `1.4.2`. A human-readable label for a particular version. **Tags are mutable** — `:latest` today might point to different bytes tomorrow.
+5. **Digest** — `sha256:abc123…`. A SHA-256 hash of the image's manifest. **Digests are immutable** — that hash always identifies the same bytes, forever.
+
+## Why `:latest` is dangerous
+
+`:latest` is just a tag. It is not magic. It points to whatever the publisher last pushed *as* `:latest`. If you write `FROM node:20-alpine` and your CI rebuilds an image today, you get one set of bytes. If it rebuilds next month, the same Dockerfile may pull a newer `node:20-alpine` and produce different bytes — possibly with a CVE you have not vetted, or a breaking change.
+
+What good people do instead:
+
+```dockerfile
+FROM node:20.18.1-alpine                                            # → pinned to a specific minor/patch
+# or, even better:
+FROM node:20.18.1-alpine@sha256:abc123def456…                       # → pinned to exact bytes
+```
+
+The `@sha256:…` form is paranoid but bulletproof. CI systems often default to it now.
+
+## Tagging your own images
+
+The full pipeline:
+
+```bash
+docker build -t coffee-api:1.4.2 .                                  # → build with a version tag
+docker tag coffee-api:1.4.2 ghcr.io/myteam/coffee-api:1.4.2         # → add a registry-prefixed tag
+docker tag coffee-api:1.4.2 ghcr.io/myteam/coffee-api:latest        # → also tag as latest
+```
+
+`docker tag` does *not* duplicate an image. It just adds another name pointing to the same layer stack. Both tags above point to the same bytes; deleting one does not delete the data.
+
+A pragmatic tagging scheme:
+
+</EN>
+
+<VI>
+
+Chuỗi đó là dạng đầy đủ. Khi bạn gõ `docker pull nginx` ở bài 2, Docker âm thầm mở rộng thành `docker.io/library/nginx:latest`. Đi qua từng phần:
+
+1. **Registry host** — `ghcr.io`. Mặc định khi bỏ là `docker.io` (Docker Hub). Một số khác hay gặp: `gcr.io` (Google), `public.ecr.aws` (AWS public), `quay.io` (Red Hat), registry của công ty bạn.
+2. **Namespace / organisation** — `myteam`. User hoặc org sở hữu repository. Mặc định trên Docker Hub là `library` (nên `nginx` = `library/nginx`).
+3. **Repository name** — `coffee-api`. Tên image.
+4. **Tag** — `1.4.2`. Nhãn dễ đọc cho một version cụ thể. **Tag có thể thay đổi** — `:latest` hôm nay có thể trỏ tới byte khác ngày mai.
+5. **Digest** — `sha256:abc123…`. Hash SHA-256 của manifest image. **Digest bất biến** — hash đó luôn định danh đúng đám byte đó, mãi mãi.
+
+## Vì sao `:latest` nguy hiểm
+
+`:latest` chỉ là một tag. Không có phép thuật gì. Nó trỏ vào cái mà publisher gần nhất push *với* tag `:latest`. Nếu bạn ghi `FROM node:20-alpine` và CI build lại image hôm nay, bạn nhận một đám byte. Tháng sau build lại, cùng Dockerfile có thể kéo `node:20-alpine` mới hơn và ra đám byte khác — có thể kèm CVE bạn chưa duyệt, hoặc một breaking change.
+
+Người tử tế làm gì thay:
+
+```dockerfile
+FROM node:20.18.1-alpine                                            # → pin tới minor/patch cụ thể
+# hoặc, tốt hơn:
+FROM node:20.18.1-alpine@sha256:abc123def456…                       # → pin tới đúng byte
+```
+
+Dạng `@sha256:…` hơi hoang tưởng nhưng chống đạn. CI hiện đại nhiều khi mặc định như vậy.
+
+## Tag image của bạn
+
+Cả pipeline:
+
+```bash
+docker build -t coffee-api:1.4.2 .                                  # → build với tag version
+docker tag coffee-api:1.4.2 ghcr.io/myteam/coffee-api:1.4.2         # → thêm tag có prefix registry
+docker tag coffee-api:1.4.2 ghcr.io/myteam/coffee-api:latest        # → đồng thời tag latest
+```
+
+`docker tag` *không* nhân đôi image. Chỉ thêm một cái tên khác trỏ tới cùng chồng layer. Hai tag trên trỏ cùng byte; xoá một không xoá dữ liệu.
+
+Một sơ đồ tag thực dụng:
+
+</VI>
+
+<EN>
+
+```bash
+# Build once, tag four ways:
+docker build -t coffee-api:1.4.2 .
+docker tag coffee-api:1.4.2 ghcr.io/myteam/coffee-api:1.4.2          # → exact version
+docker tag coffee-api:1.4.2 ghcr.io/myteam/coffee-api:1.4             # → minor
+docker tag coffee-api:1.4.2 ghcr.io/myteam/coffee-api:1               # → major
+docker tag coffee-api:1.4.2 ghcr.io/myteam/coffee-api:$(git rev-parse --short HEAD)
+                                                                     # → tag with commit SHA
+docker tag coffee-api:1.4.2 ghcr.io/myteam/coffee-api:latest         # → optional convenience
+```
+
+This gives consumers a choice:
+
+- *"Always pull the bleeding edge"* → `:latest`.
+- *"Pin to a major, get bug fixes"* → `:1`.
+- *"Pin exactly"* → `:1.4.2` or the SHA tag.
+
+## Logging in and pushing
+
+### Docker Hub
+
+```bash
+docker login                                                        # → prompts for username + a personal access token
+docker push myusername/coffee-api:1.4.2                             # → pushes to docker.io/myusername/coffee-api:1.4.2
+```
+
+Use a personal access token (PAT) from your Docker Hub settings, not your password. The CLI will store it in your OS keychain by default.
+
+### GitHub Container Registry (GHCR)
+
+GHCR is free for public images and ties nicely to GitHub Actions. Login uses a token:
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u myusername --password-stdin
+docker push ghcr.io/myteam/coffee-api:1.4.2
+```
+
+The token needs `write:packages` scope. From GitHub Actions, the workflow's built-in `GITHUB_TOKEN` already has it — no manual setup:
+
+```yaml
+# .github/workflows/release.yml
+- uses: docker/login-action@v3
+  with:
+    registry: ghcr.io
+    username: ${{ github.actor }}
+    password: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### Self-hosted registry (quick demo)
+
+You can run a registry yourself in seconds. Mostly for trying things out or air-gapped environments:
+
+```bash
+docker run -d -p 5000:5000 --name registry registry:2                # → local registry on :5000
+docker tag coffee-api:1.4.2 localhost:5000/coffee-api:1.4.2
+docker push localhost:5000/coffee-api:1.4.2
+docker pull localhost:5000/coffee-api:1.4.2
+```
+
+That little `registry:2` container is what powers a lot of internal company registries (often behind nginx with auth bolted on).
+
+## Pulling and trusting
+
+</EN>
+
+<VI>
+
+```bash
+# Build một lần, tag 4 cách:
+docker build -t coffee-api:1.4.2 .
+docker tag coffee-api:1.4.2 ghcr.io/myteam/coffee-api:1.4.2          # → version cụ thể
+docker tag coffee-api:1.4.2 ghcr.io/myteam/coffee-api:1.4             # → minor
+docker tag coffee-api:1.4.2 ghcr.io/myteam/coffee-api:1               # → major
+docker tag coffee-api:1.4.2 ghcr.io/myteam/coffee-api:$(git rev-parse --short HEAD)
+                                                                     # → tag theo commit SHA
+docker tag coffee-api:1.4.2 ghcr.io/myteam/coffee-api:latest         # → tiện thì có
+```
+
+Cho người dùng image lựa chọn:
+
+- *"Cứ bleeding edge cho tôi"* → `:latest`.
+- *"Pin major, nhận bug fix"* → `:1`.
+- *"Pin chính xác"* → `:1.4.2` hoặc tag SHA.
+
+## Login và push
+
+### Docker Hub
+
+```bash
+docker login                                                        # → hỏi username + personal access token
+docker push myusername/coffee-api:1.4.2                             # → push lên docker.io/myusername/coffee-api:1.4.2
+```
+
+Dùng personal access token (PAT) từ phần cài đặt Docker Hub, không phải mật khẩu. CLI sẽ lưu vào keychain OS mặc định.
+
+### GitHub Container Registry (GHCR)
+
+GHCR miễn phí cho image public và ráp đẹp với GitHub Actions. Login bằng token:
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u myusername --password-stdin
+docker push ghcr.io/myteam/coffee-api:1.4.2
+```
+
+Token cần scope `write:packages`. Trong GitHub Actions, `GITHUB_TOKEN` tích hợp sẵn đã có scope đó — không phải cấu hình thủ công:
+
+```yaml
+# .github/workflows/release.yml
+- uses: docker/login-action@v3
+  with:
+    registry: ghcr.io
+    username: ${{ github.actor }}
+    password: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### Tự host registry (demo nhanh)
+
+Có thể chạy một registry trong vài giây. Chủ yếu để thử hoặc môi trường air-gapped:
+
+```bash
+docker run -d -p 5000:5000 --name registry registry:2                # → registry local trên :5000
+docker tag coffee-api:1.4.2 localhost:5000/coffee-api:1.4.2
+docker push localhost:5000/coffee-api:1.4.2
+docker pull localhost:5000/coffee-api:1.4.2
+```
+
+Container `registry:2` nhỏ này chính là cái chống đỡ rất nhiều registry nội bộ công ty (thường đứng sau nginx kèm auth gắn vào).
+
+## Pull và tin tưởng
+
+</VI>
+
+<EN>
+
+When deploying to production, **pin to a digest, not a tag**:
+
+```bash
+docker pull ghcr.io/myteam/coffee-api:1.4.2                         # → fetches whatever 1.4.2 currently points to
+docker image inspect ghcr.io/myteam/coffee-api:1.4.2 \
+  --format '{{index .RepoDigests 0}}'                                # → prints the digest you just pulled
+# → ghcr.io/myteam/coffee-api@sha256:abc123…
+
+# Pin your Kubernetes / Compose file to that digest:
+ghcr.io/myteam/coffee-api@sha256:abc123def456…
+```
+
+Now your production environment runs *exactly* the bytes you tested. Even if someone re-pushes `:1.4.2` (rotating a base image, fixing a vuln), your service is unaffected until you bump the digest yourself.
+
+## What gets transferred on push
+
+A push only sends **the layers the registry does not already have**. Two services that share a `node:20-alpine` base will only upload their own layers; the base is fetched from the registry's existing copy. Same idea as `pull`. Pushes are usually quick after the first one.
+
+## Quick reference
+
+```bash
+docker login                                                        # → log in to default (docker.io)
+docker login ghcr.io                                                # → log in to a specific registry
+docker tag <local> <full-registry-path>                             # → add another name
+docker push <full-registry-path>                                    # → upload
+docker pull <full-registry-path>                                    # → download
+docker image inspect <ref> --format '{{index .RepoDigests 0}}'      # → see the digest
+docker logout <registry>                                            # → remove stored credentials
+```
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+Khi deploy lên production, **pin theo digest, không pin theo tag**:
+
+```bash
+docker pull ghcr.io/myteam/coffee-api:1.4.2                         # → kéo về whatever tag 1.4.2 đang trỏ
+docker image inspect ghcr.io/myteam/coffee-api:1.4.2 \
+  --format '{{index .RepoDigests 0}}'                                # → in digest bạn vừa pull
+# → ghcr.io/myteam/coffee-api@sha256:abc123…
+
+# Pin file Kubernetes / Compose của bạn vào digest đó:
+ghcr.io/myteam/coffee-api@sha256:abc123def456…
+```
+
+Production của bạn chạy *đúng* đám byte đã test. Dù ai đó push lại `:1.4.2` (xoay base image, vá lỗ hổng), service không bị ảnh hưởng đến khi bạn tự nâng digest.
+
+## Push gửi đi cái gì
+
+`push` chỉ gửi **các layer mà registry chưa có**. Hai service share cùng base `node:20-alpine` chỉ upload layer riêng; base lấy từ bản registry đã có. Cùng ý tưởng như `pull`. Push thường rất nhanh sau lần đầu.
+
+## Tham khảo nhanh
+
+```bash
+docker login                                                        # → login vào registry mặc định (docker.io)
+docker login ghcr.io                                                # → login vào một registry cụ thể
+docker tag <local> <full-registry-path>                             # → thêm tên khác
+docker push <full-registry-path>                                    # → upload
+docker pull <full-registry-path>                                    # → download
+docker image inspect <ref> --format '{{index .RepoDigests 0}}'      # → xem digest
+docker logout <registry>                                            # → xoá credential đã lưu
+```
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** A registry is the *central warehouse*. Your local Docker daemon is the *cafe's back room*. Tags are *menu names* — *"flat white"* — convenient but slightly mutable (the recipe behind it might be tweaked). Digests are *recipe-card serial numbers* — *"recipe #A7F2"* — they always refer to the exact same ingredients and method. *"Pour me a flat white"* might give you a slightly different drink in six months; *"pour me recipe #A7F2"* always gives you the same drink. In production, you order by serial number.
+
+**VI —** Registry là *kho trung tâm*. Daemon Docker local là *kho nhỏ phía sau quán*. Tag là *tên trên menu* — *"flat white"* — tiện nhưng hơi đổi (công thức phía sau có thể được chỉnh). Digest là *số seri của thẻ công thức* — *"công thức #A7F2"* — luôn ám chỉ chính xác cùng nguyên liệu và quy trình. *"Pha cho tôi một flat white"* nửa năm sau có thể ra hơi khác; *"pha cho tôi công thức #A7F2"* luôn ra cùng ly. Trong production, gọi đồ theo số seri.
+</Callout>
+
+<Recap>
+- Full image reference: `registry/namespace/name:tag@digest`. Each part defaults if missing; the digest is the only immutable piece.
+- Avoid `:latest` in production. Tag with semantic versions and/or commit SHAs; pin deployments to digests.
+- `docker tag` adds names without copying bytes. `docker push` only uploads layers the registry does not have.
+- Docker Hub is the default, GHCR is free and CI-friendly, self-hosted `registry:2` is one container. Lesson 9 leaves images behind and starts on the runtime side — volumes and persistent data.
+</Recap>

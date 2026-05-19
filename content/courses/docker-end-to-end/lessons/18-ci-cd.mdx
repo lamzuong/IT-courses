@@ -1,0 +1,443 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- The four steps of a Docker CI pipeline: **checkout → build → push → deploy.**
+- A complete GitHub Actions workflow that builds two images, tags them with the commit SHA, and pushes to GHCR.
+- The build cache trick that makes CI builds nearly as fast as your local rebuilds.
+- A deployment step: SSH into a server and `docker compose pull && docker compose up -d`.
+</Callout>
+
+A pipeline is just an automated version of the commands you already type. CI is *"do the same `docker build` and `docker push` I would do, but every time main moves."* CD adds *"...and then update the server."* This lesson is a working example, not a survey.
+
+## The four steps
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Bốn bước của một pipeline Docker CI: **checkout → build → push → deploy.**
+- Một workflow GitHub Actions hoàn chỉnh build hai image, tag theo commit SHA, push lên GHCR.
+- Mẹo build cache giúp CI build gần nhanh bằng rebuild local.
+- Một bước deploy: SSH vào server và `docker compose pull && docker compose up -d`.
+</Callout>
+
+Pipeline chỉ là phiên bản tự động hoá những lệnh bạn vẫn gõ. CI là *"chạy `docker build` và `docker push` y như tôi vẫn làm, nhưng mỗi lần main di chuyển"*. CD thêm *"... rồi update server"*. Bài này là ví dụ chạy được, không phải khảo sát.
+
+## Bốn bước
+
+</VI>
+
+<figure style={{ margin: '1.5rem 0' }}>
+  <svg
+    viewBox="0 0 820 240"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Four stages: checkout the code, build the images using buildx with cache, push to GHCR with the commit SHA tag, deploy via SSH that pulls and restarts."
+    style={{ width: '100%', maxWidth: '820px', height: 'auto', display: 'block' }}
+  >
+    <defs>
+      <marker id="l18-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1a3a2e" />
+      </marker>
+    </defs>
+    <text x="410" y="24" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">A typical Docker CI/CD pipeline</text>
+
+    {[
+      { x: 20,  label: '1. checkout',  detail: 'git clone repo\nat the merge commit' },
+      { x: 220, label: '2. build',     detail: 'docker buildx\nwith layer cache' },
+      { x: 420, label: '3. push',      detail: 'tag :sha + :latest\nGHCR' },
+      { x: 620, label: '4. deploy',    detail: 'SSH → compose\npull && up -d' },
+    ].map((s, i) => (
+      <g key={i}>
+        <rect x={s.x} y="70" width="180" height="110" rx="12" fill="#e6f4ea" stroke="#1a3a2e" />
+        <text x={s.x + 90} y="100" fontSize="14" textAnchor="middle" fill="#1a3a2e" fontWeight="700">{s.label}</text>
+        {s.detail.split('\n').map((l, j) => (
+          <text key={j} x={s.x + 90} y={130 + j * 18} fontSize="12" textAnchor="middle" fill="#3d4f47">{l}</text>
+        ))}
+      </g>
+    ))}
+    {[200, 400, 600].map((x, i) => (
+      <line key={i} x1={x} y1="125" x2={x + 20} y2="125" stroke="#1a3a2e" strokeWidth="2" markerEnd="url(#l18-arr)" />
+    ))}
+  </svg>
+</figure>
+
+<EN>
+
+## A complete GitHub Actions workflow
+
+`.github/workflows/deploy.yml`:
+
+```yaml
+name: build-and-deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: ${{ github.repository_owner }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write                                                 # → needed to push to GHCR
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3                           # → BuildKit-powered builder
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── api image ────────────────────────────────────────────────
+      - name: api — meta
+        id: api_meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/coffee-api
+          tags: |
+            type=sha,prefix=,format=short                             # → e.g. 'a1b2c3d'
+            type=ref,event=branch                                     # → 'main'
+            type=raw,value=latest,enable={{is_default_branch}}        # → also 'latest'
+
+      - name: api — build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          push: true
+          tags: ${{ steps.api_meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+      # ── web image ────────────────────────────────────────────────
+      - name: web — meta
+        id: web_meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/coffee-web
+          tags: |
+            type=sha,prefix=,format=short
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: web — build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web
+          push: true
+          tags: ${{ steps.web_meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+      - name: Image scan (fail on HIGH/CRITICAL)
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/coffee-api:${{ github.sha }}
+          only-severities: critical,high
+          exit-code: true
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production                                           # → optional gate for manual approval
+    steps:
+      - name: SSH and pull-and-up
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key:      ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd /srv/coffee-shop
+            export TAG=${GITHUB_SHA:0:7}
+            docker compose pull
+            docker compose up -d
+            docker image prune -af --filter "until=168h"
+```
+
+## How the cache makes CI fast
+
+The two lines that matter:
+
+```yaml
+cache-from: type=gha
+cache-to:   type=gha,mode=max
+```
+
+`type=gha` stores BuildKit layer cache in GitHub Actions cache. The next run pulls the cache before building; identical layers are reused without re-running their commands. The first build is slow (cache miss); every build after is *almost as fast as your laptop's rebuild*. Without these lines, every CI build is a `--no-cache` build.
+
+## What `docker/metadata-action` is doing
+
+Computing the right set of tags by hand is fiddly. `metadata-action` generates them from a small DSL:
+
+- `type=sha,format=short` → `a1b2c3d` (the commit SHA, short form).
+- `type=ref,event=branch` → the branch name (`main`).
+- `type=raw,value=latest,enable={{is_default_branch}}` → also tag `latest`, but only on the default branch.
+
+The image ends up with multiple tags pointing at the same digest — convenient for consumers who want to pin to a SHA *or* track `latest`.
+
+## The deploy step, in detail
+
+```yaml
+- name: SSH and pull-and-up
+  uses: appleboy/ssh-action@v1.0.3
+  with:
+    script: |
+      cd /srv/coffee-shop
+      export TAG=${GITHUB_SHA:0:7}
+      docker compose pull
+      docker compose up -d
+      docker image prune -af --filter "until=168h"
+```
+
+On the server, your `docker-compose.yml` and `.env` already exist in `/srv/coffee-shop`. `.env` has `TAG=${TAG}` placeholder, or you set it directly per-deploy. Three lines do the work:
+
+1. `docker compose pull` — fetch the new images by SHA.
+2. `docker compose up -d` — replace each service whose image changed. Compose stops the old container with SIGTERM, waits the grace period, starts the new one, waits for health to pass.
+3. `docker image prune` — clean up old image layers a week old.
+
+No downtime if your healthcheck is right and your app handles SIGTERM (lesson 16).
+
+## Other CI systems, same shape
+
+</EN>
+
+<VI>
+
+## Workflow GitHub Actions hoàn chỉnh
+
+`.github/workflows/deploy.yml`:
+
+```yaml
+name: build-and-deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: ${{ github.repository_owner }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write                                                 # → cần để push lên GHCR
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3                           # → builder dùng BuildKit
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── image api ────────────────────────────────────────────────
+      - name: api — meta
+        id: api_meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/coffee-api
+          tags: |
+            type=sha,prefix=,format=short                             # → vd 'a1b2c3d'
+            type=ref,event=branch                                     # → 'main'
+            type=raw,value=latest,enable={{is_default_branch}}        # → tag thêm 'latest'
+
+      - name: api — build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          push: true
+          tags: ${{ steps.api_meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+      # ── image web ────────────────────────────────────────────────
+      - name: web — meta
+        id: web_meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/coffee-web
+          tags: |
+            type=sha,prefix=,format=short
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: web — build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web
+          push: true
+          tags: ${{ steps.web_meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+      - name: Quét image (fail nếu có HIGH/CRITICAL)
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/coffee-api:${{ github.sha }}
+          only-severities: critical,high
+          exit-code: true
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production                                           # → tuỳ chọn gate để approve thủ công
+    steps:
+      - name: SSH và pull-and-up
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key:      ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd /srv/coffee-shop
+            export TAG=${GITHUB_SHA:0:7}
+            docker compose pull
+            docker compose up -d
+            docker image prune -af --filter "until=168h"
+```
+
+## Vì sao cache làm CI nhanh
+
+Hai dòng đáng giá:
+
+```yaml
+cache-from: type=gha
+cache-to:   type=gha,mode=max
+```
+
+`type=gha` lưu cache layer BuildKit vào cache của GitHub Actions. Lần chạy kế kéo cache trước khi build; layer giống y được tái dùng, không phải chạy lại lệnh. Build đầu chậm (miss cache); mọi build sau *gần nhanh bằng rebuild trên laptop*. Không có hai dòng này, mỗi build CI là build `--no-cache`.
+
+## `docker/metadata-action` đang làm gì
+
+Tính tay đúng tập tag rất rối. `metadata-action` sinh từ một DSL nhỏ:
+
+- `type=sha,format=short` → `a1b2c3d` (SHA commit, dạng ngắn).
+- `type=ref,event=branch` → tên branch (`main`).
+- `type=raw,value=latest,enable={{is_default_branch}}` → tag thêm `latest`, chỉ trên default branch.
+
+Image cuối có nhiều tag trỏ tới cùng digest — tiện cho người dùng muốn pin theo SHA *hoặc* track `latest`.
+
+## Bước deploy, chi tiết
+
+```yaml
+- name: SSH và pull-and-up
+  uses: appleboy/ssh-action@v1.0.3
+  with:
+    script: |
+      cd /srv/coffee-shop
+      export TAG=${GITHUB_SHA:0:7}
+      docker compose pull
+      docker compose up -d
+      docker image prune -af --filter "until=168h"
+```
+
+Trên server, `docker-compose.yml` và `.env` đã sẵn ở `/srv/coffee-shop`. `.env` có placeholder `TAG=${TAG}`, hoặc bạn set trực tiếp mỗi lần deploy. Ba dòng làm việc:
+
+1. `docker compose pull` — fetch image mới theo SHA.
+2. `docker compose up -d` — thay từng service có image đổi. Compose stop container cũ bằng SIGTERM, đợi grace period, start container mới, đợi health pass.
+3. `docker image prune` — dọn layer image cũ hơn 1 tuần.
+
+Không downtime nếu healthcheck đúng và app xử lý SIGTERM (bài 16).
+
+## Hệ CI khác, cùng shape
+
+</VI>
+
+<EN>
+
+The shape is universal. Translate the YAML, the pipeline is the same.
+
+- **GitLab CI** — `docker:dind` service, same build/push commands, `docker login $CI_REGISTRY -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD`.
+- **CircleCI** — `setup_remote_docker`, same commands, cache via CircleCI workspaces.
+- **Buildkite/Jenkins** — same `docker buildx build --push` shape; the difference is auth and where to store the cache.
+
+The action names change. The four steps do not.
+
+## Local-equivalent commands
+
+Want to do exactly what the workflow does, by hand? Two commands:
+
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  -t ghcr.io/myteam/coffee-api:$(git rev-parse --short HEAD) \
+  -t ghcr.io/myteam/coffee-api:latest \
+  --push \
+  ./api
+
+ssh prod.example.com \
+  'cd /srv/coffee-shop && TAG='$(git rev-parse --short HEAD)' docker compose pull && docker compose up -d'
+```
+
+This is the *whole* CI/CD pipeline minus the YAML. Useful for emergency hotfixes when CI is sick.
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+Shape mang tính phổ quát. Dịch YAML thôi, pipeline giống nhau.
+
+- **GitLab CI** — service `docker:dind`, cùng lệnh build/push, `docker login $CI_REGISTRY -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD`.
+- **CircleCI** — `setup_remote_docker`, cùng lệnh, cache qua workspace của CircleCI.
+- **Buildkite/Jenkins** — cùng shape `docker buildx build --push`; khác ở auth và chỗ lưu cache.
+
+Tên action đổi. Bốn bước không đổi.
+
+## Lệnh tương đương ở local
+
+Muốn làm đúng những gì workflow làm, bằng tay? Hai lệnh:
+
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  -t ghcr.io/myteam/coffee-api:$(git rev-parse --short HEAD) \
+  -t ghcr.io/myteam/coffee-api:latest \
+  --push \
+  ./api
+
+ssh prod.example.com \
+  'cd /srv/coffee-shop && TAG='$(git rev-parse --short HEAD)' docker compose pull && docker compose up -d'
+```
+
+Đây là *toàn bộ* pipeline CI/CD trừ YAML. Hữu ích cho hotfix khẩn khi CI ốm.
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** A CI/CD pipeline is *the chain's overnight delivery service*. The moment HQ approves a new recipe (`git push main`), the warehouse prints the recipe card with this morning's date (build), couriers it to every shop's mailbox by dawn (push), and the manager reads the new card and quietly swaps it onto the wall while the previous barista finishes her last drink (deploy). Customers walking in at 7 AM order from the new recipe without ever knowing the menu changed at 3 AM.
+
+**VI —** Pipeline CI/CD là *dịch vụ giao đêm của chuỗi*. Khoảnh khắc HQ duyệt công thức mới (`git push main`), kho in thẻ công thức với ngày sáng nay (build), giao tới hộp thư mỗi cửa hàng trước bình minh (push), và quản lý đọc thẻ mới và lặng lẽ đổi lên tường trong khi barista cũ pha xong ly cuối (deploy). Khách 7 giờ sáng order theo công thức mới mà không biết menu đã đổi lúc 3 giờ sáng.
+</Callout>
+
+<Recap>
+- Four steps: checkout → build → push → deploy. Every CI system implements the same steps; only the YAML changes.
+- BuildKit + `cache-from/cache-to: type=gha` makes CI almost as fast as local rebuilds. The two lines are not optional.
+- `docker/metadata-action` generates the tag set; `docker/build-push-action` does the build and push; `docker scout` blocks CVE regressions.
+- The deploy step is `ssh → compose pull → compose up -d`. With healthchecks and graceful shutdown (lesson 16), there is no downtime. Lesson 19 looks past a single host — where Compose stops being enough.
+</Recap>

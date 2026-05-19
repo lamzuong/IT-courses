@@ -1,0 +1,422 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- Resource limits — CPU, memory, PIDs — and why a container without them can take the whole host down.
+- The five-line security hardening checklist: non-root user, read-only filesystem, drop capabilities, `no-new-privileges`, seccomp default.
+- Image scanning with `docker scout` to find CVEs in your base.
+- A Compose snippet that bakes the whole list in.
+</Callout>
+
+A container that works on your laptop will *also* work on production. That is the promise. But the production environment lives on a shared host with other containers, possibly running untrusted code, with money on the line if it falls over. This lesson is the small set of flags and config that turns *"runs"* into *"runs responsibly."*
+
+## Resource limits — keeping one container from eating the host
+
+By default, a container can use **all** the CPU and **all** the RAM on the host. A leaking process in one container can starve every other container on the same machine and freeze the host. Two flags fix this:
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Bài này học gì">
+- Resource limit — CPU, memory, PIDs — và vì sao container không giới hạn có thể quật cả host.
+- Checklist 5 dòng hardening bảo mật: user non-root, filesystem read-only, drop capability, `no-new-privileges`, seccomp default.
+- Quét image bằng `docker scout` để tìm CVE trong base.
+- Một snippet Compose nướng cả danh sách vào.
+</Callout>
+
+Container chạy trên laptop bạn *cũng* sẽ chạy trên production. Đó là lời hứa. Nhưng môi trường production sống trên host dùng chung với container khác, có thể chạy code không tin được, và có tiền nằm trên bàn nếu nó sập. Bài này là bộ flag/config nhỏ biến *"chạy"* thành *"chạy có trách nhiệm"*.
+
+## Resource limit — đừng để một container ăn cả host
+
+Mặc định, container có thể dùng **toàn bộ** CPU và **toàn bộ** RAM của host. Một process rò trong một container có thể đói khát mọi container khác cùng máy và đóng băng host. Hai cờ chữa được:
+
+</VI>
+
+```bash
+docker run -d \
+  --cpus 0.5 \                                                       # → at most half a CPU
+  --memory 256m \                                                    # → at most 256 MB RAM
+  --memory-swap 256m \                                               # → no swap above memory limit
+  --pids-limit 200 \                                                 # → at most 200 processes/threads
+  myapp
+```
+
+In Compose, under `deploy.resources` (works with the Compose CLI even outside Swarm in modern versions; the older equivalent is `cpus:` / `mem_limit:` at the service root):
+
+```yaml
+services:
+  api:
+    image: coffee-api:1.4.2
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+          pids: 200
+        reservations:                                                # → soft floor; scheduler tries to give you this much
+          cpus: '0.1'
+          memory: 64M
+```
+
+<EN>
+
+### What each does
+
+- **`--cpus`** caps CPU usage. `0.5` = half a core. `2` = up to two cores. Containers run as normal but the kernel throttles them at the cap.
+- **`--memory`** caps RSS. If the process exceeds it, the kernel **OOM-kills** the container. Set this for every long-running service.
+- **`--memory-swap`** = total memory + swap. Set equal to `--memory` to **disable** swap (your app pages out → death-spiral; saying no is usually better).
+- **`--pids-limit`** caps total processes/threads. Stops fork bombs and runaway thread leaks.
+
+### Reading what is being used
+
+`docker stats` (lesson 12) is your view. The `MEM USAGE / LIMIT` column tells you how close you are to OOM-kill territory. Run it during a load test:
+
+```bash
+docker stats api db cache                                            # → live; ctrl-c to stop
+docker stats --no-stream                                             # → one snapshot
+```
+
+If you see `MEM %` regularly above 80%, raise the limit or fix the leak.
+
+## Non-root: the single biggest security win
+
+By default, a process inside a container runs as **root** (UID 0). The "root" is namespaced — it is not root on the host — but it is still a fat attack surface. If an attacker escapes the container (rare, but possible via a kernel bug), they land as root. If you wrote files to a bind-mounted host folder, they were owned by root.
+
+Pick a non-root user in the Dockerfile and *use it*:
+
+```dockerfile
+FROM node:20-alpine AS runtime
+WORKDIR /app
+
+# Most official images already ship a 'node' user (UID 1000). Use it.
+COPY --from=builder --chown=node:node /app/dist ./dist
+COPY --from=deps    --chown=node:node /app/node_modules ./node_modules
+
+USER node                                                           # → ← this is the line that matters
+EXPOSE 4000
+CMD ["node", "dist/index.js"]
+```
+
+For images that don't ship a user, create one:
+
+```dockerfile
+RUN addgroup -S app && adduser -S -G app app                         # → alpine
+USER app
+```
+
+Inside the container, `id` should now show your custom user, not `uid=0(root)`.
+
+Test it:
+
+```bash
+docker exec api id                                                   # → uid=1000(node) gid=1000(node) groups=…
+```
+
+## Read-only filesystem
+
+A read-only root filesystem stops a compromised process from writing to your image. The app gets specific writable areas via `tmpfs:` or named volumes.
+
+```yaml
+api:
+  image: coffee-api:1.4.2
+  read_only: true                                                    # → / is mounted read-only
+  tmpfs:
+    - /tmp                                                           # → ephemeral writable scratch
+  volumes:
+    - app-cache:/var/cache/app                                       # → explicit writable mount
+```
+
+Run a quick sanity check after enabling:
+
+```bash
+docker exec api sh -c 'touch /readme.md'                             # → 'Read-only file system' (✅ desired)
+docker exec api sh -c 'touch /tmp/x'                                 # → succeeds (the tmpfs is writable)
+```
+
+Some apps (frameworks, runtimes) need writable spots beyond `/tmp`. Add named-volume mounts for *exactly those paths*, not more.
+
+## Dropping Linux capabilities
+
+</EN>
+
+<VI>
+
+### Mỗi cái làm gì
+
+- **`--cpus`** giới hạn CPU. `0.5` = nửa core. `2` = tối đa hai core. Container chạy bình thường nhưng kernel throttle ở mức cap.
+- **`--memory`** giới hạn RSS. Process vượt → kernel **OOM-kill** container. Đặt cho mọi service chạy dài.
+- **`--memory-swap`** = tổng memory + swap. Đặt bằng `--memory` để **tắt** swap (app page out → vòng xoáy chết; nói không thường tốt hơn).
+- **`--pids-limit`** giới hạn tổng process/thread. Chặn fork bomb và rò thread.
+
+### Đọc đang dùng bao nhiêu
+
+`docker stats` (bài 12) là góc nhìn. Cột `MEM USAGE / LIMIT` báo bạn gần OOM-kill cỡ nào. Chạy lúc load test:
+
+```bash
+docker stats api db cache                                            # → live; ctrl-c để dừng
+docker stats --no-stream                                             # → một snapshot
+```
+
+Thấy `MEM %` thường xuyên trên 80% → nâng giới hạn hoặc sửa leak.
+
+## Non-root: cú thắng bảo mật lớn nhất
+
+Mặc định, process trong container chạy như **root** (UID 0). "Root" này đã được namespaced — không phải root trên host — nhưng vẫn là mặt tấn công rộng. Nếu kẻ tấn công thoát khỏi container (hiếm, nhưng có thể qua bug kernel), họ là root. Nếu bạn ghi file vào bind mount, file thuộc root.
+
+Chọn user non-root trong Dockerfile và *dùng*:
+
+```dockerfile
+FROM node:20-alpine AS runtime
+WORKDIR /app
+
+# Đa số image chính thức đã có sẵn user 'node' (UID 1000). Dùng.
+COPY --from=builder --chown=node:node /app/dist ./dist
+COPY --from=deps    --chown=node:node /app/node_modules ./node_modules
+
+USER node                                                           # → ← đây là dòng quan trọng
+EXPOSE 4000
+CMD ["node", "dist/index.js"]
+```
+
+Với image không có user, tạo:
+
+```dockerfile
+RUN addgroup -S app && adduser -S -G app app                         # → alpine
+USER app
+```
+
+Trong container, `id` giờ phải hiện user của bạn, không phải `uid=0(root)`.
+
+Test:
+
+```bash
+docker exec api id                                                   # → uid=1000(node) gid=1000(node) groups=…
+```
+
+## Filesystem read-only
+
+Root filesystem read-only ngăn process bị xâm phạm ghi vào image. App được những vùng ghi cụ thể qua `tmpfs:` hoặc named volume.
+
+```yaml
+api:
+  image: coffee-api:1.4.2
+  read_only: true                                                    # → / mount read-only
+  tmpfs:
+    - /tmp                                                           # → scratch tạm có thể ghi
+  volumes:
+    - app-cache:/var/cache/app                                       # → mount ghi tường minh
+```
+
+Kiểm tra nhanh:
+
+```bash
+docker exec api sh -c 'touch /readme.md'                             # → 'Read-only file system' (✅ đúng mong muốn)
+docker exec api sh -c 'touch /tmp/x'                                 # → thành công (tmpfs ghi được)
+```
+
+Một số app (framework, runtime) cần chỗ ghi ngoài `/tmp`. Thêm named volume mount cho *đúng những path đó*, không hơn.
+
+## Drop Linux capability
+
+</VI>
+
+<EN>
+
+Linux capabilities are fine-grained pieces of root power (bind to ports <1024, change file owners, load kernel modules, etc.). By default Docker grants a useful subset; you can shrink it further:
+
+```yaml
+api:
+  cap_drop: [ALL]                                                    # → drop every capability
+  cap_add: [NET_BIND_SERVICE]                                        # → add back only what you need (here: bind <1024)
+```
+
+For a web service that listens on port 4000, even `NET_BIND_SERVICE` is unnecessary. Most non-system apps need no capabilities at all.
+
+```yaml
+api:
+  cap_drop: [ALL]                                                    # → fully unprivileged, listens on a high port
+```
+
+## `no-new-privileges`
+
+A defence against an exec'd binary inside the container trying to gain extra privileges via setuid bits:
+
+```yaml
+api:
+  security_opt:
+    - no-new-privileges:true
+```
+
+Single line. Always include it. There is no legitimate reason a typical web app needs to escalate privileges mid-flight.
+
+## Image scanning with `docker scout`
+
+Modern Docker Desktop ships `docker scout`, a built-in image vulnerability scanner that reads CVE databases and tells you which CVEs touch the layers in your image:
+
+```bash
+docker scout quickview coffee-api:1.4.2                              # → fast summary; counts of high/critical CVEs
+docker scout cves      coffee-api:1.4.2                              # → list every CVE with package and severity
+docker scout recommendations coffee-api:1.4.2                        # → suggests base-image upgrades that fix the most
+```
+
+Wire it into CI to fail the build on any new HIGH/CRITICAL:
+
+```yaml
+# .github/workflows/scan.yml (excerpt)
+- uses: docker/scout-action@v1
+  with:
+    command: cves
+    image: ghcr.io/myteam/coffee-api:${{ github.sha }}
+    only-severities: critical,high
+    exit-code: true
+```
+
+`trivy` is an open alternative if you do not want to depend on Docker's tooling — it has the same shape (`trivy image coffee-api:1.4.2`).
+
+## The whole production-shape `api:` block
+
+</EN>
+
+<VI>
+
+Linux capability là các mảnh quyền root chi tiết (bind port <1024, đổi chủ file, load module kernel, v.v.). Docker mặc định cấp một tập hữu ích; bạn có thể co lại:
+
+```yaml
+api:
+  cap_drop: [ALL]                                                    # → drop mọi capability
+  cap_add: [NET_BIND_SERVICE]                                        # → chỉ thêm lại cái cần (ở đây: bind <1024)
+```
+
+Web service lắng port 4000 thì kể cả `NET_BIND_SERVICE` cũng thừa. Đa số app không hệ thống không cần capability nào.
+
+```yaml
+api:
+  cap_drop: [ALL]                                                    # → không quyền, lắng port cao
+```
+
+## `no-new-privileges`
+
+Một lớp chống binary exec trong container cố tăng quyền qua setuid:
+
+```yaml
+api:
+  security_opt:
+    - no-new-privileges:true
+```
+
+Một dòng. Luôn để. Không có lý do chính đáng nào web app phải leo quyền giữa chừng.
+
+## Quét image bằng `docker scout`
+
+Docker Desktop hiện đại có `docker scout` — scanner lỗ hổng built-in, đọc CSDL CVE và báo CVE nào chạm layer trong image của bạn:
+
+```bash
+docker scout quickview coffee-api:1.4.2                              # → tóm tắt nhanh; đếm CVE high/critical
+docker scout cves      coffee-api:1.4.2                              # → list mọi CVE kèm package và severity
+docker scout recommendations coffee-api:1.4.2                        # → gợi ý nâng base image fix được nhiều nhất
+```
+
+Nối vào CI để fail build khi có HIGH/CRITICAL mới:
+
+```yaml
+# .github/workflows/scan.yml (trích)
+- uses: docker/scout-action@v1
+  with:
+    command: cves
+    image: ghcr.io/myteam/coffee-api:${{ github.sha }}
+    only-severities: critical,high
+    exit-code: true
+```
+
+`trivy` là lựa chọn mã nguồn mở nếu bạn không muốn phụ thuộc tool Docker — cùng shape (`trivy image coffee-api:1.4.2`).
+
+## Block `api:` dáng production hoàn chỉnh
+
+</VI>
+
+```yaml
+api:
+  image: ghcr.io/myteam/coffee-api:${TAG}
+  restart: unless-stopped
+  stop_grace_period: 30s
+  user: "1000:1000"                                                  # → match the USER baked into the image
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  deploy:
+    resources:
+      limits:   { cpus: '1.0', memory: 512M, pids: 200 }
+      reservations: { cpus: '0.1', memory: 64M }
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+    interval: 10s
+    timeout: 3s
+    start_period: 30s
+    retries: 3
+  networks: [backend-net]
+  env_file: .env
+  environment:
+    NODE_ENV: production
+```
+
+<EN>
+
+Every line ties to a lesson. Add this shape to every service in your production Compose and you are *qualitatively* in a different posture than a "default" stack.
+
+## Quick audit script
+
+</EN>
+
+<VI>
+
+Mỗi dòng nối tới một bài. Thêm shape này cho mọi service trong Compose production là bạn *về chất* ở tư thế khác với stack "mặc định".
+
+## Script kiểm tra nhanh
+
+</VI>
+
+```bash
+# audit.sh — run after `docker compose up -d`
+for svc in $(docker compose ps --services); do
+  echo "── $svc ──"
+  docker compose exec -T "$svc" id 2>/dev/null || echo "  (no shell)"
+  docker inspect --format '  read_only={{.HostConfig.ReadonlyRootfs}}
+  cap_drop={{.HostConfig.CapDrop}}
+  cpu={{.HostConfig.NanoCpus}}  mem={{.HostConfig.Memory}}
+  security_opt={{.HostConfig.SecurityOpt}}' "$(docker compose ps -q "$svc")"
+done
+```
+
+Run it. Every line should show non-root, read-only true, capabilities dropped, limits set, `no-new-privileges` present.
+
+<EN>
+
+## Café analogy
+
+</EN>
+
+<VI>
+
+## Ví dụ quán cà phê
+
+</VI>
+
+<Callout type="note" title="Café analogy">
+**EN —** Resource limits are *the contract that each barista may use the kitchen for at most one burner and 200 grams of beans per hour* — no one barista can hog the kitchen and leave others starving. Non-root is *not giving every barista a master key to the safe*; they only get the key to the milk fridge. Read-only filesystem is *the recipe cards are laminated — no one can scribble new recipes on them mid-shift*. Capabilities are *the till and the alarm panel and the bank-deposit pouch are separate keys*, not "the keys"; each barista holds only the ones they need.
+
+**VI —** Resource limit là *hợp đồng mỗi barista chỉ được dùng tối đa một bếp và 200g hạt/giờ* — không ai nuốt cả bếp, để người khác đói. Non-root là *không phát chìa khoá két cho mọi barista*; họ chỉ nhận chìa tủ sữa. Filesystem read-only là *thẻ công thức ép plastic — không ai ghi nguệch ngoạc lên giữa ca*. Capability là *chìa quầy thu, chìa báo động, túi gửi ngân hàng là ba chìa riêng*, không phải "đám chìa khoá"; mỗi barista chỉ giữ chìa cần.
+</Callout>
+
+<Recap>
+- Always set `--cpus`, `--memory`, `--pids-limit` on production services. One leaky container should never take a host down.
+- The five-line hardening checklist per service: `user:` non-root, `read_only: true`, `tmpfs:` for write areas, `cap_drop: [ALL]`, `security_opt: [no-new-privileges:true]`.
+- Use `docker scout` or `trivy` in CI to fail the build on critical CVEs in your base. Move to a slimmer/distroless base if the list stays long.
+- Audit by inspecting `HostConfig` after start. Treat any container that runs as root, writable root fs, or unlimited resources as a finding. Lesson 18 turns this knowledge into a CI/CD pipeline.
+</Recap>
