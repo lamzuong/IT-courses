@@ -1,0 +1,631 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- Why `pgvector` — extension, not a new database — is the right choice when your shop is already on Postgres.
+- The `concierge` schema: knowledge chunks, conversations, action log, and a separate database user with read-only access to your `public` tables.
+- A chunking strategy that respects markdown headings, then re-chunks by token count for predictable retrieval.
+- An idempotent ingestion script: edit a markdown file, re-run, the old chunks are replaced cleanly.
+</Callout>
+
+You have a database already. It holds products, orders, users. If you spin up a separate vector store — Pinecone, Qdrant, Weaviate — you've introduced a second source of truth, a second backup pipeline, a second outage to debug. The concierge can no longer `JOIN products WITH knowledge_chunks` in one query. You spend a week building sync jobs you didn't need.
+
+The shorter path is `pgvector`: an extension that adds a `vector` column type and a similarity-search operator to the Postgres you already run. One database, one backup, one connection pool. The vector store *is* your store.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 300" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Ingestion pipeline: a markdown file is chunked, each chunk is embedded, all rows are upserted into a pgvector table — idempotent on re-run">
+    <rect x="20" y="100" width="120" height="80" rx="8" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="80" y="128" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'knowledge/'}</text>
+    <text x="80" y="146" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'return-policy.md'}</text>
+    <text x="80" y="164" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.55">{'gray-matter frontmatter'}</text>
+
+    <path d="M 145,140 L 195,140" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a26)" opacity="0.7" fill="none" />
+
+    <rect x="200" y="80" width="140" height="120" rx="8" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="270" y="105" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'chunkBySections'}</text>
+    <text x="270" y="124" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'split on ##'}</text>
+    <text x="270" y="140" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'then 400 tok / 60 ov'}</text>
+    <text x="270" y="170" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.6">{'[c1][c2][c3]…'}</text>
+    <text x="270" y="186" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.55">{'tiktoken'}</text>
+
+    <path d="M 345,140 L 395,140" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a26)" opacity="0.7" fill="none" />
+
+    <rect x="400" y="80" width="140" height="120" rx="8" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="470" y="105" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'embedQuery()'}</text>
+    <text x="470" y="124" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'OpenAI'}</text>
+    <text x="470" y="140" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'text-embed-3-small'}</text>
+    <text x="470" y="170" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.6">{'vector(1536)'}</text>
+    <text x="470" y="186" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.55">{'one per chunk'}</text>
+
+    <path d="M 545,140 L 595,140" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a26)" opacity="0.7" fill="none" />
+
+    <rect x="600" y="80" width="100" height="120" rx="8" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="650" y="108" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'pgvector'}</text>
+    <text x="650" y="126" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'knowledge_'}</text>
+    <text x="650" y="140" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'chunks'}</text>
+    <text x="650" y="166" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.6">{'HNSW idx'}</text>
+    <text x="650" y="180" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.6">{'cosine'}</text>
+
+    <rect x="120" y="230" width="480" height="50" rx="8" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 3" />
+    <text x="360" y="252" textAnchor="middle" fontSize="11" fontWeight="600" fill="#16a34a">{'Idempotent: DELETE WHERE source = ? before INSERT'}</text>
+    <text x="360" y="270" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'edit file → re-run → old rows replaced cleanly'}</text>
+
+    <defs>
+      <marker id="a26" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.7" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Markdown → chunks → embeddings → pgvector. Re-runnable any time.
+  </figcaption>
+</figure>
+
+## 01 — Why pgvector and not a vector DB
+
+Three reasons, in order of importance.
+
+**One source of truth.** A product's description (RAG) and its stock count (tool) live in the same database. A query like *"find me cotton tees under 500k that are in stock"* becomes a single SQL statement that joins `knowledge_chunks` against `public.products`. With a separate vector DB you'd embed the question, get a list of product IDs, then go back to Postgres for stock — two network hops, two failure modes, two latency budgets.
+
+**One ops surface.** You back up Postgres nightly. With `pgvector`, that backup also covers your RAG corpus. With a separate vector DB, you have a second backup story, a second restore drill, a second on-call runbook. For a four-week timeline, this is the single biggest time-saver.
+
+**No cold-start pricing.** Pinecone bills per-pod-hour; Qdrant cloud has minimums. `pgvector` runs on the Postgres you're already paying for. The marginal cost of one million vectors at 1536 dimensions is about 6 GB of disk — cheap on any VPS.
+
+<Callout type="tip" title="When pgvector is NOT the right call">
+Beyond ~50 million vectors, dedicated vector DBs win on indexing speed and query latency. For an e-commerce concierge with ~10k FAQ chunks and ~50k product descriptions, you are nowhere near that ceiling. Revisit when you cross 5 million.
+</Callout>
+
+## 02 — Install: Docker is the shortcut
+
+The `pgvector/pgvector:pg16` image bundles Postgres 16 with the extension pre-built. One command and the local dev DB is ready:
+
+```powershell
+docker run -d --name concierge-pg `
+  -e POSTGRES_PASSWORD=devpass123 `
+  -e POSTGRES_DB=concierge `
+  -p 5432:5432 `
+  -v concierge-pgdata:/var/lib/postgresql/data `
+  pgvector/pgvector:pg16
+```
+
+On a VPS you'd swap `-p 5432:5432` for `-p 127.0.0.1:5432:5432` so the port is only reachable on localhost, and run Postgres behind a private network. The image is the same.
+
+Native install — `apt install postgresql-16-pgvector` — also works. Use Docker for dev because the image is identical to production; use the package manager on the VPS if your ops team prefers it.
+
+## 03 — The `concierge` schema
+
+The principle: concierge tables live in their **own schema**, separate from your business tables in `public`. Same database, different namespace.
+
+```sql
+-- migrations/001_init.sql
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE SCHEMA IF NOT EXISTS concierge;
+
+-- Knowledge base (RAG corpus)
+CREATE TABLE concierge.knowledge_chunks (
+  id BIGSERIAL PRIMARY KEY,
+  source TEXT NOT NULL,            -- 'faq:shipping', 'product:123', 'policy:return'
+  locale TEXT NOT NULL,             -- 'vi' | 'en'
+  content TEXT NOT NULL,            -- the chunk itself
+  embedding vector(1536),           -- OpenAI text-embedding-3-small dimension
+  metadata JSONB DEFAULT '{}',      -- category, last_updated, expires_at, ...
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_chunks_embedding ON concierge.knowledge_chunks
+  USING hnsw (embedding vector_cosine_ops);
+CREATE INDEX idx_chunks_locale   ON concierge.knowledge_chunks(locale);
+CREATE INDEX idx_chunks_source   ON concierge.knowledge_chunks(source);
+
+-- Conversations & messages (per-user history)
+CREATE TABLE concierge.conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  locale TEXT NOT NULL DEFAULT 'vi',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE concierge.messages (
+  id BIGSERIAL PRIMARY KEY,
+  conversation_id UUID REFERENCES concierge.conversations(id) ON DELETE CASCADE,
+  role TEXT CHECK (role IN ('user','assistant','tool')),
+  content JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Audit log (every write action passes through here — see L19)
+CREATE TABLE concierge.action_log (
+  id BIGSERIAL PRIMARY KEY,
+  conversation_id UUID,
+  user_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  payload JSONB NOT NULL,
+  idempotency_key TEXT UNIQUE NOT NULL,
+  status TEXT CHECK (status IN ('pending','committed','failed','cancelled')),
+  error TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  committed_at TIMESTAMPTZ
+);
+```
+
+Three indexes on `knowledge_chunks`: HNSW on the vector for similarity search, a btree on `locale` so the multilingual filter is fast, and a btree on `source` so re-ingestion can delete-by-source in one statement.
+
+<Callout type="warning" title="HNSW vs IVFFlat — pick HNSW">
+`pgvector` ships two index types. **HNSW** is what you want for a concierge — better recall at low-K, no per-table tuning, builds incrementally as you ingest. IVFFlat is faster to build but requires you to set `lists` based on row count, and rebuild when the corpus doubles. With under a million vectors, HNSW's only downside (slower build) isn't a meaningful one.
+</Callout>
+
+## 04 — A separate DB user for the concierge app
+
+The concierge process should connect as a user with **least privilege**: full access to `concierge`, read-only on the business tables it needs, no access to anything else.
+
+```sql
+CREATE USER concierge_app WITH PASSWORD '...';
+GRANT USAGE ON SCHEMA concierge TO concierge_app;
+GRANT ALL  ON ALL TABLES    IN SCHEMA concierge TO concierge_app;
+GRANT ALL  ON ALL SEQUENCES IN SCHEMA concierge TO concierge_app;
+
+GRANT USAGE  ON SCHEMA public TO concierge_app;
+GRANT SELECT ON public.products, public.orders, public.users TO concierge_app;
+-- NO insert/update/delete on public.
+-- Write actions (create order, etc.) go through your existing backend API,
+-- not directly through the concierge DB connection.
+```
+
+This is defence-in-depth (L21). If a prompt injection ever manages to coerce the model into generating destructive SQL — and it eventually will, somewhere — the database itself refuses the operation. *"You can't drop `public.orders` from this connection"* is a stronger guarantee than *"the prompt says please don't drop tables."*
+
+## 05 — Chunking: heading-first, then by tokens
+
+A chunk is the unit of retrieval. Too small and you lose context — *"35.000đ"* alone is meaningless. Too large and you hide the answer — a 2000-word chunk where the relevant sentence is buried in the middle scores poorly against a short query. The sweet spot is **300-500 tokens per chunk, with 50-80 tokens of overlap**.
+
+The chunking strategy that works for FAQ markdown:
+
+1. Split by `##` headings first — each section is a coherent topic.
+2. If a section is under 500 tokens, that's one chunk.
+3. If a section is over 500 tokens, split into 400-token windows with 60-token overlap.
+
+```ts
+// lib/rag/chunk.ts
+import { encoding_for_model } from 'tiktoken';
+const enc = encoding_for_model('text-embedding-3-small');
+
+export function chunkText(text: string, opts = { size: 400, overlap: 60 }) {
+  const tokens = enc.encode(text);
+  if (tokens.length <= opts.size) return [text];
+  const chunks: string[] = [];
+  for (let i = 0; i < tokens.length; i += opts.size - opts.overlap) {
+    const slice = tokens.slice(i, i + opts.size);
+    chunks.push(new TextDecoder().decode(enc.decode(slice)));
+  }
+  return chunks;
+}
+
+export function chunkBySections(markdown: string) {
+  const sections = markdown.split(/^##\s+/m).filter(Boolean);
+  return sections.flatMap((s) => chunkText(s));
+}
+```
+
+`tiktoken` matters because OpenAI's embedding tokeniser doesn't match a naive `text.split(' ')` for Vietnamese. *"Chính sách"* is one word but two tokens; *"điện thoại"* is two words but might be three or four tokens. Use the model's own tokeniser to count, every time.
+
+<Callout type="tip" title="The reason for overlap">
+A 400-token window with no overlap risks splitting a key sentence across two chunks — *"Shop miễn phí ship cho đơn từ"* in chunk A, *"500.000đ trở lên"* in chunk B. Neither chunk alone answers *"đơn bao nhiêu được free ship?"*. The 60-token overlap means key sentences appear whole in *at least one* chunk.
+</Callout>
+
+## 06 — The ingestion script
+
+The contract: every markdown file in `knowledge/` becomes searchable, and re-running the script after an edit replaces the old chunks for that file (not duplicates them). Idempotency is the property that lets the team trust the script.
+
+```ts
+// scripts/ingest.ts
+import { readFileSync } from 'node:fs';
+import { glob } from 'glob';
+import matter from 'gray-matter';
+import { db } from '@/lib/db/client';
+import { chunkBySections } from '@/lib/rag/chunk';
+import { embedBatch } from '@/lib/ai/embeddings';
+
+async function ingestFile(filePath: string) {
+  const raw = readFileSync(filePath, 'utf-8');
+  const { data: meta, content } = matter(raw);
+
+  const source = meta.source as string;
+  const locale = meta.locale as 'vi' | 'en';
+
+  // Skip expired promo / time-bound content
+  if (meta.expires_at && new Date(meta.expires_at) < new Date()) {
+    console.log(`⏭  expired: ${source}`);
+    return;
+  }
+
+  // Idempotent: drop old chunks before inserting new ones
+  await db.query(
+    'DELETE FROM concierge.knowledge_chunks WHERE source = $1',
+    [source]
+  );
+
+  const chunks = chunkBySections(content);
+  if (chunks.length === 0) return;
+
+  const embeddings = await embedBatch(chunks);
+  for (let i = 0; i < chunks.length; i++) {
+    await db.query(
+      `INSERT INTO concierge.knowledge_chunks
+       (source, locale, content, embedding, metadata)
+       VALUES ($1, $2, $3, $4::vector, $5)`,
+      [source, locale, chunks[i], JSON.stringify(embeddings[i]), meta]
+    );
+  }
+  console.log(`✅ ${source} → ${chunks.length} chunks`);
+}
+
+async function main() {
+  const files = await glob('knowledge/**/*.md');
+  for (const f of files) {
+    try { await ingestFile(f); }
+    catch (e) { console.error(`❌ ${f}:`, e); }
+  }
+  process.exit(0);
+}
+main();
+```
+
+Run with `npx tsx scripts/ingest.ts`. Edit `knowledge/faq/vi/shipping.md`, run again, the old shipping chunks are dropped and the new ones replace them. No drift, no manual cleanup.
+
+<Callout type="note" title="The frontmatter contract">
+Every markdown file *must* have at least `source` and `locale` in its frontmatter. `source` is the idempotency key — it's how the script knows which old chunks to delete. Use a stable, machine-friendly slug like `faq:shipping`, not the file path.
+</Callout>
+
+## 07 — Verifying ingestion
+
+After the first run, open a SQL client and run:
+
+```sql
+SELECT source, locale, count(*)
+FROM concierge.knowledge_chunks
+GROUP BY source, locale
+ORDER BY source;
+```
+
+You should see one row per `(source, locale)` pair, with a sensible chunk count. *"`faq:shipping` / `vi` / 6"* means your 1-page shipping FAQ produced six chunks — about right for a 1500-word file with `##` sections.
+
+Spot-check by retrieving:
+
+```sql
+-- (the embedding vector for "ship bao lâu" — paste from your test script)
+SELECT source, left(content, 80) AS preview
+FROM concierge.knowledge_chunks
+WHERE locale = 'vi'
+ORDER BY embedding <=> $1::vector
+LIMIT 5;
+```
+
+The top hits should be the *"Thời gian giao hàng"* and *"Phí giao hàng"* sections of `faq:shipping`. If they aren't — if the top result is `policy:terms` or some product description — your chunks are too long, or you forgot to split by `##`. Go back and re-ingest.
+
+<Recap>
+- **`pgvector` is an extension, not a new database.** One source of truth, one backup, one ops surface — the right choice when you're already on Postgres.
+- **`concierge` schema is separate from `public`.** Same DB, different namespace. The app connects as a least-privilege user with no write access to your business tables.
+- **HNSW index on the vector column.** Better recall, no per-table tuning, builds incrementally.
+- **Chunking: heading-first, then by tokens.** Use `tiktoken` for the count — Vietnamese tokenises differently from a naive split. ~400 tokens with ~60 overlap is the sweet spot.
+- **Ingestion is idempotent via `DELETE WHERE source = ?` before insert.** Edit the markdown, re-run the script, no duplicates, no drift.
+- **Frontmatter contract: `source` + `locale` are mandatory.** `source` is the idempotency key. `expires_at` lets time-bound promos drop themselves out.
+- Verify with a `GROUP BY source, locale` count + a spot-check retrieval before declaring victory.
+</Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Vì sao `pgvector` — extension, không phải database mới — là lựa chọn đúng khi shop đã dùng Postgres.
+- Schema `concierge`: knowledge chunks, conversations, action log, và một database user riêng có quyền chỉ-đọc trên các bảng `public`.
+- Chiến lược chunking tôn trọng heading markdown, sau đó re-chunk theo số token để retrieval ổn định.
+- Ingestion script idempotent: sửa file markdown, chạy lại, chunk cũ được thay sạch, không trùng.
+</Callout>
+
+Bạn đã có database rồi. Nó chứa product, order, user. Nếu bạn dựng một vector store riêng — Pinecone, Qdrant, Weaviate — bạn vừa thêm một source-of-truth thứ hai, một pipeline backup thứ hai, một sự cố nữa để debug. Concierge không còn `JOIN products WITH knowledge_chunks` trong một câu query nữa. Bạn mất một tuần dựng job đồng bộ mà bạn không cần.
+
+Đường ngắn hơn là `pgvector`: một extension thêm kiểu cột `vector` và toán tử similarity search vào Postgres bạn đã chạy sẵn. Một database, một backup, một connection pool. Vector store *chính là* store của bạn.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 300" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Pipeline ingestion: file markdown được chia chunk, mỗi chunk embed thành vector, tất cả vào bảng pgvector — idempotent khi chạy lại">
+    <rect x="20" y="100" width="120" height="80" rx="8" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="80" y="128" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'knowledge/'}</text>
+    <text x="80" y="146" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'doi-tra.md'}</text>
+    <text x="80" y="164" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.55">{'gray-matter frontmatter'}</text>
+
+    <path d="M 145,140 L 195,140" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a26vi)" opacity="0.7" fill="none" />
+
+    <rect x="200" y="80" width="140" height="120" rx="8" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="270" y="105" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'chunkBySections'}</text>
+    <text x="270" y="124" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'tách theo ##'}</text>
+    <text x="270" y="140" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'rồi 400 tok / 60 ov'}</text>
+    <text x="270" y="170" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.6">{'[c1][c2][c3]…'}</text>
+    <text x="270" y="186" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.55">{'tiktoken'}</text>
+
+    <path d="M 345,140 L 395,140" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a26vi)" opacity="0.7" fill="none" />
+
+    <rect x="400" y="80" width="140" height="120" rx="8" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="470" y="105" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'embedQuery()'}</text>
+    <text x="470" y="124" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'OpenAI'}</text>
+    <text x="470" y="140" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'text-embed-3-small'}</text>
+    <text x="470" y="170" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.6">{'vector(1536)'}</text>
+    <text x="470" y="186" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.55">{'một vector / chunk'}</text>
+
+    <path d="M 545,140 L 595,140" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a26vi)" opacity="0.7" fill="none" />
+
+    <rect x="600" y="80" width="100" height="120" rx="8" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="650" y="108" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'pgvector'}</text>
+    <text x="650" y="126" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'knowledge_'}</text>
+    <text x="650" y="140" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'chunks'}</text>
+    <text x="650" y="166" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.6">{'HNSW idx'}</text>
+    <text x="650" y="180" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.6">{'cosine'}</text>
+
+    <rect x="120" y="230" width="480" height="50" rx="8" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 3" />
+    <text x="360" y="252" textAnchor="middle" fontSize="11" fontWeight="600" fill="#16a34a">{'Idempotent: DELETE WHERE source = ? trước khi INSERT'}</text>
+    <text x="360" y="270" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'sửa file → chạy lại → dòng cũ được thay sạch'}</text>
+
+    <defs>
+      <marker id="a26vi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.7" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Markdown → chunks → embeddings → pgvector. Chạy lại lúc nào cũng được.
+  </figcaption>
+</figure>
+
+## 01 — Vì sao pgvector chứ không phải vector DB riêng
+
+Ba lý do, theo thứ tự quan trọng.
+
+**Một source of truth.** Mô tả của sản phẩm (RAG) và số tồn kho của nó (tool) sống trong cùng database. Một câu như *"tìm cho tôi áo thun cotton dưới 500k còn hàng"* trở thành một câu SQL JOIN `knowledge_chunks` với `public.products`. Với vector DB tách rời, bạn phải embed câu hỏi, lấy danh sách product ID, rồi quay về Postgres tra stock — hai hop mạng, hai chỗ có thể fail, hai ngân sách latency.
+
+**Một bề mặt ops.** Bạn backup Postgres hàng đêm. Với `pgvector`, backup đó cũng phủ luôn corpus RAG. Với vector DB riêng, bạn có câu chuyện backup thứ hai, drill restore thứ hai, runbook oncall thứ hai. Với timeline bốn tuần, đây là cái tiết kiệm thời gian lớn nhất.
+
+**Không có giá cold-start.** Pinecone tính theo pod-hour; Qdrant cloud có mức tối thiểu. `pgvector` chạy trên Postgres bạn đang trả tiền sẵn. Chi phí biên cho một triệu vector ở 1536 chiều là khoảng 6 GB ổ đĩa — rẻ trên bất kỳ VPS nào.
+
+<Callout type="tip" title="Khi nào pgvector KHÔNG đúng">
+Vượt ~50 triệu vector, vector DB chuyên dụng thắng về tốc độ index và latency query. Concierge e-commerce với ~10k chunk FAQ và ~50k mô tả sản phẩm, bạn chẳng ở gần trần đó. Xem lại khi bạn vượt 5 triệu.
+</Callout>
+
+## 02 — Cài đặt: Docker là đường tắt
+
+Image `pgvector/pgvector:pg16` gói Postgres 16 với extension đã build sẵn. Một lệnh là DB local sẵn sàng:
+
+```powershell
+docker run -d --name concierge-pg `
+  -e POSTGRES_PASSWORD=devpass123 `
+  -e POSTGRES_DB=concierge `
+  -p 5432:5432 `
+  -v concierge-pgdata:/var/lib/postgresql/data `
+  pgvector/pgvector:pg16
+```
+
+Trên VPS, đổi `-p 5432:5432` thành `-p 127.0.0.1:5432:5432` để port chỉ reachable trên localhost, và chạy Postgres sau private network. Image vẫn giống hệt.
+
+Cài native — `apt install postgresql-16-pgvector` — cũng được. Dùng Docker cho dev vì image y hệt production; dùng package manager trên VPS nếu team ops thích hơn.
+
+## 03 — Schema `concierge`
+
+Nguyên tắc: bảng concierge sống trong **schema của riêng nó**, tách khỏi bảng business ở `public`. Cùng database, khác namespace.
+
+```sql
+-- migrations/001_init.sql
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE SCHEMA IF NOT EXISTS concierge;
+
+-- Knowledge base (corpus RAG)
+CREATE TABLE concierge.knowledge_chunks (
+  id BIGSERIAL PRIMARY KEY,
+  source TEXT NOT NULL,            -- 'faq:shipping', 'product:123', 'policy:return'
+  locale TEXT NOT NULL,             -- 'vi' | 'en'
+  content TEXT NOT NULL,            -- chính cái chunk
+  embedding vector(1536),           -- dimension của OpenAI text-embedding-3-small
+  metadata JSONB DEFAULT '{}',      -- category, last_updated, expires_at, ...
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_chunks_embedding ON concierge.knowledge_chunks
+  USING hnsw (embedding vector_cosine_ops);
+CREATE INDEX idx_chunks_locale   ON concierge.knowledge_chunks(locale);
+CREATE INDEX idx_chunks_source   ON concierge.knowledge_chunks(source);
+
+-- Conversations & messages (lịch sử theo từng user)
+CREATE TABLE concierge.conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  locale TEXT NOT NULL DEFAULT 'vi',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE concierge.messages (
+  id BIGSERIAL PRIMARY KEY,
+  conversation_id UUID REFERENCES concierge.conversations(id) ON DELETE CASCADE,
+  role TEXT CHECK (role IN ('user','assistant','tool')),
+  content JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Audit log (mọi write action đi qua đây — xem L19)
+CREATE TABLE concierge.action_log (
+  id BIGSERIAL PRIMARY KEY,
+  conversation_id UUID,
+  user_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  payload JSONB NOT NULL,
+  idempotency_key TEXT UNIQUE NOT NULL,
+  status TEXT CHECK (status IN ('pending','committed','failed','cancelled')),
+  error TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  committed_at TIMESTAMPTZ
+);
+```
+
+Ba index trên `knowledge_chunks`: HNSW trên vector cho similarity search, btree trên `locale` để filter đa ngôn ngữ chạy nhanh, và btree trên `source` để re-ingestion xoá-theo-source trong một câu.
+
+<Callout type="warning" title="HNSW vs IVFFlat — chọn HNSW">
+`pgvector` có hai loại index. **HNSW** là cái bạn muốn cho concierge — recall tốt hơn ở K thấp, không cần tune theo từng bảng, build dần khi bạn ingest. IVFFlat build nhanh hơn nhưng cần bạn set `lists` theo số row, và rebuild khi corpus tăng gấp đôi. Với dưới một triệu vector, nhược điểm duy nhất của HNSW (build chậm) không đáng kể.
+</Callout>
+
+## 04 — DB user riêng cho concierge app
+
+Process concierge nên connect dưới một user có **đặc quyền tối thiểu**: full quyền trên `concierge`, chỉ đọc trên các bảng business cần dùng, không quyền gì với phần còn lại.
+
+```sql
+CREATE USER concierge_app WITH PASSWORD '...';
+GRANT USAGE ON SCHEMA concierge TO concierge_app;
+GRANT ALL  ON ALL TABLES    IN SCHEMA concierge TO concierge_app;
+GRANT ALL  ON ALL SEQUENCES IN SCHEMA concierge TO concierge_app;
+
+GRANT USAGE  ON SCHEMA public TO concierge_app;
+GRANT SELECT ON public.products, public.orders, public.users TO concierge_app;
+-- KHÔNG insert/update/delete trên public.
+-- Write action (tạo đơn, v.v.) đi qua backend API hiện có,
+-- không qua thẳng kết nối DB của concierge.
+```
+
+Đây là defence-in-depth (L21). Nếu prompt injection có lúc nào đó ép được model sinh SQL phá hoại — và cuối cùng thì sẽ có, ở đâu đó — chính database từ chối thao tác. *"Bạn không thể drop `public.orders` từ kết nối này"* là một bảo đảm mạnh hơn *"prompt nói là làm ơn đừng drop bảng."*
+
+## 05 — Chunking: heading trước, sau đó theo token
+
+Chunk là đơn vị truy hồi. Quá nhỏ thì mất ngữ cảnh — *"35.000đ"* đứng một mình thì vô nghĩa. Quá lớn thì giấu mất câu trả lời — một chunk 2000 từ với câu liên quan vùi ở giữa sẽ điểm thấp khi so với một câu hỏi ngắn. Điểm ngọt là **300-500 token mỗi chunk, với 50-80 token overlap**.
+
+Chiến lược chunking hợp cho FAQ markdown:
+
+1. Tách theo heading `##` trước — mỗi section là một chủ đề mạch lạc.
+2. Section dưới 500 token thì để nguyên là một chunk.
+3. Section trên 500 token thì cắt thành cửa sổ 400 token với overlap 60 token.
+
+```ts
+// lib/rag/chunk.ts
+import { encoding_for_model } from 'tiktoken';
+const enc = encoding_for_model('text-embedding-3-small');
+
+export function chunkText(text: string, opts = { size: 400, overlap: 60 }) {
+  const tokens = enc.encode(text);
+  if (tokens.length <= opts.size) return [text];
+  const chunks: string[] = [];
+  for (let i = 0; i < tokens.length; i += opts.size - opts.overlap) {
+    const slice = tokens.slice(i, i + opts.size);
+    chunks.push(new TextDecoder().decode(enc.decode(slice)));
+  }
+  return chunks;
+}
+
+export function chunkBySections(markdown: string) {
+  const sections = markdown.split(/^##\s+/m).filter(Boolean);
+  return sections.flatMap((s) => chunkText(s));
+}
+```
+
+`tiktoken` quan trọng vì tokeniser của OpenAI không khớp với `text.split(' ')` ngây thơ cho tiếng Việt. *"Chính sách"* là một từ nhưng hai token; *"điện thoại"* là hai từ nhưng có thể ba hoặc bốn token. Dùng tokeniser của chính model để đếm, mọi lúc.
+
+<Callout type="tip" title="Vì sao có overlap">
+Cửa sổ 400 token không overlap có rủi ro chia một câu chốt thành hai chunk — *"Shop miễn phí ship cho đơn từ"* ở chunk A, *"500.000đ trở lên"* ở chunk B. Cả hai chunk đứng riêng đều không trả lời được *"đơn bao nhiêu được free ship?"*. Overlap 60 token nghĩa là câu chốt xuất hiện nguyên vẹn trong *ít nhất một* chunk.
+</Callout>
+
+## 06 — Ingestion script
+
+Cam kết: mọi file markdown trong `knowledge/` đều thành dữ liệu tìm kiếm được, và chạy lại script sau khi edit sẽ **thay** chunk cũ của file đó (chứ không tạo trùng). Idempotency là tính chất khiến team tin tưởng script.
+
+```ts
+// scripts/ingest.ts
+import { readFileSync } from 'node:fs';
+import { glob } from 'glob';
+import matter from 'gray-matter';
+import { db } from '@/lib/db/client';
+import { chunkBySections } from '@/lib/rag/chunk';
+import { embedBatch } from '@/lib/ai/embeddings';
+
+async function ingestFile(filePath: string) {
+  const raw = readFileSync(filePath, 'utf-8');
+  const { data: meta, content } = matter(raw);
+
+  const source = meta.source as string;
+  const locale = meta.locale as 'vi' | 'en';
+
+  // Skip nội dung đã hết hạn (promo có expires_at)
+  if (meta.expires_at && new Date(meta.expires_at) < new Date()) {
+    console.log(`⏭  expired: ${source}`);
+    return;
+  }
+
+  // Idempotent: xoá chunk cũ trước khi insert mới
+  await db.query(
+    'DELETE FROM concierge.knowledge_chunks WHERE source = $1',
+    [source]
+  );
+
+  const chunks = chunkBySections(content);
+  if (chunks.length === 0) return;
+
+  const embeddings = await embedBatch(chunks);
+  for (let i = 0; i < chunks.length; i++) {
+    await db.query(
+      `INSERT INTO concierge.knowledge_chunks
+       (source, locale, content, embedding, metadata)
+       VALUES ($1, $2, $3, $4::vector, $5)`,
+      [source, locale, chunks[i], JSON.stringify(embeddings[i]), meta]
+    );
+  }
+  console.log(`✅ ${source} → ${chunks.length} chunks`);
+}
+
+async function main() {
+  const files = await glob('knowledge/**/*.md');
+  for (const f of files) {
+    try { await ingestFile(f); }
+    catch (e) { console.error(`❌ ${f}:`, e); }
+  }
+  process.exit(0);
+}
+main();
+```
+
+Chạy bằng `npx tsx scripts/ingest.ts`. Edit `knowledge/faq/vi/shipping.md`, chạy lại, các chunk shipping cũ bị xoá và chunk mới thay vào. Không drift, không phải dọn tay.
+
+<Callout type="note" title="Hợp đồng frontmatter">
+Mỗi file markdown *bắt buộc* có ít nhất `source` và `locale` trong frontmatter. `source` là khoá idempotency — đó là cách script biết phải xoá chunk cũ nào. Dùng một slug ổn định, máy-thân-thiện như `faq:shipping`, không phải đường dẫn file.
+</Callout>
+
+## 07 — Verify ingestion
+
+Sau lần chạy đầu, mở SQL client và chạy:
+
+```sql
+SELECT source, locale, count(*)
+FROM concierge.knowledge_chunks
+GROUP BY source, locale
+ORDER BY source;
+```
+
+Bạn nên thấy mỗi cặp `(source, locale)` một dòng, với số chunk hợp lý. *"`faq:shipping` / `vi` / 6"* nghĩa là file FAQ shipping 1 trang sinh ra sáu chunk — phải vào khoảng đó cho file 1500 từ có chia `##`.
+
+Spot-check bằng retrieval:
+
+```sql
+-- (vector embedding của "ship bao lâu" — paste từ script test)
+SELECT source, left(content, 80) AS preview
+FROM concierge.knowledge_chunks
+WHERE locale = 'vi'
+ORDER BY embedding <=> $1::vector
+LIMIT 5;
+```
+
+Top hit phải là section *"Thời gian giao hàng"* và *"Phí giao hàng"* của `faq:shipping`. Nếu không phải — nếu top là `policy:terms` hay mô tả sản phẩm nào đó — chunk của bạn quá dài, hoặc bạn quên split theo `##`. Quay lại và re-ingest.
+
+<Recap>
+- **`pgvector` là extension, không phải DB mới.** Một source of truth, một backup, một bề mặt ops — lựa chọn đúng khi bạn đã ở trên Postgres.
+- **Schema `concierge` tách khỏi `public`.** Cùng DB, khác namespace. App connect dưới user least-privilege, không có quyền ghi trên bảng business.
+- **HNSW index trên cột vector.** Recall tốt hơn, không tune theo từng bảng, build dần dần.
+- **Chunking: heading trước, token sau.** Dùng `tiktoken` để đếm — tiếng Việt tokenise khác split ngây thơ. ~400 token với ~60 overlap là điểm ngọt.
+- **Ingestion idempotent qua `DELETE WHERE source = ?` trước insert.** Edit markdown, chạy lại, không trùng, không drift.
+- **Hợp đồng frontmatter: `source` + `locale` bắt buộc.** `source` là khoá idempotency. `expires_at` cho phép promo có thời hạn tự rớt ra.
+- Verify bằng count `GROUP BY source, locale` + một spot-check retrieval trước khi tuyên bố xong.
+</Recap>
+
+</VI>

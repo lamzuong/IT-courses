@@ -5,21 +5,20 @@ import { EN, VI } from '@/components/mdx/bilingual';
 <EN>
 
 <Callout type="note" title="In this recap">
-- A mind map of Part II — the five techniques for shaping a model's *output* before you ever give it a tool.
-- The pipeline you actually built: stream → system prompt → in-context examples → schema → typed JSON.
+- A mind map of Part II — the four techniques for shaping a model's *output* before you ever give it a tool.
+- The pipeline you actually built: stream → system prompt → in-context examples → a slice of real data.
 - A Recap block so the prompt-shaping playbook fits on one screen.
 </Callout>
 
-Part II is where the model goes from a black box on your laptop to something you can shape, ground, and constrain. Five lessons, each adding a knob. Streaming makes it feel alive. System prompts give it a role. Few-shot examples teach it your domain. Feeding data anchors it to your reality. And `withStructuredOutput` ends the era of regex-parsing English. By the end of Part II you can produce reliable, typed output without writing a single tool — which is exactly the floor you need before tools start running.
+Part II is where the model goes from a black box on your laptop to something you can shape, ground, and constrain. Four lessons, each adding a knob. Streaming makes it feel alive. System prompts give it a role. Few-shot examples teach it your domain. Feeding data anchors it to your reality. By the end of Part II you can hold a useful conversation with the model — the floor you need before structured output (L08) and tool calls (L09+) start running.
 
 <figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
-  <svg viewBox="0 0 720 480" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map of Part II: a central node 'First conversations' with five branches — streaming, system prompts, prompt engineering, feeding data, and structured output">
+  <svg viewBox="0 0 720 480" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map of Part II: a central node 'First conversations' with four branches — streaming, system prompts, few-shot examples, and feeding data">
     {/* connectors */}
     <path d="M 360,200 L 360,90" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
-    <path d="M 460,220 Q 510,200 540,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
-    <path d="M 460,260 Q 510,290 540,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
-    <path d="M 260,260 Q 210,290 180,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
-    <path d="M 260,220 Q 210,200 180,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,240 L 540,240" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 360,280 L 360,390" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,240 L 180,240" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
 
     {/* center */}
     <rect x="260" y="200" width="200" height="80" rx="14" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
@@ -31,28 +30,23 @@ Part II is where the model goes from a black box on your laptop to something you
     <text x="360" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Streaming  ·  L04'}</text>
     <text x="360" y="76" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'tokens flow live · SSE'}</text>
 
-    {/* north-east — system prompts */}
-    <rect x="540" y="110" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
-    <text x="620" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'System prompt  ·  L05'}</text>
-    <text x="620" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'role · tone · hard limits'}</text>
+    {/* east — system prompts */}
+    <rect x="540" y="210" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="620" y="236" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'System prompt  ·  L05'}</text>
+    <text x="620" y="256" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'role · tone · hard limits'}</text>
 
-    {/* south-east — prompt engineering */}
-    <rect x="540" y="310" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
-    <text x="620" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Few-shot  ·  L06'}</text>
-    <text x="620" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'examples > instructions'}</text>
+    {/* south — few-shot */}
+    <rect x="240" y="390" width="240" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="416" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Few-shot  ·  L06'}</text>
+    <text x="360" y="436" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'examples > instructions'}</text>
 
-    {/* south-west — feeding data */}
-    <rect x="20" y="310" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
-    <text x="100" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Feeding data  ·  L07'}</text>
-    <text x="100" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'SELECT · don\'t paste'}</text>
-
-    {/* north-west — structured output */}
-    <rect x="20" y="110" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
-    <text x="100" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Structured out  ·  L08'}</text>
-    <text x="100" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'Zod schema → typed JSON'}</text>
+    {/* west — feeding data */}
+    <rect x="20" y="210" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="100" y="236" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Feeding data  ·  L07'}</text>
+    <text x="100" y="256" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'SELECT · don\'t paste'}</text>
   </svg>
   <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
-    The five knobs you can turn before tools enter the picture. Each one narrows the model's output a little more.
+    The four knobs you can turn before tools enter the picture. Each one narrows the model's output a little more.
   </figcaption>
 </figure>
 
@@ -66,39 +60,35 @@ Part II is where the model goes from a black box on your laptop to something you
 
 **Feeding data (L07)** is where the model leaves vague-paragraph mode. You pull a *small, relevant slice* of your real DB into the prompt — never the whole table. The SELECT-don't-paste rule is what keeps token bills sane and answers grounded.
 
-**Structured output (L08)** is the lesson that makes everything downstream possible. `withStructuredOutput(zSchema)` returns a typed object, not prose. From here on, the model emits values your TypeScript can trust — which is the precondition for tools, for graphs, for anything that needs to *act* on a model's answer.
-
 <Recap>
 - **Stream by default.** The user-experience delta is enormous and the API is one method swap.
 - **System prompts are stamped on every turn.** Use them for role, tone, and *hard* limits. Don't repeat instructions that belong in tool descriptions or schemas.
 - **Show, don't tell.** Two or three concrete examples beat a paragraph of explanation. Few-shot is cheap and disproportionately effective.
 - **Pull a slice, not the table.** Feed only what's relevant to *this* turn. Schema in the system prompt, samples in user messages, never both at full size.
-- **`withStructuredOutput` ends prose-parsing.** A Zod schema produces typed JSON the rest of your code can trust. From here on, English is for users and JSON is for code.
-- **The five techniques compose.** A real call at the end of Part II uses all five at once: stream a structured-output response, anchored to a SELECTed slice, with a system prompt that defines the role, and one example for the harder fields.
+- **The four techniques compose.** A real prose call uses all four at once: stream a response anchored to a SELECTed slice, with a system prompt that defines the role, and one example for the harder fields.
 </Recap>
 
-**Up next — Part III: Tools.** The output knobs you just learned now have to stand up to actual side effects. Six lessons on writing tools the model can call: how to expose them, how to scale them, how to guard the dangerous ones.
+**Up next — Part III: Tools.** Prose is fine for talking; tools are how the model *does* things. Part III opens with structured output (L08) — the typed-JSON precondition that everything tool-shaped depends on — then walks through reads, writes, idempotency, and recovery.
 
 </EN>
 
 <VI>
 
 <Callout type="note" title="Trong bài tổng kết này">
-- Mind map của Phần II — năm kỹ thuật để định hình *output* của model trước khi bạn đưa cho nó bất kỳ tool nào.
-- Pipeline bạn vừa dựng: stream → system prompt → few-shot trong ngữ cảnh → schema → JSON có kiểu.
+- Mind map của Phần II — bốn kỹ thuật để định hình *output* của model trước khi bạn đưa cho nó bất kỳ tool nào.
+- Pipeline bạn vừa dựng: stream → system prompt → few-shot trong ngữ cảnh → lát cắt dữ liệu thật.
 - Một block Recap để cả "playbook định hình prompt" gói gọn trong một màn hình.
 </Callout>
 
-Phần II là chỗ model chuyển từ "hộp đen trên laptop" thành thứ mà bạn có thể định hình, neo vào dữ liệu thật, và ràng buộc. Năm bài, mỗi bài thêm một "núm vặn". Streaming khiến nó thấy sống động. System prompt cho nó một vai trò. Few-shot dạy nó domain của bạn. Cho ăn dữ liệu kéo nó về với thực tế. Và `withStructuredOutput` chấm dứt thời kỳ phải dùng regex để parse tiếng Anh. Đến cuối Phần II bạn đã có thể tạo ra output đáng tin cậy, có kiểu, mà chưa cần viết một tool nào — đúng cái nền tối thiểu cần có trước khi các tool bắt đầu chạy.
+Phần II là chỗ model chuyển từ "hộp đen trên laptop" thành thứ mà bạn có thể định hình, neo vào dữ liệu thật, và ràng buộc. Bốn bài, mỗi bài thêm một "núm vặn". Streaming khiến nó thấy sống động. System prompt cho nó một vai trò. Few-shot dạy nó domain của bạn. Cho ăn dữ liệu kéo nó về với thực tế. Đến cuối Phần II bạn đã có thể giữ một cuộc hội thoại hữu ích với model — cái nền tối thiểu cần có trước khi structured output (L08) và tool call (L09+) bắt đầu chạy.
 
 <figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
-  <svg viewBox="0 0 720 480" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map của Phần II: nút trung tâm 'Cuộc hội thoại đầu tiên' với năm nhánh — streaming, system prompts, prompt engineering, feeding data, và structured output">
+  <svg viewBox="0 0 720 480" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map của Phần II: nút trung tâm 'Cuộc hội thoại đầu tiên' với bốn nhánh — streaming, system prompts, few-shot, feeding data">
     {/* connectors */}
     <path d="M 360,200 L 360,90" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
-    <path d="M 460,220 Q 510,200 540,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
-    <path d="M 460,260 Q 510,290 540,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
-    <path d="M 260,260 Q 210,290 180,320" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
-    <path d="M 260,220 Q 210,200 180,170" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 460,240 L 540,240" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 360,280 L 360,390" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 260,240 L 180,240" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
 
     {/* center */}
     <rect x="260" y="200" width="200" height="80" rx="14" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
@@ -110,28 +100,23 @@ Phần II là chỗ model chuyển từ "hộp đen trên laptop" thành thứ m
     <text x="360" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Streaming  ·  L04'}</text>
     <text x="360" y="76" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'tokens chảy ra live · SSE'}</text>
 
-    {/* north-east — system prompts */}
-    <rect x="540" y="110" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
-    <text x="620" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'System prompt  ·  L05'}</text>
-    <text x="620" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'vai trò · giọng điệu · giới hạn cứng'}</text>
+    {/* east — system prompts */}
+    <rect x="540" y="210" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="620" y="236" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'System prompt  ·  L05'}</text>
+    <text x="620" y="256" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'vai trò · giọng điệu · giới hạn cứng'}</text>
 
-    {/* south-east — prompt engineering */}
-    <rect x="540" y="310" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
-    <text x="620" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Few-shot  ·  L06'}</text>
-    <text x="620" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'ví dụ > giải thích'}</text>
+    {/* south — few-shot */}
+    <rect x="240" y="390" width="240" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="416" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Few-shot  ·  L06'}</text>
+    <text x="360" y="436" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'ví dụ > giải thích'}</text>
 
-    {/* south-west — feeding data */}
-    <rect x="20" y="310" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
-    <text x="100" y="336" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Cho ăn dữ liệu  ·  L07'}</text>
-    <text x="100" y="356" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'SELECT · đừng paste'}</text>
-
-    {/* north-west — structured output */}
-    <rect x="20" y="110" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
-    <text x="100" y="136" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Structured out  ·  L08'}</text>
-    <text x="100" y="156" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'Zod schema → JSON có kiểu'}</text>
+    {/* west — feeding data */}
+    <rect x="20" y="210" width="160" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="100" y="236" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Cho ăn dữ liệu  ·  L07'}</text>
+    <text x="100" y="256" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'SELECT · đừng paste'}</text>
   </svg>
   <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
-    Năm "núm vặn" bạn có thể chỉnh trước khi tool xuất hiện. Mỗi núm thu hẹp output của model thêm một chút.
+    Bốn "núm vặn" bạn có thể chỉnh trước khi tool xuất hiện. Mỗi núm thu hẹp output của model thêm một chút.
   </figcaption>
 </figure>
 
@@ -145,17 +130,14 @@ Phần II là chỗ model chuyển từ "hộp đen trên laptop" thành thứ m
 
 **Cho ăn dữ liệu (L07)** là chỗ model thoát khỏi chế độ "nói chung chung". Bạn kéo một *lát cắt nhỏ, đúng chủ đề* từ DB thật vào prompt — không bao giờ là cả bảng. Quy tắc *SELECT chứ đừng paste* là thứ giữ cho hoá đơn token tỉnh táo và câu trả lời được neo vào thực tế.
 
-**Structured output (L08)** là bài mở đường cho mọi thứ phía sau. `withStructuredOutput(zSchema)` trả về một object có kiểu, không phải văn xuôi. Từ đây trở đi, model phát ra giá trị mà TypeScript của bạn có thể tin được — đó là điều kiện tiên quyết cho tools, cho graphs, cho bất cứ thứ gì cần *hành động* dựa trên câu trả lời của model.
-
 <Recap>
 - **Mặc định nên stream.** Khoảng cách trải nghiệm là khổng lồ, mà API chỉ đổi một method.
 - **System prompt được đóng dấu lên mọi lượt.** Dùng nó cho vai trò, giọng điệu, và các giới hạn *cứng*. Đừng lặp lại những thứ thuộc về tool description hay schema.
 - **Cho xem, đừng giảng.** Hai-ba ví dụ cụ thể đánh bại cả đoạn văn giải thích. Few-shot rẻ và hiệu quả không cân xứng.
 - **Kéo lát cắt, không kéo cả bảng.** Chỉ nạp những gì liên quan đến *lượt này*. Schema trong system prompt, sample trong user message, đừng để cả hai cùng lớn.
-- **`withStructuredOutput` chấm dứt việc parse văn xuôi.** Một Zod schema sinh ra JSON có kiểu mà phần còn lại của code có thể tin được. Từ đây trở đi: tiếng Anh dành cho người dùng, JSON dành cho code.
-- **Năm kỹ thuật ghép được vào nhau.** Một call thực tế ở cuối Phần II dùng cả năm cùng lúc: stream một response structured-output, được neo vào lát cắt SELECT, với system prompt định nghĩa vai trò, và một ví dụ cho các trường khó.
+- **Bốn kỹ thuật ghép được vào nhau.** Một call văn xuôi thực tế dùng cả bốn cùng lúc: stream response neo vào lát cắt SELECT, với system prompt định nghĩa vai trò, và một ví dụ cho các trường khó.
 </Recap>
 
-**Sắp tới — Phần III: Tools.** Các "núm vặn" output bạn vừa học giờ phải chịu được tác dụng phụ thực sự. Sáu bài về cách viết tool cho model gọi: cách phơi bày, cách scale, cách bảo vệ những cái nguy hiểm.
+**Sắp tới — Phần III: Tools.** Văn xuôi đủ cho nói chuyện; tool là cách model *làm* việc. Phần III mở đầu bằng structured output (L08) — điều kiện tiên quyết JSON-có-kiểu mà mọi thứ hình-dạng-tool phụ thuộc vào — rồi đi qua đọc, ghi, idempotency, và recovery.
 
 </VI>

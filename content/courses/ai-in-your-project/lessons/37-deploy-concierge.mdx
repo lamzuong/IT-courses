@@ -1,0 +1,629 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- The dev-to-prod swap: `ChatOllama` → hosted provider, and the Postgres checkpointer that keeps `interrupt()` alive across restarts.
+- The VPS layout: Postgres + Redis + Next.js + a private network — what runs where, on which port.
+- Secrets handling: a single `.env` file is fine, the trick is who can read it.
+- Backups: pgvector data is just Postgres data; one `pg_dump` cron is enough.
+- The soft-launch ramp: 5% → 25% → 100% over a week, with the kill switch you already built in L23.
+- The first-week monitoring loop: three dashboards you actually check, not twelve you ignore.
+</Callout>
+
+The concierge runs on your laptop. The work of the last six lessons becomes useful at the moment a real user types into a real browser and the answer comes back from a real VPS. This lesson is the bridge. Nothing here is novel — VPS deploys are forty-year-old territory — but the *combination* of Postgres-with-pgvector, AI Gateway, and an LLM concierge has a few small traps worth naming.
+
+This lesson assumes you have one VPS (any provider — Hetzner, DigitalOcean, AWS Lightsail, a box at your office). Multi-region is a different lesson and you don't need it in week four.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 460" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="VPS deployment: only Caddy on the public internet; Next.js, Postgres pgvector, and Redis bind to 127.0.0.1 on the private docker network; outbound to AI Gateway, backend auth, and S3 backup">
+    <text x="360" y="20" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a" opacity="0.7">{'Internet'}</text>
+    <line x1="360" y1="30" x2="360" y2="60" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a31)" />
+    <text x="380" y="50" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.6">{':443 TLS'}</text>
+
+    <rect x="40" y="60" width="640" height="380" rx="12" fill="none" stroke="#16a34a" strokeWidth="2" strokeDasharray="6 4" />
+    <text x="60" y="84" fontSize="12" fontWeight="700" fill="#16a34a">{'VPS — 4 vCPU · 8 GB RAM'}</text>
+
+    <rect x="220" y="100" width="280" height="60" rx="10" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="124" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Caddy / Nginx'}</text>
+    <text x="360" y="144" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'auto-TLS (Let\'s Encrypt) · :443 → :3000'}</text>
+
+    <path d="M 360,160 L 360,195" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a31)" fill="none" />
+
+    <text x="360" y="212" textAnchor="middle" fontSize="10" fill="#16a34a" opacity="0.65">{'private network — 127.0.0.1 only'}</text>
+
+    <rect x="80" y="220" width="180" height="100" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="170" y="246" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Next.js'}</text>
+    <text x="170" y="266" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'127.0.0.1:3000'}</text>
+    <text x="170" y="288" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'concierge app'}</text>
+    <text x="170" y="304" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'streamText · tools'}</text>
+
+    <rect x="270" y="220" width="180" height="100" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="246" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Postgres'}</text>
+    <text x="360" y="266" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'127.0.0.1:5432'}</text>
+    <text x="360" y="288" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'pg16 + pgvector'}</text>
+    <text x="360" y="304" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'shop + concierge schema'}</text>
+
+    <rect x="460" y="220" width="180" height="100" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="550" y="246" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Redis'}</text>
+    <text x="550" y="266" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'127.0.0.1:6379'}</text>
+    <text x="550" y="288" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'session cache'}</text>
+    <text x="550" y="304" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'rate limit · daily cap'}</text>
+
+    <line x1="170" y1="320" x2="170" y2="360" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a31)" />
+    <rect x="80" y="360" width="180" height="50" rx="10" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="3 3" />
+    <text x="170" y="380" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'→ AI Gateway'}</text>
+    <text x="170" y="396" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'outbound HTTPS only'}</text>
+
+    <line x1="360" y1="320" x2="360" y2="360" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a31)" />
+    <rect x="270" y="360" width="180" height="50" rx="10" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="3 3" />
+    <text x="360" y="380" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'pg_dump cron → S3'}</text>
+    <text x="360" y="396" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'nightly · off-host'}</text>
+
+    <line x1="550" y1="320" x2="550" y2="360" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a31)" />
+    <rect x="460" y="360" width="180" height="50" rx="10" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="3 3" />
+    <text x="550" y="380" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'→ /auth/me (backend)'}</text>
+    <text x="550" y="396" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'session check'}</text>
+
+    <defs>
+      <marker id="a31" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.55" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Only Caddy is publicly reachable. Everything else binds to 127.0.0.1.
+  </figcaption>
+</figure>
+
+## 01 — From Ollama dev to hosted prod
+
+Two things change before the concierge can run on a server instead of your laptop. Both are one-line edits; both bite if you forget them.
+
+**Provider swap.** Ollama is the right call for development — free, local, no rate-limit surprises while you iterate. It is the wrong call for production: it won't fit in a small Next.js container, and the open-weights models lag the hosted frontier on Vietnamese instruction-following. Swap the import:
+
+```ts
+// Before — dev on your laptop
+import { ChatOllama } from '@langchain/ollama';
+const llm = new ChatOllama({ model: 'llama3.1:8b', temperature: 0 });
+
+// After — production via AI Gateway (L36)
+import { gateway } from '@ai-sdk/gateway';
+const llm = gateway('anthropic/claude-sonnet-4-6');     // routed, fallback, observability
+```
+
+The graph code, tools, and tests don't change — that's the payoff for sticking to the LangChain (or AI SDK) abstraction the whole way through. If you're not on the gateway yet, `ChatAnthropic` / `ChatOpenAI` is the same one-line swap.
+
+**Postgres-backed checkpointer.** Your operator's `MemorySaver` (L20) lives in process memory. A Next.js container restart, a deploy, a Vercel Function cold start — any of those drops every in-flight `interrupt()`. Customers click *Approve* and nothing happens. Move the checkpointer to Postgres before the first deploy:
+
+```ts
+import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
+
+const checkpointer = PostgresSaver.fromConnString(process.env.DATABASE_URL!);
+await checkpointer.setup();                              // idempotent — creates checkpoint tables
+
+const graph = builder.compile({ checkpointer });         // interrupts now survive restarts
+```
+
+The audit log from L13 lives in the same Postgres. One database; one connection pool; one backup story (which you set up in §04 below). For the concierge specifically, conversations and Redis-cached sessions (L34) already lean on Postgres + Redis — adding the checkpointer to the same Postgres costs you nothing extra in ops.
+
+The third thing that *used to* live in this lesson — rate limits and the daily budget cap — already shipped in L36 (gateway daily cap + per-user Redis sliding window). Don't duplicate it; trust the gateway lesson and move on.
+
+## 02 — What runs on the box
+
+Three containers, one host:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  VPS — 4 vCPU, 8 GB RAM is enough for week one      │
+│                                                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐  │
+│  │  Next.js     │  │  Postgres    │  │  Redis    │  │
+│  │  :3000       │  │  + pgvector  │  │  :6379    │  │
+│  │              │  │  :5432       │  │           │  │
+│  └──────────────┘  └──────────────┘  └───────────┘  │
+│         │                  │                │       │
+│         └─────── private network ───────────┘       │
+│                                                     │
+│  ┌──────────────────────────────────────────────┐   │
+│  │  Caddy / Nginx — :443 (TLS) → Next.js :3000  │   │
+│  └──────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────┘
+```
+
+Only Caddy (or Nginx) is reachable from the internet. Postgres and Redis bind to `127.0.0.1` and the Docker private network — never publicly. Next.js binds to `127.0.0.1:3000`, proxied by Caddy with automatic TLS via Let's Encrypt.
+
+```yaml
+# docker-compose.yml
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_password
+      POSTGRES_DB: shop
+    ports: ['127.0.0.1:5432:5432']
+    volumes: [pgdata:/var/lib/postgresql/data]
+    secrets: [pg_password]
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--requirepass-file', '/run/secrets/redis_password']
+    ports: ['127.0.0.1:6379:6379']
+    volumes: [redisdata:/data]
+    secrets: [redis_password]
+    restart: always
+
+  app:
+    build: .
+    env_file: .env.production
+    ports: ['127.0.0.1:3000:3000']
+    depends_on: [postgres, redis]
+    restart: always
+
+secrets:
+  pg_password:   { file: ./secrets/pg_password }
+  redis_password: { file: ./secrets/redis_password }
+
+volumes:
+  pgdata:
+  redisdata:
+```
+
+<Callout type="tip" title="Why bind to 127.0.0.1, not 0.0.0.0">
+Default Docker bindings expose the port on every interface. A misconfigured firewall is one mistake away from a public Postgres. Binding to `127.0.0.1` removes that mistake from the possibility space — Postgres is reachable from the host, from the Docker bridge, and from nowhere else. Belt and suspenders.
+</Callout>
+
+## 03 — Secrets without a vault (for now)
+
+You don't need HashiCorp Vault in week four. You do need three rules.
+
+**Rule one: secrets are files, not env vars in your shell.** A `.env.production` file with strict permissions (`chmod 600`, owned by the deploy user) is fine; an env var exported in your bash history is not.
+
+```bash
+# On the VPS, as the deploy user:
+sudo install -d -m 700 -o deploy /home/deploy/secrets
+sudo install -m 600 -o deploy redis_password /home/deploy/secrets/
+sudo install -m 600 -o deploy pg_password    /home/deploy/secrets/
+```
+
+**Rule two: secrets don't go in git.** `.env.production` is in `.gitignore`. The committed file is `.env.example` with placeholder values. Onboarding a new dev means copying `.env.example` to `.env.production` and filling in the blanks from a password manager, not pulling secrets from the repo history.
+
+**Rule three: the AI Gateway key is rotated quarterly.** Set a calendar reminder. The first rotation is annoying; the practice is what stops a leaked key from costing you a year of bills.
+
+## 04 — Backups
+
+`pgvector` data is just rows in a Postgres table. Standard `pg_dump` works. The wrinkle: vector columns are large, so dumps are bigger than a non-RAG Postgres. Plan for ~6 GB per million chunks at 1536 dimensions.
+
+```bash
+#!/usr/bin/env bash
+# /home/deploy/backup.sh
+set -euo pipefail
+TS=$(date -u +%Y%m%d-%H%M%S)
+docker exec postgres pg_dump -U postgres -d shop -F c -Z 6 \
+  > /home/deploy/backups/shop-${TS}.dump
+# Upload to off-host storage
+aws s3 cp /home/deploy/backups/shop-${TS}.dump \
+  s3://shop-backups/postgres/ --storage-class STANDARD_IA
+# Local retention: 7 daily
+find /home/deploy/backups -name 'shop-*.dump' -mtime +7 -delete
+```
+
+Cron at 03:00 UTC daily. Then — and this is the part teams forget — **do a restore drill once.** Spin up a second box, restore the dump, point a staging copy of the app at it, click around. The restore is the part that fails when you need it most; verifying it once means you know it works.
+
+<Callout type="warning" title="Off-host storage is non-negotiable">
+A backup on the same disk as the database is not a backup. Hardware fails, ransomware encrypts the whole VPS, an `rm` typo nukes the wrong directory. S3, B2, or any external object store with a different credential set is the minimum. Encrypted at rest, lifecycle to cold storage after 30 days.
+</Callout>
+
+## 05 — The soft-launch ramp
+
+A concierge that works on twelve test queries will surprise you on the thirteenth real one. Don't ship to 100% of users on day one. The pragmatic ramp:
+
+| Day | Audience                              | Goal                                        |
+| --- | ------------------------------------- | ------------------------------------------- |
+| 1-2 | Internal team only (5-10 people)      | Catch obvious bugs, drift in tone           |
+| 3-4 | 5% of logged-in users (sampled by ID) | Real users, low blast radius                |
+| 5   | 25% of users                          | Volume sanity — does the cap hold?          |
+| 6-7 | 100% of users                         | Full launch, monitoring on hair-trigger     |
+
+The gating is a single `localStorage` flag on the frontend, set by a server-side bucket function:
+
+```ts
+// app/api/feature-flag/route.ts
+export async function GET(req: Request) {
+  const user = await getCurrentUser();
+  const pct = parseInt(process.env.CONCIERGE_ROLLOUT_PCT ?? '0');
+  const bucket = user ? hashToBucket(user.id) : 100; // guests last
+  return Response.json({ concierge: bucket < pct });
+}
+```
+
+`CONCIERGE_ROLLOUT_PCT` is the only knob. Set it to 5 on day 3, 25 on day 5, 100 on day 6. To roll back, set it to 0 — the concierge disappears for everyone within a page refresh.
+
+<Callout type="tip" title="The kill switch is two layers">
+You already have a budget kill switch (lesson 30). The rollout knob is the *product* kill switch — *"the bot is misbehaving, take it off the homepage."* Both exist for different reasons. The budget kill switch prevents a cost incident; the rollout kill switch prevents a user-experience incident. Test both before launch.
+</Callout>
+
+## 06 — The first-week monitoring loop
+
+Three dashboards. Check each at 09:00 and 18:00 the first week, then daily, then weekly.
+
+**Dashboard 1 — Spend.** Today's USD by provider, broken down by `functionId` (chat, classify, embed). The chart that matters: a line graph of cumulative spend vs. the daily cap. If it's hugging the ceiling by 16:00, your cap is too low or your loop has a bug. The gateway dashboard gives you this for free; mirror the same numbers into a SQL view so you have them in Postgres for joins.
+
+**Dashboard 2 — Error rate.** HTTP 5xx from `/api/chat`, gateway fallback events, tool execution failures. Three SQL queries against your logs table:
+
+```sql
+-- last hour error rate
+SELECT count(*) FILTER (WHERE status >= 500) * 100.0 / count(*) AS pct
+FROM logs WHERE path = '/api/chat' AND ts > now() - interval '1 hour';
+```
+
+Anything > 1% deserves a look. > 3% pages someone.
+
+**Dashboard 3 — User experience.** Average reply latency, conversation turn count, tool-call success rate, "I don't know" rate. The last one is the one users *feel* — if 20% of replies are *"em chưa rõ ạ"*, your RAG corpus has holes. Find the queries that hit that path, add the missing FAQ content, re-ingest.
+
+```sql
+-- "don't know" rate this week
+SELECT date_trunc('day', ts) AS day,
+       count(*) FILTER (WHERE content::text ILIKE '%em chưa rõ%') * 100.0 / count(*) AS dontknow_pct
+FROM concierge.messages
+WHERE role = 'assistant' AND ts > now() - interval '7 days'
+GROUP BY 1 ORDER BY 1;
+```
+
+The discipline that matters: review the *contents* of "don't know" replies once a week. Each one is a gap in your knowledge base — either ingest the answer, or escalate to a human handoff.
+
+## 07 — The on-call story
+
+If the concierge is on the homepage, it's now part of your site's reliability story. Two things have to exist before you ship to 100%.
+
+**Health endpoint.** `/api/health` returns 200 only if Postgres, Redis, and the gateway are all reachable. Uptime monitoring (UptimeRobot, BetterUptime, etc.) hits it every minute and pages on 3 consecutive failures.
+
+```ts
+export async function GET() {
+  const checks = await Promise.allSettled([
+    db.query('SELECT 1'),
+    redis.ping(),
+    fetch(`${process.env.BACKEND_API_URL}/healthz`),
+  ]);
+  const ok = checks.every(c => c.status === 'fulfilled');
+  return Response.json({ ok, checks }, { status: ok ? 200 : 503 });
+}
+```
+
+**Runbook.** A markdown file (`docs/runbook.md`) with three sections: *"the concierge is down"*, *"the bill is high"*, *"users are getting wrong answers"*. Each section names the dashboard to check first, the command to roll back (`CONCIERGE_ROLLOUT_PCT=0`), and the rollback time target (5 minutes for outage, an hour for cost, a day for quality).
+
+The runbook is not a document for someone else; it's a document for *you* at 2 a.m. when the concierge starts answering in English to Vietnamese customers and you've forgotten everything you knew about this stack two weeks ago. Write it now.
+
+<Callout type="note" title="What you don't need yet">
+You don't need Kubernetes. You don't need a service mesh. You don't need separate API and worker tiers. You don't need a multi-region database. Concierge traffic for a single-shop launch fits on one box for the first six months, and the operational simplicity is what lets a small team keep up.
+</Callout>
+
+<Recap>
+- **Provider swap is one import.** `ChatOllama` → hosted provider (or AI Gateway, L36); graph code, tools, tests don't change.
+- **Move the checkpointer to Postgres before deploy.** `MemorySaver` doesn't survive restarts; `interrupt()` silently drops without a durable checkpointer.
+- **One VPS, three containers** (Next.js, Postgres+pgvector, Redis), one TLS terminator (Caddy). Postgres and Redis bind to `127.0.0.1` — never public.
+- **Secrets are mode-600 files** owned by the deploy user, never in git. `.env.example` is the committed version; AI Gateway key rotates quarterly.
+- **`pg_dump` daily to off-host storage,** and run a restore drill *once* before you trust the backup.
+- **Soft-launch ramp: internal → 5% → 25% → 100%** over a week, gated by one env var. Rollback is `=0`.
+- **Three dashboards, twice a day:** spend, error rate, *"I don't know"* rate. The last one is your RAG-gap signal.
+- **Health endpoint + runbook before 100% launch.** The runbook is for you at 2 a.m., not for someone else's onboarding.
+- **You don't need K8s or multi-region** for the first six months. Operational simplicity is the launch advantage.
+</Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Cú swap dev-sang-prod: `ChatOllama` → provider hosted, và Postgres checkpointer giữ `interrupt()` sống qua restart.
+- Layout VPS: Postgres + Redis + Next.js + private network — cái gì chạy ở đâu, port nào.
+- Xử lý secret: một file `.env` là đủ, mẹo là ai đọc được nó.
+- Backup: data pgvector chỉ là data Postgres; một cron `pg_dump` là đủ.
+- Ramp soft-launch: 5% → 25% → 100% trong tuần, với kill switch bạn đã dựng ở L23.
+- Vòng monitoring tuần đầu: ba dashboard bạn thực sự check, không phải mười hai cái bạn bỏ qua.
+</Callout>
+
+Concierge chạy trên laptop bạn. Việc của sáu bài trước thành hữu ích vào khoảnh khắc một user thật gõ trên một trình duyệt thật và câu trả lời quay về từ một VPS thật. Bài này là cây cầu. Không có gì mới ở đây — VPS deploy là lãnh thổ bốn-mươi-năm-tuổi — nhưng *kết hợp* của Postgres-with-pgvector, AI Gateway, và một concierge LLM có vài cái bẫy nhỏ đáng kể tên.
+
+Bài này giả định bạn có một VPS (provider nào cũng được — Hetzner, DigitalOcean, AWS Lightsail, một box ở văn phòng). Multi-region là bài khác và bạn không cần nó trong tuần bốn.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 460" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Deploy VPS: chỉ Caddy lộ ra internet; Next.js, Postgres pgvector, Redis bind vào 127.0.0.1 trên private network; outbound đi AI Gateway, backend auth, và S3 backup">
+    <text x="360" y="20" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a" opacity="0.7">{'Internet'}</text>
+    <line x1="360" y1="30" x2="360" y2="60" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a31vi)" />
+    <text x="380" y="50" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.6">{':443 TLS'}</text>
+
+    <rect x="40" y="60" width="640" height="380" rx="12" fill="none" stroke="#16a34a" strokeWidth="2" strokeDasharray="6 4" />
+    <text x="60" y="84" fontSize="12" fontWeight="700" fill="#16a34a">{'VPS — 4 vCPU · 8 GB RAM'}</text>
+
+    <rect x="220" y="100" width="280" height="60" rx="10" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="124" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Caddy / Nginx'}</text>
+    <text x="360" y="144" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'TLS tự động (Let\'s Encrypt) · :443 → :3000'}</text>
+
+    <path d="M 360,160 L 360,195" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a31vi)" fill="none" />
+
+    <text x="360" y="212" textAnchor="middle" fontSize="10" fill="#16a34a" opacity="0.65">{'private network — chỉ 127.0.0.1'}</text>
+
+    <rect x="80" y="220" width="180" height="100" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="170" y="246" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Next.js'}</text>
+    <text x="170" y="266" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'127.0.0.1:3000'}</text>
+    <text x="170" y="288" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'app concierge'}</text>
+    <text x="170" y="304" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'streamText · tools'}</text>
+
+    <rect x="270" y="220" width="180" height="100" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="246" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Postgres'}</text>
+    <text x="360" y="266" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'127.0.0.1:5432'}</text>
+    <text x="360" y="288" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'pg16 + pgvector'}</text>
+    <text x="360" y="304" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'shop + concierge schema'}</text>
+
+    <rect x="460" y="220" width="180" height="100" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="550" y="246" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Redis'}</text>
+    <text x="550" y="266" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'127.0.0.1:6379'}</text>
+    <text x="550" y="288" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'cache session'}</text>
+    <text x="550" y="304" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'rate limit · cap/ngày'}</text>
+
+    <line x1="170" y1="320" x2="170" y2="360" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a31vi)" />
+    <rect x="80" y="360" width="180" height="50" rx="10" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="3 3" />
+    <text x="170" y="380" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'→ AI Gateway'}</text>
+    <text x="170" y="396" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'chỉ outbound HTTPS'}</text>
+
+    <line x1="360" y1="320" x2="360" y2="360" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a31vi)" />
+    <rect x="270" y="360" width="180" height="50" rx="10" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="3 3" />
+    <text x="360" y="380" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'pg_dump cron → S3'}</text>
+    <text x="360" y="396" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'mỗi đêm · ngoài host'}</text>
+
+    <line x1="550" y1="320" x2="550" y2="360" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a31vi)" />
+    <rect x="460" y="360" width="180" height="50" rx="10" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="3 3" />
+    <text x="550" y="380" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'→ /auth/me (backend)'}</text>
+    <text x="550" y="396" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'check session'}</text>
+
+    <defs>
+      <marker id="a31vi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.55" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Chỉ Caddy lộ ra internet. Tất cả còn lại bind vào 127.0.0.1.
+  </figcaption>
+</figure>
+
+## 01 — Từ Ollama dev sang hosted prod
+
+Hai thứ đổi trước khi concierge chạy được trên server thay vì laptop bạn. Cả hai chỉ là sửa một dòng; cả hai cắn nếu quên.
+
+**Đổi provider.** Ollama là lựa chọn đúng cho development — miễn phí, local, không bất ngờ rate limit khi đang iterate. Nó là lựa chọn sai cho production: không vừa container Next.js nhỏ, và model open-weights đi sau frontier hosted về khả năng tuân lệnh tiếng Việt. Đổi import:
+
+```ts
+// Trước — dev trên laptop
+import { ChatOllama } from '@langchain/ollama';
+const llm = new ChatOllama({ model: 'llama3.1:8b', temperature: 0 });
+
+// Sau — production qua AI Gateway (L36)
+import { gateway } from '@ai-sdk/gateway';
+const llm = gateway('anthropic/claude-sonnet-4-6');     // route, fallback, observability
+```
+
+Graph code, tool, test không đổi — đó là phần thưởng cho việc bám abstraction của LangChain (hoặc AI SDK) suốt cả đoạn đường. Nếu bạn chưa lên gateway, `ChatAnthropic` / `ChatOpenAI` là cùng cú swap một dòng.
+
+**Postgres-backed checkpointer.** `MemorySaver` (L20) của operator sống trong memory process. Container Next.js restart, deploy mới, Vercel Function cold start — bất kỳ cái nào làm rớt mọi `interrupt()` đang chờ. Khách bấm *Duyệt* mà không có gì xảy ra. Chuyển checkpointer sang Postgres trước lần deploy đầu:
+
+```ts
+import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
+
+const checkpointer = PostgresSaver.fromConnString(process.env.DATABASE_URL!);
+await checkpointer.setup();                              // idempotent — tạo bảng checkpoint
+
+const graph = builder.compile({ checkpointer });         // interrupt giờ sống qua restart
+```
+
+Audit log từ L13 sống trong cùng Postgres đó. Một database; một connection pool; một câu chuyện backup (mà bạn set up ở §04 dưới). Riêng cho concierge, conversation và session Redis cache (L34) đã tựa vào Postgres + Redis — thêm checkpointer vào cùng Postgres không tốn thêm gì về ops.
+
+Thứ thứ ba mà *từng* sống trong bài này — rate limit và cap ngân sách ngày — đã ship ở L36 rồi (cap ngày gateway + sliding window Redis per-user). Đừng duplicate; tin bài gateway và đi tiếp.
+
+## 02 — Cái gì chạy trên box
+
+Ba container, một host:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  VPS — 4 vCPU, 8 GB RAM là đủ cho tuần một          │
+│                                                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐  │
+│  │  Next.js     │  │  Postgres    │  │  Redis    │  │
+│  │  :3000       │  │  + pgvector  │  │  :6379    │  │
+│  │              │  │  :5432       │  │           │  │
+│  └──────────────┘  └──────────────┘  └───────────┘  │
+│         │                  │                │       │
+│         └─────── private network ───────────┘       │
+│                                                     │
+│  ┌──────────────────────────────────────────────┐   │
+│  │  Caddy / Nginx — :443 (TLS) → Next.js :3000  │   │
+│  └──────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────┘
+```
+
+Chỉ Caddy (hoặc Nginx) reach được từ internet. Postgres và Redis bind vào `127.0.0.1` và mạng private của Docker — không bao giờ public. Next.js bind vào `127.0.0.1:3000`, được Caddy proxy với TLS tự động qua Let's Encrypt.
+
+```yaml
+# docker-compose.yml
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_password
+      POSTGRES_DB: shop
+    ports: ['127.0.0.1:5432:5432']
+    volumes: [pgdata:/var/lib/postgresql/data]
+    secrets: [pg_password]
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--requirepass-file', '/run/secrets/redis_password']
+    ports: ['127.0.0.1:6379:6379']
+    volumes: [redisdata:/data]
+    secrets: [redis_password]
+    restart: always
+
+  app:
+    build: .
+    env_file: .env.production
+    ports: ['127.0.0.1:3000:3000']
+    depends_on: [postgres, redis]
+    restart: always
+
+secrets:
+  pg_password:   { file: ./secrets/pg_password }
+  redis_password: { file: ./secrets/redis_password }
+
+volumes:
+  pgdata:
+  redisdata:
+```
+
+<Callout type="tip" title="Vì sao bind 127.0.0.1, không phải 0.0.0.0">
+Binding Docker mặc định expose port trên mọi interface. Một firewall sai cấu hình cách một sai lầm với một Postgres public. Bind vào `127.0.0.1` loại bỏ sai lầm đó khỏi không gian khả thi — Postgres reach được từ host, từ Docker bridge, và không từ đâu khác. Hai dây thắt lưng.
+</Callout>
+
+## 03 — Secret không cần vault (tạm thời)
+
+Bạn không cần HashiCorp Vault ở tuần bốn. Bạn cần ba quy tắc.
+
+**Quy tắc một: secret là file, không phải env var trong shell.** Một file `.env.production` với quyền chặt (`chmod 600`, sở hữu bởi user deploy) là ổn; một env var export trong bash history thì không.
+
+```bash
+# Trên VPS, là user deploy:
+sudo install -d -m 700 -o deploy /home/deploy/secrets
+sudo install -m 600 -o deploy redis_password /home/deploy/secrets/
+sudo install -m 600 -o deploy pg_password    /home/deploy/secrets/
+```
+
+**Quy tắc hai: secret không vào git.** `.env.production` trong `.gitignore`. File commit là `.env.example` với giá trị placeholder. Onboard dev mới nghĩa là copy `.env.example` thành `.env.production` và điền vào từ password manager, không kéo secret từ history repo.
+
+**Quy tắc ba: key AI Gateway rotate hằng quý.** Set nhắc lịch. Lần rotate đầu khó chịu; thói quen mới là cái ngăn key bị leak khỏi tốn cả năm hoá đơn.
+
+## 04 — Backup
+
+Data `pgvector` chỉ là dòng trong bảng Postgres. `pg_dump` chuẩn chạy được. Vướng mắc: cột vector lớn, nên dump to hơn Postgres không-RAG. Dự kiến ~6 GB cho một triệu chunk ở 1536 chiều.
+
+```bash
+#!/usr/bin/env bash
+# /home/deploy/backup.sh
+set -euo pipefail
+TS=$(date -u +%Y%m%d-%H%M%S)
+docker exec postgres pg_dump -U postgres -d shop -F c -Z 6 \
+  > /home/deploy/backups/shop-${TS}.dump
+# Upload lên storage ngoài host
+aws s3 cp /home/deploy/backups/shop-${TS}.dump \
+  s3://shop-backups/postgres/ --storage-class STANDARD_IA
+# Giữ local: 7 ngày
+find /home/deploy/backups -name 'shop-*.dump' -mtime +7 -delete
+```
+
+Cron 03:00 UTC hằng ngày. Rồi — và đây là phần team hay quên — **chạy thử restore một lần.** Dựng một box thứ hai, restore dump, trỏ một bản staging của app vào đó, click thử. Restore là phần fail khi bạn cần nhất; verify một lần nghĩa là bạn biết nó work.
+
+<Callout type="warning" title="Off-host storage là không thương lượng">
+Một backup trên cùng đĩa với database không phải backup. Hardware fail, ransomware mã hoá cả VPS, một typo `rm` xoá nhầm thư mục. S3, B2, hay bất kỳ object store ngoài với credential khác là mức tối thiểu. Mã hoá at-rest, lifecycle sang cold storage sau 30 ngày.
+</Callout>
+
+## 05 — Ramp soft-launch
+
+Một concierge chạy ổn trên mười hai query test sẽ làm bạn bất ngờ ở câu mười ba thực. Đừng ship 100% user ngày một. Ramp thực tế:
+
+| Ngày | Đối tượng                            | Mục tiêu                                    |
+| ---- | ------------------------------------ | ------------------------------------------- |
+| 1-2  | Chỉ team nội bộ (5-10 người)         | Bắt bug rõ, drift tone                      |
+| 3-4  | 5% user logged-in (sampled theo ID)  | User thật, vùng nổ nhỏ                      |
+| 5    | 25% user                             | Sanity về volume — cap có giữ được không?   |
+| 6-7  | 100% user                            | Full launch, monitoring nhạy                |
+
+Gating là một flag `localStorage` ở frontend, set bởi hàm bucket server-side:
+
+```ts
+// app/api/feature-flag/route.ts
+export async function GET(req: Request) {
+  const user = await getCurrentUser();
+  const pct = parseInt(process.env.CONCIERGE_ROLLOUT_PCT ?? '0');
+  const bucket = user ? hashToBucket(user.id) : 100; // guest cuối
+  return Response.json({ concierge: bucket < pct });
+}
+```
+
+`CONCIERGE_ROLLOUT_PCT` là núm duy nhất. Set 5 ngày 3, 25 ngày 5, 100 ngày 6. Để rollback, set 0 — concierge biến mất cho mọi người trong một lần refresh trang.
+
+<Callout type="tip" title="Kill switch có hai lớp">
+Bạn đã có kill switch ngân sách (bài 30). Núm rollout là kill switch *sản phẩm* — *"bot đang cư xử bậy, gỡ khỏi homepage."* Cả hai tồn tại vì lý do khác. Kill switch ngân sách chặn sự cố chi phí; kill switch rollout chặn sự cố trải nghiệm. Test cả hai trước launch.
+</Callout>
+
+## 06 — Vòng monitoring tuần đầu
+
+Ba dashboard. Check mỗi cái 09:00 và 18:00 tuần đầu, sau đó hằng ngày, sau đó hằng tuần.
+
+**Dashboard 1 — Chi tiêu.** USD hôm nay theo provider, chia theo `functionId` (chat, classify, embed). Biểu đồ quan trọng: đường tích luỹ spend so với cap ngày. Nếu nó áp sát trần lúc 16:00, cap quá thấp hoặc loop có bug. Dashboard gateway cho bạn free; mirror cùng số vào SQL view để bạn có chúng trong Postgres cho join.
+
+**Dashboard 2 — Tỉ lệ lỗi.** HTTP 5xx từ `/api/chat`, sự kiện fallback gateway, lỗi exec tool. Ba câu SQL trên bảng log:
+
+```sql
+-- tỉ lệ lỗi giờ qua
+SELECT count(*) FILTER (WHERE status >= 500) * 100.0 / count(*) AS pct
+FROM logs WHERE path = '/api/chat' AND ts > now() - interval '1 hour';
+```
+
+Trên 1% đáng nhìn. Trên 3% page ai đó.
+
+**Dashboard 3 — Trải nghiệm user.** Latency trung bình, số lượt mỗi conversation, tỉ lệ thành công gọi tool, tỉ lệ "em chưa rõ". Cái cuối là cái user *cảm nhận* — nếu 20% trả lời là *"em chưa rõ ạ"*, corpus RAG có lỗ. Tìm các query rơi vào đó, thêm nội dung FAQ thiếu, re-ingest.
+
+```sql
+-- tỉ lệ "chưa rõ" tuần này
+SELECT date_trunc('day', ts) AS day,
+       count(*) FILTER (WHERE content::text ILIKE '%em chưa rõ%') * 100.0 / count(*) AS dontknow_pct
+FROM concierge.messages
+WHERE role = 'assistant' AND ts > now() - interval '7 days'
+GROUP BY 1 ORDER BY 1;
+```
+
+Kỷ luật quan trọng: review *nội dung* các câu trả lời "chưa rõ" một lần mỗi tuần. Mỗi cái là một lỗ trong knowledge base — hoặc ingest câu trả lời, hoặc escalate sang handoff người thật.
+
+## 07 — Câu chuyện on-call
+
+Nếu concierge ở homepage, nó giờ là một phần câu chuyện reliability của site. Hai thứ phải tồn tại trước khi ship 100%.
+
+**Endpoint health.** `/api/health` trả 200 chỉ khi Postgres, Redis, và gateway đều reach được. Monitoring uptime (UptimeRobot, BetterUptime, v.v.) đập nó mỗi phút và page khi fail 3 lần liên tiếp.
+
+```ts
+export async function GET() {
+  const checks = await Promise.allSettled([
+    db.query('SELECT 1'),
+    redis.ping(),
+    fetch(`${process.env.BACKEND_API_URL}/healthz`),
+  ]);
+  const ok = checks.every(c => c.status === 'fulfilled');
+  return Response.json({ ok, checks }, { status: ok ? 200 : 503 });
+}
+```
+
+**Runbook.** Một file markdown (`docs/runbook.md`) ba section: *"concierge down"*, *"hoá đơn cao"*, *"user nhận câu trả lời sai"*. Mỗi section nêu dashboard cần check đầu, lệnh rollback (`CONCIERGE_ROLLOUT_PCT=0`), và mục tiêu thời gian rollback (5 phút cho outage, một giờ cho chi phí, một ngày cho chất lượng).
+
+Runbook không phải tài liệu cho người khác; nó là tài liệu cho *bạn* lúc 2 giờ sáng khi concierge bắt đầu trả lời tiếng Anh cho khách Việt và bạn đã quên hết những gì biết về stack này hai tuần trước. Viết bây giờ.
+
+<Callout type="note" title="Cái bạn chưa cần">
+Bạn không cần Kubernetes. Bạn không cần service mesh. Bạn không cần tách tier API và worker. Bạn không cần database multi-region. Traffic concierge cho launch một-shop nằm gọn trên một box trong sáu tháng đầu, và sự đơn giản vận hành là cái cho team nhỏ theo kịp.
+</Callout>
+
+<Recap>
+- **Đổi provider là một import.** `ChatOllama` → provider hosted (hoặc AI Gateway, L36); graph code, tool, test không đổi.
+- **Chuyển checkpointer sang Postgres trước khi deploy.** `MemorySaver` không sống qua restart; `interrupt()` âm thầm rớt nếu không có checkpointer bền.
+- **Một VPS, ba container** (Next.js, Postgres+pgvector, Redis), một TLS terminator (Caddy). Postgres và Redis bind `127.0.0.1` — không bao giờ public.
+- **Secret là file mode-600** sở hữu bởi user deploy, không bao giờ trong git. `.env.example` là bản commit; key AI Gateway rotate hằng quý.
+- **`pg_dump` hằng ngày sang storage off-host,** và chạy thử restore *một lần* trước khi tin backup.
+- **Ramp soft-launch: nội bộ → 5% → 25% → 100%** trong tuần, gating qua một env var. Rollback là `=0`.
+- **Ba dashboard, hai lần/ngày:** chi tiêu, tỉ lệ lỗi, tỉ lệ *"em chưa rõ"*. Cái cuối là tín hiệu lỗ trong RAG.
+- **Health endpoint + runbook trước launch 100%.** Runbook cho bạn lúc 2 giờ sáng, không cho onboarding người khác.
+- **Bạn chưa cần K8s hay multi-region** trong sáu tháng đầu. Đơn giản vận hành là lợi thế khi launch.
+</Recap>
+
+</VI>

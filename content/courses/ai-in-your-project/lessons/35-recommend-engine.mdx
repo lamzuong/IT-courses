@@ -1,0 +1,599 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- Three classic recommendation strategies — content-based, collaborative, and popularity — and the trade between them for an early-stage shop.
+- A **hybrid recommender** that combines product-embedding similarity with co-purchase signal from your `orders` table, exposed as one LLM tool.
+- The cold-start problem: what to show a brand-new user when you have zero signal on them.
+- Why letting the LLM *re-rank* the top candidates with a one-sentence taste prompt beats trying to teach taste through embeddings alone.
+</Callout>
+
+A concierge that only answers questions is useful; one that *suggests* is what turns visitors into buyers. *"Bạn còn dáng oversize nào màu trầm không?"* should not return *"em chưa rõ ạ"* — it should return three products from your catalogue that the model can describe. That recommendation has to come from a tool, not from RAG: the catalogue changes daily, stock changes hourly, and *"trầm"* (muted tones) isn't a column in your products table.
+
+This lesson is about that tool: how a small e-commerce shop builds a useful recommender in week three, without a data science team and without buying a SaaS.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 360" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Hybrid recommender: three signal streams — content similarity, co-purchase, popularity — weighted 0.5/0.3/0.2, summed into a per-candidate score, with optional LLM re-rank for taste">
+    <rect x="20" y="40" width="200" height="70" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="62" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Content similarity'}</text>
+    <text x="120" y="80" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'embed(product) cosine'}</text>
+    <text x="120" y="96" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'works day 1 · no orders'}</text>
+    <text x="270" y="78" textAnchor="middle" fontSize="16" fontWeight="700" fill="#16a34a">{'× 0.5'}</text>
+
+    <rect x="20" y="155" width="200" height="70" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="177" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Co-purchase'}</text>
+    <text x="120" y="195" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'orders → mat. view'}</text>
+    <text x="120" y="211" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'needs ≥ 100 orders'}</text>
+    <text x="270" y="193" textAnchor="middle" fontSize="16" fontWeight="700" fill="#16a34a">{'× 0.3'}</text>
+
+    <rect x="20" y="270" width="200" height="70" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="292" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Popularity (30d)'}</text>
+    <text x="120" y="310" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'sum(orders) recent'}</text>
+    <text x="120" y="326" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'always available'}</text>
+    <text x="270" y="308" textAnchor="middle" fontSize="16" fontWeight="700" fill="#16a34a">{'× 0.2'}</text>
+
+    <path d="M 295,75 Q 330,75 350,170" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 295,190 L 350,190" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 295,305 Q 330,305 350,210" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+
+    <rect x="350" y="155" width="180" height="70" rx="10" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="440" y="180" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'score(candidate, user)'}</text>
+    <text x="440" y="200" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'Σ wᵢ · channelᵢ'}</text>
+    <text x="440" y="216" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'weights shift with signal'}</text>
+
+    <path d="M 535,190 L 575,190" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a29)" opacity="0.7" fill="none" />
+
+    <rect x="580" y="155" width="120" height="70" rx="10" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="640" y="180" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Top-N picks'}</text>
+    <text x="640" y="198" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'+ explain()'}</text>
+    <text x="640" y="214" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'reasons per item'}</text>
+
+    <rect x="350" y="20" width="350" height="60" rx="10" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 3" />
+    <text x="525" y="42" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'Optional: LLM re-rank top 20 with a taste prompt'}</text>
+    <text x="525" y="60" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'"prefer muted tones, oversized fit" → top 3 final'}</text>
+
+    <defs>
+      <marker id="a29" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.7" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Three signals weighted into one score. The LLM re-ranks the shortlist by taste.
+  </figcaption>
+</figure>
+
+## 01 — The three strategies, and why hybrid wins
+
+**Content-based.** Recommend items similar to one the user is currently looking at, by comparing product *descriptions* (the same embeddings you already have in `knowledge_chunks`). Works from day one. Doesn't need any order history. But everyone sees similar suggestions — there's no personalisation.
+
+**Collaborative.** "Customers who bought A also bought B." Compute item co-occurrence from `orders`. Works only after you have hundreds of orders covering enough product pairs. Strong personalisation when it works; useless on a fresh catalogue or new SKU.
+
+**Popularity.** "These are the top sellers this week." Works always, requires no thought. But everyone sees the same top sellers — no taste matching.
+
+The trick is to **combine all three** as a weighted score per candidate, and let the weights shift with how much signal you have on a given user. A new visitor leans on popularity + content; a returning customer who has ordered five times leans on collaborative.
+
+```
+score(candidate, user) =
+    0.5 · content_similarity(candidate, anchor)
+  + 0.3 · collaborative_score(candidate, user)
+  + 0.2 · popularity_score(candidate)
+```
+
+The 0.5 / 0.3 / 0.2 weights are a starting point — tune them against an eval set in lesson 22 style.
+
+## 02 — Content-based with the embeddings you already have
+
+You ingested product descriptions in L32. The embedding for `product:42:vi` already captures the description's semantics. For "show me products like this one":
+
+```ts
+async function contentSimilar(productId: number, locale: 'vi' | 'en', limit = 50) {
+  const { rows } = await db.query(
+    `WITH anchor AS (
+       SELECT embedding FROM concierge.knowledge_chunks
+       WHERE source = $1 AND locale = $2 LIMIT 1
+     )
+     SELECT (k.metadata->>'product_id')::int AS product_id,
+            1 - (k.embedding <=> anchor.embedding) AS sim
+     FROM concierge.knowledge_chunks k, anchor
+     WHERE k.source LIKE 'product:%'
+       AND k.locale = $2
+       AND k.source <> $1
+     ORDER BY k.embedding <=> anchor.embedding
+     LIMIT $3`,
+    [`product:${productId}:${locale}`, locale, limit]
+  );
+  return rows; // [{ product_id, sim }, ...]
+}
+```
+
+For "products matching a free-text taste query" (*"áo oversize tone trầm"*):
+
+```ts
+async function contentByQuery(query: string, locale: 'vi' | 'en', limit = 50) {
+  const qVec = await embedQuery(query);
+  // ... similar shape, ORDER BY k.embedding <=> $1::vector
+}
+```
+
+Same vector column, two different ways to use it. The cost: one `embed` call, one indexed query. Under 100 ms in practice.
+
+## 03 — Collaborative signal from your orders table
+
+You don't need a graph database or a matrix factoriser. A SQL aggregate over `orders` produces enough signal for the first hundred thousand orders:
+
+```sql
+-- For each pair (A, B), count distinct users who bought both
+CREATE MATERIALIZED VIEW concierge.copurchase AS
+SELECT
+  o1.product_id AS a,
+  o2.product_id AS b,
+  count(DISTINCT o1.user_id) AS co_users
+FROM public.order_items o1
+JOIN public.order_items o2
+  ON o1.order_id = o2.order_id AND o1.product_id < o2.product_id
+GROUP BY a, b
+HAVING count(DISTINCT o1.user_id) >= 3;  -- floor: 3 different users
+
+CREATE INDEX ON concierge.copurchase (a);
+CREATE INDEX ON concierge.copurchase (b);
+```
+
+Refresh nightly via cron: `REFRESH MATERIALIZED VIEW CONCURRENTLY concierge.copurchase;`. A few hundred milliseconds for tens of thousands of orders; the concurrent refresh keeps the view queryable during rebuild.
+
+To score a candidate against a user with order history:
+
+```ts
+async function collaborativeScore(productId: number, userId: string) {
+  const { rows } = await db.query(
+    `WITH user_items AS (
+       SELECT DISTINCT product_id FROM public.order_items oi
+       JOIN public.orders o ON o.id = oi.order_id
+       WHERE o.user_id = $1
+     )
+     SELECT coalesce(sum(c.co_users), 0)::float AS raw
+     FROM concierge.copurchase c
+     WHERE (c.a = $2 AND c.b IN (SELECT product_id FROM user_items))
+        OR (c.b = $2 AND c.a IN (SELECT product_id FROM user_items))`,
+    [userId, productId]
+  );
+  return Math.log1p(rows[0].raw); // log-compress, no normalisation yet
+}
+```
+
+`log1p` (= `log(1 + x)`) tames the heavy tail where one bestseller co-occurs with everything. Normalise across candidates in the final hybrid step.
+
+## 04 — Popularity, with recency
+
+Pure all-time popularity rewards old products. A 30-day rolling sum is what you want — it adapts to seasonal shifts and surfaces new arrivals once they start moving:
+
+```sql
+CREATE MATERIALIZED VIEW concierge.popularity_30d AS
+SELECT
+  oi.product_id,
+  count(*) AS units_30d
+FROM public.order_items oi
+JOIN public.orders o ON o.id = oi.order_id
+WHERE o.created_at >= NOW() - INTERVAL '30 days'
+GROUP BY oi.product_id;
+```
+
+```ts
+async function popularityScore(productId: number) {
+  const { rows } = await db.query(
+    `SELECT coalesce(units_30d, 0)::float AS u
+     FROM concierge.popularity_30d WHERE product_id = $1`,
+    [productId]
+  );
+  return Math.log1p(rows[0]?.u ?? 0);
+}
+```
+
+## 05 — The hybrid tool
+
+Combine the three into one tool the LLM can call. The tool returns a small list of product candidates with one-line reasons; the LLM does the talking.
+
+```ts
+export const recommendProducts = tool({
+  name: 'recommend_products',
+  description:
+    'Gợi ý sản phẩm cho khách hàng đang trò chuyện. Dùng khi khách yêu cầu "gợi ý", "tư vấn", "cái nào hợp với tôi", hoặc khi đã rõ phong cách họ muốn.',
+  schema: z.object({
+    taste: z.string().describe('Mô tả phong cách bằng tiếng Việt (ví dụ "oversize, tone trầm, vintage").'),
+    anchorProductId: z.number().int().optional()
+      .describe('Nếu khách đang xem một sản phẩm cụ thể, truyền id.'),
+    limit: z.number().int().min(1).max(8).default(5),
+  }),
+  execute: async ({ taste, anchorProductId, limit }, ctx) => {
+    const userId = ctx.userId;
+    const locale = ctx.locale;
+
+    // 1. Candidate pool — content-based from taste or anchor
+    const candidates = anchorProductId
+      ? await contentSimilar(anchorProductId, locale, 50)
+      : await contentByQuery(taste, locale, 50);
+
+    // 2. Score each
+    const scored = await Promise.all(candidates.map(async (c) => {
+      const [collab, pop] = await Promise.all([
+        collaborativeScore(c.product_id, userId),
+        popularityScore(c.product_id),
+      ]);
+      const score = 0.5 * c.sim + 0.3 * normalise(collab, 'collab') + 0.2 * normalise(pop, 'pop');
+      return { product_id: c.product_id, score, sim: c.sim, collab, pop };
+    }));
+
+    // 3. Filter out items the user already owns
+    const owned = await ownedProductIds(userId);
+    const filtered = scored.filter(s => !owned.has(s.product_id));
+
+    // 4. Top N + hydrate display info
+    const top = filtered.sort((a, b) => b.score - a.score).slice(0, limit);
+    return Promise.all(top.map(async (t) => {
+      const p = await getProduct(t.product_id, locale);
+      return {
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        url: p.url,
+        why: explain(t),  // "tương tự sản phẩm bạn vừa xem", "khách hay mua kèm", ...
+      };
+    }));
+  },
+});
+
+function explain(t: { sim: number; collab: number; pop: number }) {
+  if (t.collab > 0.5) return 'khách mua sản phẩm tương tự cũng hay chọn món này';
+  if (t.sim > 0.7)    return 'cùng phong cách với sản phẩm bạn vừa xem';
+  return 'đang được nhiều khách chọn tuần này';
+}
+```
+
+`explain` is the small but high-leverage detail: the LLM gets a *reason* per candidate, not just a list. It can then write *"chiếc áo này khách mua sản phẩm tương tự cũng hay chọn"* instead of generic *"đây là một sản phẩm hay"*. Users notice the difference.
+
+<Callout type="tip" title="Why the LLM doesn't compute scores itself">
+You might be tempted to dump the catalogue into the prompt and let the LLM pick. Don't. Three reasons. **Cost:** even with a 200k window, embedding the full catalogue per turn is wasteful — most candidates aren't relevant. **Determinism:** the LLM picks differently on identical inputs, hurting A/B testing. **Stock:** scoring a sold-out product makes the LLM hallucinate availability. The tool ranks; the LLM presents.
+</Callout>
+
+## 06 — Cold start: zero signal on this user
+
+A brand-new visitor has no order history, no recently-viewed products, no taste anchor. The hybrid score collapses to `0.5·content_similarity + 0.2·popularity` — content with no anchor reduces to *"closest to the query"*, popularity carries the rest.
+
+Two cheap moves that materially help:
+
+**Use the question itself as the taste anchor.** *"Tôi muốn áo thun unisex màu trắng"* is a free taste string — embed it, treat the catalogue's content similarity to *that* as the anchor signal. This is exactly the `contentByQuery` path above.
+
+**Boost first-time visitor signal with site analytics.** If you have a cookie tracking which categories the visitor browsed before reaching the concierge (`/men/jackets`, `/sale`), pass those as additional taste terms. *"jackets, on-sale, unisex"* embedded into the same query is a powerful zero-history signal.
+
+If you have neither, popularity is honest: *"đây là những món hot tuần này"*. Worse than personal, but better than wrong.
+
+## 07 — Letting the LLM re-rank with taste judgment
+
+A 50-candidate vector pool will have items that match on *words* but feel wrong stylistically. *"oversize tone trầm"* might pull a charcoal-grey oversize tee (correct) and a charcoal-grey *fitted* polo (wrong on the "oversize" axis). The score doesn't know "oversize-ness" is more important than "tone trầm-ness" for this user; the LLM, given the candidate list, often does.
+
+```ts
+// In the system prompt, after the tool returns:
+// The LLM sees the candidate list with full descriptions, and is told:
+//   "Loại bỏ những món có dáng KHÔNG khớp 'oversize'. Sắp xếp lại 3-5 món còn lại."
+
+// The model returns its re-ranked picks. You present those.
+```
+
+This is a sub-second extra round-trip, but the perceived quality lift is significant. The LLM is bad at scoring 10000 items; it's good at judging which of 5 candidates fit a stated taste. Play to that strength.
+
+<Callout type="warning" title="Don't let the LLM pull from outside the tool's list">
+The re-rank step is **filtering and reordering only**. If the LLM "remembers" a product the tool didn't return, that's a hallucination — it's recommending something it can't verify the stock of. Prompt explicitly: *"Chỉ chọn từ danh sách dưới đây. Không thêm sản phẩm không có trong danh sách."*
+</Callout>
+
+<Recap>
+- **Hybrid recommender = content + collaborative + popularity,** weighted. Starting weights 0.5 / 0.3 / 0.2; tune with eval data.
+- **Content-based reuses the product embeddings** you already ingested. Two flavours: similar-to-anchor and similar-to-taste-query.
+- **Collaborative signal from `orders`** via a nightly-refreshed `copurchase` materialised view. SQL only, no ML pipeline.
+- **Popularity is a 30-day rolling sum,** not all-time. Adapts to seasons and surfaces new arrivals.
+- **`recommend_products` is one tool** that returns scored, filtered, hydrated candidates with one-line `why` reasons. The LLM presents; it doesn't compute.
+- **Cold start: use the question as the taste anchor + site-browse signal.** Honest popularity is the floor.
+- **Optionally let the LLM re-rank the top-N for taste fit,** strictly within the returned list. No outside additions.
+</Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Ba chiến lược recommend cổ điển — content-based, collaborative, và popularity — và đánh đổi giữa chúng cho một shop giai đoạn đầu.
+- Một **hybrid recommender** kết hợp similarity của embedding sản phẩm với tín hiệu co-purchase từ bảng `orders`, expose như một tool LLM duy nhất.
+- Bài toán cold-start: hiện gì cho user hoàn toàn mới khi bạn có zero signal về họ.
+- Vì sao để LLM *re-rank* top candidate với một câu prompt về "khẩu vị" thắng việc cố dạy khẩu vị qua chỉ embedding.
+</Callout>
+
+Một concierge chỉ trả lời câu hỏi là hữu ích; một cái *gợi ý* mới biến khách thăm thành khách mua. *"Bạn còn dáng oversize nào màu trầm không?"* không nên trả về *"em chưa rõ ạ"* — nên trả về ba sản phẩm trong catalogue mà model có thể mô tả. Recommend đó phải đến từ tool, không phải RAG: catalogue đổi hằng ngày, stock đổi hằng giờ, và *"trầm"* không phải là cột trong bảng products của bạn.
+
+Bài này về tool đó: làm sao một shop nhỏ dựng được recommender hữu ích trong tuần ba, không có đội data science và không mua SaaS.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 360" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Recommender hybrid: ba luồng tín hiệu — tương tự nội dung, co-purchase, độ phổ biến — trọng số 0.5/0.3/0.2, cộng lại thành điểm, có thể nhờ LLM re-rank theo gu">
+    <rect x="20" y="40" width="200" height="70" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="62" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Tương tự nội dung'}</text>
+    <text x="120" y="80" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'embed(product) cosine'}</text>
+    <text x="120" y="96" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'chạy ngay · không cần đơn'}</text>
+    <text x="270" y="78" textAnchor="middle" fontSize="16" fontWeight="700" fill="#16a34a">{'× 0.5'}</text>
+
+    <rect x="20" y="155" width="200" height="70" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="177" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Co-purchase'}</text>
+    <text x="120" y="195" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'orders → mat. view'}</text>
+    <text x="120" y="211" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'cần ≥ 100 đơn'}</text>
+    <text x="270" y="193" textAnchor="middle" fontSize="16" fontWeight="700" fill="#16a34a">{'× 0.3'}</text>
+
+    <rect x="20" y="270" width="200" height="70" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="292" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Độ phổ biến (30 ngày)'}</text>
+    <text x="120" y="310" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'sum(orders) gần đây'}</text>
+    <text x="120" y="326" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'lúc nào cũng có'}</text>
+    <text x="270" y="308" textAnchor="middle" fontSize="16" fontWeight="700" fill="#16a34a">{'× 0.2'}</text>
+
+    <path d="M 295,75 Q 330,75 350,170" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 295,190 L 350,190" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 295,305 Q 330,305 350,210" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+
+    <rect x="350" y="155" width="180" height="70" rx="10" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="440" y="180" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'score(candidate, user)'}</text>
+    <text x="440" y="200" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'Σ wᵢ · channelᵢ'}</text>
+    <text x="440" y="216" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'trọng số đổi theo tín hiệu'}</text>
+
+    <path d="M 535,190 L 575,190" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a29vi)" opacity="0.7" fill="none" />
+
+    <rect x="580" y="155" width="120" height="70" rx="10" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="640" y="180" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Top-N gợi ý'}</text>
+    <text x="640" y="198" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'+ explain()'}</text>
+    <text x="640" y="214" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'lý do cho từng món'}</text>
+
+    <rect x="350" y="20" width="350" height="60" rx="10" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 3" />
+    <text x="525" y="42" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'Tuỳ chọn: LLM re-rank top 20 theo prompt gu'}</text>
+    <text x="525" y="60" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'"thích màu trầm, dáng oversize" → top 3 cuối'}</text>
+
+    <defs>
+      <marker id="a29vi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.7" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Ba tín hiệu gộp thành một điểm. LLM re-rank shortlist theo gu khách.
+  </figcaption>
+</figure>
+
+## 01 — Ba chiến lược, và vì sao hybrid thắng
+
+**Content-based.** Recommend món tương tự cái user đang xem, bằng cách so *mô tả sản phẩm* (chính embedding bạn đã có trong `knowledge_chunks`). Chạy được từ ngày đầu. Không cần history đơn nào. Nhưng ai cũng thấy gợi ý giống nhau — không cá nhân hoá.
+
+**Collaborative.** "Khách mua A cũng mua B." Tính co-occurrence item từ `orders`. Chỉ chạy được sau khi có hàng trăm đơn phủ đủ cặp sản phẩm. Cá nhân hoá mạnh khi chạy được; vô dụng trên catalogue mới hay SKU mới.
+
+**Popularity.** "Đây là top tuần này." Chạy được luôn, không cần suy nghĩ. Nhưng ai cũng thấy cùng top — không khớp khẩu vị.
+
+Mẹo là **kết hợp cả ba** thành điểm có trọng số cho mỗi candidate, và cho trọng số dịch chuyển theo lượng signal bạn có về user. Khách mới dựa vào popularity + content; khách quen đã mua năm lần dựa vào collaborative.
+
+```
+score(candidate, user) =
+    0.5 · content_similarity(candidate, anchor)
+  + 0.3 · collaborative_score(candidate, user)
+  + 0.2 · popularity_score(candidate)
+```
+
+Trọng số 0.5 / 0.3 / 0.2 là điểm khởi đầu — tune dựa trên eval set kiểu bài 22.
+
+## 02 — Content-based với embedding bạn đã có
+
+Bạn đã ingest mô tả sản phẩm ở L32. Embedding cho `product:42:vi` đã capture semantic của mô tả. Cho "gợi ý cho tôi sản phẩm như cái này":
+
+```ts
+async function contentSimilar(productId: number, locale: 'vi' | 'en', limit = 50) {
+  const { rows } = await db.query(
+    `WITH anchor AS (
+       SELECT embedding FROM concierge.knowledge_chunks
+       WHERE source = $1 AND locale = $2 LIMIT 1
+     )
+     SELECT (k.metadata->>'product_id')::int AS product_id,
+            1 - (k.embedding <=> anchor.embedding) AS sim
+     FROM concierge.knowledge_chunks k, anchor
+     WHERE k.source LIKE 'product:%'
+       AND k.locale = $2
+       AND k.source <> $1
+     ORDER BY k.embedding <=> anchor.embedding
+     LIMIT $3`,
+    [`product:${productId}:${locale}`, locale, limit]
+  );
+  return rows; // [{ product_id, sim }, ...]
+}
+```
+
+Cho "sản phẩm khớp một câu tả khẩu vị tự do" (*"áo oversize tone trầm"*):
+
+```ts
+async function contentByQuery(query: string, locale: 'vi' | 'en', limit = 50) {
+  const qVec = await embedQuery(query);
+  // ... hình dạng tương tự, ORDER BY k.embedding <=> $1::vector
+}
+```
+
+Cùng cột vector, hai cách dùng khác nhau. Chi phí: một call `embed`, một query có index. Dưới 100 ms trong thực tế.
+
+## 03 — Tín hiệu collaborative từ bảng orders
+
+Bạn không cần graph database hay matrix factoriser. Một aggregate SQL trên `orders` sinh ra đủ signal cho trăm nghìn đơn đầu tiên:
+
+```sql
+-- Với mỗi cặp (A, B), đếm distinct user mua cả hai
+CREATE MATERIALIZED VIEW concierge.copurchase AS
+SELECT
+  o1.product_id AS a,
+  o2.product_id AS b,
+  count(DISTINCT o1.user_id) AS co_users
+FROM public.order_items o1
+JOIN public.order_items o2
+  ON o1.order_id = o2.order_id AND o1.product_id < o2.product_id
+GROUP BY a, b
+HAVING count(DISTINCT o1.user_id) >= 3;  -- sàn: 3 user khác nhau
+
+CREATE INDEX ON concierge.copurchase (a);
+CREATE INDEX ON concierge.copurchase (b);
+```
+
+Refresh hằng đêm qua cron: `REFRESH MATERIALIZED VIEW CONCURRENTLY concierge.copurchase;`. Vài trăm mili-giây cho hàng chục nghìn đơn; refresh concurrent giữ cho view query được trong lúc rebuild.
+
+Để chấm một candidate so với user có history:
+
+```ts
+async function collaborativeScore(productId: number, userId: string) {
+  const { rows } = await db.query(
+    `WITH user_items AS (
+       SELECT DISTINCT product_id FROM public.order_items oi
+       JOIN public.orders o ON o.id = oi.order_id
+       WHERE o.user_id = $1
+     )
+     SELECT coalesce(sum(c.co_users), 0)::float AS raw
+     FROM concierge.copurchase c
+     WHERE (c.a = $2 AND c.b IN (SELECT product_id FROM user_items))
+        OR (c.b = $2 AND c.a IN (SELECT product_id FROM user_items))`,
+    [userId, productId]
+  );
+  return Math.log1p(rows[0].raw); // nén log, chưa normalise
+}
+```
+
+`log1p` (= `log(1 + x)`) làm dịu heavy tail nơi một best-seller co-occur với mọi thứ. Normalise qua các candidate ở bước hybrid cuối.
+
+## 04 — Popularity, có tính độ tươi
+
+Popularity all-time thuần thưởng sản phẩm cũ. Tổng cuộn 30 ngày là cái bạn muốn — nó thích ứng với mùa và đẩy hàng mới lên khi chúng bắt đầu chạy:
+
+```sql
+CREATE MATERIALIZED VIEW concierge.popularity_30d AS
+SELECT
+  oi.product_id,
+  count(*) AS units_30d
+FROM public.order_items oi
+JOIN public.orders o ON o.id = oi.order_id
+WHERE o.created_at >= NOW() - INTERVAL '30 days'
+GROUP BY oi.product_id;
+```
+
+```ts
+async function popularityScore(productId: number) {
+  const { rows } = await db.query(
+    `SELECT coalesce(units_30d, 0)::float AS u
+     FROM concierge.popularity_30d WHERE product_id = $1`,
+    [productId]
+  );
+  return Math.log1p(rows[0]?.u ?? 0);
+}
+```
+
+## 05 — Tool hybrid
+
+Kết hợp ba thành một tool mà LLM gọi được. Tool trả về một list nhỏ candidate sản phẩm với lý do một dòng; LLM lo phần nói.
+
+```ts
+export const recommendProducts = tool({
+  name: 'recommend_products',
+  description:
+    'Gợi ý sản phẩm cho khách hàng đang trò chuyện. Dùng khi khách yêu cầu "gợi ý", "tư vấn", "cái nào hợp với tôi", hoặc khi đã rõ phong cách họ muốn.',
+  schema: z.object({
+    taste: z.string().describe('Mô tả phong cách bằng tiếng Việt (ví dụ "oversize, tone trầm, vintage").'),
+    anchorProductId: z.number().int().optional()
+      .describe('Nếu khách đang xem một sản phẩm cụ thể, truyền id.'),
+    limit: z.number().int().min(1).max(8).default(5),
+  }),
+  execute: async ({ taste, anchorProductId, limit }, ctx) => {
+    const userId = ctx.userId;
+    const locale = ctx.locale;
+
+    // 1. Pool candidate — content-based từ taste hoặc anchor
+    const candidates = anchorProductId
+      ? await contentSimilar(anchorProductId, locale, 50)
+      : await contentByQuery(taste, locale, 50);
+
+    // 2. Chấm từng cái
+    const scored = await Promise.all(candidates.map(async (c) => {
+      const [collab, pop] = await Promise.all([
+        collaborativeScore(c.product_id, userId),
+        popularityScore(c.product_id),
+      ]);
+      const score = 0.5 * c.sim + 0.3 * normalise(collab, 'collab') + 0.2 * normalise(pop, 'pop');
+      return { product_id: c.product_id, score, sim: c.sim, collab, pop };
+    }));
+
+    // 3. Lọc bỏ món user đã có
+    const owned = await ownedProductIds(userId);
+    const filtered = scored.filter(s => !owned.has(s.product_id));
+
+    // 4. Top N + hydrate thông tin hiển thị
+    const top = filtered.sort((a, b) => b.score - a.score).slice(0, limit);
+    return Promise.all(top.map(async (t) => {
+      const p = await getProduct(t.product_id, locale);
+      return {
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        url: p.url,
+        why: explain(t),  // "tương tự sản phẩm bạn vừa xem", "khách hay mua kèm", ...
+      };
+    }));
+  },
+});
+
+function explain(t: { sim: number; collab: number; pop: number }) {
+  if (t.collab > 0.5) return 'khách mua sản phẩm tương tự cũng hay chọn món này';
+  if (t.sim > 0.7)    return 'cùng phong cách với sản phẩm bạn vừa xem';
+  return 'đang được nhiều khách chọn tuần này';
+}
+```
+
+`explain` là chi tiết nhỏ nhưng đòn bẩy cao: LLM nhận *lý do* cho mỗi candidate, không chỉ list. Nó có thể viết *"chiếc áo này khách mua sản phẩm tương tự cũng hay chọn"* thay vì *"đây là một sản phẩm hay"* chung chung. User cảm nhận được sự khác biệt.
+
+<Callout type="tip" title="Vì sao LLM không tự tính điểm">
+Bạn có thể bị cám dỗ dump cả catalogue vào prompt và để LLM chọn. Đừng. Ba lý do. **Chi phí:** kể cả window 200k, embed cả catalogue mỗi lượt là lãng phí — phần lớn candidate không liên quan. **Tất định:** LLM chọn khác nhau trên input giống nhau, hại A/B test. **Stock:** chấm một sản phẩm đã hết hàng làm LLM ảo giác về availability. Tool xếp hạng; LLM trình bày.
+</Callout>
+
+## 06 — Cold start: zero signal về user này
+
+Khách hoàn toàn mới không có history đơn, không có sản phẩm vừa xem, không có anchor khẩu vị. Score hybrid sụp xuống `0.5·content_similarity + 0.2·popularity` — content không anchor rút về *"gần nhất với câu hỏi"*, popularity gánh phần còn lại.
+
+Hai cách rẻ giúp đáng kể:
+
+**Dùng chính câu hỏi như anchor khẩu vị.** *"Tôi muốn áo thun unisex màu trắng"* là một chuỗi taste free — embed nó, coi content similarity của catalogue với *cái đó* là tín hiệu anchor. Đây chính là đường `contentByQuery` ở trên.
+
+**Boost signal khách lần đầu bằng analytics site.** Nếu bạn có cookie track xem khách duyệt category nào trước khi đến concierge (`/men/jackets`, `/sale`), truyền vào như taste term bổ sung. *"jackets, on-sale, unisex"* embed vào cùng query là tín hiệu zero-history mạnh.
+
+Nếu không có gì cả, popularity là thật thà: *"đây là những món hot tuần này"*. Kém hơn cá nhân, nhưng hơn sai.
+
+## 07 — Để LLM re-rank với phán đoán khẩu vị
+
+Pool 50 candidate vector sẽ có món match về *từ* nhưng cảm giác sai về style. *"oversize tone trầm"* có thể kéo một áo thun oversize xám than (đúng) và một polo *body* xám than (sai trục "oversize"). Điểm không biết "tính oversize" quan trọng hơn "tính tone trầm" cho user này; LLM, khi được đưa list candidate, thường biết.
+
+```ts
+// Trong system prompt, sau khi tool trả về:
+// LLM thấy list candidate với mô tả đầy đủ, và được nói:
+//   "Loại bỏ những món có dáng KHÔNG khớp 'oversize'. Sắp xếp lại 3-5 món còn lại."
+
+// Model trả về danh sách re-rank của nó. Bạn trình bày cái đó.
+```
+
+Đây là một round-trip thêm dưới giây, nhưng lift chất lượng cảm nhận đáng kể. LLM dở khi chấm 10000 món; nó giỏi khi phán đoán cái nào trong 5 candidate hợp với khẩu vị đã nêu. Tận dụng điểm mạnh đó.
+
+<Callout type="warning" title="Đừng để LLM kéo từ ngoài list của tool">
+Bước re-rank chỉ là **lọc và sắp lại**. Nếu LLM "nhớ" một sản phẩm mà tool không trả — đó là ảo giác — nó đang recommend cái nó không verify được stock. Prompt rõ ràng: *"Chỉ chọn từ danh sách dưới đây. Không thêm sản phẩm không có trong danh sách."*
+</Callout>
+
+<Recap>
+- **Hybrid recommender = content + collaborative + popularity,** có trọng số. Trọng số khởi đầu 0.5 / 0.3 / 0.2; tune với dữ liệu eval.
+- **Content-based tái dùng product embedding** bạn đã ingest. Hai vị: tương tự-với-anchor và tương tự-với-câu-tả-khẩu-vị.
+- **Tín hiệu collaborative từ `orders`** qua materialised view `copurchase` refresh hằng đêm. Chỉ SQL, không pipeline ML.
+- **Popularity là tổng cuộn 30 ngày,** không phải all-time. Thích ứng với mùa và đẩy hàng mới.
+- **`recommend_products` là một tool** trả về candidate đã chấm điểm, đã lọc, đã hydrate, kèm `why` một dòng. LLM trình bày; nó không tính.
+- **Cold start: dùng câu hỏi như anchor khẩu vị + tín hiệu duyệt site.** Popularity thật thà là sàn.
+- **Tuỳ chọn để LLM re-rank top-N cho hợp khẩu vị,** chặt chẽ trong danh sách trả về. Không thêm món ngoài.
+</Recap>
+
+</VI>

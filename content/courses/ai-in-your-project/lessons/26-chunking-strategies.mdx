@@ -1,0 +1,985 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- Why chunking exists in the first place — and the two opposing forces (recall vs precision) you're trying to balance.
+- The four strategies side by side: fixed-size, recursive, semantic, section-aware.
+- The overlap rule that stops you losing context at boundaries — and the actual percentage that works.
+- The metadata you must capture *at chunk time* — because adding it later means re-embedding everything.
+- Where chunking quietly fails — tables, code, lists, long sentences — and the patches that fix each.
+</Callout>
+
+You have a 12-page return-policy PDF. You embed the whole thing as one vector and store it. A customer asks *"can I return shoes after wearing them once?"* — your vector search returns the document. Great. Now the model has to read 12 pages to answer one question, and 95% of the prompt is irrelevant.
+
+You go the other way: split into single sentences. Now *"after wearing them once"* matches a sentence about *"the item is in unworn condition"* — but the sentence with the actual rule is two paragraphs away and the model never sees it.
+
+Chunking is how you stop both of those failure modes from happening at once.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 440" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="The same document split four ways: fixed-size, recursive, semantic, section-aware — showing how each strategy carves the same text differently">
+    <text x="20" y="24" fontSize="13" fontWeight="700" fill="#16a34a">{'Same doc, four splits'}</text>
+
+    <text x="20" y="60" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Fixed-size (400 tok)'}</text>
+    <rect x="160" y="48" width="100" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="262" y="48" width="100" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="364" y="48" width="100" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="466" y="48" width="100" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="568" y="48" width="70"  height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <text x="650" y="62" fontSize="10" fill="currentColor" opacity="0.6">{'cuts mid-sentence'}</text>
+
+    <text x="20" y="120" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Recursive (\\n\\n → \\n → .)'}</text>
+    <rect x="160" y="108" width="80"  height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="242" y="108" width="120" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="364" y="108" width="90"  height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="456" y="108" width="110" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="568" y="108" width="70"  height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <text x="650" y="122" fontSize="10" fill="currentColor" opacity="0.6">{'respects paragraphs'}</text>
+
+    <text x="20" y="180" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Semantic (embed-then-split)'}</text>
+    <rect x="160" y="168" width="60"  height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="222" y="168" width="180" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="404" y="168" width="90"  height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="496" y="168" width="142" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <text x="650" y="182" fontSize="10" fill="currentColor" opacity="0.6">{'splits where meaning shifts'}</text>
+
+    <text x="20" y="240" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Section-aware'}</text>
+    <rect x="160" y="228" width="140" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="230" y="242" textAnchor="middle" fontSize="9" fill="#16a34a">{'## Returns'}</text>
+    <rect x="302" y="228" width="160" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="382" y="242" textAnchor="middle" fontSize="9" fill="#16a34a">{'## Refunds'}</text>
+    <rect x="464" y="228" width="174" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="551" y="242" textAnchor="middle" fontSize="9" fill="#16a34a">{'## Shipping'}</text>
+    <text x="650" y="242" fontSize="10" fill="currentColor" opacity="0.6">{'one topic ★'}</text>
+
+    <rect x="20" y="290" width="680" height="60" rx="8" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="312" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Overlap (10–20%): the safety net'}</text>
+    <text x="360" y="332" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'each chunk repeats ~60 tokens of the previous one →'}</text>
+    <text x="360" y="346" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'the rule that lived on the boundary now lives in both chunks'}</text>
+
+    <rect x="20" y="370" width="680" height="60" rx="8" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 3" />
+    <text x="360" y="392" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'+ metadata per chunk'}</text>
+    <text x="360" y="410" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'{ source, heading, locale, page, updated_at, expires_at, hash }'}</text>
+    <text x="360" y="424" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'capture at chunk time — adding later = re-embed everything'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Same paragraph, four chunking strategies. Section-aware wins for markdown; recursive wins when you don't have headings; fixed-size is the cheap fallback.
+  </figcaption>
+</figure>
+
+## 01 — Why chunk at all
+
+Two opposing forces.
+
+**Force one — recall.** The model can't find what it can't see. If your chunks are too small, the relevant context lives across a boundary, the vector match misses it, and the model gets a wrong-but-confident-sounding sentence.
+
+**Force two — precision.** Every token in the prompt costs money and dilutes attention. If your chunks are too big, the model gets the answer *plus* twelve paragraphs of irrelevant policy, and the answer either gets buried or quoted out of context.
+
+The chunk size that balances both is **the smallest chunk that contains a complete thought**. For a policy document that's usually 200–400 tokens. For dense legal text it might be 600. For a product FAQ where each Q&A is independent, it might be 80.
+
+Don't guess. Once you have an eval set (L30), measure recall@5 at three chunk sizes and pick the winner.
+
+## 02 — The four strategies
+
+**Fixed-size.** Count tokens, split every N. Simplest, fastest, dumbest. Useful as a baseline — but it slices mid-sentence, mid-table, mid-code block. *Last resort.*
+
+**Recursive character splitter.** Try splitting on `\n\n` first, then `\n`, then `.`, then space, then character. Stop when chunks fit the target size. LangChain's `RecursiveCharacterTextSplitter` is this. **Default choice when you don't know the structure** — handles markdown, prose, even messy HTML reasonably.
+
+**Semantic.** Embed every sentence, find points where consecutive sentences' embeddings disagree the most, split there. Expensive (one embedding per sentence at chunk time) but produces chunks where each one is about *one thing*. Use when retrieval quality is bottlenecking conversion.
+
+**Section-aware.** Split on structural markers — `## headings` in markdown, `<h2>` in HTML, page breaks in PDF. **Best choice when your source is markdown** (which you control, because you wrote the FAQ). Then re-chunk anything that exceeds the token budget using recursive.
+
+For the concierge: **section-aware first, then recursive inside large sections**. That's what L32 implements.
+
+## 03 — The overlap rule
+
+A 400-token chunk that ends mid-explanation breaks retrieval. The trick is overlap — each chunk repeats the last ~60 tokens of the previous chunk. The rule that started in chunk 1 and continued into chunk 2 now lives, complete, in both chunks. Whichever one your query hits, the model gets the full thought.
+
+**Rule of thumb: 10–20% overlap.** 400/60 (15%) is a safe default. Higher means more storage and duplicate hits; lower means more boundary misses. Don't go below 10%.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 340" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Overlap rule visualized: without overlap a sentence that crosses the chunk boundary is broken; with 60-token overlap the same sentence sits intact inside chunk 2">
+    <line x1="80" y1="42" x2="680" y2="42" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+    <line x1="80"  y1="38" x2="80"  y2="46" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+    <line x1="320" y1="38" x2="320" y2="46" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+    <line x1="560" y1="38" x2="560" y2="46" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+    <line x1="680" y1="38" x2="680" y2="46" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+    <text x="80"  y="28" fontSize="10" fill="currentColor" opacity="0.55">{'token 0'}</text>
+    <text x="320" y="28" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.55">{'400'}</text>
+    <text x="560" y="28" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.55">{'800'}</text>
+    <text x="680" y="28" textAnchor="end" fontSize="10" fill="currentColor" opacity="0.55">{'1000'}</text>
+
+    <text x="20" y="80" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Without overlap'}</text>
+    <rect x="80"  y="92" width="240" height="28" rx="4" fill="rgba(22,163,74,0.1)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="200" y="110" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'Chunk 1 · tokens 0–400'}</text>
+    <rect x="320" y="92" width="240" height="28" rx="4" fill="rgba(22,163,74,0.1)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="440" y="110" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'Chunk 2 · tokens 400–800'}</text>
+
+    <line x1="320" y1="82" x2="320" y2="155" stroke="#dc2626" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.8" />
+    <rect x="302" y="128" width="36" height="14" rx="2" fill="rgba(220,38,38,0.2)" stroke="#dc2626" strokeWidth="1.5" />
+    <text x="320" y="170" textAnchor="middle" fontSize="10" fill="#dc2626">{'❌ rule (tokens 370–430) split at boundary'}</text>
+
+    <text x="20" y="210" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'With 60-token overlap (15%)'}</text>
+
+    <rect x="80"  y="222" width="240" height="28" rx="4" fill="rgba(22,163,74,0.1)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="200" y="240" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'Chunk 1 · tokens 0–400'}</text>
+
+    <rect x="284" y="260" width="240" height="28" rx="4" fill="rgba(22,163,74,0.1)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="404" y="278" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'Chunk 2 · tokens 340–740'}</text>
+
+    <rect x="284" y="222" width="36" height="66" fill="rgba(22,163,74,0.28)" stroke="#16a34a" strokeWidth="1" strokeDasharray="2 2" />
+    <text x="284" y="216" fontSize="9" fill="#16a34a" opacity="0.85">{'← shared 60 tok →'}</text>
+
+    <rect x="302" y="260" width="36" height="28" rx="2" fill="rgba(22,163,74,0.5)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="404" y="308" textAnchor="middle" fontSize="10" fill="#16a34a">{'✅ same rule now sits intact inside chunk 2'}</text>
+
+    <text x="360" y="328" textAnchor="middle" fontSize="11" fontStyle="italic" fill="currentColor" opacity="0.7">{'15% overlap = each chunk repeats the last 60 tokens of the previous one'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Same document, same chunk size. Without overlap, anything crossing the boundary is half-lost to each side. With 60-token overlap, the shared zone catches it.
+  </figcaption>
+</figure>
+
+<Callout type="tip" title="A concrete example — return-policy FAQ">
+**Source sentence in your FAQ document:**
+
+<div style={{ margin: '0.75rem 0 1rem', padding: '0.9rem 1rem', background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.3)', borderRadius: '6px', fontSize: '0.95rem', lineHeight: 1.6 }}>
+  <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700, marginBottom: '0.4rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>📄 faq/returns.md · paragraph 3</div>
+  Customers may return items within 7 days <mark style={{ background: 'rgba(22,163,74,0.25)', color: 'inherit', padding: '2px 5px', borderRadius: '3px', fontWeight: 600 }}>if the product is unworn and the original receipt is included</mark>.
+</div>
+
+A user types the question: *"What do I need to return something?"* — the answer lives in the highlighted clause.
+
+**Without overlap** — the splitter cuts after the word *"unworn"* because that's where the 400-token budget runs out:
+
+| Chunk 1 (tokens 0–400) ends with | Chunk 2 (tokens 400–800) starts with |
+|---|---|
+| `...may return items within 7 days if the product is unworn` ❌ | `and the original receipt is included. Refunds are processed within...` ❌ |
+
+Vector search returns *one* chunk. Chunk 1 doesn't say *"receipt required"*. Chunk 2 doesn't say *"what action"* or *"7 days"*. **Neither chunk answers the question on its own.**
+
+**With 60-token overlap** — chunk 2 starts 60 tokens earlier (token 340), so it contains the full conditional:
+
+| Chunk 1 (0–400) ends with | Chunk 2 (340–740) starts with |
+|---|---|
+| `...may return items within 7 days if the product is unworn and the original receipt is included.` ✅ | `...items within 7 days if the product is unworn and the original receipt is included. Refunds are processed within...` ✅ |
+
+Whichever chunk the vector search picks, the model sees the full rule. **That's the entire job of overlap.**
+</Callout>
+
+```ts
+// LangChain
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+
+const splitter = new RecursiveCharacterTextSplitter({
+  chunkSize: 400,
+  chunkOverlap: 60,                                 // 15% overlap
+  lengthFunction: (text) => encode(text).length,    // tiktoken count, not char count
+  separators: ['\n## ', '\n\n', '\n', '. ', ' '],   // section-aware, then prose
+});
+```
+
+The `lengthFunction: encode(...).length` matters. Token counts are not character counts — 100 characters of English is roughly 25 tokens, 100 characters of Vietnamese is roughly 60 tokens (Vietnamese diacritics inflate the byte-pair count). If you measure by chars you'll overrun your embedding model's input limit.
+
+## 04 — Metadata: capture at chunk time
+
+Every chunk you embed needs a row of metadata alongside it. The fields you *don't* think to add now are the ones you'll wish you had in three months — and adding them later means re-embedding the entire corpus.
+
+Minimum metadata:
+
+| Field | Why | Example |
+|---|---|---|
+| `source` | What file/URL did this come from | `'faq/returns.md'` |
+| `heading` | Which section, for citation in answers | `'## Returns within 7 days'` |
+| `locale` | Filter `vi` vs `en` queries cleanly (L33) | `'vi'` |
+| `updated_at` | When was this last edited | `'2026-05-21T10:00:00Z'` |
+| `expires_at` | When does this stop being true | `'2026-12-31'` (for a promo) |
+| `hash` | SHA256 of the source text — skip re-embedding if unchanged | `'a3f5...'` |
+| `chunk_idx` | Order within the source, for reconstructing context | `3` |
+
+The `hash` and `expires_at` fields are the two everyone forgets. Without `hash`, you re-embed everything on every ingestion run and waste hours. Without `expires_at`, the bot is still quoting last year's Tết promo in March.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 400" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Two ingest scenarios, three months later: chunk stored without metadata loses citations, locale filters, idempotent re-ingest, and expiry; chunk with metadata wins each of those">
+    <text x="360" y="22" textAnchor="middle" fontSize="12" fontStyle="italic" fill="currentColor" opacity="0.7">{'Same corpus, two ingest decisions — three months later'}</text>
+
+    <rect x="20"  y="40" width="320" height="100" rx="8" fill="rgba(220,38,38,0.05)" stroke="#dc2626" strokeWidth="1.5" />
+    <text x="180" y="62" textAnchor="middle" fontSize="13" fontWeight="700" fill="#dc2626">{'Without metadata'}</text>
+    <text x="36"  y="84" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{'{'}</text>
+    <text x="46"  y="100" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{"content: 'Khách có thể trả hàng…',"}</text>
+    <text x="46"  y="116" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{'embedding: [0.12, 0.83, …]'}</text>
+    <text x="36"  y="132" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{'}'}</text>
+
+    <rect x="380" y="40" width="320" height="120" rx="8" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="540" y="62" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'With metadata'}</text>
+    <text x="396" y="80" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{'{'}</text>
+    <text x="406" y="94" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{"content, embedding,"}</text>
+    <text x="406" y="108" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{"source: 'faq/returns.md',"}</text>
+    <text x="406" y="122" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{"heading, locale, updated_at,"}</text>
+    <text x="406" y="136" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{"expires_at, hash, chunk_idx"}</text>
+    <text x="396" y="150" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{'}'}</text>
+
+    <text x="20" y="172" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'3 months later …'}</text>
+    <text x="380" y="172" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'3 months later …'}</text>
+
+    <text x="20" y="194" fontSize="10" fill="#dc2626">{'❌ Bot quotes a chunk; user asks "từ đâu?"'}</text>
+    <text x="36" y="208" fontSize="10" fill="currentColor" opacity="0.7">{'You can`t cite — the source is gone.'}</text>
+
+    <text x="20" y="232" fontSize="10" fill="#dc2626">{'❌ VI query pulls back EN chunks'}</text>
+    <text x="36" y="246" fontSize="10" fill="currentColor" opacity="0.7">{'No `locale` to filter on.'}</text>
+
+    <text x="20" y="270" fontSize="10" fill="#dc2626">{'❌ Re-embed 10,000 chunks on every cron run'}</text>
+    <text x="36" y="284" fontSize="10" fill="currentColor" opacity="0.7">{'No `hash`; can`t tell what changed.'}</text>
+
+    <text x="20" y="308" fontSize="10" fill="#dc2626">{'❌ March: bot still answers about Tết promo'}</text>
+    <text x="36" y="322" fontSize="10" fill="currentColor" opacity="0.7">{'No `expires_at`; stale forever.'}</text>
+
+    <text x="20" y="346" fontSize="10" fill="#dc2626">{'❌ Reranker has no heading context'}</text>
+    <text x="36" y="360" fontSize="10" fill="currentColor" opacity="0.7">{'Just naked text → weaker re-rank.'}</text>
+
+    <text x="380" y="194" fontSize="10" fill="#16a34a">{'✅ `source` → "theo faq/returns.md §7-day"'}</text>
+    <text x="396" y="208" fontSize="10" fill="currentColor" opacity="0.7">{'Answers cite. Trust goes up.'}</text>
+
+    <text x="380" y="232" fontSize="10" fill="#16a34a">{'✅ `locale` → clean VI / EN filter (L33)'}</text>
+    <text x="396" y="246" fontSize="10" fill="currentColor" opacity="0.7">{'Where chunks_locale = $1.'}</text>
+
+    <text x="380" y="270" fontSize="10" fill="#16a34a">{'✅ `hash` → skip 9,999 unchanged chunks'}</text>
+    <text x="396" y="284" fontSize="10" fill="currentColor" opacity="0.7">{'Re-embed 1; save minutes + $.'}</text>
+
+    <text x="380" y="308" fontSize="10" fill="#16a34a">{'✅ `expires_at` → cron auto-drops stale'}</text>
+    <text x="396" y="322" fontSize="10" fill="currentColor" opacity="0.7">{'WHERE expires_at &gt; now().'}</text>
+
+    <text x="380" y="346" fontSize="10" fill="#16a34a">{'✅ `heading` + `chunk_idx` → reranker context'}</text>
+    <text x="396" y="360" fontSize="10" fill="currentColor" opacity="0.7">{'Stitch neighbours back together.'}</text>
+
+    <text x="360" y="388" textAnchor="middle" fontSize="11" fontStyle="italic" fill="currentColor" opacity="0.7">{'Adding fields later means re-embedding the whole corpus. Cheap now; expensive in three months.'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Same chunk, two metadata decisions. The right side wins every fight the left side didn't know it was in.
+  </figcaption>
+</figure>
+
+<Callout type="warning" title="Concrete example — the two fields everyone forgets">
+**Scenario A: hash saves your ingestion budget.**
+
+Your `knowledge/` folder has 1,000 markdown files producing ~10,000 chunks. You run the ingestion cron nightly. On day two, you edited *one* file (`faq/shipping.md`) — three chunks changed.
+
+| Without `hash` | With `hash` |
+|---|---|
+| Re-embed all 10,000 chunks every night.<br/>`10,000 × $0.00002` = **$0.20 per run** × 365 nights = **$73/year**.<br/>Plus ~12 minutes of OpenAI rate-limited calls. ❌ | Compute SHA256 of each chunk's source text. Skip the 9,997 chunks whose hash matches the DB row.<br/>Re-embed 3 chunks. **$0.00006**, ~2 seconds. ✅ |
+
+```ts
+// at chunk time
+const hash = createHash('sha256').update(chunk.content).digest('hex');
+
+// at ingestion time
+const existing = await db.query(
+  'SELECT hash FROM concierge.knowledge_chunks WHERE source = $1 AND chunk_idx = $2',
+  [source, chunk.idx]
+);
+if (existing.rows[0]?.hash === hash) {
+  continue;                                          // unchanged — skip embedding
+}
+const embedding = await embedQuery(chunk.content);   // changed — re-embed
+await db.query(
+  `INSERT INTO concierge.knowledge_chunks (...) VALUES (...)
+   ON CONFLICT (source, chunk_idx) DO UPDATE SET ...`,
+  [...]
+);
+```
+
+**Scenario B: expires_at saves you from the Tết promo that won't die.**
+
+In late January you ingest `faq/promos/tet-2026.md`: *"Giảm 15% mọi đơn từ 23/01 đến 15/02."* You forget about it. March rolls around. A customer asks *"có khuyến mãi nào không?"* and your bot confidently quotes the Tết promo.
+
+| Without `expires_at` | With `expires_at` |
+|---|---|
+| Hash unchanged → chunk stays in the index forever.<br/>You only notice when a customer screenshots it on Facebook. ❌ | Set `expires_at: '2026-02-15'` from the markdown frontmatter at ingest time.<br/>Retrieval query: `WHERE locale = $1 AND (expires_at IS NULL OR expires_at > now())`.<br/>The chunk silently drops out on Feb 16. ✅ |
+
+```ts
+// retrieval — one line of WHERE clause and you sleep at night
+SELECT id, content
+FROM concierge.knowledge_chunks
+WHERE locale = $1
+  AND (expires_at IS NULL OR expires_at > now())
+ORDER BY embedding <=> $2::vector
+LIMIT 10;
+```
+
+The discipline: **always parse `expires_at` from frontmatter at chunk time, even when it's null.** A null in the schema is fine; an absent column means a migration in three months.
+</Callout>
+
+## 05 — Where chunking quietly fails
+
+Five recurring failure modes that every recursive splitter hits. None of them throw an error — recall just quietly drops. Each one has a structural fix worth one rule in your chunking pipeline.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 420" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Five silent chunking failure modes: tables, code blocks, bullet lists, Vietnamese long sentences, bilingual docs — each with the failure and the structural fix">
+
+    <rect x="20" y="50" width="60" height="60" rx="4" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="26" y="56" width="48" height="12" fill="rgba(22,163,74,0.25)" stroke="#16a34a" strokeWidth="0.6" />
+    <rect x="26" y="70" width="24" height="12" fill="none" stroke="#16a34a" strokeWidth="0.6" />
+    <rect x="50" y="70" width="24" height="12" fill="none" stroke="#16a34a" strokeWidth="0.6" />
+    <rect x="26" y="84" width="24" height="12" fill="none" stroke="#16a34a" strokeWidth="0.6" />
+    <rect x="50" y="84" width="24" height="12" fill="none" stroke="#16a34a" strokeWidth="0.6" />
+    <line x1="20" y1="83" x2="80" y2="83" stroke="#dc2626" strokeWidth="1.2" strokeDasharray="3 2" />
+    <text x="100" y="68" fontSize="12" fontWeight="700" fill="currentColor">{'Tables'}</text>
+    <text x="100" y="86" fontSize="10" fill="#dc2626">{'❌ header drifts to chunk 1, data to chunk 2'}</text>
+    <text x="100" y="102" fontSize="10" fill="#16a34a">{'✅ if chunk starts/ends with `|`, extend to whole table'}</text>
+
+    <rect x="20" y="120" width="60" height="60" rx="4" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1" />
+    <text x="50" y="138" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="#16a34a">{'```'}</text>
+    <text x="50" y="156" textAnchor="middle" fontSize="9" fontFamily="monospace" fill="currentColor" opacity="0.6">{'code'}</text>
+    <text x="50" y="174" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="#16a34a">{'```'}</text>
+    <line x1="20" y1="153" x2="80" y2="153" stroke="#dc2626" strokeWidth="1.2" strokeDasharray="3 2" />
+    <text x="100" y="138" fontSize="12" fontWeight="700" fill="currentColor">{'Code blocks'}</text>
+    <text x="100" y="156" fontSize="10" fill="#dc2626">{'❌ mid-fence cut → broken syntax, code mistaken for prose'}</text>
+    <text x="100" y="172" fontSize="10" fill="#16a34a">{'✅ treat fenced blocks as atomic; never split inside'}</text>
+
+    <rect x="20" y="190" width="60" height="60" rx="4" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1" />
+    <text x="30" y="206" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'- a'}</text>
+    <text x="30" y="220" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'- b'}</text>
+    <text x="30" y="236" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'- c'}</text>
+    <line x1="20" y1="226" x2="80" y2="226" stroke="#dc2626" strokeWidth="1.2" strokeDasharray="3 2" />
+    <text x="100" y="208" fontSize="12" fontWeight="700" fill="currentColor">{'Bullet lists'}</text>
+    <text x="100" y="226" fontSize="10" fill="#dc2626">{'❌ items split from list intro → chunk has no idea it`s a list'}</text>
+    <text x="100" y="242" fontSize="10" fill="#16a34a">{'✅ if chunk starts mid-list, prepend the intro sentence'}</text>
+
+    <rect x="20" y="260" width="60" height="60" rx="4" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1" />
+    <path d="M 26,290 Q 35,278 44,290 T 62,290 T 80,290" stroke="#16a34a" strokeWidth="1.5" fill="none" />
+    <circle cx="44" cy="290" r="1.5" fill="#16a34a" />
+    <circle cx="62" cy="290" r="1.5" fill="#16a34a" />
+    <text x="50" y="305" textAnchor="middle" fontSize="9" fontFamily="monospace" fill="currentColor" opacity="0.6">{', , ,'}</text>
+    <text x="100" y="278" fontSize="12" fontWeight="700" fill="currentColor">{'Vietnamese long sentences'}</text>
+    <text x="100" y="296" fontSize="10" fill="#dc2626">{'❌ 100+ words, `.` is rare → under-split by `splitOnSentence`'}</text>
+    <text x="100" y="312" fontSize="10" fill="#16a34a">{'✅ add `,` `;` `:` to sentence separators for VI'}</text>
+
+    <rect x="20" y="330" width="60" height="60" rx="4" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="20" y="330" width="30" height="60" fill="rgba(22,163,74,0.16)" />
+    <text x="35" y="365" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'VI'}</text>
+    <text x="65" y="365" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'EN'}</text>
+    <text x="100" y="348" fontSize="12" fontWeight="700" fill="currentColor">{'Bilingual docs'}</text>
+    <text x="100" y="366" fontSize="10" fill="#dc2626">{'❌ VI + EN in one chunk → half-strength vector match for each'}</text>
+    <text x="100" y="382" fontSize="10" fill="#16a34a">{'✅ detect language at chunk time; split or tag `locale: \'mixed\'`'}</text>
+
+    <text x="360" y="412" textAnchor="middle" fontSize="11" fontStyle="italic" fill="currentColor" opacity="0.7">{'None of these throw an error — they just quietly drop recall@5.'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Five silent failures, five structural fixes. Patch with rules, not with a bigger chunk size.
+  </figcaption>
+</figure>
+
+**Tables.** A recursive splitter sees `| col1 | col2 |\n| --- | --- |\n| a | b |` and might cut after `| --- |`. The header row goes to chunk 1, the data goes to chunk 2, neither makes sense alone. **Fix:** custom rule — if the chunk starts or ends with table syntax, extend it to include the whole table.
+
+**Code blocks.** Splitting inside ``` ``` ``` ``` produces broken syntax and the model can't tell what's code vs prose. **Fix:** treat fenced code blocks as atomic — never split inside them, even if it pushes the chunk over the token budget.
+
+**Bullet lists.** A list of 30 product features, split in the middle, gives you "items 1–15" and "items 16–30" — neither chunk knows it's a list. **Fix:** if a chunk starts mid-list (line starts with `-` or `*` but previous chunk doesn't), prepend the list-introducing sentence as context.
+
+**Vietnamese long sentences.** A Vietnamese sentence can run 100+ words because comma-clauses are common. A `splitOnSentence` based on `. ` will under-split Vietnamese text. **Fix:** add `;` and `:` to your sentence separators for Vietnamese.
+
+**Multi-language documents.** A bilingual FAQ where each Q has VI and EN side-by-side will produce chunks with both languages mashed together. Vector search then matches half-strength on both. **Fix:** detect language at chunk time, store `locale`, and either split bilingual blocks into two chunks (one per locale) or keep them whole but tag `locale: 'mixed'`.
+
+<Callout type="warning" title="Concrete example — the table that broke retrieval">
+**Source document:**
+
+<div style={{ margin: '0.75rem 0 1rem', padding: '0.9rem 1rem', background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.3)', borderRadius: '6px' }}>
+  <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700, marginBottom: '0.5rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>📄 faq/shipping-fees.md</div>
+  <h4 style={{ margin: '0.25rem 0 0.75rem', fontSize: '1rem', fontWeight: 700 }}>Shipping fees by zone</h4>
+  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', margin: 0 }}>
+    <thead>
+      <tr style={{ borderBottom: '2px solid #16a34a' }}>
+        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Zone</th>
+        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Fee</th>
+        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Free over</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
+        <td style={{ padding: '0.4rem 0.7rem' }}>Inner</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>25,000đ</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>300,000đ</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
+        <td style={{ padding: '0.4rem 0.7rem' }}>Outer</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>45,000đ</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>500,000đ</td>
+      </tr>
+      <tr>
+        <td style={{ padding: '0.4rem 0.7rem' }}>Remote</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>80,000đ</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>—</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+User asks: *"Phí ship Inner bao nhiêu?"*
+
+**Without a table rule** — the recursive splitter sees `\n` between header and data as a valid break point, and the 400-token budget happens to run out right after the separator row:
+
+| Chunk 1 ends with | Chunk 2 starts with |
+|---|---|
+| `## Shipping fees by zone`<br/>`\| Zone \| Fee \| Free over \|`<br/>`\| --- \| --- \| --- \|` ❌ | `\| Inner \| 25,000đ \| 300,000đ \|`<br/>`\| Outer \| 45,000đ \| 500,000đ \|`<br/>`\| Remote \| 80,000đ \| — \|` ❌ |
+
+Chunk 1 is just headers — no fees. Chunk 2 is just data — no column meaning. Vector search retrieves chunk 2 (the word *"Inner"* matches), and the model sees `| Inner | 25,000đ | 300,000đ |` with no idea that the second column is "Fee". Best case: model guesses right. Realistic case: model says *"em không chắc"*.
+
+**With a table rule** — keep tables atomic:
+
+```ts
+// Pseudo-rule: detect table syntax, extend chunk to include the whole block
+function isTableLine(line: string) {
+  return /^\s*\|/.test(line);
+}
+// If the chunk boundary lands inside a table run, extend the chunk
+// until the first non-table line.
+```
+
+Now chunk 2 starts *before* the table heading, and the whole table is one chunk:
+
+<div style={{ margin: '0.75rem 0 1rem', padding: '0.9rem 1rem', background: 'rgba(22,163,74,0.05)', border: '1px solid #16a34a', borderRadius: '6px', position: 'relative' }}>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+    <span style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>📦 chunk 2 · atomic</span>
+    <span style={{ fontSize: '0.75rem', background: '#16a34a', color: 'white', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>✅ table kept whole</span>
+  </div>
+  <h4 style={{ margin: '0.25rem 0 0.75rem', fontSize: '1rem', fontWeight: 700 }}>Shipping fees by zone</h4>
+  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', margin: 0 }}>
+    <thead>
+      <tr style={{ borderBottom: '2px solid #16a34a' }}>
+        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Zone</th>
+        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Fee</th>
+        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Free over</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
+        <td style={{ padding: '0.4rem 0.7rem' }}>Inner</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>25,000đ</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>300,000đ</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
+        <td style={{ padding: '0.4rem 0.7rem' }}>Outer</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>45,000đ</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>500,000đ</td>
+      </tr>
+      <tr>
+        <td style={{ padding: '0.4rem 0.7rem' }}>Remote</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>80,000đ</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>—</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+Vector search retrieves *one* chunk, the model sees the header row paired with the data row, and the answer is *"25,000đ trong khu Inner, freeship từ 300,000đ"*.
+
+**Same fix shape applies to code blocks and bullet lists** — treat the structured block as atomic, extend the chunk to include the whole thing, accept that this chunk might run 50 tokens over budget. A 450-token chunk that makes sense beats a 400-token chunk that doesn't.
+</Callout>
+
+<Callout type="tip" title="The eval-driven loop">
+Don't optimise chunking blind. Build a 20-question eval set in L30 (*"what's the return window?"* → expected chunk: `faq/returns.md#window`). Re-chunk at three sizes (250/400/600 tokens), re-embed, measure recall@5 for each. Ship the winner. The whole cycle takes an afternoon and beats months of guessing.
+</Callout>
+
+<Recap>
+- Chunking trades **recall** (small chunks miss context) against **precision** (large chunks dilute attention). The right size is the smallest chunk that contains a complete thought.
+- Strategies: **section-aware** wins for markdown, **recursive** is the default fallback, **semantic** when you need top-tier recall, **fixed-size** only as a baseline.
+- **10–20% overlap** is the safety net for boundary cases. Use tiktoken to count tokens, not characters.
+- Metadata to capture at chunk time: `source, heading, locale, updated_at, expires_at, hash, chunk_idx`. Adding fields later means re-embedding everything.
+- Tables, code blocks, bullet lists, Vietnamese long sentences, and bilingual docs are the silent recall killers — patch each with a structural rule, not a bigger chunk size.
+</Recap>
+
+Next: index types. Because you can chunk perfectly and still have a 30-second query if the index is wrong for your scale.
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Vì sao tồn tại chunking — và hai lực đối lập (recall vs precision) bạn đang cố cân.
+- Bốn chiến lược cạnh nhau: fixed-size, recursive, semantic, section-aware.
+- Quy tắc overlap chống mất ngữ cảnh ở biên — và phần trăm thực sự work.
+- Metadata phải bắt *ngay lúc chunk* — vì thêm sau = re-embed mọi thứ.
+- Chỗ chunking âm thầm thất bại — bảng, code, list, câu dài — và bản vá cho từng cái.
+</Callout>
+
+Bạn có file PDF 12 trang chính sách trả hàng. Bạn embed cả file thành một vector rồi lưu. Khách hỏi *"đi 1 lần có trả được không?"* — vector search trả về document. Tuyệt. Giờ model phải đọc 12 trang để trả lời một câu hỏi, và 95% prompt không liên quan.
+
+Bạn đi hướng ngược lại: chia thành câu lẻ. Giờ *"đi 1 lần"* match với câu *"sản phẩm còn nguyên trạng chưa sử dụng"* — nhưng câu chứa quy tắc thật cách đó hai đoạn và model không bao giờ thấy.
+
+Chunking là cách bạn chặn cả hai chế độ hỏng đó cùng lúc.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 440" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Cùng document chia bốn cách: fixed-size, recursive, semantic, section-aware">
+    <text x="20" y="24" fontSize="13" fontWeight="700" fill="#16a34a">{'Cùng doc, bốn cách chia'}</text>
+
+    <text x="20" y="60" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Fixed-size (400 tok)'}</text>
+    <rect x="160" y="48" width="100" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="262" y="48" width="100" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="364" y="48" width="100" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="466" y="48" width="100" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="568" y="48" width="70"  height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <text x="650" y="62" fontSize="10" fill="currentColor" opacity="0.6">{'cắt giữa câu'}</text>
+
+    <text x="20" y="120" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Recursive (\\n\\n → \\n → .)'}</text>
+    <rect x="160" y="108" width="80"  height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="242" y="108" width="120" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="364" y="108" width="90"  height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="456" y="108" width="110" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="568" y="108" width="70"  height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <text x="650" y="122" fontSize="10" fill="currentColor" opacity="0.6">{'tôn trọng đoạn'}</text>
+
+    <text x="20" y="180" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Semantic (embed rồi chia)'}</text>
+    <rect x="160" y="168" width="60"  height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="222" y="168" width="180" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="404" y="168" width="90"  height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="496" y="168" width="142" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1" />
+    <text x="650" y="182" fontSize="10" fill="currentColor" opacity="0.6">{'chia chỗ ý đổi'}</text>
+
+    <text x="20" y="240" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Section-aware'}</text>
+    <rect x="160" y="228" width="140" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="230" y="242" textAnchor="middle" fontSize="9" fill="#16a34a">{'## Trả hàng'}</text>
+    <rect x="302" y="228" width="160" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="382" y="242" textAnchor="middle" fontSize="9" fill="#16a34a">{'## Hoàn tiền'}</text>
+    <rect x="464" y="228" width="174" height="20" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="551" y="242" textAnchor="middle" fontSize="9" fill="#16a34a">{'## Vận chuyển'}</text>
+    <text x="650" y="242" fontSize="10" fill="currentColor" opacity="0.6">{'một chủ đề ★'}</text>
+
+    <rect x="20" y="290" width="680" height="60" rx="8" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="312" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Overlap (10–20%): tấm lưới an toàn'}</text>
+    <text x="360" y="332" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'mỗi chunk lặp lại ~60 token của chunk trước →'}</text>
+    <text x="360" y="346" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'quy tắc nằm ngay biên giờ tồn tại đầy đủ trong cả hai chunk'}</text>
+
+    <rect x="20" y="370" width="680" height="60" rx="8" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 3" />
+    <text x="360" y="392" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'+ metadata mỗi chunk'}</text>
+    <text x="360" y="410" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'{ source, heading, locale, page, updated_at, expires_at, hash }'}</text>
+    <text x="360" y="424" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'bắt ngay lúc chunk — thêm sau = re-embed mọi thứ'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Cùng đoạn, bốn chiến lược. Section-aware thắng cho markdown; recursive thắng khi không có heading; fixed-size là fallback rẻ.
+  </figcaption>
+</figure>
+
+## 01 — Vì sao phải chunk
+
+Hai lực đối lập.
+
+**Lực một — recall.** Model không tìm được cái nó không thấy. Chunk quá nhỏ → context liên quan nằm vắt qua biên, vector match miss, model nhận câu sai-mà-nghe-tự-tin.
+
+**Lực hai — precision.** Mỗi token trong prompt tốn tiền và làm loãng attention. Chunk quá lớn → model nhận đáp án *cộng* mười hai đoạn chính sách không liên quan, đáp án bị chôn hoặc bị trích sai bối cảnh.
+
+Kích thước chunk cân được cả hai là **chunk nhỏ nhất chứa được một ý hoàn chỉnh**. Cho document chính sách thường 200–400 token. Cho text pháp lý đặc có thể 600. Cho FAQ sản phẩm mỗi Q&A độc lập có thể 80.
+
+Đừng đoán. Khi có eval set (L30), đo recall@5 ở ba kích thước chunk và chọn cái thắng.
+
+## 02 — Bốn chiến lược
+
+**Fixed-size.** Đếm token, cắt mỗi N token một lần. Đơn giản nhất, nhanh nhất, ngu nhất. Hữu ích như baseline — nhưng cắt giữa câu, giữa bảng, giữa code block. *Phương án cuối.*
+
+**Recursive character splitter.** Thử chia trên `\n\n` trước, rồi `\n`, rồi `.`, rồi space, rồi ký tự. Dừng khi chunk vừa size mục tiêu. `RecursiveCharacterTextSplitter` của LangChain là cái này. **Lựa chọn mặc định khi không biết cấu trúc** — xử lý markdown, prose, kể cả HTML lộn xộn ổn.
+
+**Semantic.** Embed mỗi câu, tìm điểm mà embedding của hai câu liên tiếp khác nhau nhiều nhất, chia ở đó. Đắt (một embedding mỗi câu lúc chunk) nhưng tạo chunk mỗi cái về *một thứ*. Dùng khi chất lượng retrieval đang là bottleneck của conversion.
+
+**Section-aware.** Chia theo marker cấu trúc — `## heading` trong markdown, `<h2>` trong HTML, page break trong PDF. **Lựa chọn tốt nhất khi nguồn là markdown** (bạn kiểm soát, vì bạn viết FAQ). Sau đó re-chunk bất kỳ section nào vượt budget token bằng recursive.
+
+Cho concierge: **section-aware trước, recursive bên trong section lớn**. Đó là cái L32 implement.
+
+## 03 — Quy tắc overlap
+
+Một chunk 400 token kết thúc giữa giải thích phá retrieval. Mẹo là overlap — mỗi chunk lặp lại ~60 token cuối của chunk trước. Quy tắc bắt đầu ở chunk 1 và tiếp ở chunk 2 giờ tồn tại, đầy đủ, ở cả hai chunk. Query hit cái nào, model nhận đủ ý.
+
+**Quy tắc ngón cái: overlap 10–20%.** 400/60 (15%) là mặc định an toàn. Cao hơn = nhiều storage và hit trùng; thấp hơn = nhiều miss biên. Đừng dưới 10%.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 340" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Minh hoạ quy tắc overlap: không có overlap thì câu vắt qua biên bị cắt đôi; với overlap 60 token, cùng câu đó nằm trọn trong chunk 2">
+    <line x1="80" y1="42" x2="680" y2="42" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+    <line x1="80"  y1="38" x2="80"  y2="46" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+    <line x1="320" y1="38" x2="320" y2="46" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+    <line x1="560" y1="38" x2="560" y2="46" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+    <line x1="680" y1="38" x2="680" y2="46" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+    <text x="80"  y="28" fontSize="10" fill="currentColor" opacity="0.55">{'token 0'}</text>
+    <text x="320" y="28" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.55">{'400'}</text>
+    <text x="560" y="28" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.55">{'800'}</text>
+    <text x="680" y="28" textAnchor="end" fontSize="10" fill="currentColor" opacity="0.55">{'1000'}</text>
+
+    <text x="20" y="80" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Không overlap'}</text>
+    <rect x="80"  y="92" width="240" height="28" rx="4" fill="rgba(22,163,74,0.1)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="200" y="110" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'Chunk 1 · token 0–400'}</text>
+    <rect x="320" y="92" width="240" height="28" rx="4" fill="rgba(22,163,74,0.1)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="440" y="110" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'Chunk 2 · token 400–800'}</text>
+
+    <line x1="320" y1="82" x2="320" y2="155" stroke="#dc2626" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.8" />
+    <rect x="302" y="128" width="36" height="14" rx="2" fill="rgba(220,38,38,0.2)" stroke="#dc2626" strokeWidth="1.5" />
+    <text x="320" y="170" textAnchor="middle" fontSize="10" fill="#dc2626">{'❌ quy tắc (token 370–430) bị cắt đôi ở biên'}</text>
+
+    <text x="20" y="210" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Overlap 60 token (15%)'}</text>
+
+    <rect x="80"  y="222" width="240" height="28" rx="4" fill="rgba(22,163,74,0.1)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="200" y="240" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'Chunk 1 · token 0–400'}</text>
+
+    <rect x="284" y="260" width="240" height="28" rx="4" fill="rgba(22,163,74,0.1)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="404" y="278" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'Chunk 2 · token 340–740'}</text>
+
+    <rect x="284" y="222" width="36" height="66" fill="rgba(22,163,74,0.28)" stroke="#16a34a" strokeWidth="1" strokeDasharray="2 2" />
+    <text x="284" y="216" fontSize="9" fill="#16a34a" opacity="0.85">{'← 60 token dùng chung →'}</text>
+
+    <rect x="302" y="260" width="36" height="28" rx="2" fill="rgba(22,163,74,0.5)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="404" y="308" textAnchor="middle" fontSize="10" fill="#16a34a">{'✅ chính câu đó giờ nằm trọn trong chunk 2'}</text>
+
+    <text x="360" y="328" textAnchor="middle" fontSize="11" fontStyle="italic" fill="currentColor" opacity="0.7">{'Overlap 15% = mỗi chunk lặp lại 60 token cuối của chunk trước'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Cùng document, cùng kích thước chunk. Không overlap, mọi thứ vắt qua biên mất một nửa cho mỗi bên. Có overlap 60 token, vùng dùng chung bắt lại.
+  </figcaption>
+</figure>
+
+<Callout type="tip" title="Ví dụ cụ thể — FAQ chính sách trả hàng">
+**Câu gốc trong file FAQ của bạn:**
+
+<div style={{ margin: '0.75rem 0 1rem', padding: '0.9rem 1rem', background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.3)', borderRadius: '6px', fontSize: '0.95rem', lineHeight: 1.6 }}>
+  <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700, marginBottom: '0.4rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>📄 faq/returns.md · đoạn 3</div>
+  Khách có thể trả hàng trong vòng 7 ngày <mark style={{ background: 'rgba(22,163,74,0.25)', color: 'inherit', padding: '2px 5px', borderRadius: '3px', fontWeight: 600 }}>nếu sản phẩm còn nguyên trạng và có hoá đơn gốc</mark>.
+</div>
+
+Một user gõ câu hỏi: *"Trả hàng cần điều kiện gì?"* — đáp án nằm trong mệnh đề được highlight.
+
+**Không overlap** — splitter cắt ngay sau từ *"nguyên trạng"* vì budget 400 token đã hết ở đó:
+
+| Chunk 1 (token 0–400) kết thúc bằng | Chunk 2 (token 400–800) bắt đầu bằng |
+|---|---|
+| `...có thể trả hàng trong vòng 7 ngày nếu sản phẩm còn nguyên trạng` ❌ | `và có hoá đơn gốc. Tiền sẽ hoàn vào tài khoản...` ❌ |
+
+Vector search trả về *một* chunk. Chunk 1 không nói *"phải có hoá đơn"*. Chunk 2 không nói *"hành động gì"* hay *"7 ngày"*. **Không chunk nào tự mình trả lời được câu hỏi.**
+
+**Với overlap 60 token** — chunk 2 bắt đầu sớm hơn 60 token (token 340), nên chứa trọn cả mệnh đề điều kiện:
+
+| Chunk 1 (0–400) kết thúc bằng | Chunk 2 (340–740) bắt đầu bằng |
+|---|---|
+| `...trả hàng trong vòng 7 ngày nếu sản phẩm còn nguyên trạng và có hoá đơn gốc.` ✅ | `...trong vòng 7 ngày nếu sản phẩm còn nguyên trạng và có hoá đơn gốc. Tiền sẽ hoàn vào tài khoản...` ✅ |
+
+Vector search hit chunk nào cũng được, model đều thấy đủ quy tắc. **Đó là toàn bộ công việc của overlap.**
+</Callout>
+
+```ts
+// LangChain
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+
+const splitter = new RecursiveCharacterTextSplitter({
+  chunkSize: 400,
+  chunkOverlap: 60,                                 // overlap 15%
+  lengthFunction: (text) => encode(text).length,    // đếm token tiktoken, không phải ký tự
+  separators: ['\n## ', '\n\n', '\n', '. ', ' '],   // section-aware, rồi prose
+});
+```
+
+`lengthFunction: encode(...).length` quan trọng. Token count không phải char count — 100 ký tự tiếng Anh khoảng 25 token, 100 ký tự tiếng Việt khoảng 60 token (dấu tiếng Việt làm phồng byte-pair count). Đo bằng char là vượt limit input của embedding model.
+
+## 04 — Metadata: bắt ngay lúc chunk
+
+Mỗi chunk bạn embed cần một dòng metadata kèm theo. Field bạn *không nghĩ tới* thêm bây giờ là cái bạn sẽ ước có ba tháng sau — và thêm sau = re-embed toàn bộ corpus.
+
+Metadata tối thiểu:
+
+| Field | Để làm gì | Ví dụ |
+|---|---|---|
+| `source` | Đến từ file/URL nào | `'faq/returns.md'` |
+| `heading` | Section nào, để cite trong câu trả lời | `'## Trả hàng trong 7 ngày'` |
+| `locale` | Lọc query `vi` vs `en` sạch (L33) | `'vi'` |
+| `updated_at` | Edit lần cuối khi nào | `'2026-05-21T10:00:00Z'` |
+| `expires_at` | Khi nào ngừng đúng | `'2026-12-31'` (cho promo) |
+| `hash` | SHA256 của text gốc — skip re-embed nếu không đổi | `'a3f5...'` |
+| `chunk_idx` | Thứ tự trong source, để dựng lại context | `3` |
+
+Hai field `hash` và `expires_at` là hai cái ai cũng quên. Không `hash`, re-embed mọi thứ mỗi lần ingest và phí hàng giờ. Không `expires_at`, bot vẫn quote promo Tết năm ngoái vào tháng Ba.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 400" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Hai kịch bản ingest, ba tháng sau: chunk lưu không metadata mất citation, filter locale, re-ingest idempotent, expiry; chunk có metadata thắng từng cái đó">
+    <text x="360" y="22" textAnchor="middle" fontSize="12" fontStyle="italic" fill="currentColor" opacity="0.7">{'Cùng corpus, hai quyết định ingest — ba tháng sau'}</text>
+
+    <rect x="20"  y="40" width="320" height="100" rx="8" fill="rgba(220,38,38,0.05)" stroke="#dc2626" strokeWidth="1.5" />
+    <text x="180" y="62" textAnchor="middle" fontSize="13" fontWeight="700" fill="#dc2626">{'Không có metadata'}</text>
+    <text x="36"  y="84" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{'{'}</text>
+    <text x="46"  y="100" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{"content: 'Khách có thể trả hàng…',"}</text>
+    <text x="46"  y="116" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{'embedding: [0.12, 0.83, …]'}</text>
+    <text x="36"  y="132" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{'}'}</text>
+
+    <rect x="380" y="40" width="320" height="120" rx="8" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="540" y="62" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Có metadata'}</text>
+    <text x="396" y="80" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{'{'}</text>
+    <text x="406" y="94" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{"content, embedding,"}</text>
+    <text x="406" y="108" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{"source: 'faq/returns.md',"}</text>
+    <text x="406" y="122" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{"heading, locale, updated_at,"}</text>
+    <text x="406" y="136" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{"expires_at, hash, chunk_idx"}</text>
+    <text x="396" y="150" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.8">{'}'}</text>
+
+    <text x="20" y="172" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'3 tháng sau …'}</text>
+    <text x="380" y="172" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'3 tháng sau …'}</text>
+
+    <text x="20" y="194" fontSize="10" fill="#dc2626">{'❌ Bot quote chunk; user hỏi "từ đâu?"'}</text>
+    <text x="36" y="208" fontSize="10" fill="currentColor" opacity="0.7">{'Không cite được — source biến mất.'}</text>
+
+    <text x="20" y="232" fontSize="10" fill="#dc2626">{'❌ Query VI kéo về chunk EN'}</text>
+    <text x="36" y="246" fontSize="10" fill="currentColor" opacity="0.7">{'Không có `locale` để filter.'}</text>
+
+    <text x="20" y="270" fontSize="10" fill="#dc2626">{'❌ Re-embed 10,000 chunk mỗi đêm cron'}</text>
+    <text x="36" y="284" fontSize="10" fill="currentColor" opacity="0.7">{'Không `hash`; không biết cái nào đổi.'}</text>
+
+    <text x="20" y="308" fontSize="10" fill="#dc2626">{'❌ Tháng 3: bot vẫn trả lời về promo Tết'}</text>
+    <text x="36" y="322" fontSize="10" fill="currentColor" opacity="0.7">{'Không `expires_at`; tồn tại mãi.'}</text>
+
+    <text x="20" y="346" fontSize="10" fill="#dc2626">{'❌ Reranker không có context heading'}</text>
+    <text x="36" y="360" fontSize="10" fill="currentColor" opacity="0.7">{'Chỉ text trần → rerank yếu hơn.'}</text>
+
+    <text x="380" y="194" fontSize="10" fill="#16a34a">{'✅ `source` → "theo faq/returns.md §7-ngày"'}</text>
+    <text x="396" y="208" fontSize="10" fill="currentColor" opacity="0.7">{'Câu trả lời cite. Niềm tin tăng.'}</text>
+
+    <text x="380" y="232" fontSize="10" fill="#16a34a">{'✅ `locale` → filter VI / EN sạch (L33)'}</text>
+    <text x="396" y="246" fontSize="10" fill="currentColor" opacity="0.7">{'Where chunks_locale = $1.'}</text>
+
+    <text x="380" y="270" fontSize="10" fill="#16a34a">{'✅ `hash` → skip 9,999 chunk không đổi'}</text>
+    <text x="396" y="284" fontSize="10" fill="currentColor" opacity="0.7">{'Re-embed 1; tiết kiệm phút + $.'}</text>
+
+    <text x="380" y="308" fontSize="10" fill="#16a34a">{'✅ `expires_at` → cron tự rớt cái cũ'}</text>
+    <text x="396" y="322" fontSize="10" fill="currentColor" opacity="0.7">{'WHERE expires_at &gt; now().'}</text>
+
+    <text x="380" y="346" fontSize="10" fill="#16a34a">{'✅ `heading` + `chunk_idx` → context cho rerank'}</text>
+    <text x="396" y="360" fontSize="10" fill="currentColor" opacity="0.7">{'Khâu hàng xóm lại với nhau.'}</text>
+
+    <text x="360" y="388" textAnchor="middle" fontSize="11" fontStyle="italic" fill="currentColor" opacity="0.7">{'Thêm field sau = re-embed toàn corpus. Rẻ bây giờ; đắt sau ba tháng.'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Cùng chunk, hai quyết định metadata. Bên phải thắng mọi trận đấu mà bên trái không biết mình đang đánh.
+  </figcaption>
+</figure>
+
+<Callout type="warning" title="Ví dụ cụ thể — hai field ai cũng quên">
+**Kịch bản A: hash cứu ngân sách ingestion của bạn.**
+
+Folder `knowledge/` có 1,000 file markdown sinh ra ~10,000 chunk. Bạn chạy cron ingest mỗi đêm. Ngày thứ hai, bạn edit *một* file (`faq/shipping.md`) — ba chunk đổi.
+
+| Không có `hash` | Có `hash` |
+|---|---|
+| Re-embed cả 10,000 chunk mỗi đêm.<br/>`10,000 × $0.00002` = **$0.20 mỗi lần** × 365 đêm = **$73/năm**.<br/>Cộng ~12 phút call OpenAI bị rate-limit. ❌ | Tính SHA256 của text gốc mỗi chunk. Skip 9,997 chunk có hash trùng với DB row.<br/>Re-embed 3 chunk. **$0.00006**, ~2 giây. ✅ |
+
+```ts
+// lúc chunk
+const hash = createHash('sha256').update(chunk.content).digest('hex');
+
+// lúc ingest
+const existing = await db.query(
+  'SELECT hash FROM concierge.knowledge_chunks WHERE source = $1 AND chunk_idx = $2',
+  [source, chunk.idx]
+);
+if (existing.rows[0]?.hash === hash) {
+  continue;                                          // không đổi — skip embed
+}
+const embedding = await embedQuery(chunk.content);   // đã đổi — re-embed
+await db.query(
+  `INSERT INTO concierge.knowledge_chunks (...) VALUES (...)
+   ON CONFLICT (source, chunk_idx) DO UPDATE SET ...`,
+  [...]
+);
+```
+
+**Kịch bản B: expires_at cứu bạn khỏi promo Tết không chịu chết.**
+
+Cuối tháng Một bạn ingest `faq/promos/tet-2026.md`: *"Giảm 15% mọi đơn từ 23/01 đến 15/02."* Bạn quên nó. Tháng Ba tới. Khách hỏi *"có khuyến mãi nào không?"* và bot tự tin quote promo Tết.
+
+| Không có `expires_at` | Có `expires_at` |
+|---|---|
+| Hash không đổi → chunk ở trong index mãi mãi.<br/>Bạn chỉ phát hiện khi khách chụp màn hình lên Facebook. ❌ | Set `expires_at: '2026-02-15'` từ frontmatter markdown lúc ingest.<br/>Query retrieval: `WHERE locale = $1 AND (expires_at IS NULL OR expires_at > now())`.<br/>Chunk âm thầm rớt ra ngày 16/02. ✅ |
+
+```ts
+// retrieval — một dòng WHERE và bạn ngủ yên đêm
+SELECT id, content
+FROM concierge.knowledge_chunks
+WHERE locale = $1
+  AND (expires_at IS NULL OR expires_at > now())
+ORDER BY embedding <=> $2::vector
+LIMIT 10;
+```
+
+Kỷ luật: **luôn parse `expires_at` từ frontmatter lúc chunk, kể cả khi null.** Null trong schema thì ổn; thiếu cột nghĩa là migration trong ba tháng.
+</Callout>
+
+## 05 — Chỗ chunking âm thầm fail
+
+Năm chế độ thất bại tái diễn mà mọi recursive splitter đều mắc. Không cái nào throw error — recall chỉ âm thầm rớt. Mỗi cái có một sửa cấu trúc đáng giá một rule trong pipeline chunking của bạn.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 420" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Năm chế độ thất bại âm thầm của chunking: bảng, code block, list, câu Việt dài, doc song ngữ — mỗi cái kèm bug và sửa cấu trúc">
+
+    <rect x="20" y="50" width="60" height="60" rx="4" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="26" y="56" width="48" height="12" fill="rgba(22,163,74,0.25)" stroke="#16a34a" strokeWidth="0.6" />
+    <rect x="26" y="70" width="24" height="12" fill="none" stroke="#16a34a" strokeWidth="0.6" />
+    <rect x="50" y="70" width="24" height="12" fill="none" stroke="#16a34a" strokeWidth="0.6" />
+    <rect x="26" y="84" width="24" height="12" fill="none" stroke="#16a34a" strokeWidth="0.6" />
+    <rect x="50" y="84" width="24" height="12" fill="none" stroke="#16a34a" strokeWidth="0.6" />
+    <line x1="20" y1="83" x2="80" y2="83" stroke="#dc2626" strokeWidth="1.2" strokeDasharray="3 2" />
+    <text x="100" y="68" fontSize="12" fontWeight="700" fill="currentColor">{'Bảng'}</text>
+    <text x="100" y="86" fontSize="10" fill="#dc2626">{'❌ header sang chunk 1, data sang chunk 2'}</text>
+    <text x="100" y="102" fontSize="10" fill="#16a34a">{'✅ nếu chunk bắt đầu/kết thúc bằng `|`, mở rộng bao cả bảng'}</text>
+
+    <rect x="20" y="120" width="60" height="60" rx="4" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1" />
+    <text x="50" y="138" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="#16a34a">{'```'}</text>
+    <text x="50" y="156" textAnchor="middle" fontSize="9" fontFamily="monospace" fill="currentColor" opacity="0.6">{'code'}</text>
+    <text x="50" y="174" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="#16a34a">{'```'}</text>
+    <line x1="20" y1="153" x2="80" y2="153" stroke="#dc2626" strokeWidth="1.2" strokeDasharray="3 2" />
+    <text x="100" y="138" fontSize="12" fontWeight="700" fill="currentColor">{'Code block'}</text>
+    <text x="100" y="156" fontSize="10" fill="#dc2626">{'❌ cắt giữa fence → syntax hỏng, code bị tưởng là prose'}</text>
+    <text x="100" y="172" fontSize="10" fill="#16a34a">{'✅ coi fenced block là nguyên tử; không chia bên trong'}</text>
+
+    <rect x="20" y="190" width="60" height="60" rx="4" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1" />
+    <text x="30" y="206" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'- a'}</text>
+    <text x="30" y="220" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'- b'}</text>
+    <text x="30" y="236" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'- c'}</text>
+    <line x1="20" y1="226" x2="80" y2="226" stroke="#dc2626" strokeWidth="1.2" strokeDasharray="3 2" />
+    <text x="100" y="208" fontSize="12" fontWeight="700" fill="currentColor">{'List gạch đầu dòng'}</text>
+    <text x="100" y="226" fontSize="10" fill="#dc2626">{'❌ item tách khỏi câu giới thiệu → chunk không biết là list'}</text>
+    <text x="100" y="242" fontSize="10" fill="#16a34a">{'✅ chunk bắt đầu giữa list → prepend câu giới thiệu làm context'}</text>
+
+    <rect x="20" y="260" width="60" height="60" rx="4" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1" />
+    <path d="M 26,290 Q 35,278 44,290 T 62,290 T 80,290" stroke="#16a34a" strokeWidth="1.5" fill="none" />
+    <circle cx="44" cy="290" r="1.5" fill="#16a34a" />
+    <circle cx="62" cy="290" r="1.5" fill="#16a34a" />
+    <text x="50" y="305" textAnchor="middle" fontSize="9" fontFamily="monospace" fill="currentColor" opacity="0.6">{', , ,'}</text>
+    <text x="100" y="278" fontSize="12" fontWeight="700" fill="currentColor">{'Câu tiếng Việt dài'}</text>
+    <text x="100" y="296" fontSize="10" fill="#dc2626">{'❌ 100+ từ, `.` hiếm → `splitOnSentence` under-split'}</text>
+    <text x="100" y="312" fontSize="10" fill="#16a34a">{'✅ thêm `,` `;` `:` vào separator câu cho VI'}</text>
+
+    <rect x="20" y="330" width="60" height="60" rx="4" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1" />
+    <rect x="20" y="330" width="30" height="60" fill="rgba(22,163,74,0.16)" />
+    <text x="35" y="365" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'VI'}</text>
+    <text x="65" y="365" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'EN'}</text>
+    <text x="100" y="348" fontSize="12" fontWeight="700" fill="currentColor">{'Doc song ngữ'}</text>
+    <text x="100" y="366" fontSize="10" fill="#dc2626">{'❌ VI + EN trong một chunk → vector match nửa lực cho cả hai'}</text>
+    <text x="100" y="382" fontSize="10" fill="#16a34a">{'✅ detect language lúc chunk; chia hoặc tag `locale: \'mixed\'`'}</text>
+
+    <text x="360" y="412" textAnchor="middle" fontSize="11" fontStyle="italic" fill="currentColor" opacity="0.7">{'Không cái nào throw error — chúng chỉ âm thầm rớt recall@5.'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Năm thất bại âm thầm, năm cách sửa cấu trúc. Vá bằng rule, không phải bằng chunk to hơn.
+  </figcaption>
+</figure>
+
+**Bảng.** Recursive splitter thấy `| col1 | col2 |\n| --- | --- |\n| a | b |` có thể cắt sau `| --- |`. Hàng header sang chunk 1, data sang chunk 2, không cái nào nghĩa độc lập. **Sửa:** rule riêng — nếu chunk bắt đầu hoặc kết thúc bằng syntax bảng, mở rộng để bao cả bảng.
+
+**Code block.** Chia bên trong ``` ``` ``` ``` tạo syntax hỏng và model không biết đâu là code đâu là prose. **Sửa:** coi fenced code block là nguyên tử — không bao giờ chia bên trong, kể cả khi đẩy chunk vượt budget.
+
+**List gạch đầu dòng.** Một list 30 feature sản phẩm, chia giữa, cho bạn "item 1–15" và "item 16–30" — không chunk nào biết mình là list. **Sửa:** nếu chunk bắt đầu giữa list (dòng đầu là `-` hoặc `*` nhưng chunk trước không), prepend câu giới thiệu list làm context.
+
+**Câu tiếng Việt dài.** Một câu tiếng Việt có thể dài 100+ từ vì mệnh đề ngăn bằng dấu phẩy thường. `splitOnSentence` dựa trên `. ` sẽ under-split text tiếng Việt. **Sửa:** thêm `;` và `:` vào separator câu cho tiếng Việt.
+
+**Document đa ngôn ngữ.** FAQ song ngữ mỗi Q có VI và EN cạnh nhau sẽ tạo chunk trộn hai ngôn ngữ. Vector search rồi match nửa lực cả hai. **Sửa:** detect language lúc chunk, lưu `locale`, hoặc chia block song ngữ thành hai chunk (mỗi locale) hoặc giữ nguyên nhưng tag `locale: 'mixed'`.
+
+<Callout type="warning" title="Ví dụ cụ thể — cái bảng phá retrieval">
+**Document nguồn:**
+
+<div style={{ margin: '0.75rem 0 1rem', padding: '0.9rem 1rem', background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.3)', borderRadius: '6px' }}>
+  <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700, marginBottom: '0.5rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>📄 faq/shipping-fees.md</div>
+  <h4 style={{ margin: '0.25rem 0 0.75rem', fontSize: '1rem', fontWeight: 700 }}>Phí ship theo khu</h4>
+  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', margin: 0 }}>
+    <thead>
+      <tr style={{ borderBottom: '2px solid #16a34a' }}>
+        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Khu</th>
+        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Phí</th>
+        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Freeship từ</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
+        <td style={{ padding: '0.4rem 0.7rem' }}>Nội thành</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>25,000đ</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>300,000đ</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
+        <td style={{ padding: '0.4rem 0.7rem' }}>Ngoại thành</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>45,000đ</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>500,000đ</td>
+      </tr>
+      <tr>
+        <td style={{ padding: '0.4rem 0.7rem' }}>Vùng xa</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>80,000đ</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>—</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+User hỏi: *"Phí ship nội thành bao nhiêu?"*
+
+**Không có rule bảng** — recursive splitter thấy `\n` giữa header và data là điểm cắt hợp lệ, và budget 400 token vừa hết ngay sau hàng separator:
+
+| Chunk 1 kết thúc bằng | Chunk 2 bắt đầu bằng |
+|---|---|
+| `## Phí ship theo khu`<br/>`\| Khu \| Phí \| Freeship từ \|`<br/>`\| --- \| --- \| --- \|` ❌ | `\| Nội thành \| 25,000đ \| 300,000đ \|`<br/>`\| Ngoại thành \| 45,000đ \| 500,000đ \|`<br/>`\| Vùng xa \| 80,000đ \| — \|` ❌ |
+
+Chunk 1 chỉ có header — không có phí. Chunk 2 chỉ có data — không biết cột nghĩa gì. Vector search lấy chunk 2 (từ *"Nội thành"* match), model thấy `| Nội thành | 25,000đ | 300,000đ |` mà không biết cột thứ hai là "Phí". Tốt nhất: model đoán đúng. Thực tế: model trả *"em không chắc ạ"*.
+
+**Với rule bảng** — giữ bảng nguyên tử:
+
+```ts
+// Rule giả: phát hiện syntax bảng, mở rộng chunk để bao cả khối
+function isTableLine(line: string) {
+  return /^\s*\|/.test(line);
+}
+// Nếu biên chunk rơi giữa run bảng, mở rộng chunk
+// đến dòng đầu tiên không phải bảng.
+```
+
+Giờ chunk 2 bắt đầu *trước* heading bảng, và cả bảng là một chunk:
+
+<div style={{ margin: '0.75rem 0 1rem', padding: '0.9rem 1rem', background: 'rgba(22,163,74,0.05)', border: '1px solid #16a34a', borderRadius: '6px', position: 'relative' }}>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+    <span style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>📦 chunk 2 · nguyên tử</span>
+    <span style={{ fontSize: '0.75rem', background: '#16a34a', color: 'white', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>✅ bảng giữ nguyên khối</span>
+  </div>
+  <h4 style={{ margin: '0.25rem 0 0.75rem', fontSize: '1rem', fontWeight: 700 }}>Phí ship theo khu</h4>
+  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', margin: 0 }}>
+    <thead>
+      <tr style={{ borderBottom: '2px solid #16a34a' }}>
+        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Khu</th>
+        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Phí</th>
+        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Freeship từ</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
+        <td style={{ padding: '0.4rem 0.7rem' }}>Nội thành</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>25,000đ</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>300,000đ</td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
+        <td style={{ padding: '0.4rem 0.7rem' }}>Ngoại thành</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>45,000đ</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>500,000đ</td>
+      </tr>
+      <tr>
+        <td style={{ padding: '0.4rem 0.7rem' }}>Vùng xa</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>80,000đ</td>
+        <td style={{ padding: '0.4rem 0.7rem' }}>—</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+Vector search lấy *một* chunk, model thấy hàng header ghép với hàng data, và đáp án là *"25,000đ cho khu nội thành, freeship từ 300,000đ"*.
+
+**Cùng hình dạng sửa áp dụng cho code block và list** — coi khối có cấu trúc là nguyên tử, mở rộng chunk để bao cả khối, chấp nhận chunk này có thể vượt budget 50 token. Một chunk 450 token có nghĩa thắng một chunk 400 token không có nghĩa.
+</Callout>
+
+<Callout type="tip" title="Vòng lặp eval-driven">
+Đừng tối ưu chunking mù. Dựng eval set 20 câu ở L30 (*"thời gian trả là bao nhiêu?"* → chunk expected: `faq/returns.md#window`). Re-chunk ở ba size (250/400/600 token), re-embed, đo recall@5 cho từng cái. Ship cái thắng. Cả vòng mất một buổi chiều và thắng nhiều tháng đoán mò.
+</Callout>
+
+<Recap>
+- Chunking đánh đổi **recall** (chunk nhỏ miss context) và **precision** (chunk lớn loãng attention). Size đúng là chunk nhỏ nhất chứa được một ý hoàn chỉnh.
+- Chiến lược: **section-aware** thắng cho markdown, **recursive** là fallback mặc định, **semantic** khi cần recall top, **fixed-size** chỉ làm baseline.
+- **Overlap 10–20%** là lưới an toàn cho ca biên. Dùng tiktoken đếm token, không phải char.
+- Metadata bắt lúc chunk: `source, heading, locale, updated_at, expires_at, hash, chunk_idx`. Thêm field sau = re-embed mọi thứ.
+- Bảng, code, list, câu dài tiếng Việt, doc song ngữ là sát-thủ recall âm thầm — vá từng cái bằng rule cấu trúc, không phải tăng chunk size.
+</Recap>
+
+Tiếp: kiểu index. Vì bạn có thể chunk hoàn hảo và vẫn có query 30 giây nếu index sai cho scale của bạn.
+
+</VI>

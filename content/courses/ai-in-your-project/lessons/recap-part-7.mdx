@@ -1,0 +1,206 @@
+import { Callout } from '@/components/mdx/callout';
+import { Recap } from '@/components/mdx/recap';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this recap">
+- A mind map of Part VII — the six new pieces a customer-facing concierge needs on top of the lapsed-customer operator from Part IV.
+- The shape of the build: RAG for prose, tools for live state, recommendations as a single hybrid tool, gateway routing for cost.
+- A Recap of how Part VII changes the launch checklist from Part V.
+</Callout>
+
+Part VII is the customer-facing pivot. Parts I-V built an internal AI Operator that mutates your data under human approval — the lapsed-customer console. Part VI gave you the embeddings, chunking, indexes and evaluation muscle. Part VII is what changes when the user is a stranger holding a credit card. They don't speak the language of your database; they ask about *policies*. They don't have a row they're working on; they have a *taste* you have to infer. They can chat from a phone in Cần Thơ in mixed Vietnamese and English, expect an answer in two seconds, and notice immediately when the bot makes something up.
+
+Six lessons addressed those shifts. Each one slots beside the equivalent operator concept from Parts I-V — not replacing it, extending it.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 520" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map of Part VII: a central node 'Customer concierge' with six branches — RAG decision, pgvector ingestion, hybrid retrieval, session auth, recommendations, gateway routing, deploy">
+    <path d="M 360,220 L 360,90"  stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 470,240 L 600,160" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 470,280 L 600,360" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 360,300 L 360,430" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 250,280 L 120,360" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 250,240 L 120,160" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+
+    <rect x="250" y="220" width="220" height="80" rx="14" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="252" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'Customer concierge'}</text>
+    <text x="360" y="272" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'six new pieces on top of the operator'}</text>
+    <text x="360" y="290" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'Part VII'}</text>
+
+    <rect x="240" y="30" width="240" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'RAG vs Tools  ·  L31'}</text>
+    <text x="360" y="76" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'data shape, not topic'}</text>
+
+    <rect x="480" y="130" width="220" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="590" y="156" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'pgvector  ·  L32'}</text>
+    <text x="590" y="176" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'one DB, idempotent ingest'}</text>
+
+    <rect x="480" y="330" width="220" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="590" y="356" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Hybrid + VI/EN  ·  L33'}</text>
+    <text x="590" y="376" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'RRF · locale-filtered'}</text>
+
+    <rect x="240" y="430" width="240" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="456" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Auth + Recommend  ·  L34-35'}</text>
+    <text x="360" y="476" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'server picks user · hybrid recommender'}</text>
+
+    <rect x="20" y="330" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="356" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Gateway  ·  L36'}</text>
+    <text x="120" y="376" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'route by task · fallback · cap'}</text>
+
+    <rect x="20" y="130" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="156" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Deploy  ·  L37'}</text>
+    <text x="120" y="176" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'VPS · soft-launch · runbook'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Six wrappers around the operator from Part IV. Customer-facing changes the data shape and the trust model — but the graph underneath stays the same.
+  </figcaption>
+</figure>
+
+## How the pieces fit
+
+**RAG vs Tools (L31)** is the decision that splits the build. Prose-shaped data (policies, FAQs, product descriptions) is retrieved and summarised; live-shaped data (stock, orders, vouchers) is tool-called. Every other lesson in Part VII assumes you've internalised this — `pgvector` is for the prose half, the gateway routes both halves, deploy ships both halves on one box.
+
+**pgvector + ingestion (L32)** turns prose into something searchable without introducing a second database. The shop's existing Postgres gets a `concierge` schema, an `embedding` column, an HNSW index, and a markdown-driven ingestion script. The data engineer is your `git diff` — edit the markdown, run the script, the concierge knows. (The why behind the embedding model and chunk size lives in Part VI.)
+
+**Hybrid retrieval and multilingual (L33)** is where pure vector search stops being enough. Keyword channel for codes and exact strings; Reciprocal Rank Fusion to merge the two rankings; locale-filtered corpora so Vietnamese queries don't accidentally pull stale English chunks. Reranking is the optional tier you ship when the eval set agrees.
+
+**Session and auth (L34)** is the safety lesson Part VII needed that Part V didn't. The LLM never picks the user — the server does, from a verified JWT, with Redis caching to keep the per-turn cost negligible. Tool definitions close over `userId`; the schema never lets the model name a user.
+
+**Recommendation engine (L35)** is the conversion lesson. Content-similarity from the embeddings you already have + collaborative co-purchase from the orders you already have + popularity. One tool, three signals, weighted. The LLM presents what the tool ranks — never the other way round.
+
+**Gateway routing (L36)** is the cost lesson. One gateway in front of Anthropic and OpenAI, model routing by task complexity (small for classify, mid for chat, frontier for the 5% that needs reasoning), fallback chains for outages, a daily cap that kills runaway loops before they kill your budget.
+
+**Deploy (L37)** is the boring lesson and the most important one. Three containers on one VPS, secrets as mode-600 files, daily `pg_dump` to off-host storage, a soft-launch ramp from 5% to 100% over a week, three dashboards you actually check.
+
+## What changed since Part V
+
+Part V's launch checklist had four items: safety, testing, observability, deploy. Part VII rewrites three of them and adds two:
+
+| Layer            | Part V (operator)                           | Part VII (concierge)                                               |
+| ---------------- | ------------------------------------------- | ------------------------------------------------------------------ |
+| Safety           | Prompt injection + Zod output + `interrupt` | Same, **plus**: `userId` never in tool schemas; least-privilege DB |
+| Testing          | Golden tool calls + fake LLM                 | Same, **plus**: retrieval eval set (Part VI), *"don't know"* rate dashboard |
+| Observability    | Trace + token spend                          | Same, **plus**: gateway-routed `functionId`, daily cap + alert     |
+| Deploy           | One-line provider swap                       | Three containers + soft-launch ramp + runbook                      |
+| **Retrieval**    | —                                            | New: `pgvector` schema + hybrid + multilingual                     |
+| **Personalisation** | —                                          | New: recommendation tool + per-user session scoping                |
+
+The graph from Part IV is unchanged. `await_confirmation` still gates writes. `interrupt()` still pauses. The audit log still rows up. What you added is the *reading* side of the conversation — the bot can now find an answer that exists somewhere, not just plan an action against your database.
+
+<Recap>
+- **The shape decision is the first one.** Prose data is RAG; live data is a tool. Everything else follows. Anything that changes faster than your ingestion cron is a tool.
+- **One Postgres, one `concierge` schema, one ingestion script.** Idempotent re-ingestion via `DELETE WHERE source = ?` before insert. Markdown is the editing surface.
+- **Hybrid retrieval (vector + keyword + RRF) + locale-filtered corpora.** Reranking is the optional tier — only ship it when your eval set (Part VI) agrees.
+- **The model never picks the user.** `userId` is set server-side from a verified JWT, captured in tool closures, never exposed as a schema arg.
+- **Recommendations are one hybrid tool,** scored by content + collaborative + popularity, with a `why` per candidate. LLM presents; doesn't compute.
+- **One gateway, many providers, routing by task.** Daily cost cap as kill switch. Embedding and prompt-prefix caches. Per-user Redis rate limits.
+- **One VPS, three containers, soft-launch in stages.** Secrets as files, backups off-host, runbook for 2 a.m. you. *Don't* reach for K8s yet.
+- **The launch checklist now has six rows, not four** — retrieval and personalisation are the new ones, and they're what makes the bot feel like a concierge instead of a chatbot.
+</Recap>
+
+**Part VII in one sentence.** You added the *reading* side of the conversation. The lapsed-customer operator from Part IV already planned and gated writes; Part VII gave it eyes and a personalised voice — RAG to read prose, tools to read live state, recommendations to suggest, the gateway to pay for it, and a deploy story small enough that one developer can ship it on a Friday.
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài tổng kết này">
+- Mind map của Phần VII — sáu mảnh mới mà concierge phục vụ khách cần thêm trên operator lapsed-customer của Phần IV.
+- Hình dạng build: RAG cho văn xuôi, tool cho state live, recommendation là một tool hybrid, gateway route theo task để tối ưu chi phí.
+- Recap của việc Phần VII đổi checklist launch từ Phần V thế nào.
+</Callout>
+
+Phần VII là cú xoay sang khách-hàng. Phần I-V dựng một AI Operator nội bộ mutate data của bạn dưới sự duyệt của con người — console lapsed-customer. Phần VI cho bạn cơ bắp về embedding, chunking, index và đánh giá. Phần VII là cái thay đổi khi user là một người lạ cầm thẻ tín dụng. Họ không nói ngôn ngữ database của bạn; họ hỏi về *chính sách*. Họ không có row đang làm dở; họ có *khẩu vị* mà bạn phải suy ra. Họ có thể chat từ điện thoại ở Cần Thơ bằng tiếng Việt và tiếng Anh trộn, mong câu trả lời trong hai giây, và để ý ngay khi bot bịa.
+
+Sáu bài giải quyết các thay đổi đó. Mỗi bài chen cạnh khái niệm operator tương đương từ Phần I-V — không thay thế, mở rộng.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 520" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map Phần VII: nút trung tâm 'Customer concierge' với sáu nhánh — quyết định RAG, ingestion pgvector, hybrid retrieval, session auth, recommendation, gateway routing, deploy">
+    <path d="M 360,220 L 360,90"  stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 470,240 L 600,160" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 470,280 L 600,360" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 360,300 L 360,430" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 250,280 L 120,360" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 250,240 L 120,160" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+
+    <rect x="250" y="220" width="220" height="80" rx="14" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="252" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'Concierge khách hàng'}</text>
+    <text x="360" y="272" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'sáu mảnh mới trên operator'}</text>
+    <text x="360" y="290" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'Phần VII'}</text>
+
+    <rect x="240" y="30" width="240" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'RAG vs Tool  ·  L31'}</text>
+    <text x="360" y="76" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'hình dạng data, không chủ đề'}</text>
+
+    <rect x="480" y="130" width="220" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="590" y="156" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'pgvector  ·  L32'}</text>
+    <text x="590" y="176" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'một DB · ingest idempotent'}</text>
+
+    <rect x="480" y="330" width="220" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="590" y="356" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Hybrid + VI/EN  ·  L33'}</text>
+    <text x="590" y="376" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'RRF · lọc theo locale'}</text>
+
+    <rect x="240" y="430" width="240" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="456" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Auth + Recommend  ·  L34-35'}</text>
+    <text x="360" y="476" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'server chọn user · recommender hybrid'}</text>
+
+    <rect x="20" y="330" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="356" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Gateway  ·  L36'}</text>
+    <text x="120" y="376" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'route theo task · fallback · cap'}</text>
+
+    <rect x="20" y="130" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="156" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Deploy  ·  L37'}</text>
+    <text x="120" y="176" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'VPS · soft-launch · runbook'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Sáu lớp bọc operator của Phần IV. Phục vụ khách đổi hình dạng dữ liệu và mô hình tin cậy — nhưng graph bên dưới vẫn nguyên.
+  </figcaption>
+</figure>
+
+## Các mảnh ghép vào nhau ra sao
+
+**RAG vs Tool (L31)** là quyết định tách build. Data hình dạng văn xuôi (policy, FAQ, mô tả sản phẩm) được retrieve và summarise; data hình dạng live (stock, đơn, voucher) được tool-call. Mọi bài khác trong Phần VII giả định bạn đã thấm cái này — `pgvector` là cho nửa văn xuôi, gateway route cả hai nửa, deploy ship cả hai nửa trên một box.
+
+**pgvector + ingestion (L32)** biến văn xuôi thành tìm-kiếm-được mà không thêm database thứ hai. Postgres hiện có của shop nhận một schema `concierge`, một cột `embedding`, một index HNSW, và một ingestion script chạy theo markdown. Data engineer là chính `git diff` của bạn — edit markdown, chạy script, concierge biết. (Lý do chọn model embedding và kích thước chunk nằm ở Phần VI.)
+
+**Hybrid retrieval và đa ngôn ngữ (L33)** là chỗ vector search thuần không còn đủ. Kênh keyword cho mã và chuỗi chính xác; Reciprocal Rank Fusion để merge hai rank; corpus lọc theo locale để query tiếng Việt không tình cờ kéo chunk tiếng Anh cũ. Reranking là tier tùy chọn ship khi eval set đồng ý.
+
+**Session và auth (L34)** là bài safety mà Phần VII cần mà Phần V không cần. LLM không bao giờ chọn user — server chọn, từ JWT đã verify, với cache Redis để chi phí mỗi lượt nhẹ. Định nghĩa tool đóng closure quanh `userId`; schema không bao giờ để model gọi tên một user.
+
+**Engine recommend (L35)** là bài conversion. Content-similarity từ embedding bạn đã có + collaborative co-purchase từ orders bạn đã có + popularity. Một tool, ba tín hiệu, có trọng số. LLM trình bày cái tool xếp hạng — không bao giờ ngược lại.
+
+**Routing gateway (L36)** là bài chi phí. Một gateway trước Anthropic và OpenAI, route model theo độ phức tạp task (nhỏ cho classify, mid cho chat, frontier cho 5% cần reasoning), chuỗi fallback cho outage, một cap ngày giết runaway loop trước khi nó giết ngân sách bạn.
+
+**Deploy (L37)** là bài nhàm chán nhất và quan trọng nhất. Ba container trên một VPS, secret như file mode-600, `pg_dump` hằng ngày sang storage off-host, ramp soft-launch từ 5% đến 100% trong tuần, ba dashboard bạn thực sự check.
+
+## Cái gì đã thay đổi từ Phần V
+
+Checklist launch của Phần V có bốn mục: safety, testing, observability, deploy. Phần VII viết lại ba và thêm hai:
+
+| Lớp                | Phần V (operator)                          | Phần VII (concierge)                                                |
+| ------------------ | ------------------------------------------ | ------------------------------------------------------------------ |
+| Safety             | Prompt injection + Zod output + `interrupt`| Như vậy, **cộng**: `userId` không bao giờ trong schema tool; DB least-privilege |
+| Testing            | Golden tool call + fake LLM                | Như vậy, **cộng**: eval set retrieval (Phần VI), dashboard tỉ lệ *"chưa rõ"* |
+| Observability      | Trace + chi phí token                       | Như vậy, **cộng**: `functionId` route qua gateway, cap ngày + alert |
+| Deploy             | Đổi provider một dòng                       | Ba container + ramp soft-launch + runbook                          |
+| **Retrieval**      | —                                          | Mới: schema `pgvector` + hybrid + đa ngôn ngữ                       |
+| **Cá nhân hoá**    | —                                          | Mới: tool recommend + scope session theo từng user                 |
+
+Graph của Phần IV không đổi. `await_confirmation` vẫn gắn cổng write. `interrupt()` vẫn pause. Audit log vẫn đắp dòng. Cái bạn thêm là phía *đọc* của hội thoại — bot giờ tìm được câu trả lời tồn tại sẵn đâu đó, không chỉ lên kế hoạch một action lên database.
+
+<Recap>
+- **Quyết định hình dạng là quyết định đầu tiên.** Data văn xuôi là RAG; data live là tool. Mọi thứ khác theo sau. Bất cứ thứ gì đổi nhanh hơn cron ingestion là tool.
+- **Một Postgres, một schema `concierge`, một script ingestion.** Re-ingest idempotent qua `DELETE WHERE source = ?` trước insert. Markdown là bề mặt edit.
+- **Hybrid retrieval (vector + keyword + RRF) + corpus lọc theo locale.** Reranking là tier tùy chọn — chỉ ship khi eval set (Phần VI) đồng ý.
+- **Model không bao giờ chọn user.** `userId` set server-side từ JWT đã verify, capture trong closure của tool, không bao giờ expose như arg schema.
+- **Recommend là một tool hybrid,** chấm điểm bằng content + collaborative + popularity, kèm `why` mỗi candidate. LLM trình bày; không tính.
+- **Một gateway, nhiều provider, route theo task.** Cap chi phí ngày như kill switch. Cache embedding và prefix prompt. Rate limit Redis theo user.
+- **Một VPS, ba container, soft-launch theo giai đoạn.** Secret là file, backup off-host, runbook cho bạn lúc 2 giờ sáng. *Đừng* với tới K8s vội.
+- **Checklist launch giờ có sáu hàng, không phải bốn** — retrieval và cá nhân hoá là cái mới, và đó là cái làm bot cảm giác như concierge thay vì chatbot.
+</Recap>
+
+**Phần VII trong một câu.** Bạn vừa thêm phía *đọc* của hội thoại. Operator lapsed-customer của Phần IV đã lên kế hoạch và gắn cổng write; Phần VII cho nó đôi mắt và một giọng cá nhân hoá — RAG để đọc văn xuôi, tool để đọc state live, recommendation để gợi ý, gateway để trả tiền cho nó, và một câu chuyện deploy đủ nhỏ để một developer ship được vào thứ Sáu.
+
+</VI>
+

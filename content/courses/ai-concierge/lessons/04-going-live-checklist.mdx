@@ -1,0 +1,335 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- The seven-day soft-launch ramp: who gets the concierge on day 1, day 3, day 5, and day 7.
+- The pre-flight checklist — sixteen items, none optional — to run through before flipping rollout to 5%.
+- The first-week monitoring discipline: three dashboards, twice a day, the three SQL queries you actually look at.
+- The "stop the rollout" criteria, written down before launch so the decision in the moment is mechanical, not emotional.
+</Callout>
+
+You have a working concierge running on your VPS. Every technical piece is in place. The remaining work is operational: get it in front of real users without breaking your shop. The pattern that's worked for every concierge launch worth copying: ramp slowly, watch what happens, have a written rule for when to roll back. None of this is hard. The hard part is having the discipline to follow the rules at 6 p.m. on a Friday when you'd rather just push it to 100% and go home.
+
+## 01 — The pre-flight checklist
+
+Sixteen items. Each one is something that's failed for a previous launch. **Do not skip the test phase of any item just because it looks like it should work** — that's exactly how the ones that fail get into production.
+
+**Auth and identity**
+- [ ] `getCurrentUser` returns `null` (not throws) for an expired token. Verified with an expired JWT.
+- [ ] Two browser tabs, two different users, ask *"my orders"*. Each sees only their own. Verified.
+- [ ] An admin-only tool (if you have one) is **not** in the registry when the session role is `customer`. Verified by inspecting the request payload.
+
+**Retrieval and content**
+- [ ] Every FAQ topic the support team handles weekly has at least one chunk. (Cross-check the support team's top-20 questions against your ingestion list.)
+- [ ] Both `vi` and `en` corpora are populated for every topic you ship in both languages. `GROUP BY source, locale` shows no source missing one locale unintentionally.
+- [ ] An expired promo's `expires_at` actually drops it on re-ingestion. Tested by setting `expires_at` to yesterday and re-running.
+
+**Tools and writes**
+- [ ] Every write tool has an idempotency key. The same idempotency key used twice does **not** double-write. Verified.
+- [ ] Reject in the confirmation card cleanly aborts. The next user message does **not** re-trigger the write. Verified.
+- [ ] An `action_log` row is written for every committed mutation. Spot-check three of them.
+
+**Cost and rate limits**
+- [ ] `AI_DAILY_USD_CAP` is set in `.env.production`. Initial value: $10 (you'll raise it after observing real spend).
+- [ ] A test loop that fires 50 chat messages does hit the daily cap and the 51st returns 503. Verified.
+- [ ] Per-user rate limit triggers after 20 messages/min from the same user. Verified.
+
+**Deploy**
+- [ ] Postgres bound to `127.0.0.1`, not `0.0.0.0`. `ss -tlnp` confirms.
+- [ ] `.env.production` is mode 600, owned by the deploy user. `.env.example` is in git, `.env.production` is not.
+- [ ] `pg_dump` cron runs and writes to off-host storage. Verified by checking S3 (or equivalent) for last night's dump.
+- [ ] `pg_restore` from yesterday's dump into a scratch database succeeds. Run this once. Don't trust the backup until you've restored from it.
+
+If any box is unchecked, the rollout knob stays at 0. No exceptions for *"I'll add that on Monday"* — Monday is when an incident finds the missing box.
+
+## 02 — The seven-day ramp
+
+`CONCIERGE_ROLLOUT_PCT` is the only knob. The frontend reads `/api/feature-flag`, which buckets the user's ID against the percentage; the concierge UI shows only for buckets below the threshold.
+
+| Day  | `CONCIERGE_ROLLOUT_PCT` | Audience                                | Check                                    |
+| ---- | ----------------------- | --------------------------------------- | ---------------------------------------- |
+| 0    | `0`                     | Nobody (final pre-flight)               | Sixteen-item checklist                   |
+| 1    | `0`, internal flag       | You + 3-5 teammates (whitelist override) | Sanity: VI/EN both work, tools work, writes gate |
+| 3    | `5`                     | ~5% of logged-in users                  | Watch first 24 hours: spend, errors, "don't know" |
+| 5    | `25`                    | 25% of logged-in users                  | Daily cap headroom is healthy; user feedback is not negative |
+| 7    | `100`                   | All logged-in users                     | Concierge is live                         |
+
+The "internal flag" on day 1 means a hard-coded list of staff user IDs that bypass the rollout percentage. Code:
+
+```ts
+const INTERNAL = new Set(['user-42', 'user-9', /* ... */]);
+const bucket = INTERNAL.has(user.id) ? 0 : hashToBucket(user.id);
+return Response.json({ concierge: bucket < pct || INTERNAL.has(user.id) });
+```
+
+<Callout type="tip" title="The day-1 internal phase is non-skippable">
+*"It worked locally, ship it to 5%."* You will find one thing — usually small, sometimes embarrassing — on the day-1 internal sweep that you would not have wanted real users to see. A wrong logo, a leftover console.log, a tool description in English when the system prompt is in Vietnamese. Burn the day, find them.
+</Callout>
+
+## 03 — The monitoring loop (first week)
+
+Three dashboards. Check at 09:00 and 18:00 every day this week.
+
+**Dashboard 1 — Spend.**
+
+```sql
+SELECT date_trunc('hour', ts) AS hour,
+       round(sum(usd_cost)::numeric, 4) AS spend
+FROM ai_usage WHERE ts > now() - interval '24 hours'
+GROUP BY 1 ORDER BY 1;
+```
+
+What you want: a line that grows during business hours and flattens overnight, well below the cap. What you don't want: a spike that doesn't correlate with traffic (suggests a runaway loop) or a line approaching the cap before evening (the cap is too low for real traffic — raise it after one more day of observation).
+
+**Dashboard 2 — Errors.**
+
+```sql
+SELECT count(*) FILTER (WHERE status >= 500) * 100.0 / count(*) AS pct
+FROM logs WHERE path = '/api/chat' AND ts > now() - interval '1 hour';
+```
+
+> 1% deserves a look. > 3% is a "stop the ramp" signal — set `CONCIERGE_ROLLOUT_PCT` back to the previous step until you've found the cause.
+
+**Dashboard 3 — "Em chưa rõ" rate.**
+
+```sql
+SELECT date_trunc('day', ts) AS day,
+       count(*) FILTER (WHERE content::text ILIKE '%em chưa rõ%' OR content::text ILIKE '%i don''t know%')
+         * 100.0 / count(*) AS dontknow_pct
+FROM concierge.messages
+WHERE role = 'assistant' AND ts > now() - interval '7 days'
+GROUP BY 1 ORDER BY 1;
+```
+
+This is the discipline that matters most. Read the *actual content* of the "don't know" replies once a day. Each one is either:
+
+1. **A RAG gap.** The answer exists in your shop's actual practice but isn't in any chunk. Add it to a markdown file, re-ingest.
+2. **A tool gap.** The answer needs live data and there's no tool for it. Decide whether to add the tool (next week's work) or escalate to a human.
+3. **Out of scope.** The user asked something the concierge shouldn't answer (legal advice, opinions, jailbreaks). The "don't know" is correct. Move on.
+
+Track the daily rate. A healthy concierge ships at 5-15% "don't know"; 20%+ means real gaps; under 3% means the bot is over-confident and probably hallucinating.
+
+## 04 — Stop-the-rollout criteria
+
+Write these down before you start the ramp. They're the answer to *"should we keep going?"* — and they exist so the answer in the moment is mechanical, not emotional.
+
+**Hard stop (set `CONCIERGE_ROLLOUT_PCT=0` immediately):**
+
+- Any customer reports an order created they didn't ask for. *Investigate before any further rollout.*
+- Spend exceeds the daily cap before 16:00 on a normal-traffic day. *Cap is wrong, or there's a runaway loop. Find which.*
+- Error rate on `/api/chat` > 5% sustained for 15 minutes. *Something structural is broken.*
+- One user's data shown to another (auth bug). *Highest severity. Take the concierge down until fixed.*
+
+**Pause and review (don't advance to the next step):**
+
+- Error rate 3-5% for an hour. *Investigate; advance only when back below 3%.*
+- "Don't know" rate over 25% on the day. *Knowledge gap or retrieval bug. Triage before more traffic.*
+- A staff member or beta user reports something embarrassingly wrong. *Investigate; resume after confirming it's an isolated case or fixed.*
+
+**Soft note (keep going but log it):**
+
+- Single-digit "don't know" entries that look like real gaps. *Add to next week's ingestion queue.*
+- One-off latency spikes (single request > 10s). *Note, but don't act unless it becomes a pattern.*
+
+The reason to write these down: at the moment you'd be making the call, you'll be tired, you'll want to keep going because rolling back feels like admitting failure, and you'll rationalise. The rules written in calm Monday morning don't.
+
+## 05 — The first-week debrief
+
+End of day 7, after the concierge has been at 100% for at least 24 hours. Sit down and write a single-page debrief — for yourself, for the team:
+
+- **How many chats happened.** Total, and by language.
+- **Top three user intents.** What did people actually use it for?
+- **Top three "don't know" categories.** What's missing?
+- **Spend vs cap headroom.** Is the cap right? Up, down, hold?
+- **One thing to ship next week.** Pick a single improvement based on what you saw. Not five. One.
+
+The debrief is what turns a launch into a habit. Without it, the first incident in week three is the first time anyone looks at the data — at which point it's an emergency. With it, you've already seen the warning signs.
+
+<Callout type="note" title="What to keep doing after week one">
+- The three dashboards become a weekly check, not twice-daily.
+- The "don't know" review becomes a weekly RAG-gap triage.
+- The eval set (AIYP L22) runs on every PR; flag any regression.
+- The daily cap stays in place — don't remove it, just adjust the dollar value as real traffic stabilises.
+- The runbook lives in the repo; update it when something happens that wasn't in it.
+</Callout>
+
+<Recap>
+- **Sixteen-item pre-flight checklist** — auth, retrieval, tools/writes, cost, deploy. No skips. The unchecked box is exactly the one that bites.
+- **Seven-day ramp:** internal (day 1) → 5% (day 3) → 25% (day 5) → 100% (day 7). Rollback is `CONCIERGE_ROLLOUT_PCT=0`.
+- **Three dashboards twice a day:** spend, error rate, "don't know" rate. The third is your knowledge-gap signal.
+- **Stop-the-rollout rules written before launch.** Hard stops, pauses, soft notes. Mechanical, not emotional.
+- **End-of-week-1 debrief = one page.** Chats, intents, gaps, spend, one ship-next-week item.
+- **After week one:** weekly cadence on the same dashboards. Eval set in CI. Runbook updates from real incidents.
+- **The concierge is now part of your site's reliability story.** Treat it like any other production system you wouldn't roll back to a worse version of.
+</Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Ramp soft-launch bảy ngày: ai có concierge ngày 1, ngày 3, ngày 5, và ngày 7.
+- Checklist pre-flight — mười sáu mục, không cái nào tuỳ chọn — chạy qua trước khi vặn rollout lên 5%.
+- Kỷ luật monitoring tuần đầu: ba dashboard, hai lần mỗi ngày, ba câu SQL bạn thực sự nhìn.
+- Tiêu chí "dừng rollout" viết xuống trước launch để quyết định lúc đó là máy móc, không cảm xúc.
+</Callout>
+
+Bạn có concierge chạy trên VPS. Mọi mảnh kỹ thuật tại chỗ. Việc còn lại là vận hành: đặt nó trước user thật mà không phá shop. Pattern work cho mọi launch concierge đáng copy: ramp chậm, xem điều gì xảy ra, có quy tắc viết cho việc khi nào rollback. Không cái nào khó. Phần khó là có kỷ luật theo quy tắc lúc 6 giờ chiều thứ Sáu khi bạn muốn push lên 100% rồi về.
+
+## 01 — Checklist pre-flight
+
+Mười sáu mục. Mỗi cái là thứ đã fail ở một launch trước. **Đừng bỏ phase test của mục nào chỉ vì nhìn nó nên work** — đó chính là cách những cái fail lọt vào production.
+
+**Auth và danh tính**
+- [ ] `getCurrentUser` trả `null` (không throw) cho token hết hạn. Verify với JWT hết hạn.
+- [ ] Hai tab trình duyệt, hai user khác, hỏi *"đơn của tôi"*. Mỗi cái chỉ thấy của mình. Verify.
+- [ ] Tool admin-only (nếu có) **không** ở registry khi session role là `customer`. Verify bằng cách inspect payload request.
+
+**Retrieval và nội dung**
+- [ ] Mọi chủ đề FAQ team support xử hằng tuần có ít nhất một chunk. (Chéo check top-20 câu của support với list ingestion.)
+- [ ] Cả corpus `vi` và `en` đầy cho mọi chủ đề ship song ngữ. `GROUP BY source, locale` không có source nào thiếu locale ngoài ý.
+- [ ] `expires_at` của promo hết hạn thực sự rớt nó khi re-ingest. Test bằng set `expires_at` hôm qua và chạy lại.
+
+**Tool và write**
+- [ ] Mọi write tool có idempotency key. Cùng key dùng hai lần **không** double-write. Verify.
+- [ ] Reject trong card xác nhận abort sạch. Message user kế **không** re-trigger write. Verify.
+- [ ] Một dòng `action_log` ghi cho mọi mutation đã commit. Spot-check ba cái.
+
+**Chi phí và rate limit**
+- [ ] `AI_DAILY_USD_CAP` set trong `.env.production`. Giá trị khởi đầu: $10 (sẽ nâng sau khi quan sát spend thật).
+- [ ] Loop test bắn 50 message chat chạm được cap ngày và cái 51 trả 503. Verify.
+- [ ] Rate limit theo user trigger sau 20 message/phút từ cùng user. Verify.
+
+**Deploy**
+- [ ] Postgres bind `127.0.0.1`, không phải `0.0.0.0`. `ss -tlnp` xác nhận.
+- [ ] `.env.production` mode 600, sở hữu bởi user deploy. `.env.example` trong git, `.env.production` thì không.
+- [ ] Cron `pg_dump` chạy và ghi vào storage off-host. Verify bằng check S3 (hoặc tương đương) cho dump tối qua.
+- [ ] `pg_restore` từ dump hôm qua vào database scratch thành công. Chạy một lần. Đừng tin backup cho đến khi bạn restore từ nó.
+
+Nếu box nào chưa check, núm rollout ở 0. Không ngoại lệ cho *"thứ Hai tôi thêm"* — thứ Hai là lúc sự cố tìm ra box thiếu.
+
+## 02 — Ramp bảy ngày
+
+`CONCIERGE_ROLLOUT_PCT` là núm duy nhất. Frontend đọc `/api/feature-flag`, nó bucket ID user theo phần trăm; UI concierge chỉ show cho bucket dưới ngưỡng.
+
+| Ngày | `CONCIERGE_ROLLOUT_PCT` | Đối tượng                              | Check                                    |
+| ---- | ----------------------- | -------------------------------------- | ---------------------------------------- |
+| 0    | `0`                     | Không ai (pre-flight cuối)             | Checklist 16 mục                          |
+| 1    | `0`, flag nội bộ        | Bạn + 3-5 đồng đội (whitelist override) | Sanity: VI/EN đều chạy, tool chạy, write gắn cổng |
+| 3    | `5`                     | ~5% user logged-in                     | Theo dõi 24 giờ đầu: spend, lỗi, "chưa rõ" |
+| 5    | `25`                    | 25% user logged-in                     | Headroom cap ngày khỏe; feedback user không tiêu cực |
+| 7    | `100`                   | Mọi user logged-in                     | Concierge live                            |
+
+"Flag nội bộ" ngày 1 nghĩa là list hard-code ID user staff bypass phần trăm rollout. Code:
+
+```ts
+const INTERNAL = new Set(['user-42', 'user-9', /* ... */]);
+const bucket = INTERNAL.has(user.id) ? 0 : hashToBucket(user.id);
+return Response.json({ concierge: bucket < pct || INTERNAL.has(user.id) });
+```
+
+<Callout type="tip" title="Phase nội bộ ngày 1 không bỏ được">
+*"Chạy ngon local, ship 5%."* Bạn sẽ tìm ra một thứ — thường nhỏ, đôi khi xấu hổ — trong lượt nội bộ ngày 1 mà bạn không muốn user thật thấy. Logo sai, một console.log còn sót, description tool tiếng Anh khi system prompt tiếng Việt. Đốt ngày, tìm chúng.
+</Callout>
+
+## 03 — Vòng monitoring (tuần đầu)
+
+Ba dashboard. Check 09:00 và 18:00 mỗi ngày tuần này.
+
+**Dashboard 1 — Spend.**
+
+```sql
+SELECT date_trunc('hour', ts) AS hour,
+       round(sum(usd_cost)::numeric, 4) AS spend
+FROM ai_usage WHERE ts > now() - interval '24 hours'
+GROUP BY 1 ORDER BY 1;
+```
+
+Cái bạn muốn: đường tăng trong giờ kinh doanh và phẳng qua đêm, dưới cap nhiều. Cái không muốn: spike không tương quan với traffic (gợi ý runaway loop) hay đường gần cap trước tối (cap quá thấp cho traffic thật — nâng sau một ngày quan sát).
+
+**Dashboard 2 — Lỗi.**
+
+```sql
+SELECT count(*) FILTER (WHERE status >= 500) * 100.0 / count(*) AS pct
+FROM logs WHERE path = '/api/chat' AND ts > now() - interval '1 hour';
+```
+
+> 1% đáng nhìn. > 3% là tín hiệu "dừng ramp" — set `CONCIERGE_ROLLOUT_PCT` về bước trước cho đến khi tìm ra nguyên nhân.
+
+**Dashboard 3 — Tỉ lệ "em chưa rõ".**
+
+```sql
+SELECT date_trunc('day', ts) AS day,
+       count(*) FILTER (WHERE content::text ILIKE '%em chưa rõ%' OR content::text ILIKE '%i don''t know%')
+         * 100.0 / count(*) AS dontknow_pct
+FROM concierge.messages
+WHERE role = 'assistant' AND ts > now() - interval '7 days'
+GROUP BY 1 ORDER BY 1;
+```
+
+Đây là kỷ luật quan trọng nhất. Đọc *nội dung thật* của các câu "chưa rõ" một lần mỗi ngày. Mỗi cái là:
+
+1. **Lỗ RAG.** Câu trả lời tồn tại trong thực hành shop nhưng không trong chunk nào. Thêm vào file markdown, re-ingest.
+2. **Lỗ tool.** Câu trả lời cần live data và không có tool. Quyết thêm tool (việc tuần sau) hay escalate sang người.
+3. **Ngoài scope.** User hỏi cái concierge không nên trả (tư vấn pháp lý, ý kiến, jailbreak). "Chưa rõ" là đúng. Đi tiếp.
+
+Theo dõi tỉ lệ ngày. Concierge khỏe ship ở 5-15% "chưa rõ"; 20%+ nghĩa là lỗ thật; dưới 3% nghĩa là bot quá tự tin và có lẽ đang ảo giác.
+
+## 04 — Tiêu chí dừng rollout
+
+Viết những cái này xuống trước khi bạn bắt đầu ramp. Chúng là câu trả lời cho *"có nên tiếp không?"* — và tồn tại để câu trả lời lúc đó là máy móc, không cảm xúc.
+
+**Stop cứng (set `CONCIERGE_ROLLOUT_PCT=0` ngay):**
+
+- Bất kỳ khách báo đơn được tạo mà họ không yêu cầu. *Điều tra trước khi rollout tiếp.*
+- Spend vượt cap ngày trước 16:00 ngày traffic bình thường. *Cap sai, hoặc có runaway loop. Tìm cái nào.*
+- Tỉ lệ lỗi trên `/api/chat` > 5% kéo dài 15 phút. *Có gì đó cấu trúc vỡ.*
+- Data của một user show cho user khác (bug auth). *Severity cao nhất. Gỡ concierge xuống đến khi fix.*
+
+**Tạm dừng và review (không tiến bước tiếp):**
+
+- Tỉ lệ lỗi 3-5% trong một giờ. *Điều tra; tiến chỉ khi về dưới 3%.*
+- Tỉ lệ "chưa rõ" trên 25% trong ngày. *Lỗ kiến thức hay bug retrieval. Triage trước thêm traffic.*
+- Staff hay beta user báo gì đó sai xấu hổ. *Điều tra; tiếp khi xác nhận là cá biệt hay đã fix.*
+
+**Soft note (cứ đi nhưng log lại):**
+
+- Vài entry "chưa rõ" đếm trên đầu ngón tay nhìn như lỗ thật. *Thêm vào queue ingestion tuần sau.*
+- Spike latency lẻ tẻ (request đơn > 10s). *Ghi chú, nhưng không hành động trừ khi thành pattern.*
+
+Lý do viết xuống: tại khoảnh khắc bạn ra quyết định, bạn sẽ mệt, bạn sẽ muốn tiếp vì rollback cảm giác như thừa nhận thất bại, và bạn sẽ rationalise. Quy tắc viết sáng thứ Hai bình tĩnh thì không.
+
+## 05 — Debrief tuần đầu
+
+Cuối ngày 7, sau khi concierge ở 100% ít nhất 24 giờ. Ngồi xuống và viết debrief một trang — cho bạn, cho team:
+
+- **Bao nhiêu chat xảy ra.** Tổng, và theo ngôn ngữ.
+- **Top ba intent user.** Người ta thực sự dùng nó cho gì?
+- **Top ba category "chưa rõ".** Cái gì thiếu?
+- **Spend vs headroom cap.** Cap có đúng không? Lên, xuống, giữ?
+- **Một thứ ship tuần sau.** Chọn một cải tiến dựa trên cái bạn thấy. Không năm. Một.
+
+Debrief là cái biến launch thành thói quen. Không có nó, sự cố đầu tuần 3 là lần đầu ai đó nhìn data — lúc đó là khẩn cấp. Có nó, bạn đã thấy dấu hiệu cảnh báo.
+
+<Callout type="note" title="Tiếp tục làm gì sau tuần đầu">
+- Ba dashboard thành check hằng tuần, không hai-lần-ngày.
+- Review "chưa rõ" thành triage lỗ RAG hằng tuần.
+- Eval set (AIYP L22) chạy trên mỗi PR; flag mọi regression.
+- Cap ngày ở yên — đừng bỏ, chỉ chỉnh giá trị đô khi traffic thật ổn định.
+- Runbook sống trong repo; cập nhật khi có gì đó xảy ra mà chưa trong nó.
+</Callout>
+
+<Recap>
+- **Checklist pre-flight 16 mục** — auth, retrieval, tool/write, cost, deploy. Không bỏ. Box chưa check chính là cái cắn.
+- **Ramp bảy ngày:** nội bộ (ngày 1) → 5% (ngày 3) → 25% (ngày 5) → 100% (ngày 7). Rollback là `CONCIERGE_ROLLOUT_PCT=0`.
+- **Ba dashboard hai lần ngày:** spend, tỉ lệ lỗi, tỉ lệ "chưa rõ". Cái thứ ba là tín hiệu lỗ kiến thức.
+- **Quy tắc dừng rollout viết trước launch.** Stop cứng, tạm dừng, soft note. Máy móc, không cảm xúc.
+- **Debrief cuối tuần 1 = một trang.** Chat, intent, lỗ, spend, một mục ship-tuần-sau.
+- **Sau tuần một:** nhịp hằng tuần trên cùng dashboard. Eval set trong CI. Runbook cập nhật từ sự cố thật.
+- **Concierge giờ là phần câu chuyện reliability của site bạn.** Đối xử như mọi hệ thống production khác bạn không muốn rollback về phiên bản tệ hơn.
+</Recap>
+
+</VI>

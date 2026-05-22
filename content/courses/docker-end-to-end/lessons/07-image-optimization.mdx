@@ -315,7 +315,7 @@ docker run --rm -it myapp sh                                        # → poke a
 du -sh /app /usr/local /var                                         # → biggest folders inside the container
 ```
 
-Good Node runtime targets: **<150 MB total, <50 MB writable layer**. Good Go runtime targets: **<25 MB total**. Good Python web runtime: **<200 MB total** (Python's stdlib is fat).
+Good Node runtime targets: **&lt;150 MB total, &lt;50 MB writable layer**. Good Go runtime targets: **&lt;25 MB total**. Good Python web runtime: **&lt;200 MB total** (Python's stdlib is fat).
 
 If you are far above these, the prune commands above plus a `.dockerignore` audit usually find the leak.
 
@@ -348,7 +348,7 @@ docker run --rm -it myapp sh                                        # → vào f
 du -sh /app /usr/local /var                                         # → thư mục lớn nhất trong container
 ```
 
-Mục tiêu cho Node runtime tốt: **<150 MB tổng, <50 MB layer writable**. Cho Go runtime: **<25 MB tổng**. Cho Python web: **<200 MB tổng** (stdlib Python "to mập").
+Mục tiêu cho Node runtime tốt: **&lt;150 MB tổng, &lt;50 MB layer writable**. Cho Go runtime: **&lt;25 MB tổng**. Cho Python web: **&lt;200 MB tổng** (stdlib Python "to mập").
 
 Nếu bạn vượt xa các con số đó, lệnh prune phía trên + audit `.dockerignore` thường tìm ra chỗ rò.
 
@@ -366,5 +366,5 @@ Nếu bạn vượt xa các con số đó, lệnh prune phía trên + audit `.do
 - `.dockerignore` is the cheapest, highest-impact change in any Docker project. Add it before optimising anything else.
 - Base image choice: alpine for most runtimes, slim for native-lib pain, distroless when security is paramount, full only in builder stages.
 - BuildKit cache mounts (`RUN --mount=type=cache,…`) persist npm/pip/apt caches across builds without leaking into the final image. Add `# syntax=docker/dockerfile:1.7` at the top.
-- Targets: Node <150 MB, Go <25 MB, Python web <200 MB. If you are far above, run `docker history` and `du -sh` inside the container — the leak shows up. Next lesson: tags and registries — where these tiny, beautiful images actually go.
+- Targets: Node &lt;150 MB, Go &lt;25 MB, Python web &lt;200 MB. If you are far above, run `docker history` and `du -sh` inside the container — the leak shows up. Next lesson: tags and registries — where these tiny, beautiful images actually go.
 </Recap>

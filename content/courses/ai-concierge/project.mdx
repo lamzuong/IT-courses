@@ -1,0 +1,51 @@
+import { Callout } from '@/components/mdx/callout';
+
+The project for this course is not a sandbox. It is **your shop's concierge**, configured for your shop's domain, deployed to your VPS, serving your real users in the language(s) you ship in. The course's lessons walked you through the architecture, the build, and the launch. The project lesson is the inventory of what *your* delivery looks like — and the recognition that the course is complete only when the concierge is in front of real customers, not when you've finished reading.
+
+## What done looks like
+
+A concierge that has been at 100% rollout for at least seven days, with the following observable properties:
+
+- **Answers FAQs in your shop's voice,** in Vietnamese and English (or whichever languages you chose), with citations the support team can audit.
+- **Looks up live state** — orders, stock, vouchers, customer profile — scoped to the logged-in user. Never leaks data across users.
+- **Drafts write actions** (orders, bookings, emails, refunds within your policy) and pauses for human confirmation before committing. The `action_log` table has one row for every committed mutation.
+- **Recommends products** with explicit reasons, ranked by a hybrid of content similarity, order co-purchase, and recent popularity.
+- **Costs less than $10/day during your first week of traffic.** (Raise the cap only after observing real spend; don't pre-raise it.)
+- **Has been on call.** A health endpoint, a backup tested by restore, a runbook with three sections, an on-call who knows what the rollback knob is.
+
+If any of those is "not yet", the project isn't done — keep going.
+
+## Your shop's specific configuration
+
+The course gives you the architecture. Your shop fills in the specifics. As you finish, you should be able to write down:
+
+- **Your tool registry.** The list of tools you actually shipped, with their schemas and `execute` bodies. Most shops end up with 6-12 tools — fewer means you've under-built, more usually means you've split things that should be one.
+- **Your knowledge corpus.** The list of `.md` files in `knowledge/`, organised by category. A typical e-commerce concierge ingests 20-40 files per language for v1, growing to 60-100 over the first quarter as gaps are filled.
+- **Your write-action inventory.** Every write the concierge can perform, with its idempotency key and audit format. Three to seven is common for v1.
+- **Your rollout settings.** Internal user IDs, the bucket function, the cap dollar value, the rate-limit threshold. These are your shop-specific tuning numbers.
+
+Put these in a `docs/CONCIERGE.md` in your repo. Six months later when you (or whoever sits in your seat) needs to remember why a particular tool argument is shaped a particular way, this is where the answer lives.
+
+## The post-launch promise
+
+Concierge work is never "done", and that's the point. Once it's live, the loop is:
+
+1. Watch the "don't know" rate. Find gaps weekly.
+2. Add chunks or tools to close gaps. Re-ingest.
+3. Watch the spend. Re-route models when a cheaper one suffices.
+4. Run the eval set on every PR. Refuse the regression.
+5. Read three actual conversations a week, end to end. Notice things the dashboards don't.
+
+This habit is what separates a shop with a *working* concierge from a shop whose concierge is slowly drifting into uselessness. The course taught you the build. The habit is yours to keep.
+
+<Callout type="note" title="Where to go after this">
+The skills you built here transfer to other AI-integration projects with very little re-work. The next interesting builds:
+
+- **An internal AI Operator** for the support team — the AIYP Part IV demo, but with your shop's tools. Most of the work is already done.
+- **An AI-powered admin console** that lets you ask *"who hasn't ordered in 60 days and lives in Hà Nội?"* and produces a usable list. Same retrieval stack, different intent.
+- **A bilingual content generator** for product descriptions — bulk-write the long-tail catalogue copy from a structured spec, then review.
+
+The bottleneck moves from "how do I build this" to "what should I build next". That's the right problem to have.
+</Callout>
+
+Ship the concierge. Let it run for a quarter. Then ask yourself what to build next.

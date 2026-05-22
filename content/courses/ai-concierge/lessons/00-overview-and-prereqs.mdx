@@ -1,0 +1,169 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- Who this course is for, in one paragraph.
+- What it assumes you already know — and what the **AI in Your Project** course teaches that this one builds on.
+- The four-week timeline at a glance, and the realistic scope for each week.
+- How this course is structured: a slim wrapper that does the e-commerce-specific work, with explicit links into the foundations course for everything else.
+</Callout>
+
+This course is for a developer with a working shop — Next.js (or any framework, the principles transfer), a Postgres backed catalogue, a logged-in user model behind a JWT — who needs to ship a customer-facing AI concierge in about a month. Not a chatbot demo. A concierge that the founder shows on the homepage, that real customers ask real questions of, that drafts real orders. The course is what the team would put together if they were teaching themselves the path.
+
+## 01 — What this course assumes
+
+You know JavaScript or TypeScript at the level of *"I can read and modify an async function"*. You know SQL at the level of *"I can write a join and a WHERE clause"*. You have a shop with at least a product catalogue and a user model — bonus if you have order history, but the course shows you how to bootstrap recommendations without it.
+
+You do **not** need:
+
+- Prior LLM experience.
+- A data science background.
+- Vercel, Next.js, or any specific framework — code samples use Next.js for the chat endpoint and Node for scripts, but the patterns translate.
+- A separate vector database account. (You don't need one — this course uses `pgvector` on the Postgres you already have.)
+
+## 02 — The foundations course this one builds on
+
+There is a sister course on this site called **AI in Your Project**. It teaches the **general** LLM-integration toolkit: streaming, prompts, tool calling, multi-turn loops, LangGraph, the `interrupt()` confirmation pattern, safety, testing, observability, and the production swap from a local Ollama to a hosted provider.
+
+This course **does not re-teach those topics**. Instead, where they matter, this course points at the specific lesson in **AI in Your Project** that covers it. If you've worked through Parts I-V of that course, you're ready for this one. If you haven't, you can read selectively as you go — every lesson here that depends on foundations links to the exact lesson you'd want to read first.
+
+The natural pairing is **Part 6 of AI in Your Project** — *Building a Customer-Facing Concierge*. Those eight lessons are the deep technical content; this course is the orientation and the build path through them.
+
+<Callout type="tip" title="The fastest way to study">
+If you have a free afternoon, read Parts I-V of *AI in Your Project* as scanning — you don't need to retain every detail, just see the shape. Then come back here for the concierge-specific architecture and quickstart. Most developers spend 2-3 hours on the scan and feel ready to start building.
+</Callout>
+
+## 03 — The four-week timeline
+
+The course is paced for **four weeks of focused work**, roughly 2 hours/day or 10 hours/week. The shape:
+
+| Week | Goal                                                | This course                      | Foundations to read                            |
+| ---- | --------------------------------------------------- | -------------------------------- | ---------------------------------------------- |
+| 1    | Chat skeleton + FAQ retrieval working end-to-end    | L02 quickstart                   | AIYP L25 (RAG vs Tools), L26 (pgvector)        |
+| 2    | Read tools (orders, stock, profile) wired in        | L03 reading guide                | AIYP L09-11 (tools), L27 (hybrid retrieval), L28 (session/auth) |
+| 3    | Write tools (orders, booking, email) + confirmation | L03 reading guide                | AIYP L12-19 (writes, idempotency, interrupt), L29 (recommend) |
+| 4    | Cost routing, deploy to VPS, soft-launch            | L04 going-live checklist         | AIYP L21-24 (safety, test, observe, prod), L30 (gateway), L31 (deploy) |
+
+The week-one goal is on purpose modest. By the end of day five you have a Postgres + Next.js stack that answers *"chính sách giao hàng là gì?"* using your own FAQ markdown. Nothing else. That single working flow is the foundation everything else hangs from — if you skip ahead and try to do all three at once, you spend a week debugging the wrong layer.
+
+## 04 — How this course is structured
+
+Five lessons total. Two orientation, two build, one ship.
+
+**L00 — Overview and prerequisites** (this one). Sets expectations and the foundations map.
+
+**L01 — The concierge architecture.** One diagram, the whole system: chat endpoint, retrieval, tools, write gate, audit log, gateway. Names the boundaries so the rest of the course has a vocabulary.
+
+**L02 — Week one quickstart.** A code-along that takes you from `docker run pgvector` to a working FAQ-answering bot in a few hours. The point isn't to be production-ready; it's to feel the loop work end-to-end before adding any complexity.
+
+**L03 — From foundations to concierge.** A reading guide through AIYP Part 6 for weeks 2-3 — what to read, in what order, with what application to your concierge. Not new technical content; orientation through dense material.
+
+**L04 — Going-live checklist.** The final inventory: soft-launch ramp, monitoring loop, kill switches, runbook. The list of things that have to be true before flipping the rollout knob to 100%.
+
+**Project — Your shop's concierge.** Not a canned project — it's *your* concierge, configured to your shop's domain. The course's deliverable is yours, on your VPS, serving your customers.
+
+## 05 — Bilingual throughout
+
+The course is written in English and Vietnamese in parallel. Code samples and configuration are language-neutral; explanatory prose, system prompts, and dataset examples appear in both. The concierge you build is bilingual by default — customers in HCMC can chat in Vietnamese, customers abroad in English, and the same backend handles both.
+
+The Vietnamese half is **not** machine-translated. It's written from scratch in Vietnamese with the same technical accuracy as the English. Vocabulary choices favour what a working developer in Vietnam would use — sometimes that's an English loanword (*"endpoint"*, *"deploy"*, *"cache"*), sometimes it's the Vietnamese term where it's more natural (*"truy hồi"* for retrieval, *"cổng xác nhận"* for confirmation gate).
+
+<Callout type="note" title="If your shop is monolingual">
+You can ignore one of the two locales entirely. The schema still works; you just only ingest one language's FAQ. The session-locale logic short-circuits. The cost is roughly half — you're not embedding two corpora. Nothing about the rest of the build depends on bilingual.
+</Callout>
+
+<Recap>
+- **This course is for a working dev with a working shop,** shipping a concierge in four weeks. Not a tutorial-only chatbot.
+- **It does not re-teach the LLM foundations.** That's what *AI in Your Project* is for; this course points at the specific lessons there.
+- **Four weeks of paced work:** FAQ retrieval (W1), read tools (W2), write tools (W3), deploy (W4). Each week's goal is small enough to actually finish.
+- **Five lessons total** — two orientation, two build, one ship — plus your shop's concierge as the project.
+- **Bilingual VI/EN by design.** Use either, both, or skip one — the architecture supports all three.
+</Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Course này dành cho ai, một đoạn.
+- Nó giả định bạn đã biết gì — và course **AI in Your Project** dạy những gì mà course này xây trên đó.
+- Timeline bốn tuần nhìn tổng quan, và phạm vi thực tế cho mỗi tuần.
+- Cấu trúc course: một wrapper gọn lo phần đặc thù e-commerce, với link rõ ràng vào course foundations cho mọi thứ khác.
+</Callout>
+
+Course này cho một developer đã có shop chạy — Next.js (hoặc framework nào cũng được, nguyên tắc chuyển được), một catalogue chạy trên Postgres, mô hình user logged-in sau JWT — cần ship một AI concierge phục vụ khách trong khoảng một tháng. Không phải demo chatbot. Một concierge mà founder show ở homepage, mà khách thật hỏi câu thật, mà draft đơn thật. Course là cái team sẽ tự gom lại nếu họ tự dạy mình đường đi.
+
+## 01 — Course này giả định gì
+
+Bạn biết JavaScript hoặc TypeScript ở mức *"tôi đọc và sửa được async function"*. Bạn biết SQL ở mức *"tôi viết được một JOIN và mệnh đề WHERE"*. Bạn có một shop với ít nhất catalogue sản phẩm và mô hình user — điểm cộng nếu có lịch sử đơn, nhưng course chỉ bạn cách bootstrap recommend khi chưa có.
+
+Bạn **không** cần:
+
+- Kinh nghiệm LLM trước đó.
+- Background data science.
+- Vercel, Next.js, hay framework cụ thể — code mẫu dùng Next.js cho endpoint chat và Node cho script, nhưng pattern chuyển được.
+- Account vector database riêng. (Bạn không cần — course dùng `pgvector` trên Postgres bạn đã có.)
+
+## 02 — Course foundations mà cái này xây trên
+
+Có một course "anh em" trên site này tên là **AI in Your Project**. Nó dạy toolkit tích hợp LLM **tổng quát**: streaming, prompts, tool calling, multi-turn loop, LangGraph, pattern confirmation `interrupt()`, safety, testing, observability, và đổi từ Ollama local sang provider hosted khi production.
+
+Course này **không dạy lại** những chủ đề đó. Thay vào đó, khi chúng có liên quan, course này chỉ vào bài cụ thể trong **AI in Your Project** cover điều đó. Nếu bạn đã làm xong Phần I-V của course đó, bạn sẵn sàng cho course này. Nếu chưa, bạn có thể đọc chọn lọc khi đi — mọi bài ở đây dựa trên foundations đều link tới đúng bài bạn muốn đọc trước.
+
+Cặp tự nhiên là **Phần 6 của AI in Your Project** — *Building a Customer-Facing Concierge*. Tám bài đó là nội dung kỹ thuật sâu; course này là orientation và đường build qua chúng.
+
+<Callout type="tip" title="Cách học nhanh nhất">
+Nếu bạn có một buổi chiều rảnh, đọc Phần I-V của *AI in Your Project* kiểu scan — không cần nhớ mọi chi tiết, chỉ thấy hình dạng. Sau đó quay lại đây cho kiến trúc đặc thù concierge và quickstart. Hầu hết developer dành 2-3 giờ cho scan và cảm thấy sẵn sàng bắt đầu build.
+</Callout>
+
+## 03 — Timeline bốn tuần
+
+Course nhịp cho **bốn tuần làm việc tập trung**, khoảng 2 giờ/ngày hoặc 10 giờ/tuần. Hình dạng:
+
+| Tuần | Mục tiêu                                          | Course này                       | Foundations cần đọc                            |
+| ---- | ------------------------------------------------- | -------------------------------- | ---------------------------------------------- |
+| 1    | Chat skeleton + FAQ retrieval chạy end-to-end     | L02 quickstart                   | AIYP L25 (RAG vs Tools), L26 (pgvector)        |
+| 2    | Tool đọc (đơn, stock, profile) được wire vào      | L03 reading guide                | AIYP L09-11 (tools), L27 (hybrid retrieval), L28 (session/auth) |
+| 3    | Tool write (đơn, booking, email) + confirmation   | L03 reading guide                | AIYP L12-19 (write, idempotency, interrupt), L29 (recommend) |
+| 4    | Cost routing, deploy VPS, soft-launch             | L04 going-live checklist         | AIYP L21-24 (safety, test, observe, prod), L30 (gateway), L31 (deploy) |
+
+Mục tiêu tuần một cố ý khiêm tốn. Cuối ngày năm bạn có stack Postgres + Next.js trả lời được *"chính sách giao hàng là gì?"* dùng chính FAQ markdown của bạn. Không gì khác. Cái flow chạy duy nhất đó là nền tảng mọi thứ khác móc vào — nếu bạn nhảy cóc và cố làm cả ba cùng lúc, bạn mất một tuần debug sai lớp.
+
+## 04 — Course này cấu trúc thế nào
+
+Tổng năm bài. Hai orientation, hai build, một ship.
+
+**L00 — Tổng quan và prerequisites** (bài này). Set kỳ vọng và bản đồ foundations.
+
+**L01 — Kiến trúc concierge.** Một sơ đồ, cả hệ thống: endpoint chat, retrieval, tool, cổng write, audit log, gateway. Đặt tên cho các biên để phần còn lại của course có vocabulary.
+
+**L02 — Quickstart tuần một.** Code-along đưa bạn từ `docker run pgvector` đến bot trả lời FAQ chạy được trong vài giờ. Mục đích không phải production-ready; mà là cảm nhận vòng lặp chạy end-to-end trước khi thêm phức tạp.
+
+**L03 — Từ foundations đến concierge.** Reading guide qua AIYP Phần 6 cho tuần 2-3 — đọc gì, theo thứ tự nào, với áp dụng nào vào concierge bạn. Không phải nội dung kỹ thuật mới; orientation qua tài liệu nặng.
+
+**L04 — Checklist going-live.** Kiểm kê cuối: ramp soft-launch, vòng monitoring, kill switch, runbook. Danh sách những thứ phải đúng trước khi vặn núm rollout lên 100%.
+
+**Project — Concierge của shop bạn.** Không phải project đóng hộp — là concierge *của bạn*, config cho domain shop bạn. Sản phẩm bạn giao của course là của bạn, trên VPS bạn, phục vụ khách bạn.
+
+## 05 — Song ngữ xuyên suốt
+
+Course viết song song Anh và Việt. Code mẫu và config trung lập ngôn ngữ; văn xuôi giải thích, system prompt, và ví dụ dataset xuất hiện cả hai. Concierge bạn dựng mặc định song ngữ — khách HCM chat tiếng Việt, khách nước ngoài tiếng Anh, và cùng backend xử lý cả hai.
+
+Nửa tiếng Việt **không** dịch máy. Nó viết từ đầu bằng tiếng Việt với cùng độ chính xác kỹ thuật như tiếng Anh. Lựa chọn từ ngữ thiên về cái developer làm việc ở Việt Nam sẽ dùng — đôi khi là loanword tiếng Anh (*"endpoint"*, *"deploy"*, *"cache"*), đôi khi là từ tiếng Việt khi tự nhiên hơn (*"truy hồi"* cho retrieval, *"cổng xác nhận"* cho confirmation gate).
+
+<Callout type="note" title="Nếu shop bạn đơn ngữ">
+Bạn có thể bỏ qua một trong hai locale hoàn toàn. Schema vẫn chạy; bạn chỉ ingest FAQ một ngôn ngữ. Logic locale session short-circuit. Chi phí khoảng một nửa — bạn không embed hai corpus. Không gì khác trong phần build phụ thuộc vào song ngữ.
+</Callout>
+
+<Recap>
+- **Course này cho dev đang làm việc với shop đang chạy,** ship concierge trong bốn tuần. Không phải chatbot tutorial-only.
+- **Không dạy lại LLM foundations.** Cái đó *AI in Your Project* lo; course này chỉ tới bài cụ thể ở đó.
+- **Bốn tuần làm việc nhịp:** FAQ retrieval (W1), tool đọc (W2), tool write (W3), deploy (W4). Mục tiêu mỗi tuần đủ nhỏ để thực sự xong.
+- **Tổng năm bài** — hai orientation, hai build, một ship — cộng với concierge shop bạn làm project.
+- **Song ngữ VI/EN theo thiết kế.** Dùng một, cả hai, hay bỏ qua một — kiến trúc đỡ cả ba.
+</Recap>
+
+</VI>

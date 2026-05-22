@@ -1,0 +1,507 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- Why fronting your concierge with **one** gateway instead of two SDKs is the right call when you want Anthropic + OpenAI access.
+- The model-routing table: cheap fast model for classification, mid-tier for chat, frontier for the rare reasoning escape valve.
+- How to wire a **fallback chain** that survives a provider outage without your users noticing.
+- The cost ceiling pattern: a daily budget cap that turns "the bill is $4,200" into "it capped out at $73 and emailed me."
+</Callout>
+
+Lesson 24 ended with *"`ChatOllama` → `ChatAnthropic`, one line."* That's true on day one. Three weeks later, the founder asks *"can we try GPT-4.1 mini for cheaper FAQ replies?"* and you discover that one-line swap was only easy because there was only ever one provider in the codebase. Two providers means two SDKs to keep updated, two billing dashboards to reconcile, two API outages to write fallbacks for.
+
+The pattern that scales: front everything with a single **gateway** that speaks one API to your code and routes to whichever provider you ask for. Vercel AI Gateway is the one this lesson uses, but the architectural shape is the same for any gateway (LiteLLM, OpenRouter, Anthropic's own).
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 420" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Routing through one AI Gateway: classifier on Haiku, chat on Sonnet with GPT fallback, reasoning on Opus as escape valve — bounded by a daily USD cap and per-user rate limit">
+    <rect x="280" y="20" width="160" height="50" rx="10" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="42" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Your concierge'}</text>
+    <text x="360" y="58" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.7">{'gateway("provider/model")'}</text>
+
+    <path d="M 360,70 L 360,100" stroke="#16a34a" strokeWidth="1.5" markerEnd="url(#a30)" opacity="0.55" fill="none" />
+
+    <rect x="180" y="100" width="360" height="60" rx="10" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="126" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'AI Gateway — one API, many providers'}</text>
+    <text x="360" y="146" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'keys · usage · retries · fallback in one place'}</text>
+
+    <path d="M 360,160 L 360,180 L 120,180 L 120,210" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 360,180 L 360,210" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 360,180 L 600,180 L 600,210" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+
+    <rect x="20" y="210" width="200" height="125" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="234" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'classifier'}</text>
+    <text x="120" y="252" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'haiku-4-5'}</text>
+    <text x="120" y="274" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'intent detection'}</text>
+    <text x="120" y="290" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'every turn'}</text>
+    <text x="120" y="318" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'cheap · fast'}</text>
+
+    <rect x="260" y="210" width="200" height="125" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="234" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'chat'}</text>
+    <text x="360" y="252" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'sonnet-4-6'}</text>
+    <text x="360" y="274" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'main reply path'}</text>
+    <text x="360" y="290" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'most traffic'}</text>
+    <text x="360" y="318" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'↳ fallback: gpt-4.1-mini'}</text>
+
+    <rect x="500" y="210" width="200" height="125" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="600" y="234" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'reasoning'}</text>
+    <text x="600" y="252" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'opus-4-7'}</text>
+    <text x="600" y="274" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'escape valve only'}</text>
+    <text x="600" y="290" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'rare, hard cases'}</text>
+    <text x="600" y="318" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'expensive'}</text>
+
+    <rect x="100" y="355" width="520" height="50" rx="10" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 3" />
+    <text x="360" y="376" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'Daily USD cap + per-user Redis rate limit'}</text>
+    <text x="360" y="394" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'$10/day cap · 20 msg/min/user — "it capped at $73 and emailed me"'}</text>
+
+    <defs>
+      <marker id="a30" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.55" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    The gateway is the switchboard. Route by task, not by preference.
+  </figcaption>
+</figure>
+
+## 01 — One gateway, many providers
+
+The mental model is a phone switchboard. Your code dials *"anthropic/claude-sonnet-4-6"* or *"openai/gpt-4.1-mini"* and the gateway puts the call through. Your code never holds the provider's API key; the gateway does. Your code never knows about rate-limit headers, retry policies, or model deprecation; the gateway handles that, and pages itself when the upstream breaks.
+
+```ts
+// lib/ai/gateway.ts
+import { gateway } from '@ai-sdk/gateway';
+
+export const MODELS = {
+  classifier: gateway('anthropic/claude-haiku-4-5'),
+  chat:       gateway('anthropic/claude-sonnet-4-6', {
+                fallback: ['openai/gpt-4.1-mini'],
+              }),
+  reasoning:  gateway('anthropic/claude-opus-4-7'),
+} as const;
+```
+
+Three things that are now true by construction:
+
+1. **Provider keys live in one place** (the gateway's dashboard), not scattered across `.env` files.
+2. **Switching models is data, not code.** Changing `'anthropic/claude-sonnet-4-6'` to `'openai/gpt-4.1-mini'` in the chat call is a one-line PR. No SDK swap, no message-format shim.
+3. **Usage and cost are unified.** One dashboard shows you what every request cost across providers, broken down by `functionId` if you pass one in `experimental_telemetry`.
+
+<Callout type="tip" title="Why not multi-SDK?">
+You can absolutely import both `@ai-sdk/anthropic` and `@ai-sdk/openai` and switch between them in code. It works fine for two providers. It stops working at three, because you've now written your own gateway — version-pinning each SDK, normalising errors, deduping retries — and you'd rather not maintain that. Gateway buys back the time.
+</Callout>
+
+## 02 — Routing by task, not by preference
+
+Three operations in a concierge, each with a different cost-quality sweet spot:
+
+| Operation                          | Frequency       | Quality bar         | Best fit            |
+| ---------------------------------- | --------------- | ------------------- | ------------------- |
+| **Intent classification**          | Every turn      | "Tool or RAG?"       | Haiku 4.5 / GPT-4.1 mini |
+| **Conversational reply**           | Every turn      | Natural, accurate   | Sonnet 4.6 / GPT-4.1 |
+| **Hard reasoning** (write planning)| ~5% of turns    | High-stakes correctness | Opus 4.7 / o-series |
+
+The classifier runs first to decide what kind of request this is. It's a one-token-ish answer ("tool", "chat", "plan") on a tiny prompt — pay 1¢ for it on a small model, not 10¢ on the big one. The reply runs on the mid-tier model because that's what users feel. Reasoning is the escape valve for the 5% of requests that genuinely need it: multi-step write planning, refund logic, ambiguous policy interpretation.
+
+```ts
+// lib/ai/route.ts
+type Intent = 'faq' | 'tool' | 'plan';
+
+async function classifyIntent(userMessage: string): Promise<Intent> {
+  const { object } = await generateObject({
+    model: MODELS.classifier,
+    schema: z.object({ intent: z.enum(['faq', 'tool', 'plan']) }),
+    prompt: `Phân loại câu hỏi sau:\n- 'faq': về chính sách/sản phẩm (chỉ cần RAG)\n- 'tool': cần data live (đơn, stock)\n- 'plan': yêu cầu thực hiện một thao tác có hậu quả\n\nCâu: ${userMessage}`,
+  });
+  return object.intent;
+}
+
+export function pickModelForIntent(intent: Intent) {
+  switch (intent) {
+    case 'faq':  return MODELS.chat;       // chat model, RAG handles correctness
+    case 'tool': return MODELS.chat;       // chat model, tool handles correctness
+    case 'plan': return MODELS.reasoning;  // big model, write actions are high-stakes
+  }
+}
+```
+
+Three details that matter. **Routing is server-side**, not in the prompt — the LLM never gets to pick which model handles its work. **`generateObject` with a Zod schema** keeps the classifier from drifting into prose. **The intent maps to a small enum**, not to a model name — that decoupling lets you swap models later without touching `classifyIntent`.
+
+## 03 — Fallback chains that survive an outage
+
+The single most under-appreciated gateway feature: declaring a fallback list. When Anthropic returns 5xx or times out, the gateway transparently retries against OpenAI with the same request. Your user sees the reply; you see a row in the gateway's logs marked *"fell back."*
+
+```ts
+const chat = gateway('anthropic/claude-sonnet-4-6', {
+  fallback: ['openai/gpt-4.1-mini', 'anthropic/claude-haiku-4-5'],
+  fallbackOn: ['rate_limit', 'server_error', 'timeout:30s'],
+});
+```
+
+The fallback list is *ordered by similarity*, not by preference. GPT-4.1 mini is closer in capability to Sonnet 4.6 than Haiku is, so it's first. Haiku is the *availability* fallback — if both Anthropic and OpenAI are degraded, you'd rather give a fast cheap answer than a 503.
+
+<Callout type="warning" title="Test the fallback before you need it">
+A fallback you've never exercised is one you don't actually have. Pick a slow Wednesday afternoon, flip the primary model to an intentionally-bad value in staging (`anthropic/claude-zzz`), and watch the gateway route to the fallback. If the answer quality crashes, fix the fallback choice now — not during the next outage.
+</Callout>
+
+## 04 — Cost ceilings: the daily cap
+
+Without a ceiling, a single buggy loop can spend a month's budget overnight. The gateway exposes per-key cost tracking; the pattern is to **enforce a soft cap in your code** that reads gateway telemetry and refuses new requests when today's spend exceeds the threshold.
+
+```ts
+// lib/ai/budget.ts
+const DAILY_USD_CAP = parseFloat(process.env.AI_DAILY_USD_CAP ?? '20');
+
+export async function checkBudget(): Promise<{ ok: boolean; spent: number }> {
+  const spent = await getTodayUsdSpent(); // SUM(cost) FROM gateway_usage WHERE date = today
+  return { ok: spent < DAILY_USD_CAP, spent };
+}
+
+// In the chat route, before streamText:
+const { ok, spent } = await checkBudget();
+if (!ok) {
+  return new Response(
+    JSON.stringify({ error: 'budget_exceeded', spent }),
+    { status: 503 }
+  );
+}
+```
+
+`AI_DAILY_USD_CAP` starts at **$10/day for the first deploy** — if you hit it, your prompt or your loop has a bug. The lesson 23 framing applies: a cap is not a budget, it's a *kill switch*. The budget is whatever spend you observe in steady state; the cap is 2-3× that, sized so a runaway costs you a digit, not three.
+
+Coupled with an alert when daily spend crosses 80% of the cap, you'll find runaway loops in minutes instead of mornings.
+
+```ts
+// Cron: every hour, check spend and alert if > 80% of cap
+if (spent > 0.8 * DAILY_USD_CAP) {
+  await sendAlert(`AI spend at $${spent.toFixed(2)} of $${DAILY_USD_CAP} cap`);
+}
+```
+
+## 05 — Per-user rate limits (in addition to the global cap)
+
+A single abusive user can chew through your daily cap on their own — chatting non-stop, generating recommendations every few seconds, replaying conversations. Per-user limits stop them without affecting everyone else:
+
+```ts
+// lib/ai/rate-limit.ts
+import { redis } from '@/lib/redis/client';
+
+export async function checkUserRate(userId: string) {
+  const key = `rate:chat:${userId}:${Math.floor(Date.now() / 60_000)}`;
+  const n = await redis.incr(key);
+  if (n === 1) await redis.expire(key, 70);
+  return { ok: n <= 20, count: n }; // 20 messages/min per user
+}
+```
+
+Sliding-window-ish, simpler than the textbook algorithm: one Redis key per user per minute, increment on every chat request, refuse when > 20. A user can still send 19 in second 59 and 19 more in second 61, but that's 38 in two seconds — the cost is bounded, the simplicity is worth the imprecision.
+
+<Callout type="tip" title="Don't pick the limit out of thin air">
+Look at the 99th-percentile chat-message-per-minute count from your first week of usage. The limit should be 2-3× that. If your real users send 6 messages/min at the 99th percentile, set the cap at 15-20. Setting it at 60 means the cap never fires; setting it at 8 means you reject your most engaged users.
+</Callout>
+
+## 06 — Caching the deterministic parts
+
+Two patterns cut cost meaningfully without hurting quality:
+
+**Prompt caching.** Both Anthropic and OpenAI now cache the static prefix of a prompt (system + RAG context) across calls in the same minute. For a concierge that sends the same system prompt 50 times an hour, this can be a 50-70% cost reduction on input tokens. The gateway forwards the cache hint; you just need your system prompt to be byte-identical across calls (don't interpolate the timestamp into it).
+
+**Embedding cache.** Embeddings for the same query are deterministic. Cache them by query hash in Redis with a long TTL (an hour is plenty). For a popular FAQ phrase asked 200 times an hour, that's 199 fewer OpenAI embedding calls.
+
+```ts
+async function embedQueryCached(query: string) {
+  const key = `emb:${await sha256(query)}`;
+  const cached = await redis.get(key);
+  if (cached) return JSON.parse(cached);
+  const vec = await embedQuery(query);
+  await redis.set(key, JSON.stringify(vec), { EX: 3600 });
+  return vec;
+}
+```
+
+Together, these two caches can take your prompt-side cost down by half. The gateway dashboard tells you whether they're hitting.
+
+<Callout type="warning" title="Don't cache the model's response">
+Caching the *model's reply* across users is tempting and dangerous. Two users ask the same question; one is asking about *their* order, one is asking about a general policy. The reply that worked for user A leaks user A's order ID to user B. Cache the *inputs* (embeddings, prompt prefixes) — they're shared by construction. Don't cache the *outputs* unless your tool clearly returns shareable data.
+</Callout>
+
+## 07 — What this stack costs at steady state
+
+A rough budget for a customer-facing concierge handling ~5000 chat turns/day on the routing in section 02:
+
+| Item                                       | Per-turn cost | Daily            |
+| ------------------------------------------ | ------------- | ---------------- |
+| Classification (Haiku, ~200 in / 10 out)   | ~$0.0003      | $1.5             |
+| Chat (Sonnet 4.6, ~3k in / 300 out, cached)| ~$0.012       | $60              |
+| Embedding (~1 query, often cached)         | ~$0.00003     | $0.15            |
+| Reasoning escape valve (5% of turns, Opus) | ~$0.03 × 250  | $7.5             |
+| **Subtotal**                                | —             | **~$70/day**     |
+
+A $20 cap is the wrong ceiling for that volume; a $200 cap is right. Sizing is *load-aware* — start at $10 with low traffic, raise as you measure. The shape stays the same.
+
+<Recap>
+- **One gateway, many providers.** Code dials a string (`anthropic/claude-sonnet-4-6`); the gateway holds keys, retries, fallback, telemetry. Swapping models is a config change.
+- **Route by task, not by preference.** Classifier on a tiny model, chat on the mid-tier, reasoning on the frontier for the 5% that needs it. Routing is server-side, not in the prompt.
+- **Declare a fallback list,** ordered by similarity. Test it in staging before you need it in production.
+- **Daily cap + 80% alert.** Start at $10/day. A cap is a kill switch, not a budget.
+- **Per-user rate limit** in Redis: 20 messages/min, simple key-per-minute counter. Bounds abuse without complex algorithms.
+- **Cache embeddings and prompt prefixes,** not model responses. Two caches that don't leak data between users.
+- **Steady-state cost is in the tens of dollars/day** for thousands of turns — only if you do all of the above.
+</Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Vì sao đặt **một** gateway trước concierge thay vì hai SDK là lựa chọn đúng khi bạn muốn cả Anthropic và OpenAI.
+- Bảng routing model: model nhỏ rẻ nhanh cho phân loại, mid-tier cho chat, frontier cho lối thoát reasoning hiếm dùng.
+- Cách wire một **chuỗi fallback** sống sót qua outage provider mà user không biết.
+- Pattern trần chi phí: cap ngân sách hằng ngày biến *"hoá đơn 4.200 USD"* thành *"chạm trần 73 USD và email tôi rồi."*
+</Callout>
+
+Bài 24 kết thúc bằng *"`ChatOllama` → `ChatAnthropic`, một dòng."* Đúng ngày đầu. Ba tuần sau, founder hỏi *"thử GPT-4.1 mini cho FAQ rẻ hơn được không?"* và bạn phát hiện cú swap một dòng chỉ dễ vì đã chỉ có một provider trong codebase. Hai provider nghĩa là hai SDK phải cập nhật, hai dashboard billing phải đối soát, hai outage API phải viết fallback.
+
+Pattern scale được: đặt mọi thứ phía sau một **gateway** nói một API với code bạn và route đến provider nào bạn yêu cầu. Vercel AI Gateway là cái bài này dùng, nhưng hình dạng kiến trúc giống nhau cho mọi gateway (LiteLLM, OpenRouter, hay của chính Anthropic).
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 420" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Routing qua một AI Gateway: classifier dùng Haiku, chat dùng Sonnet có GPT fallback, reasoning dùng Opus làm escape valve — chặn bởi cap USD/ngày và rate limit theo user">
+    <rect x="280" y="20" width="160" height="50" rx="10" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="42" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Concierge của bạn'}</text>
+    <text x="360" y="58" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.7">{'gateway("provider/model")'}</text>
+
+    <path d="M 360,70 L 360,100" stroke="#16a34a" strokeWidth="1.5" markerEnd="url(#a30vi)" opacity="0.55" fill="none" />
+
+    <rect x="180" y="100" width="360" height="60" rx="10" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="126" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'AI Gateway — một API, nhiều provider'}</text>
+    <text x="360" y="146" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'key · usage · retry · fallback gom một chỗ'}</text>
+
+    <path d="M 360,160 L 360,180 L 120,180 L 120,210" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 360,180 L 360,210" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 360,180 L 600,180 L 600,210" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+
+    <rect x="20" y="210" width="200" height="125" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="234" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'classifier'}</text>
+    <text x="120" y="252" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'haiku-4-5'}</text>
+    <text x="120" y="274" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'phát hiện intent'}</text>
+    <text x="120" y="290" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'mỗi lượt chat'}</text>
+    <text x="120" y="318" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'rẻ · nhanh'}</text>
+
+    <rect x="260" y="210" width="200" height="125" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="234" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'chat'}</text>
+    <text x="360" y="252" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'sonnet-4-6'}</text>
+    <text x="360" y="274" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'đường reply chính'}</text>
+    <text x="360" y="290" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'phần lớn traffic'}</text>
+    <text x="360" y="318" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'↳ fallback: gpt-4.1-mini'}</text>
+
+    <rect x="500" y="210" width="200" height="125" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="600" y="234" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'reasoning'}</text>
+    <text x="600" y="252" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'opus-4-7'}</text>
+    <text x="600" y="274" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'escape valve thôi'}</text>
+    <text x="600" y="290" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'ca khó, hiếm'}</text>
+    <text x="600" y="318" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'đắt'}</text>
+
+    <rect x="100" y="355" width="520" height="50" rx="10" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 3" />
+    <text x="360" y="376" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'Cap USD/ngày + rate limit Redis theo user'}</text>
+    <text x="360" y="394" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'cap $10/ngày · 20 msg/phút/user — "nó cap ở $73 và email mình rồi"'}</text>
+
+    <defs>
+      <marker id="a30vi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.55" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Gateway là tổng đài. Route theo loại tác vụ, không theo sở thích.
+  </figcaption>
+</figure>
+
+## 01 — Một gateway, nhiều provider
+
+Mô hình tư duy là tổng đài điện thoại. Code bạn quay *"anthropic/claude-sonnet-4-6"* hoặc *"openai/gpt-4.1-mini"* và gateway nối cuộc gọi. Code bạn không bao giờ giữ API key của provider; gateway giữ. Code bạn không bao giờ biết về header rate-limit, chính sách retry, hay model deprecation; gateway lo, và tự page khi upstream vỡ.
+
+```ts
+// lib/ai/gateway.ts
+import { gateway } from '@ai-sdk/gateway';
+
+export const MODELS = {
+  classifier: gateway('anthropic/claude-haiku-4-5'),
+  chat:       gateway('anthropic/claude-sonnet-4-6', {
+                fallback: ['openai/gpt-4.1-mini'],
+              }),
+  reasoning:  gateway('anthropic/claude-opus-4-7'),
+} as const;
+```
+
+Ba điều giờ thành đúng bởi cấu trúc:
+
+1. **Key provider sống một chỗ** (dashboard của gateway), không rải rác qua các file `.env`.
+2. **Đổi model là data, không phải code.** Đổi `'anthropic/claude-sonnet-4-6'` thành `'openai/gpt-4.1-mini'` trong call chat là PR một dòng. Không swap SDK, không shim format message.
+3. **Usage và chi phí được hợp nhất.** Một dashboard hiện cho bạn mỗi request tốn bao nhiêu qua mọi provider, chia theo `functionId` nếu bạn truyền vào `experimental_telemetry`.
+
+<Callout type="tip" title="Sao không multi-SDK?">
+Bạn hoàn toàn có thể import cả `@ai-sdk/anthropic` và `@ai-sdk/openai` và đổi giữa chúng trong code. Chạy ổn cho hai provider. Hỏng ở ba, vì giờ bạn đang tự viết gateway — version-pin từng SDK, normalise lỗi, dedup retry — và bạn không muốn bảo trì cái đó. Gateway mua lại thời gian đó.
+</Callout>
+
+## 02 — Routing theo task, không theo sở thích
+
+Ba thao tác trong concierge, mỗi cái có điểm ngọt chi phí-chất lượng khác nhau:
+
+| Thao tác                              | Tần suất         | Mức chất lượng           | Hợp nhất                  |
+| ------------------------------------- | ---------------- | ------------------------ | ------------------------- |
+| **Phân loại intent**                  | Mỗi lượt         | "Tool hay RAG?"          | Haiku 4.5 / GPT-4.1 mini  |
+| **Trả lời hội thoại**                  | Mỗi lượt         | Tự nhiên, chính xác       | Sonnet 4.6 / GPT-4.1      |
+| **Reasoning khó** (lập kế hoạch ghi)  | ~5% lượt         | Đúng cao stakes           | Opus 4.7 / o-series       |
+
+Classifier chạy trước để quyết định loại request. Đó là câu trả lời cỡ một token ("tool", "chat", "plan") trên prompt nhỏ — trả 1 xu cho model nhỏ, không 10 xu cho cái lớn. Reply chạy trên model mid-tier vì đó là cái user cảm nhận. Reasoning là lối thoát cho 5% request thực sự cần: lập kế hoạch ghi nhiều bước, logic hoàn tiền, diễn giải chính sách mơ hồ.
+
+```ts
+// lib/ai/route.ts
+type Intent = 'faq' | 'tool' | 'plan';
+
+async function classifyIntent(userMessage: string): Promise<Intent> {
+  const { object } = await generateObject({
+    model: MODELS.classifier,
+    schema: z.object({ intent: z.enum(['faq', 'tool', 'plan']) }),
+    prompt: `Phân loại câu hỏi sau:\n- 'faq': về chính sách/sản phẩm (chỉ cần RAG)\n- 'tool': cần data live (đơn, stock)\n- 'plan': yêu cầu thực hiện một thao tác có hậu quả\n\nCâu: ${userMessage}`,
+  });
+  return object.intent;
+}
+
+export function pickModelForIntent(intent: Intent) {
+  switch (intent) {
+    case 'faq':  return MODELS.chat;       // chat model, RAG lo độ chính xác
+    case 'tool': return MODELS.chat;       // chat model, tool lo độ chính xác
+    case 'plan': return MODELS.reasoning;  // model lớn, write action stakes cao
+  }
+}
+```
+
+Ba chi tiết quan trọng. **Routing là server-side**, không nằm trong prompt — LLM không bao giờ chọn model nào xử lý việc của nó. **`generateObject` với Zod schema** giữ classifier không trôi vào văn xuôi. **Intent map sang enum nhỏ**, không sang tên model — decoupling đó cho bạn đổi model sau mà không động vào `classifyIntent`.
+
+## 03 — Chuỗi fallback sống sót qua outage
+
+Tính năng gateway bị đánh giá thấp nhất: khai báo list fallback. Khi Anthropic trả 5xx hoặc timeout, gateway tự retry với OpenAI cùng request. User thấy câu trả lời; bạn thấy một dòng log gateway đánh dấu *"đã fallback."*
+
+```ts
+const chat = gateway('anthropic/claude-sonnet-4-6', {
+  fallback: ['openai/gpt-4.1-mini', 'anthropic/claude-haiku-4-5'],
+  fallbackOn: ['rate_limit', 'server_error', 'timeout:30s'],
+});
+```
+
+List fallback *thứ tự theo độ tương tự*, không theo sở thích. GPT-4.1 mini gần khả năng Sonnet 4.6 hơn Haiku, nên đứng đầu. Haiku là fallback *availability* — nếu cả Anthropic và OpenAI đều xuống cấp, bạn thà cho câu trả lời nhanh rẻ còn hơn 503.
+
+<Callout type="warning" title="Test fallback trước khi cần">
+Một fallback chưa bao giờ chạy là một fallback bạn không thực sự có. Chọn một chiều thứ Tư rảnh, lật primary model sang giá trị cố ý sai trong staging (`anthropic/claude-zzz`), và xem gateway route sang fallback. Nếu chất lượng câu trả lời rớt thảm, sửa lựa chọn fallback bây giờ — không phải lúc outage kế tiếp.
+</Callout>
+
+## 04 — Trần chi phí: cap hằng ngày
+
+Không có trần, một vòng lặp lỗi có thể tiêu ngân sách tháng trong một đêm. Gateway expose tracking chi phí theo key; pattern là **enforce soft cap trong code bạn** đọc telemetry gateway và từ chối request mới khi chi tiêu hôm nay vượt ngưỡng.
+
+```ts
+// lib/ai/budget.ts
+const DAILY_USD_CAP = parseFloat(process.env.AI_DAILY_USD_CAP ?? '20');
+
+export async function checkBudget(): Promise<{ ok: boolean; spent: number }> {
+  const spent = await getTodayUsdSpent(); // SUM(cost) FROM gateway_usage WHERE date = today
+  return { ok: spent < DAILY_USD_CAP, spent };
+}
+
+// Trong route chat, trước streamText:
+const { ok, spent } = await checkBudget();
+if (!ok) {
+  return new Response(
+    JSON.stringify({ error: 'budget_exceeded', spent }),
+    { status: 503 }
+  );
+}
+```
+
+`AI_DAILY_USD_CAP` khởi đầu **10 USD/ngày cho lần deploy đầu** — nếu chạm trần, prompt hoặc loop của bạn có bug. Khung hình bài 23 áp dụng: cap không phải ngân sách, nó là *kill switch*. Ngân sách là chi tiêu bạn quan sát được ở trạng thái ổn định; cap là 2-3× cái đó, kích cỡ để khi runaway chỉ tốn một con số, không phải ba.
+
+Kết hợp với alert khi chi tiêu hôm nay vượt 80% trần, bạn sẽ tìm ra vòng lặp runaway trong phút thay vì sáng.
+
+```ts
+// Cron: mỗi giờ, check spend và alert nếu > 80% trần
+if (spent > 0.8 * DAILY_USD_CAP) {
+  await sendAlert(`AI spend at $${spent.toFixed(2)} of $${DAILY_USD_CAP} cap`);
+}
+```
+
+## 05 — Rate limit theo user (cộng với cap toàn cục)
+
+Một user lạm dụng có thể nuốt cả cap ngày một mình — chat liên tục, sinh recommend mỗi vài giây, replay hội thoại. Giới hạn theo user dừng họ mà không ảnh hưởng người khác:
+
+```ts
+// lib/ai/rate-limit.ts
+import { redis } from '@/lib/redis/client';
+
+export async function checkUserRate(userId: string) {
+  const key = `rate:chat:${userId}:${Math.floor(Date.now() / 60_000)}`;
+  const n = await redis.incr(key);
+  if (n === 1) await redis.expire(key, 70);
+  return { ok: n <= 20, count: n }; // 20 message/phút mỗi user
+}
+```
+
+Sliding-window-ish, gọn hơn thuật toán giáo trình: một key Redis mỗi user mỗi phút, tăng mỗi request chat, từ chối khi > 20. Một user vẫn có thể gửi 19 ở giây 59 và 19 nữa ở giây 61, nhưng đó là 38 trong hai giây — chi phí có biên, gọn đáng đổi lấy độ chính xác.
+
+<Callout type="tip" title="Đừng chọn giới hạn từ trên trời">
+Nhìn vào con số message/phút phần trăm 99 từ tuần đầu sử dụng. Giới hạn nên 2-3× cái đó. Nếu user thật gửi 6 message/phút ở phần trăm 99, set cap ở 15-20. Set ở 60 nghĩa là cap không bao giờ chạm; set ở 8 nghĩa là bạn từ chối user gắn bó nhất.
+</Callout>
+
+## 06 — Cache các phần tất định
+
+Hai pattern cắt chi phí đáng kể mà không hại chất lượng:
+
+**Prompt cache.** Anthropic và OpenAI giờ cache phần tĩnh phía đầu của prompt (system + RAG context) giữa các call trong cùng phút. Cho concierge gửi cùng system prompt 50 lần/giờ, đây có thể là giảm 50-70% chi phí input token. Gateway forward hint cache; bạn chỉ cần system prompt byte-y-hệt giữa các call (đừng nhúng timestamp vào).
+
+**Cache embedding.** Embedding cho cùng query là tất định. Cache theo hash query trong Redis với TTL dài (một giờ là dư). Cho một cụm FAQ phổ biến hỏi 200 lần/giờ, đó là 199 lần ít gọi embedding OpenAI hơn.
+
+```ts
+async function embedQueryCached(query: string) {
+  const key = `emb:${await sha256(query)}`;
+  const cached = await redis.get(key);
+  if (cached) return JSON.parse(cached);
+  const vec = await embedQuery(query);
+  await redis.set(key, JSON.stringify(vec), { EX: 3600 });
+  return vec;
+}
+```
+
+Cùng nhau, hai cache này có thể đưa chi phí phía prompt xuống một nửa. Dashboard gateway cho bạn biết chúng có hit không.
+
+<Callout type="warning" title="Đừng cache response của model">
+Cache *câu trả lời của model* giữa các user là cám dỗ và nguy hiểm. Hai user hỏi cùng câu; một hỏi về *đơn của họ*, một hỏi về chính sách chung. Câu trả lời work cho user A leak order ID của user A sang user B. Cache *input* (embedding, prompt prefix) — chúng được chia sẻ bởi cấu trúc. Đừng cache *output* trừ khi tool rõ ràng trả data chia sẻ được.
+</Callout>
+
+## 07 — Stack này tốn bao nhiêu ở steady state
+
+Ngân sách thô cho concierge phục vụ khách xử lý ~5000 lượt chat/ngày trên routing ở section 02:
+
+| Hạng mục                                          | Chi phí/lượt | Hằng ngày      |
+| ------------------------------------------------- | ------------ | -------------- |
+| Phân loại (Haiku, ~200 in / 10 out)               | ~$0.0003     | $1.5           |
+| Chat (Sonnet 4.6, ~3k in / 300 out, có cache)     | ~$0.012      | $60            |
+| Embedding (~1 query, thường có cache)             | ~$0.00003    | $0.15          |
+| Lối thoát reasoning (5% lượt, Opus)               | ~$0.03 × 250 | $7.5           |
+| **Cộng**                                           | —            | **~$70/ngày**  |
+
+Cap $20 là trần sai cho lượng đó; cap $200 mới đúng. Sizing là *load-aware* — bắt đầu $10 với traffic thấp, nâng khi đo. Hình dạng giữ nguyên.
+
+<Recap>
+- **Một gateway, nhiều provider.** Code quay một chuỗi (`anthropic/claude-sonnet-4-6`); gateway giữ key, retry, fallback, telemetry. Đổi model là đổi config.
+- **Route theo task, không theo sở thích.** Classifier trên model nhỏ, chat trên mid-tier, reasoning trên frontier cho 5% cần. Routing là server-side, không trong prompt.
+- **Khai báo list fallback,** thứ tự theo độ tương tự. Test trong staging trước khi cần trong production.
+- **Cap ngày + alert 80%.** Khởi đầu $10/ngày. Cap là kill switch, không phải ngân sách.
+- **Rate limit theo user** trong Redis: 20 message/phút, counter key-mỗi-phút đơn giản. Khoanh vùng lạm dụng không cần thuật toán phức tạp.
+- **Cache embedding và prefix prompt,** không cache response model. Hai cache không leak data giữa user.
+- **Chi phí steady-state vào hàng chục đô/ngày** cho hàng nghìn lượt — chỉ khi bạn làm hết các điều trên.
+</Recap>
+
+</VI>

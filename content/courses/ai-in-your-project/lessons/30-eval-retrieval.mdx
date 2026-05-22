@@ -1,0 +1,481 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- Why retrieval needs its *own* eval set — separate from the LLM-output golden tests of L22.
+- How to build a 20–50 row eval set in an afternoon (the "smallest useful" size).
+- The three metrics worth knowing: **recall@k**, **MRR**, **nDCG@k** — and which one to read first.
+- Rerankers: when a second-stage model (Cohere `rerank-v3`, `bge-reranker-v2-m3`) earns its latency.
+- Continuous eval: nightly cron, regression alert, the dashboard that catches drift before customers do.
+</Callout>
+
+You changed the chunk size from 400 to 600 tokens. Did retrieval get better or worse? "Better" in what sense — for which queries, by how much, at what latency cost?
+
+Without an eval set, every tuning decision is a vibe. With one, every decision is a graph. This lesson builds the graph.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 400" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Eval loop: a 20-row eval set feeds the retrieval pipeline; the results are scored against expected docs; metrics chart over time">
+    <rect x="20" y="40" width="170" height="180" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="105" y="68" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'eval-set.jsonl'}</text>
+    <text x="105" y="86" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'~20 rows, hand-curated'}</text>
+    <text x="40"  y="116" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'{ query, expected }'}</text>
+    <text x="40"  y="134" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  "trả hàng",'}</text>
+    <text x="40"  y="150" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  ["faq/returns.md#7day"]'}</text>
+    <text x="40"  y="180" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'{ query: "size guide",'}</text>
+    <text x="40"  y="196" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  ["faq/sizing.md"] }'}</text>
+
+    <path d="M 195,130 L 235,130" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a30)" opacity="0.7" fill="none" />
+
+    <rect x="240" y="40" width="220" height="180" rx="10" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="2" />
+    <text x="350" y="68" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Retrieval pipeline'}</text>
+    <text x="350" y="90" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'vector (pgvector / Qdrant)'}</text>
+    <text x="350" y="106" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'+ keyword (FTS / BM25)'}</text>
+    <text x="350" y="122" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'+ RRF merge'}</text>
+    <text x="350" y="148" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'(optional) → reranker'}</text>
+    <text x="350" y="164" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'bge-reranker-v2-m3'}</text>
+    <text x="350" y="180" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'or Cohere rerank-v3'}</text>
+    <text x="350" y="208" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'→ top-K results'}</text>
+
+    <path d="M 465,130 L 505,130" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a30)" opacity="0.7" fill="none" />
+
+    <rect x="510" y="40" width="190" height="180" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="605" y="68" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Score'}</text>
+    <text x="605" y="86" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'expected in top-K?'}</text>
+    <text x="530" y="116" fontSize="11" fontWeight="700" fill="currentColor">{'recall@5:'}</text>
+    <text x="640" y="116" textAnchor="end" fontSize="11" fontWeight="700" fill="#16a34a">{'0.95'}</text>
+    <text x="530" y="138" fontSize="11" fontWeight="700" fill="currentColor">{'recall@10:'}</text>
+    <text x="640" y="138" textAnchor="end" fontSize="11" fontWeight="700" fill="#16a34a">{'0.98'}</text>
+    <text x="530" y="160" fontSize="11" fontWeight="700" fill="currentColor">{'MRR:'}</text>
+    <text x="640" y="160" textAnchor="end" fontSize="11" fontWeight="700" fill="#16a34a">{'0.81'}</text>
+    <text x="530" y="182" fontSize="11" fontWeight="700" fill="currentColor">{'p95 latency:'}</text>
+    <text x="640" y="182" textAnchor="end" fontSize="11" fontWeight="700" fill="#16a34a">{'47 ms'}</text>
+    <text x="605" y="208" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'ship if all ≥ thresholds'}</text>
+
+    <rect x="20" y="250" width="680" height="130" rx="10" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 3" />
+    <text x="360" y="276" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Run nightly · graph the metrics · alert on regression'}</text>
+    <text x="360" y="296" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{"recall@5 dropped from 0.95 → 0.82 last Tuesday → someone re-chunked or upgraded the model"}</text>
+
+    <line x1="60" y1="350" x2="700" y2="350" stroke="currentColor" strokeWidth="0.8" opacity="0.3" />
+    <polyline points="60,340 140,338 220,340 300,342 380,344 460,340 540,338 620,355 700,365" stroke="#16a34a" strokeWidth="2" fill="none" opacity="0.7" />
+    <circle cx="620" cy="355" r="3" fill="#dc2626" />
+    <circle cx="700" cy="365" r="3" fill="#dc2626" />
+    <text x="700" y="375" textAnchor="end" fontSize="10" fill="#dc2626" opacity="0.85">{'← drift'}</text>
+
+    <defs>
+      <marker id="a30" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.7" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    20 queries in, 4 numbers out, run nightly, graph the curve. Every other tuning decision is downstream of this loop.
+  </figcaption>
+</figure>
+
+## 01 — Build the eval set in an afternoon
+
+The smallest useful eval set is **20 rows**. Past 50 rows, marginal value drops sharply. Below 15, results are too noisy to act on.
+
+Each row is a JSON object with two fields:
+
+```jsonl
+{ "query": "trả hàng được không nếu đã mặc 1 lần?", "expected_chunks": ["faq/returns.md#wear-condition"] }
+{ "query": "size guide cho áo polo nam",            "expected_chunks": ["faq/sizing.md#polo-men"] }
+{ "query": "freeship đơn trên 500k?",                "expected_chunks": ["faq/shipping.md#freeship"] }
+{ "query": "size guide for men's polo",              "expected_chunks": ["faq/sizing.md#polo-men"] }
+```
+
+**How to source the queries:**
+
+1. **Customer-service tickets** (best). Real customer questions, real intent. Take 20 from the last month.
+2. **Search-bar logs.** Whatever customers typed into your existing FAQ search — they're the queries the concierge has to handle.
+3. **Hand-write them yourself.** Last resort. You'll under-represent the messy, mixed-language, ungrammatical queries customers actually send.
+
+**How to set `expected_chunks`:**
+
+For each query, open your `knowledge/` corpus, find the chunk(s) that would actually answer it, copy the chunk IDs (the `source#heading` slug works). One query can have multiple correct chunks — list them all.
+
+**Coverage you want in the 20 rows:**
+
+- 70% queries with one obvious answer (the easy majority).
+- 20% queries that need a *combination* of chunks (returns + shipping for a returns-with-refund question).
+- 10% adversarial: misspellings, mixed VI/EN, slang, SKU codes.
+- Roughly 50/50 VI / EN split (or your actual customer ratio).
+
+Save it as `eval/retrieval.jsonl` in the repo. Version it. When you add real customer questions to it, that's a *better dataset* — never a corruption.
+
+## 02 — The three metrics, in order of usefulness
+
+**recall@k — read this first.** Of the queries where you had a correct answer in the corpus, what fraction returned that answer in the top-K? `recall@5 = 0.85` means: for 85% of queries, the right chunk was in the top 5.
+
+This is the single number that tells you "is retrieval working". Track `recall@5` and `recall@10` — the gap between them tells you if you need to send more chunks to the LLM (small gap = top-5 is enough; big gap = you need top-10).
+
+**MRR (Mean Reciprocal Rank).** For each query, take `1 / rank` of the *first* correct chunk; average across queries. MRR = 0.5 means the average first-correct lands at position 2. **Useful when rank ordering matters** — if you only send chunk #1 to the LLM (a common cost-saving pattern), MRR is what predicts answer quality.
+
+**nDCG@k (normalized Discounted Cumulative Gain).** A relevance-weighted recall — multiple chunks count, but higher positions count more. **Use when you have graded relevance** (3-star "perfect", 2-star "related", 1-star "tangential"). For binary eval (yes/no this chunk is correct), recall@k and MRR cover it.
+
+**Latency** isn't a quality metric, but graph it together. A `recall@10` of 0.99 with p95 latency of 800 ms is not "better" than 0.95 at 50 ms — the customer closed the tab.
+
+```ts
+// scripts/eval.ts
+import { readFile } from 'node:fs/promises';
+import { retrieve } from '@/lib/retrieve';     // your hybrid retrieval (L33)
+
+const rows = (await readFile('eval/retrieval.jsonl', 'utf8'))
+  .trim().split('\n').map((l) => JSON.parse(l));
+
+const results = await Promise.all(rows.map(async ({ query, expected_chunks }) => {
+  const t0 = performance.now();
+  const hits = await retrieve(query, { k: 10 });
+  const latency = performance.now() - t0;
+
+  const positions = expected_chunks
+    .map((id) => hits.findIndex((h) => h.id === id))
+    .filter((p) => p >= 0);
+
+  const recall5  = positions.some((p) => p < 5)  ? 1 : 0;
+  const recall10 = positions.some((p) => p < 10) ? 1 : 0;
+  const rr       = positions.length > 0 ? 1 / (Math.min(...positions) + 1) : 0;
+
+  return { query, recall5, recall10, rr, latency };
+}));
+
+const avg = (k: keyof typeof results[0]) => results.reduce((s, r) => s + (r[k] as number), 0) / results.length;
+
+console.log({
+  n:        results.length,
+  recall5:  avg('recall5'),
+  recall10: avg('recall10'),
+  mrr:      avg('rr'),
+  latencyP50: results.map((r) => r.latency).sort((a, b) => a - b)[Math.floor(results.length * 0.5)],
+  latencyP95: results.map((r) => r.latency).sort((a, b) => a - b)[Math.floor(results.length * 0.95)],
+});
+```
+
+Run it: `tsx scripts/eval.ts`. Three numbers, one line each, copy into a sheet, you have a baseline.
+
+## 03 — Rerankers: when a second-stage model earns its latency
+
+A reranker is a *separate, smaller model* that takes the top-30 chunks from your retrieval and re-orders them based on a deeper comparison with the query. It's slower than vector search but much smarter — typically lifting `recall@5` by 5–15 points on hard queries.
+
+**The two rerankers worth knowing in 2026:**
+
+- **Cohere `rerank-v3-multilingual`** (hosted, $1/1000 calls). Fast, strong Vietnamese, single API call. Default when you can pay for hosted.
+- **`BAAI/bge-reranker-v2-m3`** (self-hosted via [Hugging Face TEI](https://github.com/huggingface/text-embeddings-inference)). Strong Vietnamese, free if you run it. Adds ~50–100 ms per call on CPU, ~10 ms on a small GPU.
+
+```ts
+// src/lib/rerank.ts
+import { CohereClient } from 'cohere-ai';
+
+const cohere = new CohereClient({ token: process.env.COHERE_API_KEY });
+
+export async function rerank(query: string, docs: { id: string; text: string }[], topK = 5) {
+  const { results } = await cohere.rerank({
+    model: 'rerank-v3.0-multilingual',
+    query,
+    documents: docs.map((d) => d.text),
+    topN: topK,
+  });
+  return results.map((r) => ({ ...docs[r.index], score: r.relevanceScore }));
+}
+```
+
+**When reranking pays for itself.** Your eval set tells you. The rule of thumb:
+
+- **`recall@10` > 0.95 but `recall@5` < 0.85.** The right chunks are *in* your top-10, just not at the top. Reranking moves them up. **Strong win.**
+- **`recall@10` < 0.85.** The right chunks aren't even in your top-10. Reranking can't save you — fix retrieval first (better chunking, hybrid search, better embeddings).
+- **`recall@5` > 0.93 already.** You're at the ceiling; reranking adds latency for marginal lift. Skip.
+
+The cost: ~50 ms on hosted, ~100 ms self-hosted. Add it for hard query categories only — your eval set can be tagged, and you can decide *per category* whether to rerank.
+
+## 04 — Continuous eval: nightly cron, alert on regression
+
+Eval once, you have a baseline. Eval every night, you catch drift.
+
+```bash
+# /etc/cron.daily/concierge-eval
+#!/usr/bin/env bash
+set -euo pipefail
+cd /opt/concierge
+
+OUT=$(tsx scripts/eval.ts | jq -c .)
+echo "$(date -Iseconds) $OUT" >> /var/log/concierge/eval.jsonl
+
+# alert if recall@5 dropped > 5 points from yesterday
+YESTERDAY=$(tail -n 2 /var/log/concierge/eval.jsonl | head -n 1 | jq .recall5)
+TODAY=$(echo "$OUT" | jq .recall5)
+if awk "BEGIN{exit !($YESTERDAY - $TODAY > 0.05)}"; then
+  ./scripts/alert.sh "retrieval recall@5 dropped ${YESTERDAY} → ${TODAY}"
+fi
+```
+
+Plot `recall@5` over the last 30 days in your dashboard (Grafana, Metabase, or just a Google Sheet — doesn't matter). The shape of the line is more important than the absolute number. Step changes mean something happened: a chunk-size tweak, an embedding-model upgrade, a corpus ingest that broke. **A flat line means the system is healthy; a step down is a bug to find.**
+
+<Callout type="tip" title={'What "regression" usually means'}>
+The most common cause of a recall@5 drop isn't a code change — it's a *data* change. Someone added a 500-chunk batch of new product descriptions, and they swamped the FAQ chunks in the embedding space. Your eval set still has the *old* questions, which now retrieve products instead of FAQs. Fix: re-balance the eval set as the corpus grows, or partition the retrieval by `category`.
+</Callout>
+
+## 05 — The "don't know" rate is its own metric
+
+Beyond recall, the metric that customers actually feel is **the rate at which the bot confidently makes things up**. You can't measure this in retrieval-eval alone — it needs the LLM in the loop.
+
+Cheap proxy: tag each generated answer with the chunk IDs it cited. If the answer doesn't cite *any* retrieved chunk (or cites one that the eval set says is wrong for that query), it's a hallucination candidate. Log these, hand-review weekly.
+
+The proper version: a second eval set of `(question, expected_answer_pattern)` where you check the LLM's output against a regex or a small LLM judge. That's L22-style golden testing applied to the concierge.
+
+Both belong in the dashboard alongside `recall@5`. You ship the chunks; the customer reads the answer.
+
+<Recap>
+- **20 rows is enough to start.** Get them from CS tickets or search logs, not your imagination. Cover easy / combo / adversarial / VI / EN.
+- **recall@k is the first metric** you read. MRR matters when rank ordering matters. nDCG when relevance is graded. Always graph latency alongside.
+- Rerankers (Cohere `rerank-v3`, `bge-reranker-v2-m3`) pay off when **`recall@10` is high but `recall@5` is low** — they reorder, they don't recover.
+- Run eval **nightly**, log results, alert on regression. The shape of the recall curve is more diagnostic than the absolute number.
+- The bot's "don't-know" and hallucination rates are downstream metrics — track them too, with a second LLM-eval set.
+- Eval is the cheapest insurance against silent drift. An afternoon to set up; pays back the first time someone changes a chunk size.
+</Recap>
+
+That closes Part VI. Next up: the recap mind map — then you walk into Part VII (the concierge build) with embeddings, chunking, indexes, the pgvector vs Qdrant call, and an eval set already in hand.
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Vì sao retrieval cần eval set *riêng* — tách khỏi golden test LLM-output ở L22.
+- Cách dựng eval set 20–50 dòng trong một buổi chiều (size "đủ dùng" nhỏ nhất).
+- Ba metric đáng biết: **recall@k**, **MRR**, **nDCG@k** — và cái nào đọc trước.
+- Reranker: khi nào model giai đoạn hai (Cohere `rerank-v3`, `bge-reranker-v2-m3`) xứng latency.
+- Eval liên tục: cron đêm, alert regression, dashboard bắt drift trước khách hàng.
+</Callout>
+
+Bạn đổi chunk size từ 400 sang 600 token. Retrieval tốt hơn hay tệ hơn? "Tốt hơn" theo nghĩa nào — cho query nào, bao nhiêu, với chi phí latency bao nhiêu?
+
+Không có eval set, mỗi quyết định tune là cảm tính. Có một cái, mỗi quyết định là biểu đồ. Bài này dựng biểu đồ.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 400" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Vòng eval: eval set 20 dòng vào pipeline retrieval; kết quả chấm điểm với doc expected; biểu đồ metric theo thời gian">
+    <rect x="20" y="40" width="170" height="180" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="105" y="68" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'eval-set.jsonl'}</text>
+    <text x="105" y="86" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'~20 dòng, làm tay'}</text>
+    <text x="40"  y="116" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'{ query, expected }'}</text>
+    <text x="40"  y="134" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  "trả hàng",'}</text>
+    <text x="40"  y="150" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  ["faq/returns.md#7day"]'}</text>
+    <text x="40"  y="180" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'{ query: "bảng size",'}</text>
+    <text x="40"  y="196" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  ["faq/sizing.md"] }'}</text>
+
+    <path d="M 195,130 L 235,130" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a30vi)" opacity="0.7" fill="none" />
+
+    <rect x="240" y="40" width="220" height="180" rx="10" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="2" />
+    <text x="350" y="68" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Pipeline retrieval'}</text>
+    <text x="350" y="90" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'vector (pgvector / Qdrant)'}</text>
+    <text x="350" y="106" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'+ keyword (FTS / BM25)'}</text>
+    <text x="350" y="122" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'+ merge RRF'}</text>
+    <text x="350" y="148" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'(tuỳ chọn) → reranker'}</text>
+    <text x="350" y="164" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'bge-reranker-v2-m3'}</text>
+    <text x="350" y="180" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'hoặc Cohere rerank-v3'}</text>
+    <text x="350" y="208" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'→ top-K kết quả'}</text>
+
+    <path d="M 465,130 L 505,130" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a30vi)" opacity="0.7" fill="none" />
+
+    <rect x="510" y="40" width="190" height="180" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="605" y="68" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Chấm điểm'}</text>
+    <text x="605" y="86" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'expected có trong top-K?'}</text>
+    <text x="530" y="116" fontSize="11" fontWeight="700" fill="currentColor">{'recall@5:'}</text>
+    <text x="640" y="116" textAnchor="end" fontSize="11" fontWeight="700" fill="#16a34a">{'0.95'}</text>
+    <text x="530" y="138" fontSize="11" fontWeight="700" fill="currentColor">{'recall@10:'}</text>
+    <text x="640" y="138" textAnchor="end" fontSize="11" fontWeight="700" fill="#16a34a">{'0.98'}</text>
+    <text x="530" y="160" fontSize="11" fontWeight="700" fill="currentColor">{'MRR:'}</text>
+    <text x="640" y="160" textAnchor="end" fontSize="11" fontWeight="700" fill="#16a34a">{'0.81'}</text>
+    <text x="530" y="182" fontSize="11" fontWeight="700" fill="currentColor">{'p95 latency:'}</text>
+    <text x="640" y="182" textAnchor="end" fontSize="11" fontWeight="700" fill="#16a34a">{'47 ms'}</text>
+    <text x="605" y="208" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'ship nếu mọi cái ≥ ngưỡng'}</text>
+
+    <rect x="20" y="250" width="680" height="130" rx="10" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 3" />
+    <text x="360" y="276" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Chạy đêm · biểu đồ metric · alert regression'}</text>
+    <text x="360" y="296" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'recall@5 rớt 0.95 → 0.82 thứ Ba tuần trước → ai đó re-chunk hoặc upgrade model'}</text>
+
+    <line x1="60" y1="350" x2="700" y2="350" stroke="currentColor" strokeWidth="0.8" opacity="0.3" />
+    <polyline points="60,340 140,338 220,340 300,342 380,344 460,340 540,338 620,355 700,365" stroke="#16a34a" strokeWidth="2" fill="none" opacity="0.7" />
+    <circle cx="620" cy="355" r="3" fill="#dc2626" />
+    <circle cx="700" cy="365" r="3" fill="#dc2626" />
+    <text x="700" y="375" textAnchor="end" fontSize="10" fill="#dc2626" opacity="0.85">{'← drift'}</text>
+
+    <defs>
+      <marker id="a30vi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.7" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    20 query vào, 4 số ra, chạy đêm, vẽ đường cong. Mọi quyết định tune khác nằm hạ lưu của vòng này.
+  </figcaption>
+</figure>
+
+## 01 — Dựng eval set trong một buổi chiều
+
+Eval set đủ dùng nhỏ nhất là **20 dòng**. Qua 50 dòng, giá trị biên giảm mạnh. Dưới 15, kết quả nhiễu quá để hành động.
+
+Mỗi dòng là object JSON với hai field:
+
+```jsonl
+{ "query": "trả hàng được không nếu đã mặc 1 lần?", "expected_chunks": ["faq/returns.md#wear-condition"] }
+{ "query": "bảng size cho áo polo nam",              "expected_chunks": ["faq/sizing.md#polo-men"] }
+{ "query": "freeship đơn trên 500k?",                "expected_chunks": ["faq/shipping.md#freeship"] }
+{ "query": "size guide for men's polo",              "expected_chunks": ["faq/sizing.md#polo-men"] }
+```
+
+**Lấy query từ đâu:**
+
+1. **Ticket CSKH** (tốt nhất). Câu hỏi thật của khách, intent thật. Lấy 20 từ tháng vừa rồi.
+2. **Log thanh search.** Gì khách gõ vào search FAQ có sẵn — đó là query concierge phải xử lý.
+3. **Tự viết tay.** Phương án cuối. Bạn sẽ under-represent câu hỏi lộn xộn, đa ngôn ngữ, sai ngữ pháp mà khách thực sự gửi.
+
+**Set `expected_chunks` thế nào:**
+
+Cho mỗi query, mở corpus `knowledge/`, tìm chunk thực sự trả lời được, copy ID chunk (slug `source#heading` work). Một query có thể có nhiều chunk đúng — liệt kê hết.
+
+**Coverage muốn có trong 20 dòng:**
+
+- 70% query có một đáp án rõ (đa số dễ).
+- 20% query cần *kết hợp* chunk (trả hàng + ship cho câu trả-có-hoàn-tiền).
+- 10% adversarial: sai chính tả, VI/EN trộn, slang, mã SKU.
+- Khoảng 50/50 VI / EN (hoặc tỷ lệ khách thật của bạn).
+
+Lưu là `eval/retrieval.jsonl` trong repo. Version nó. Khi thêm câu hỏi khách thật vào, đó là *dataset tốt hơn* — không bao giờ là làm bẩn.
+
+## 02 — Ba metric, theo thứ tự hữu ích
+
+**recall@k — đọc cái này trước.** Trong các query có đáp án đúng trong corpus, bao nhiêu phần trả về đáp án đó trong top-K? `recall@5 = 0.85` nghĩa là: với 85% query, chunk đúng nằm trong top 5.
+
+Đây là một số duy nhất bảo bạn "retrieval đang work không". Track `recall@5` và `recall@10` — khoảng cách giữa hai cái bảo bạn cần gửi nhiều chunk hơn cho LLM không (khoảng cách nhỏ = top-5 đủ; khoảng cách lớn = bạn cần top-10).
+
+**MRR (Mean Reciprocal Rank).** Cho mỗi query, lấy `1 / rank` của chunk đúng *đầu tiên*; bình quân qua các query. MRR = 0.5 nghĩa là chunk-đúng-đầu-tiên trung bình rơi vào vị trí 2. **Hữu ích khi thứ tự rank quan trọng** — nếu bạn chỉ gửi chunk #1 cho LLM (pattern tiết kiệm chi phí phổ biến), MRR là cái dự đoán chất lượng đáp án.
+
+**nDCG@k (normalized Discounted Cumulative Gain).** Recall có trọng số relevance — nhiều chunk tính, nhưng vị trí cao tính nhiều hơn. **Dùng khi có relevance phân hạng** (3 sao "hoàn hảo", 2 sao "liên quan", 1 sao "tiếp tuyến"). Cho eval nhị phân (đúng/sai chunk này), recall@k và MRR đủ.
+
+**Latency** không phải metric chất lượng, nhưng vẽ chung. `recall@10` 0.99 với p95 latency 800 ms không "tốt hơn" 0.95 ở 50 ms — khách đóng tab rồi.
+
+```ts
+// scripts/eval.ts
+import { readFile } from 'node:fs/promises';
+import { retrieve } from '@/lib/retrieve';     // hybrid retrieval của bạn (L33)
+
+const rows = (await readFile('eval/retrieval.jsonl', 'utf8'))
+  .trim().split('\n').map((l) => JSON.parse(l));
+
+const results = await Promise.all(rows.map(async ({ query, expected_chunks }) => {
+  const t0 = performance.now();
+  const hits = await retrieve(query, { k: 10 });
+  const latency = performance.now() - t0;
+
+  const positions = expected_chunks
+    .map((id) => hits.findIndex((h) => h.id === id))
+    .filter((p) => p >= 0);
+
+  const recall5  = positions.some((p) => p < 5)  ? 1 : 0;
+  const recall10 = positions.some((p) => p < 10) ? 1 : 0;
+  const rr       = positions.length > 0 ? 1 / (Math.min(...positions) + 1) : 0;
+
+  return { query, recall5, recall10, rr, latency };
+}));
+
+const avg = (k: keyof typeof results[0]) => results.reduce((s, r) => s + (r[k] as number), 0) / results.length;
+
+console.log({
+  n:        results.length,
+  recall5:  avg('recall5'),
+  recall10: avg('recall10'),
+  mrr:      avg('rr'),
+  latencyP50: results.map((r) => r.latency).sort((a, b) => a - b)[Math.floor(results.length * 0.5)],
+  latencyP95: results.map((r) => r.latency).sort((a, b) => a - b)[Math.floor(results.length * 0.95)],
+});
+```
+
+Chạy: `tsx scripts/eval.ts`. Ba số, một dòng mỗi cái, copy vào sheet, bạn có baseline.
+
+## 03 — Reranker: khi nào model giai đoạn hai xứng latency
+
+Reranker là một *model riêng, nhỏ hơn* nhận top-30 chunk từ retrieval và re-order dựa trên so sánh sâu hơn với query. Chậm hơn vector search nhưng thông minh hơn — thường nâng `recall@5` lên 5–15 điểm trên query khó.
+
+**Hai reranker đáng biết năm 2026:**
+
+- **Cohere `rerank-v3-multilingual`** (hosted, $1/1000 call). Nhanh, tiếng Việt mạnh, một API call. Mặc định khi trả tiền hosted được.
+- **`BAAI/bge-reranker-v2-m3`** (self-host qua [Hugging Face TEI](https://github.com/huggingface/text-embeddings-inference)). Tiếng Việt mạnh, miễn phí nếu tự chạy. Thêm ~50–100 ms mỗi call trên CPU, ~10 ms trên GPU nhỏ.
+
+```ts
+// src/lib/rerank.ts
+import { CohereClient } from 'cohere-ai';
+
+const cohere = new CohereClient({ token: process.env.COHERE_API_KEY });
+
+export async function rerank(query: string, docs: { id: string; text: string }[], topK = 5) {
+  const { results } = await cohere.rerank({
+    model: 'rerank-v3.0-multilingual',
+    query,
+    documents: docs.map((d) => d.text),
+    topN: topK,
+  });
+  return results.map((r) => ({ ...docs[r.index], score: r.relevanceScore }));
+}
+```
+
+**Khi rerank xứng công.** Eval set bảo bạn. Rule of thumb:
+
+- **`recall@10` > 0.95 nhưng `recall@5` < 0.85.** Chunk đúng *có* trong top-10, chỉ không ở đỉnh. Rerank đẩy lên. **Thắng mạnh.**
+- **`recall@10` < 0.85.** Chunk đúng còn không có trong top-10. Rerank không cứu được — sửa retrieval trước (chunking tốt hơn, hybrid search, embedding tốt hơn).
+- **`recall@5` > 0.93 rồi.** Bạn đã ở trần; rerank thêm latency cho lift biên. Skip.
+
+Chi phí: ~50 ms hosted, ~100 ms self-host. Thêm cho category query khó thôi — eval set của bạn có thể tag, và bạn quyết định *per category* có rerank không.
+
+## 04 — Eval liên tục: cron đêm, alert regression
+
+Eval một lần, có baseline. Eval mỗi đêm, bắt drift.
+
+```bash
+# /etc/cron.daily/concierge-eval
+#!/usr/bin/env bash
+set -euo pipefail
+cd /opt/concierge
+
+OUT=$(tsx scripts/eval.ts | jq -c .)
+echo "$(date -Iseconds) $OUT" >> /var/log/concierge/eval.jsonl
+
+# alert nếu recall@5 rớt > 5 điểm so với hôm qua
+YESTERDAY=$(tail -n 2 /var/log/concierge/eval.jsonl | head -n 1 | jq .recall5)
+TODAY=$(echo "$OUT" | jq .recall5)
+if awk "BEGIN{exit !($YESTERDAY - $TODAY > 0.05)}"; then
+  ./scripts/alert.sh "recall@5 retrieval rớt ${YESTERDAY} → ${TODAY}"
+fi
+```
+
+Vẽ `recall@5` qua 30 ngày trong dashboard (Grafana, Metabase, hay chỉ Google Sheet — không quan trọng). Hình dạng đường cong quan trọng hơn số tuyệt đối. Đổi bậc thang nghĩa là có gì đó xảy ra: tweak chunk-size, upgrade embedding-model, ingest corpus hỏng. **Đường thẳng nghĩa hệ thống khoẻ; bước xuống là bug để tìm.**
+
+<Callout type="tip" title="Regression thường nghĩa là gì">
+Nguyên nhân phổ biến nhất của rớt recall@5 không phải đổi code — là đổi *data*. Ai đó thêm batch 500 chunk mô tả sản phẩm mới, và chúng đè chunk FAQ trong không gian embedding. Eval set bạn vẫn câu hỏi *cũ*, giờ retrieve sản phẩm thay vì FAQ. Sửa: re-balance eval set khi corpus lớn lên, hoặc partition retrieval theo `category`.
+</Callout>
+
+## 05 — Tỷ lệ "không biết" là metric riêng
+
+Ngoài recall, metric khách thực sự cảm nhận là **tỷ lệ bot tự tin bịa chuyện**. Không đo được trong eval retrieval mình ên — cần LLM trong vòng.
+
+Proxy rẻ: tag mỗi câu trả lời sinh ra với ID chunk nó cite. Nếu câu trả lời không cite *chunk nào* được retrieve (hoặc cite cái mà eval set nói sai cho query đó), nó là ứng viên hallucination. Log những cái này, review tay tuần.
+
+Phiên bản nghiêm: eval set thứ hai của `(câu_hỏi, expected_answer_pattern)` nơi bạn check output LLM với regex hoặc LLM judge nhỏ. Đó là golden testing kiểu L22 áp dụng cho concierge.
+
+Cả hai thuộc dashboard cạnh `recall@5`. Bạn ship chunk; khách đọc đáp án.
+
+<Recap>
+- **20 dòng đủ để bắt đầu.** Lấy từ ticket CSKH hoặc log search, không phải tưởng tượng. Cover dễ / combo / adversarial / VI / EN.
+- **recall@k là metric đầu** bạn đọc. MRR quan trọng khi thứ tự rank quan trọng. nDCG khi relevance phân hạng. Luôn vẽ latency cạnh.
+- Reranker (Cohere `rerank-v3`, `bge-reranker-v2-m3`) trả công khi **`recall@10` cao nhưng `recall@5` thấp** — chúng re-order, không cứu được.
+- Chạy eval **đêm**, log kết quả, alert regression. Hình dạng đường cong recall chẩn đoán hơn số tuyệt đối.
+- Tỷ lệ "không biết" và hallucinate của bot là metric hạ lưu — track chúng nữa, với eval set LLM thứ hai.
+- Eval là bảo hiểm rẻ nhất chống drift âm thầm. Buổi chiều set up; trả ngay lần đầu ai đổi chunk size.
+</Recap>
+
+Đó khép Phần VI. Tiếp: mind map recap — rồi bạn bước vào Phần VII (build concierge) với embedding, chunking, index, quyết định pgvector vs Qdrant, và eval set đã sẵn trong tay.
+
+</VI>

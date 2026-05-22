@@ -1,0 +1,921 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- What an embedding actually is — a vector that points where the *meaning* lives, not where the spelling lives.
+- The three similarity metrics (cosine, dot, L2) and the one rule-of-thumb that picks the right one.
+- The 2026 embedding model lineup — and which models actually handle Vietnamese well.
+- The dimensions/cost tradeoff: when 1536 dims is overkill and when 256 is too few.
+- The five pitfalls that silently wreck recall — out-of-domain text, mixed models, no normalization, stale embeddings, model upgrades.
+</Callout>
+
+The Postgres `LIKE '%trả hàng%'` query is fast, deterministic, and useless the moment a customer types *"đổi trả"*, *"refund đơn"*, or just *"không vừa size, làm sao?"*. Three different strings, one meaning, zero matches.
+
+Embeddings are how a model agrees with you that those three queries are *the same question* — without ever looking at the characters.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 380" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Three sentences with different spellings collapse to nearby points in embedding space, while an unrelated sentence sits far away">
+    <line x1="80" y1="320" x2="680" y2="320" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+    <line x1="80" y1="40"  x2="80"  y2="320" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+    <text x="690" y="324" fontSize="10" fill="currentColor" opacity="0.55">{'dim 1'}</text>
+    <text x="60"  y="36"  fontSize="10" fill="currentColor" opacity="0.55">{'dim 2'}</text>
+
+    <circle cx="220" cy="120" r="8" fill="#16a34a" />
+    <text x="234" y="118" fontSize="11" fill="currentColor" opacity="0.85">{'"trả hàng được không?"'}</text>
+    <text x="234" y="132" fontSize="10" fill="currentColor" opacity="0.6">{'[0.12, 0.83, -0.04, ...]'}</text>
+
+    <circle cx="250" cy="150" r="8" fill="#16a34a" />
+    <text x="264" y="148" fontSize="11" fill="currentColor" opacity="0.85">{'"đổi trả thế nào?"'}</text>
+    <text x="264" y="162" fontSize="10" fill="currentColor" opacity="0.6">{'[0.14, 0.79, -0.06, ...]'}</text>
+
+    <circle cx="200" cy="170" r="8" fill="#16a34a" />
+    <text x="60"  y="200" fontSize="11" fill="currentColor" opacity="0.85">{'"refund đơn"'}</text>
+    <text x="60"  y="214" fontSize="10" fill="currentColor" opacity="0.6">{'[0.10, 0.81, -0.02, ...]'}</text>
+
+    <path d="M 200,170 Q 225,120 250,150" stroke="#16a34a" strokeWidth="1" fill="none" strokeDasharray="3 3" opacity="0.5" />
+    <text x="180" y="100" fontSize="10" fill="#16a34a" opacity="0.7">{'cosine ≈ 0.97'}</text>
+
+    <circle cx="560" cy="270" r="8" fill="#dc2626" />
+    <text x="574" y="268" fontSize="11" fill="currentColor" opacity="0.85">{'"how do I track my package?"'}</text>
+    <text x="574" y="282" fontSize="10" fill="currentColor" opacity="0.6">{'[0.71, -0.22, 0.45, ...]'}</text>
+
+    <path d="M 225,150 L 555,270" stroke="#dc2626" strokeWidth="1" fill="none" strokeDasharray="3 3" opacity="0.4" />
+    <text x="380" y="225" fontSize="10" fill="#dc2626" opacity="0.75">{'cosine ≈ 0.18'}</text>
+
+    <rect x="20" y="340" width="680" height="30" rx="6" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 3" />
+    <text x="360" y="360" textAnchor="middle" fontSize="11" fill="#16a34a">{'Three spellings, one meaning → three nearby vectors. Spelling is gone; meaning is geometry.'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Embeddings turn each piece of text into a point. Similar meaning = nearby points. Different meaning = far apart.
+  </figcaption>
+</figure>
+
+## 01 — What an embedding actually is
+
+An **embedding model** is a function `f(text) → vector<float>`. Same model, same text, same vector every time. Same model, *similar* text → *nearby* vectors. Different model → don't even try to compare.
+
+<Callout type="note" title="What does “dim” mean?">
+**Dim = dimension = the length of the output vector.** When a model converts a sentence into an embedding, it spits out a fixed-length array of floats. That length is the dimension.
+
+```
+"can I return this?"  →  [0.12, -0.83, 0.04, 0.71, ..., -0.22]
+                          └────── 3072 numbers ──────┘
+                              = 3072 dim
+```
+
+No one assigns meaning to each axis — the model learns them during training. Picture it like this: axis 1 might encode *"is this about money?"*, axis 2 *"is this a question?"*, axis 3 *"is the sentiment negative?"*, ... × 3072 such axes. Every sentence becomes one point in that 3072-dimensional space; sentences that mean the same thing land near each other.
+
+When you read **"3072 dim down to 1024"** later in this lesson, it means: take the long vector and chop off the tail — store and compare a shorter version of the same meaning, with only a small recall loss. The same vector, less precision.
+</Callout>
+
+The dimension is fixed per model — OpenAI's `text-embedding-3-small` gives 1536 floats, `text-embedding-3-large` gives 3072, `multilingual-e5-large` gives 1024, `BGE-M3` gives 1024. Each float is a coordinate in that many dimensions. "Nearby" in 1536-dimensional space is exactly what your gut imagines for 2D space — just hard to draw.
+
+The training trick is what makes them useful: the model was trained on hundreds of millions of `(query, relevant_doc)` pairs, learning that *"trả hàng được không"* and *"chính sách hoàn trả"* should land in the same neighbourhood — even though they share almost no characters.
+
+<Callout type="tip" title="Café analogy">
+Picture a giant café where every table is labelled by a topic — *return policy*, *shipping fees*, *size guide*, *complaints*. The embedding model is the host who reads a guest's question and walks them to the right table. The host doesn't care if the guest spoke Vietnamese, English, or pointed at a phrase — the host only cares about *what they meant*. That's the embedding: the seat number that meaning lands on.
+</Callout>
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 340" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="The embedding function: three text inputs pass through a single embedding model and emerge as fixed-dimension vectors; two inputs that share meaning produce nearby vectors, one unrelated input produces a far one">
+    <text x="360" y="22" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'The embedding function: f(text) → vector'}</text>
+
+    <rect x="20" y="56" width="200" height="42" rx="6" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.2" />
+    <text x="120" y="82" textAnchor="middle" fontSize="12" fill="currentColor">{'"can I return this item?"'}</text>
+    <rect x="20" y="118" width="200" height="42" rx="6" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.2" />
+    <text x="120" y="144" textAnchor="middle" fontSize="12" fill="currentColor">{'"what`s the refund policy?"'}</text>
+    <rect x="20" y="180" width="200" height="42" rx="6" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.2" />
+    <text x="120" y="206" textAnchor="middle" fontSize="12" fill="currentColor">{'"track my package?"'}</text>
+
+    <path d="M 225,77  L 290,138" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a25fn)" fill="none" />
+    <path d="M 225,139 L 290,139" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a25fn)" fill="none" />
+    <path d="M 225,201 L 290,140" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a25fn)" fill="none" />
+
+    <rect x="295" y="80" width="170" height="120" rx="10" fill="rgba(22,163,74,0.18)" stroke="#16a34a" strokeWidth="2" />
+    <text x="380" y="106" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'f(text)'}</text>
+    <text x="380" y="128" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.85">{'text-embedding-'}</text>
+    <text x="380" y="142" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.85">{'3-small'}</text>
+    <text x="380" y="166" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'1536 dim · frozen'}</text>
+    <text x="380" y="184" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'deterministic'}</text>
+
+    <path d="M 470,110 L 510,77"  stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a25fn)" fill="none" />
+    <path d="M 470,140 L 510,139" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a25fn)" fill="none" />
+    <path d="M 470,170 L 510,201" stroke="#dc2626" strokeWidth="1.5" opacity="0.6"  markerEnd="url(#a25fnRed)" fill="none" />
+
+    <rect x="515" y="56" width="185" height="42" rx="6" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="608" y="78" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="#16a34a">{'[0.12, 0.83, -0.04, …]'}</text>
+    <text x="608" y="92" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.6">{'1536 floats'}</text>
+
+    <rect x="515" y="118" width="185" height="42" rx="6" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="608" y="140" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="#16a34a">{'[0.14, 0.79, -0.06, …]'}</text>
+    <text x="608" y="154" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.6">{'≈ nearly identical ↑'}</text>
+
+    <rect x="515" y="180" width="185" height="42" rx="6" fill="rgba(220,38,38,0.08)" stroke="#dc2626" strokeWidth="1.5" />
+    <text x="608" y="202" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="#dc2626">{'[0.71, -0.22, 0.45, …]'}</text>
+    <text x="608" y="216" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.6">{'far from the other two'}</text>
+
+    <rect x="20" y="248" width="680" height="76" rx="8" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 3" />
+    <text x="360" y="270" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Three properties that make this useful'}</text>
+    <text x="360" y="288" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.85">{'• Same text in → same vector out, every call. (deterministic)'}</text>
+    <text x="360" y="304" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.85">{'• Similar meaning → nearby vectors. (clustering)'}</text>
+    <text x="360" y="320" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.85">{'• Different model → incompatible space. Never mix; re-embed if you switch.'}</text>
+
+    <defs>
+      <marker id="a25fn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.7" />
+      </marker>
+      <marker id="a25fnRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" opacity="0.7" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    One function, three inputs, three vectors. The first two land near each other in 1536-dimensional space because they mean the same thing. The third lands somewhere else.
+  </figcaption>
+</figure>
+
+## 02 — Cosine vs dot vs L2 — pick one and commit
+
+At query time, the system has to answer: **out of a million vectors in the DB, which is *most similar* to my question's vector?**
+
+But what does "similar" mean? There are three ways to define it. Get the intuition before looking at the formulas:
+
+<Callout type="tip" title="Café analogy — 3 ways to compare guests">
+Your café has a million regulars. Each one has been scored by the host on many dimensions (sweet preference, bitter preference, noise tolerance, ...). A new guest walks in — the host needs to find the regular *most like* them. Three ways to phrase "most like":
+
+- **Cosine** — *"Do these two guests have the same **taste profile**?"* Only cares about proportions. Guest A likes sweet twice as much as bitter; guest B does too → similar, even if A orders 3 drinks and B orders 1.
+- **Dot product** — *"Do they share a taste profile **and** consume similar amounts?"* Looks at both profile and quantity.
+- **L2 (Euclidean)** — *"How far apart are their scorecards as the crow flies?"* Like measuring distance with a ruler on a map.
+
+For text retrieval, you almost always want **cosine** — because whether a question is short or long doesn't tell you what it *means*, only its content does.
+</Callout>
+
+| Metric | What it asks | When to use |
+|---|---|---|
+| **Cosine** | Do both vectors point in the **same direction**? (ignores length) | **Text retrieval — the default.** Safe answer 95% of the time. |
+| **Dot product** | Same direction **and** similar magnitude? | When vectors are pre-normalised (see callout below). Same ranking as cosine but faster. |
+| **L2 (Euclidean)** | How far apart are the two points in straight-line distance? | Image embeddings, physical-distance problems. Rarely for text. |
+
+Short answer: **pick cosine and stop thinking.** Once you scale past 10M vectors and need another 10–20% speedup, come back and read the callout below.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 400" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Dot product vs cosine: geometric view with two unit vectors and the angle between them, plus the numeric proof that dot equals cosine when both vectors have length one">
+    <text x="360" y="22" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Cosine vs Dot — when they agree'}</text>
+
+    <text x="170" y="48" textAnchor="middle" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Geometric view'}</text>
+    <line x1="60"  y1="240" x2="290" y2="240" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+    <line x1="170" y1="120" x2="170" y2="320" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+    <text x="294" y="244" fontSize="9" fill="currentColor" opacity="0.5">{'x'}</text>
+    <text x="174" y="118" fontSize="9" fill="currentColor" opacity="0.5">{'y'}</text>
+
+    <circle cx="170" cy="240" r="80" fill="none" stroke="currentColor" strokeWidth="0.7" strokeDasharray="2 3" opacity="0.4" />
+    <text x="252" y="252" fontSize="9" fill="currentColor" opacity="0.55">{'unit circle'}</text>
+
+    <line x1="170" y1="240" x2="210" y2="171" stroke="#16a34a" strokeWidth="2.2" markerEnd="url(#a25dotA)" />
+    <text x="216" y="167" fontSize="12" fontWeight="700" fill="#16a34a">{'a'}</text>
+    <text x="216" y="181" fontSize="9" fill="currentColor" opacity="0.65">{'[0.5, 0.866]'}</text>
+
+    <line x1="170" y1="240" x2="239" y2="200" stroke="#16a34a" strokeWidth="2.2" markerEnd="url(#a25dotA)" />
+    <text x="245" y="196" fontSize="12" fontWeight="700" fill="#16a34a">{'b'}</text>
+    <text x="245" y="210" fontSize="9" fill="currentColor" opacity="0.65">{'[0.866, 0.5]'}</text>
+
+    <path d="M 200,222 A 35 35 0 0 0 188,210" stroke="#dc2626" strokeWidth="1.5" fill="none" />
+    <text x="206" y="215" fontSize="11" fontWeight="700" fill="#dc2626">{'θ'}</text>
+    <text x="170" y="345" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'Both vectors land on the unit circle'}</text>
+    <text x="170" y="358" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'→ ‖a‖ = ‖b‖ = 1'}</text>
+
+    <text x="540" y="48" textAnchor="middle" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Numeric view'}</text>
+
+    <rect x="340" y="60" width="360" height="56" rx="6" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1" />
+    <text x="354" y="80" fontSize="11" fontFamily="monospace" fill="currentColor">{'cos(θ) = (a · b) / (‖a‖ · ‖b‖)'}</text>
+    <text x="354" y="100" fontSize="10" fill="currentColor" opacity="0.7">{'general definition — always true'}</text>
+
+    <rect x="340" y="128" width="360" height="56" rx="6" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="354" y="148" fontSize="11" fontFamily="monospace" fill="#16a34a">{'if ‖a‖ = ‖b‖ = 1 → cos(θ) = a · b'}</text>
+    <text x="354" y="168" fontSize="10" fill="currentColor" opacity="0.75">{'unit vectors: divisor is just 1, drops out'}</text>
+
+    <rect x="340" y="196" width="360" height="146" rx="6" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="3 3" />
+    <text x="354" y="214" fontSize="10" fontWeight="700" fill="currentColor">{'Worked example  (length: ‖v‖ = √(v₁² + v₂²))'}</text>
+    <text x="354" y="232" fontSize="10" fontFamily="monospace" fill="currentColor">{'a · b = 0.5 × 0.866 + 0.866 × 0.5'}</text>
+    <text x="354" y="246" fontSize="10" fontFamily="monospace" fill="currentColor">{'      = 0.433 + 0.433 = 0.866'}</text>
+    <text x="354" y="266" fontSize="10" fontFamily="monospace" fill="currentColor">{'‖a‖ = √(0.5² + 0.866²)'}</text>
+    <text x="354" y="280" fontSize="10" fontFamily="monospace" fill="currentColor">{'    = √(0.25 + 0.75) = √1 = 1'}</text>
+    <text x="354" y="296" fontSize="10" fontFamily="monospace" fill="currentColor">{'‖b‖ = √(0.866² + 0.5²) = 1   (same numbers)'}</text>
+    <text x="354" y="316" fontSize="10" fontFamily="monospace" fill="#16a34a">{'cos(θ) = 0.866 / (1·1) = 0.866 ✓ same as dot'}</text>
+
+    <text x="354" y="336" fontSize="9" fill="currentColor" opacity="0.65">{'(0.866² = 0.749956 ≈ 0.75 — rounded)'}</text>
+
+    <rect x="20" y="350" width="680" height="44" rx="6" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="370" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'Practical: dot is one division shorter than cosine.'}</text>
+    <text x="360" y="386" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.8">{'OpenAI text-embedding-3-* returns unit vectors → swap pgvector `<=>` for `<#>` (inner product), get free speed-up.'}</text>
+
+    <defs>
+      <marker id="a25dotA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Cosine is the angle. Dot is "the angle, weighted by both lengths". When both lengths are 1, the weighting disappears and the two become the same number.
+  </figcaption>
+</figure>
+
+<Callout type="tip" title="Scaling up: the inner-product trick — read when you need it">
+**This callout only matters once you have >1M vectors and want to speed up queries. If you're just starting, stick with cosine and skip this.**
+
+First, what does **"normalised"** mean? It means stretching or shrinking the vector to make its length exactly 1 — like pinning all your arrows to the same length so only direction remains. Most modern models (OpenAI `text-embedding-3-*`, Cohere `embed-v4`, `bge-m3`) return normalised vectors out of the box — you don't have to do anything.
+
+Once vectors are normalised, **cosine and dot product produce the same number**. Look at the cosine formula again:
+
+```
+cosine(a, b) = (a · b) / (‖a‖ × ‖b‖)
+             = (a · b) / (1 × 1)        ← because both are normalised
+             = a · b                    ← just the dot product
+```
+
+The division in the denominator disappears. On every query over 1M vectors, you save 1M divisions. At 100 queries/sec, that adds up to measurable latency — not because one division is slow, but because it runs inside the tightest inner loop of the search algorithm.
+
+In pgvector:
+
+```sql
+-- cosine: has a division (safe for any vectors)
+ORDER BY embedding <=> $1::vector
+
+-- inner product: no division (only correct if vectors are normalised)
+ORDER BY embedding <#> $1::vector
+```
+
+**When should you switch?** Only when both conditions hold:
+1. You've verified the model returns normalised vectors (measure `‖v‖` on a few samples — should be ≈ 1.0).
+2. You've measured that the speedup is worth re-building the index.
+
+Until then, cosine is the right answer.
+</Callout>
+
+## 03 — The 2026 embedding model lineup
+
+Five models worth knowing. The rest are noise.
+
+| Model | Dim | Vietnamese? | Cost / 1M tok | When |
+|---|---|---|---|---|
+| **OpenAI `text-embedding-3-small`** | 1536 (or 512 truncated) | Good | $0.02 | Default for English-heavy with some Vietnamese. Cheap, fast, hosted. |
+| **OpenAI `text-embedding-3-large`** | 3072 (truncatable) | Better | $0.13 | When recall@10 matters more than cost. ~10% accuracy lift. |
+| **Cohere `embed-v4`** | 1536 | Strong | $0.10 | Strong multilingual; supports query/document instructions. |
+| **`intfloat/multilingual-e5-large`** | 1024 | Strong | self-hosted | Free if you run it. Solid for Vietnamese. Needs `query:` / `passage:` prefix. |
+| **`BAAI/bge-m3`** | 1024 | Excellent | self-hosted | Best Vietnamese recall in 2026 benchmarks. Dense + sparse + ColBERT in one model. |
+
+For a Vietnamese-first shop, the realistic pick is **`text-embedding-3-small` to start** (cheap, no infra) and **`bge-m3` once Vietnamese recall becomes the bottleneck** (free, self-hosted via [Hugging Face TEI](https://github.com/huggingface/text-embeddings-inference)).
+
+<Callout type="warning" title="Pick one and don't mix">
+Vectors from different models live in incompatible spaces. A query embedded with `text-embedding-3-small` will return garbage when searched against documents embedded with `bge-m3`. If you switch models, **re-embed the entire corpus**. Store the model name in a column so you know what's what.
+</Callout>
+
+## 04 — Dimensions and cost
+
+A vector with 1536 dimensions takes **6 KB** of memory (4 bytes × 1536). One million vectors → 6 GB. Ten million → 60 GB. The index is on top of that.
+
+OpenAI's `text-embedding-3-*` family supports **Matryoshka representation learning** — you can truncate `text-embedding-3-large` from 3072 dimensions down to 1024, 512, or even 256 with a small accuracy loss. That's the lever when storage hurts:
+
+- **256 dims** → 1 KB/vector, 1 GB per million — for billion-scale where storage dominates cost. ~5–8% recall loss.
+- **512 dims** → 2 KB/vector — good sweet spot for >10M vectors.
+- **1536 dims** → 6 KB/vector — the default; for &lt;5M vectors, just use it.
+- **3072 dims** → 12 KB/vector — only when the eval set proves it's worth it.
+
+The same idea exists in pgvector as **half-precision** (`halfvec` type, 2 bytes per dim instead of 4) — half the storage, half the bandwidth, identical recall in practice. Use `halfvec(1536)` if you're not yet at the dimension-cutting stage.
+
+## 05 — The five pitfalls
+
+Five things that silently break embeddings in production. Each one has the same shape: it doesn't throw an error, the system keeps running, but the answers quietly become wrong.
+
+**1. The model doesn't know your shop's vocabulary.**
+Embedding models are trained on the open web. They understand *"loose-fit men's polo"*, but they have no idea what your SKU code *"VNB-2025-A"* means, or what internal slang like *"deal mạnh tay"* refers to. Imagine a new hire who speaks perfect English but doesn't know any of your team's acronyms — useful for general questions, useless for the specific stuff.
+**Fix:** Pair semantic search with old-fashioned keyword search (you'll wire this in L33). Semantic handles *"how do I return this?"*, keyword handles *"find order #VNB-2025-A"*.
+
+**2. Mixing vectors from different models.**
+A vector from `text-embedding-3-small` lives in a completely different space from a vector from `text-embedding-3-large` — they're two different languages that happen to use the same alphabet (numbers). Comparing them returns nonsense, but pgvector doesn't complain because the dimensions match.
+**Fix:** When you change models, re-embed the entire corpus and save the model name in a column so you can audit which is which. (See the *"day the bot stopped understanding"* story below — this is the most expensive lesson in the chapter.)
+
+**3. Forgetting to normalise — only bites when you use dot product.**
+"Normalising" means scaling a vector down to length 1, keeping only its direction. If your vectors aren't normalised:
+
+- With **cosine** → still correct. Cosine divides by length internally, so it doesn't care.
+- With **dot product** → broken. A longer vector always scores higher, even when the content is irrelevant. The bot starts picking the longest FAQ chunks instead of the most relevant.
+
+**Fix:** Stick with cosine by default. Only switch to dot product after verifying `‖v‖ ≈ 1.0` on real samples.
+
+**4. Stale embeddings — text edited, vector left behind.**
+You edit a FAQ in Markdown, save the file, push to main. But you forget to run the embed script. The new text is in your repo; the *old* vector is still in pgvector. The bot keeps answering from the outdated version and nobody notices for weeks — until a customer quotes the wrong refund policy back at you.
+**Fix:** On every ingest, hash the source text and compare to the hash stored alongside the embedding. Only re-embed when the hash changes (you'll wire this in L32).
+
+**5. Surprise hosted-model deprecations.**
+`text-embedding-ada-002` was *the* default in 2023. By mid-2024 OpenAI had deprecated it. One day your API calls return 404 — or worse, the provider quietly redirects to a replacement model that returns different vectors but still responds 200 OK, so you don't notice until recall tanks.
+**Fix:**
+- Pin the exact model version in code (`text-embedding-3-small`, never `text-embedding-default`).
+- Subscribe to your provider's deprecation notices.
+- Budget for one re-embedding cycle per year — both the cost and the engineering time.
+
+<Callout type="warning" title="Concrete example — the day your bot stopped understanding">
+**A few words you'll need first:**
+- **Corpus** = the collection of all your FAQ / policy / product description text files. For an e-commerce concierge, this is the ~10,000 chunks already stored in pgvector.
+- **Embed** = run a piece of text through the embedding model to get its vector. *"Embedding the corpus"* means doing this for every chunk and saving the vector to the database.
+- **Re-embed** = do the embedding step *again* for text that's already in the database, usually because you've changed the model and the old vectors are no longer usable.
+- **Ingest script** = the program that reads your markdown FAQ files, breaks them into chunks, embeds each chunk, and writes the rows to pgvector.
+- **Cron** = a scheduled job. *"The ingest cron runs at 6am"* means the OS runs the ingest script automatically at 6am every day, so new FAQ edits show up in the bot without you having to remember.
+
+**Now the story.**
+
+Monday, 11pm. A junior dev reads OpenAI's docs and notices `text-embedding-3-large` has higher benchmark scores than the `text-embedding-3-small` you've been using since launch. They change one line and deploy:
+
+```ts
+// src/lib/embeddings.ts
+- model: 'text-embedding-3-small',
++ model: 'text-embedding-3-large',   // "better in the docs"
+```
+
+No errors at deploy time. Nothing visibly breaks. They go to bed.
+
+**Tuesday, 9:14 AM.** Customers are getting *"em không chắc ạ"* for questions that worked yesterday. Your accuracy score (technically: `recall@5` — *"how often is the right answer in the bot's top 5 picks?"*) dropped from **95% to 62%** overnight.
+
+**What broke — using a café analogy.**
+
+Imagine every embedding model is a *translator* who turns each FAQ into a "flavor profile" — a list of 1536 scores (sweetness, saltiness, bitterness, ..., 1536 dimensions in total). Two FAQs about the same topic get *similar* flavor profiles, even if written with totally different words.
+
+The catch: **`text-embedding-3-small` and `text-embedding-3-large` are two different translators**. They assign different flavor profiles to the same text. *"0.83 sweetness"* from one translator means nothing to the other.
+
+**State of your database at 9 AM:**
+
+| Chunks | Count | Translated by | Same flavor language? |
+|---|---|---|---|
+| FAQ chunks already in pgvector | 9,760 | `text-embedding-3-small` (old translator) | — |
+| New chunks added by the 6am cron | 240 | `text-embedding-3-large` (new translator) | ❌ different language |
+| A customer's question | 1 per request | `text-embedding-3-large` (whatever the app uses) | ❌ doesn't speak the old language |
+
+When the customer asks *"trả hàng được không?"*, the app translates it into a `-3-large` flavor profile. pgvector then compares it against 9,760 chunks in `-3-small` flavor profile and 240 chunks in `-3-large` flavor profile. The 9,760 old chunks look essentially *random* — cosine similarity ~0.2, even when the answer is sitting right there. So the bot mostly retrieves the 240 new chunks, which don't cover the topic, and falls back to *"em không chắc"*.
+
+The dimensions match (both are 1536) so pgvector doesn't throw an error. **It just silently returns the wrong neighbours.**
+
+**The fix — re-translate every chunk so they all speak one language.**
+
+You need to *re-embed* the entire corpus: read each chunk's `content` text back from the database, run it through one chosen model (let's say keep `text-embedding-3-small`), and overwrite all the vectors. About 10,000 API calls to OpenAI, ~2 hours wall time, ~$0.20 in fees.
+
+```sql
+-- Step 1: Add the column you wish you'd had from day one.
+ALTER TABLE concierge.knowledge_chunks ADD COLUMN model_name TEXT;
+
+-- Step 2: Wipe the embeddings (but keep the text content — that's the slow-to-rebuild part).
+UPDATE concierge.knowledge_chunks SET embedding = NULL;
+```
+
+Then run a small Node script:
+
+```ts
+// scripts/reembed.ts — re-translates everything with one chosen model
+import { embedQuery } from '@/lib/embeddings';        // uses text-embedding-3-small
+
+const rows = await db.query('SELECT id, content FROM concierge.knowledge_chunks');
+for (const row of rows) {
+  const vector = await embedQuery(row.content);       // ← one OpenAI call per chunk
+  await db.query(
+    `UPDATE concierge.knowledge_chunks
+     SET embedding = $1, model_name = 'text-embedding-3-small'
+     WHERE id = $2`,
+    [vector, row.id]
+  );
+}
+```
+
+And finally, prevent the same bug forever:
+
+```sql
+-- Step 3: A constraint that yells if anyone tries to mix models again.
+ALTER TABLE concierge.knowledge_chunks
+  ADD CONSTRAINT single_model CHECK (model_name = 'text-embedding-3-small');
+```
+
+By 10:30 AM, accuracy is back to 95%. Cost: 90 minutes debugging + 2 hours waiting for the re-embed script + one apology in #engineering.
+
+**The one habit that prevents this whole class of bug.**
+
+The day you create the table, add `model_name TEXT` and write the model into it every time you insert a row. Then add a check at app startup:
+
+```ts
+// runs once when the app boots
+const distinctModels = await db.query(
+  'SELECT DISTINCT model_name FROM concierge.knowledge_chunks'
+);
+if (
+  distinctModels.rows.length > 1 ||
+  distinctModels.rows[0].model_name !== EMBEDDING_MODEL_NAME
+) {
+  throw new Error(
+    `Model mismatch! DB has ${distinctModels.rows.map(r => r.model_name).join(', ')}, ` +
+    `app uses ${EMBEDDING_MODEL_NAME}. Did you forget to re-embed?`
+  );
+}
+```
+
+**In one sentence:** the *text* in your database lasts forever. The *embeddings* belong to whichever model produced them — change the model and every embedding has to be redone from scratch.
+</Callout>
+
+<Recap>
+- An embedding is `f(text) → vector` — fixed dimension per model. Similar meaning → nearby vectors.
+- For text, **cosine** is the default metric. Dot product is the same answer if your vectors are normalised.
+- Default model: `text-embedding-3-small`. Best Vietnamese: `bge-m3` (self-hosted). Never mix models.
+- Dimensions cost storage linearly. Use Matryoshka truncation or `halfvec` before you index 100M+ vectors.
+- The big pitfalls: out-of-domain SKUs, mixed models, missing normalization, stale chunks, deprecated models.
+</Recap>
+
+Next: chunking. Because *"a 50-page PDF"* is one document with twenty answers in it — and how you slice it determines whether the model finds any of them.
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Embedding thực ra là gì — một vector trỏ tới nơi *ý nghĩa* nằm, không phải nơi chữ viết nằm.
+- Ba metric similarity (cosine, dot, L2) và một quy tắc đơn giản để chọn đúng.
+- Bộ model embedding 2026 — và model nào thực sự xử lý tiếng Việt tốt.
+- Đánh đổi dimension/chi phí: khi nào 1536 dim là dư, khi nào 256 là thiếu.
+- Năm cạm bẫy âm thầm phá recall — text ngoài domain, mix model, không normalize, embedding cũ, model upgrade.
+</Callout>
+
+Câu `LIKE '%trả hàng%'` của Postgres nhanh, deterministic, và vô dụng ngay khi khách gõ *"đổi trả"*, *"refund đơn"*, hay đơn giản *"không vừa size, làm sao?"*. Ba chuỗi khác nhau, một ý nghĩa, không match nào.
+
+Embedding là cách model đồng ý với bạn rằng ba câu đó là *cùng một câu hỏi* — mà không bao giờ nhìn vào ký tự.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 380" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Ba câu khác chính tả tụ về các điểm gần nhau trong không gian embedding, câu không liên quan ở xa">
+    <line x1="80" y1="320" x2="680" y2="320" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+    <line x1="80" y1="40"  x2="80"  y2="320" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+    <text x="690" y="324" fontSize="10" fill="currentColor" opacity="0.55">{'chiều 1'}</text>
+    <text x="60"  y="36"  fontSize="10" fill="currentColor" opacity="0.55">{'chiều 2'}</text>
+
+    <circle cx="220" cy="120" r="8" fill="#16a34a" />
+    <text x="234" y="118" fontSize="11" fill="currentColor" opacity="0.85">{'"trả hàng được không?"'}</text>
+    <text x="234" y="132" fontSize="10" fill="currentColor" opacity="0.6">{'[0.12, 0.83, -0.04, ...]'}</text>
+
+    <circle cx="250" cy="150" r="8" fill="#16a34a" />
+    <text x="264" y="148" fontSize="11" fill="currentColor" opacity="0.85">{'"đổi trả thế nào?"'}</text>
+    <text x="264" y="162" fontSize="10" fill="currentColor" opacity="0.6">{'[0.14, 0.79, -0.06, ...]'}</text>
+
+    <circle cx="200" cy="170" r="8" fill="#16a34a" />
+    <text x="60"  y="200" fontSize="11" fill="currentColor" opacity="0.85">{'"refund đơn"'}</text>
+    <text x="60"  y="214" fontSize="10" fill="currentColor" opacity="0.6">{'[0.10, 0.81, -0.02, ...]'}</text>
+
+    <path d="M 200,170 Q 225,120 250,150" stroke="#16a34a" strokeWidth="1" fill="none" strokeDasharray="3 3" opacity="0.5" />
+    <text x="180" y="100" fontSize="10" fill="#16a34a" opacity="0.7">{'cosine ≈ 0.97'}</text>
+
+    <circle cx="560" cy="270" r="8" fill="#dc2626" />
+    <text x="574" y="268" fontSize="11" fill="currentColor" opacity="0.85">{'"track đơn ở đâu?"'}</text>
+    <text x="574" y="282" fontSize="10" fill="currentColor" opacity="0.6">{'[0.71, -0.22, 0.45, ...]'}</text>
+
+    <path d="M 225,150 L 555,270" stroke="#dc2626" strokeWidth="1" fill="none" strokeDasharray="3 3" opacity="0.4" />
+    <text x="380" y="225" fontSize="10" fill="#dc2626" opacity="0.75">{'cosine ≈ 0.18'}</text>
+
+    <rect x="20" y="340" width="680" height="30" rx="6" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 3" />
+    <text x="360" y="360" textAnchor="middle" fontSize="11" fill="#16a34a">{'Ba cách viết, một ý nghĩa → ba vector gần nhau. Chính tả biến mất; ý nghĩa là hình học.'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Embedding biến mỗi đoạn text thành một điểm. Ý nghĩa giống nhau = điểm gần nhau. Khác nhau = ở xa.
+  </figcaption>
+</figure>
+
+## 01 — Embedding thực ra là gì
+
+Một **embedding model** là hàm `f(text) → vector<float>`. Cùng model, cùng text, cùng vector mỗi lần. Cùng model, text *tương tự* → vector *gần nhau*. Model khác → đừng so sánh.
+
+<Callout type="note" title="“Dim” là gì?">
+**Dim = dimension = số chiều của vector = độ dài của mảng output.** Khi model biến một câu thành embedding, nó xuất ra một mảng float có độ dài cố định. Độ dài đó chính là dim.
+
+```
+"trả hàng được không?"  →  [0.12, -0.83, 0.04, 0.71, ..., -0.22]
+                            └────── 3072 con số ──────┘
+                                = 3072 dim
+```
+
+Mỗi "chiều" tượng trưng cho cái gì? Không ai biết chính xác — model tự học trong lúc huấn luyện. Cứ tưởng tượng: chiều 1 có thể là *"câu này nói về tiền không?"*, chiều 2 *"câu này hỏi hay khẳng định?"*, chiều 3 *"sắc thái tiêu cực không?"*, ... × 3072 trục như vậy. Mỗi câu trở thành **một điểm** trong không gian 3072 chiều đó; hai câu cùng nghĩa rơi gần nhau.
+
+Sau này bạn đọc thấy **"3072 dim xuống 1024"** — nghĩa là: lấy vector dài, cắt bớt đuôi đi — lưu và so sánh một phiên bản ngắn hơn của cùng ý nghĩa, chỉ mất chút ít recall. Cùng vector, ít chi tiết hơn.
+
+**Ẩn dụ quán cà phê:** dim giống như số "tiêu chí chấm điểm" mà host dùng để xếp khách vào bàn. Host chấm 3072 tiêu chí (vị ngọt, vị đắng, độ ồn ào, độ trang trọng, ...) → định vị khách cực chính xác nhưng tốn thời gian. Chấm 1024 tiêu chí thì nhanh hơn 3 lần, vẫn xếp đúng bàn 98% số lần. Đó là đánh đổi bạn sẽ gặp suốt phần này.
+</Callout>
+
+Dimension cố định theo model — `text-embedding-3-small` của OpenAI cho 1536 float, `text-embedding-3-large` cho 3072, `multilingual-e5-large` cho 1024, `BGE-M3` cho 1024. Mỗi float là một toạ độ trong không gian đó nhiều chiều. "Gần" trong không gian 1536 chiều đúng như bạn tưởng tượng cho 2D — chỉ khó vẽ.
+
+Bí kíp huấn luyện là điều làm chúng hữu ích: model được huấn luyện trên hàng trăm triệu cặp `(query, doc liên quan)`, học rằng *"trả hàng được không"* và *"chính sách hoàn trả"* nên rơi vào cùng khu — dù gần như không có ký tự chung.
+
+<Callout type="tip" title="Ẩn dụ quán cà phê">
+Hình dung một quán cà phê khổng lồ, mỗi bàn dán nhãn chủ đề — *chính sách trả*, *phí ship*, *bảng size*, *khiếu nại*. Embedding model là người host đọc câu hỏi của khách rồi dẫn họ đến đúng bàn. Host không quan tâm khách nói tiếng Việt, tiếng Anh, hay chỉ vào một cụm từ — host chỉ quan tâm *họ có ý gì*. Đó là embedding: số bàn mà ý nghĩa hạ cánh.
+</Callout>
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 340" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Hàm embedding: ba text input qua một embedding model và ra vector có dimension cố định; hai input cùng nghĩa tạo vector gần, một input khác nghĩa tạo vector xa">
+    <text x="360" y="22" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Hàm embedding: f(text) → vector'}</text>
+
+    <rect x="20" y="56" width="200" height="42" rx="6" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.2" />
+    <text x="120" y="82" textAnchor="middle" fontSize="12" fill="currentColor">{'"trả hàng được không?"'}</text>
+    <rect x="20" y="118" width="200" height="42" rx="6" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.2" />
+    <text x="120" y="144" textAnchor="middle" fontSize="12" fill="currentColor">{'"chính sách hoàn trả?"'}</text>
+    <rect x="20" y="180" width="200" height="42" rx="6" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.2" />
+    <text x="120" y="206" textAnchor="middle" fontSize="12" fill="currentColor">{'"track đơn ở đâu?"'}</text>
+
+    <path d="M 225,77  L 290,138" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a25fnvi)" fill="none" />
+    <path d="M 225,139 L 290,139" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a25fnvi)" fill="none" />
+    <path d="M 225,201 L 290,140" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a25fnvi)" fill="none" />
+
+    <rect x="295" y="80" width="170" height="120" rx="10" fill="rgba(22,163,74,0.18)" stroke="#16a34a" strokeWidth="2" />
+    <text x="380" y="106" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'f(text)'}</text>
+    <text x="380" y="128" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.85">{'text-embedding-'}</text>
+    <text x="380" y="142" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.85">{'3-small'}</text>
+    <text x="380" y="166" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'1536 dim · đông cứng'}</text>
+    <text x="380" y="184" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'deterministic'}</text>
+
+    <path d="M 470,110 L 510,77"  stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a25fnvi)" fill="none" />
+    <path d="M 470,140 L 510,139" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a25fnvi)" fill="none" />
+    <path d="M 470,170 L 510,201" stroke="#dc2626" strokeWidth="1.5" opacity="0.6"  markerEnd="url(#a25fnviRed)" fill="none" />
+
+    <rect x="515" y="56" width="185" height="42" rx="6" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="608" y="78" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="#16a34a">{'[0.12, 0.83, -0.04, …]'}</text>
+    <text x="608" y="92" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.6">{'1536 float'}</text>
+
+    <rect x="515" y="118" width="185" height="42" rx="6" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="608" y="140" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="#16a34a">{'[0.14, 0.79, -0.06, …]'}</text>
+    <text x="608" y="154" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.6">{'≈ gần như giống ↑'}</text>
+
+    <rect x="515" y="180" width="185" height="42" rx="6" fill="rgba(220,38,38,0.08)" stroke="#dc2626" strokeWidth="1.5" />
+    <text x="608" y="202" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="#dc2626">{'[0.71, -0.22, 0.45, …]'}</text>
+    <text x="608" y="216" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.6">{'xa hai cái trên'}</text>
+
+    <rect x="20" y="248" width="680" height="76" rx="8" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 3" />
+    <text x="360" y="270" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Ba tính chất làm điều này hữu ích'}</text>
+    <text x="360" y="288" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.85">{'• Cùng text vào → cùng vector ra, mỗi call. (deterministic)'}</text>
+    <text x="360" y="304" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.85">{'• Ý nghĩa giống nhau → vector gần nhau. (clustering)'}</text>
+    <text x="360" y="320" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.85">{'• Model khác → không gian không tương thích. Không mix; re-embed khi đổi.'}</text>
+
+    <defs>
+      <marker id="a25fnvi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.7" />
+      </marker>
+      <marker id="a25fnviRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" opacity="0.7" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Một hàm, ba input, ba vector. Hai cái đầu rơi gần nhau trong không gian 1536 chiều vì cùng ý nghĩa. Cái thứ ba rơi ở chỗ khác.
+  </figcaption>
+</figure>
+
+## 02 — Cosine vs dot vs L2 — chọn một và bám
+
+Lúc query, hệ thống cần trả lời: **trong 1 triệu vector trong DB, cái nào *giống* vector của câu hỏi nhất?**
+
+Nhưng "giống" nghĩa là gì? Có ba cách định nghĩa. Trước khi nhìn công thức, hiểu ý đã:
+
+<Callout type="tip" title="Ẩn dụ quán cà phê — 3 cách so sánh khách">
+Quán của bạn có 1 triệu khách quen, mỗi người được host chấm điểm trên nhiều tiêu chí (ngọt, đắng, ồn ào, ...). Khách mới bước vào — host phải tìm khách quen *giống nhất*. Có 3 cách hỏi câu "giống":
+
+- **Cosine** — "hai khách có **gu giống nhau** không?" Chỉ quan tâm tỉ lệ. Khách A thích ngọt gấp đôi đắng, khách B cũng vậy → giống, dù A uống 3 ly và B chỉ uống 1 ly.
+- **Dot product** — "hai khách giống gu **và** uống nhiều ngang nhau không?" Vừa nhìn gu vừa nhìn số lượng.
+- **L2 (Euclidean)** — "**khoảng cách thẳng** giữa hai bảng điểm bao xa?" Như đo bằng thước trên bản đồ.
+
+Cho text retrieval, bạn gần như luôn muốn **cosine** — vì câu hỏi ngắn hay dài không nói lên gu, chỉ có ý nghĩa mới nói.
+</Callout>
+
+| Metric | Hỏi cái gì? | Khi nào dùng |
+|---|---|---|
+| **Cosine** | Hai vector chỉ về **cùng hướng** không? (bỏ qua độ dài) | **Text retrieval — mặc định.** Câu trả lời an toàn 95% trường hợp. |
+| **Dot product** | Hai vector cùng hướng **và** cùng độ lớn không? | Khi vector đã được normalize (xem callout dưới). Cùng kết quả với cosine, nhưng nhanh hơn. |
+| **L2 (Euclidean)** | Khoảng cách thẳng giữa hai điểm bao xa? | Embedding ảnh, đo khoảng cách vật lý. Hiếm khi dùng cho text. |
+
+Kết luận ngắn: **chọn cosine, đừng nghĩ thêm.** Khi nào hệ thống lên >10 triệu vector và bạn cần tăng tốc thêm 10-20%, lúc đó quay lại đọc callout phía dưới.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 400" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Dot product vs cosine: nhìn hình học với hai vector đơn vị và góc giữa chúng, cộng chứng minh số rằng dot bằng cosine khi cả hai vector có độ dài bằng một">
+    <text x="360" y="22" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Cosine vs Dot — khi nào chúng giống nhau'}</text>
+
+    <text x="170" y="48" textAnchor="middle" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Nhìn hình học'}</text>
+    <line x1="60"  y1="240" x2="290" y2="240" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+    <line x1="170" y1="120" x2="170" y2="320" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+    <text x="294" y="244" fontSize="9" fill="currentColor" opacity="0.5">{'x'}</text>
+    <text x="174" y="118" fontSize="9" fill="currentColor" opacity="0.5">{'y'}</text>
+
+    <circle cx="170" cy="240" r="80" fill="none" stroke="currentColor" strokeWidth="0.7" strokeDasharray="2 3" opacity="0.4" />
+    <text x="252" y="252" fontSize="9" fill="currentColor" opacity="0.55">{'unit circle'}</text>
+
+    <line x1="170" y1="240" x2="210" y2="171" stroke="#16a34a" strokeWidth="2.2" markerEnd="url(#a25dotAvi)" />
+    <text x="216" y="167" fontSize="12" fontWeight="700" fill="#16a34a">{'a'}</text>
+    <text x="216" y="181" fontSize="9" fill="currentColor" opacity="0.65">{'[0.5, 0.866]'}</text>
+
+    <line x1="170" y1="240" x2="239" y2="200" stroke="#16a34a" strokeWidth="2.2" markerEnd="url(#a25dotAvi)" />
+    <text x="245" y="196" fontSize="12" fontWeight="700" fill="#16a34a">{'b'}</text>
+    <text x="245" y="210" fontSize="9" fill="currentColor" opacity="0.65">{'[0.866, 0.5]'}</text>
+
+    <path d="M 200,222 A 35 35 0 0 0 188,210" stroke="#dc2626" strokeWidth="1.5" fill="none" />
+    <text x="206" y="215" fontSize="11" fontWeight="700" fill="#dc2626">{'θ'}</text>
+    <text x="170" y="345" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'Cả hai vector rơi trên unit circle'}</text>
+    <text x="170" y="358" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'→ ‖a‖ = ‖b‖ = 1'}</text>
+
+    <text x="540" y="48" textAnchor="middle" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.85">{'Nhìn bằng số'}</text>
+
+    <rect x="340" y="60" width="360" height="56" rx="6" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1" />
+    <text x="354" y="80" fontSize="11" fontFamily="monospace" fill="currentColor">{'cos(θ) = (a · b) / (‖a‖ · ‖b‖)'}</text>
+    <text x="354" y="100" fontSize="10" fill="currentColor" opacity="0.7">{'định nghĩa tổng quát — luôn đúng'}</text>
+
+    <rect x="340" y="128" width="360" height="56" rx="6" fill="rgba(22,163,74,0.12)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="354" y="148" fontSize="11" fontFamily="monospace" fill="#16a34a">{'nếu ‖a‖ = ‖b‖ = 1 → cos(θ) = a · b'}</text>
+    <text x="354" y="168" fontSize="10" fill="currentColor" opacity="0.75">{'vector đơn vị: mẫu số là 1, biến mất'}</text>
+
+    <rect x="340" y="196" width="360" height="146" rx="6" fill="rgba(22,163,74,0.04)" stroke="#16a34a" strokeWidth="1" strokeDasharray="3 3" />
+    <text x="354" y="214" fontSize="10" fontWeight="700" fill="currentColor">{'Tính thử  (độ dài: ‖v‖ = √(v₁² + v₂²))'}</text>
+    <text x="354" y="232" fontSize="10" fontFamily="monospace" fill="currentColor">{'a · b = 0.5 × 0.866 + 0.866 × 0.5'}</text>
+    <text x="354" y="246" fontSize="10" fontFamily="monospace" fill="currentColor">{'      = 0.433 + 0.433 = 0.866'}</text>
+    <text x="354" y="266" fontSize="10" fontFamily="monospace" fill="currentColor">{'‖a‖ = √(0.5² + 0.866²)'}</text>
+    <text x="354" y="280" fontSize="10" fontFamily="monospace" fill="currentColor">{'    = √(0.25 + 0.75) = √1 = 1'}</text>
+    <text x="354" y="296" fontSize="10" fontFamily="monospace" fill="currentColor">{'‖b‖ = √(0.866² + 0.5²) = 1   (cùng số)'}</text>
+    <text x="354" y="316" fontSize="10" fontFamily="monospace" fill="#16a34a">{'cos(θ) = 0.866 / (1·1) = 0.866 ✓ y hệt dot'}</text>
+
+    <text x="354" y="336" fontSize="9" fill="currentColor" opacity="0.65">{'(0.866² = 0.749956 ≈ 0.75 — làm tròn)'}</text>
+
+    <rect x="20" y="350" width="680" height="44" rx="6" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="370" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16a34a">{'Thực tế: dot ngắn hơn cosine một phép chia.'}</text>
+    <text x="360" y="386" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.8">{'OpenAI text-embedding-3-* trả vector đơn vị → đổi `<=>` của pgvector sang `<#>` (inner product), được tăng tốc miễn phí.'}</text>
+
+    <defs>
+      <marker id="a25dotAvi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Cosine là góc. Dot là "góc, có trọng số của cả hai độ dài". Khi cả hai độ dài bằng 1, trọng số biến mất và hai cái trở thành cùng một số.
+  </figcaption>
+</figure>
+
+<Callout type="tip" title="Tăng tốc khi quy mô lớn — chỉ đọc khi cần">
+**Phần này chỉ liên quan khi bạn đã có >1 triệu vector và muốn tăng tốc query. Mới bắt đầu thì cứ dùng cosine, bỏ qua.**
+
+Trước hết, "**normalize**" là gì? Là kéo vector về độ dài đúng bằng 1 — như co tất cả mũi tên xuống cùng độ dài, chỉ giữ lại hướng. Đa số model hiện đại (OpenAI `text-embedding-3-*`, Cohere `embed-v4`, `bge-m3`) đã trả vector normalized sẵn — bạn không phải làm gì.
+
+Khi vector đã normalize, **cosine và dot product cho ra cùng một con số**. Nhìn lại công thức cosine:
+
+```
+cosine(a, b) = (a · b) / (‖a‖ × ‖b‖)
+             = (a · b) / (1 × 1)        ← vì đã normalize
+             = a · b                    ← chính là dot product
+```
+
+Tức là phép chia ở mẫu số biến mất. Mỗi query trên 1 triệu vector tiết kiệm được 1 triệu phép chia. Ở 100 query/giây, độ trễ giảm rõ rệt — không phải vì một phép chia chậm, mà vì nó nằm trong vòng lặp trong cùng của thuật toán tìm kiếm.
+
+Trong pgvector:
+
+```sql
+-- cosine: có phép chia (an toàn cho mọi vector)
+ORDER BY embedding <=> $1::vector
+
+-- inner product: không chia (chỉ đúng khi vector đã normalize)
+ORDER BY embedding <#> $1::vector
+```
+
+**Khi nào đổi?** Chỉ khi cả hai điều kiện đều đúng:
+1. Bạn đã kiểm tra model trả vector normalized (đo `‖v‖` của vài vector mẫu — phải ≈ 1.0).
+2. Bạn đã đo và xác nhận tốc độ đáng để re-build lại index.
+
+Trước đó, cosine là câu trả lời đúng.
+</Callout>
+
+## 03 — Bộ model embedding 2026
+
+Năm model đáng biết. Còn lại là nhiễu.
+
+| Model | Dim | Tiếng Việt? | Chi phí / 1M token | Khi nào |
+|---|---|---|---|---|
+| **OpenAI `text-embedding-3-small`** | 1536 (hoặc 512 truncate) | Tốt | $0.02 | Mặc định cho corpus nhiều tiếng Anh có chút tiếng Việt. Rẻ, nhanh, hosted. |
+| **OpenAI `text-embedding-3-large`** | 3072 (truncate được) | Tốt hơn | $0.13 | Khi recall@10 quan trọng hơn chi phí. Tăng ~10% accuracy. |
+| **Cohere `embed-v4`** | 1536 | Mạnh | $0.10 | Multilingual mạnh; hỗ trợ instruction query/document. |
+| **`intfloat/multilingual-e5-large`** | 1024 | Mạnh | self-host | Miễn phí nếu tự chạy. Vững cho tiếng Việt. Cần prefix `query:` / `passage:`. |
+| **`BAAI/bge-m3`** | 1024 | Xuất sắc | self-host | Recall tiếng Việt tốt nhất trong benchmark 2026. Dense + sparse + ColBERT trong một model. |
+
+Cho shop Việt-trước, lựa chọn thực tế là **`text-embedding-3-small` để bắt đầu** (rẻ, không infra) và **`bge-m3` khi recall tiếng Việt thành bottleneck** (miễn phí, self-host qua [Hugging Face TEI](https://github.com/huggingface/text-embeddings-inference)).
+
+<Callout type="warning" title="Chọn một và không mix">
+Vector từ model khác nhau sống trong không gian không tương thích. Một query embed bằng `text-embedding-3-small` sẽ trả rác khi search trên doc embed bằng `bge-m3`. Nếu đổi model, **re-embed toàn bộ corpus**. Lưu tên model trong một cột để biết cái nào là cái nào.
+</Callout>
+
+## 04 — Dimension và chi phí
+
+Một vector 1536 chiều chiếm **6 KB** bộ nhớ (4 byte × 1536). Một triệu vector → 6 GB. Mười triệu → 60 GB. Index nằm trên đó.
+
+Họ `text-embedding-3-*` của OpenAI hỗ trợ **Matryoshka representation learning** — có thể cắt `text-embedding-3-large` từ 3072 dim xuống 1024, 512, hoặc thậm chí 256 với mất accuracy nhỏ. Đó là đòn bẩy khi storage đau:
+
+- **256 dim** → 1 KB/vector, 1 GB mỗi triệu — cho quy mô tỷ vector nơi storage chi phối chi phí. Mất ~5–8% recall.
+- **512 dim** → 2 KB/vector — điểm ngọt cho >10M vector.
+- **1536 dim** → 6 KB/vector — mặc định; cho &lt;5M vector cứ dùng.
+- **3072 dim** → 12 KB/vector — chỉ khi eval set chứng minh đáng.
+
+Cùng ý tưởng đó tồn tại trong pgvector dưới dạng **half-precision** (kiểu `halfvec`, 2 byte mỗi dim thay vì 4) — một nửa storage, một nửa bandwidth, recall thực tế như cũ. Dùng `halfvec(1536)` nếu chưa tới giai đoạn cắt dim.
+
+## 05 — Năm cạm bẫy
+
+Năm thứ âm thầm phá hỏng embedding trong production. Cả năm đều cùng một dạng: **không throw error, hệ thống vẫn chạy, nhưng câu trả lời sai mà không ai biết.**
+
+**1. Model không biết từ ngữ riêng của shop.**
+Embedding model học từ text trên web. Nó hiểu *"áo polo nam form rộng"*, nhưng không biết mã *"VNB-2025-A"* hay tiếng lóng nội bộ kiểu *"deal mạnh tay"* nghĩa là gì. Như nhân viên mới: nói tiếng Việt chuẩn, nhưng không biết tên viết tắt của các phòng ban trong công ty bạn — hiểu câu hỏi đời thường, bó tay với từ chuyên ngành.
+**Sửa:** Ghép semantic search với keyword search kiểu truyền thống (sẽ làm ở L33). Semantic lo *"trả hàng được không?"*, keyword lo *"tìm đơn #VNB-2025-A"*.
+
+**2. Trộn vector từ nhiều model.**
+Vector từ `text-embedding-3-small` sống trong không gian hoàn toàn khác với vector từ `text-embedding-3-large` — như hai ngôn ngữ khác nhau tình cờ dùng chung bảng chữ cái (số). So sánh chúng → kết quả rác, nhưng pgvector không báo lỗi vì số chiều khớp.
+**Sửa:** Khi đổi model, re-embed toàn bộ corpus và lưu tên model vào một cột để biết cái nào là cái nào. (Xem câu chuyện *"ngày bot ngừng hiểu khách"* dưới đây — bài học đắt nhất trong chương này.)
+
+**3. Quên normalize — chỉ bị bug khi dùng dot product.**
+"Normalize" = co vector xuống độ dài đúng bằng 1, chỉ giữ hướng. Nếu vector chưa normalize:
+
+- Dùng **cosine** → vẫn đúng. Cosine tự chia cho độ dài, nên không quan tâm.
+- Dùng **dot product** → SAI. Vector dài hơn luôn được điểm cao hơn, kể cả khi nội dung không liên quan. Bot bắt đầu chọn chunk FAQ dài nhất thay vì chunk liên quan nhất.
+
+**Sửa:** Mặc định cosine. Chỉ đổi sang dot product sau khi đo `‖v‖ ≈ 1.0` trên vài vector mẫu thực tế.
+
+**4. Embedding cũ — text đã sửa, vector vẫn cũ.**
+Bạn edit một FAQ trong Markdown, lưu file, push lên main. Nhưng quên chạy script embed. Text mới đã trong repo; vector *cũ* vẫn nằm trong pgvector. Bot tiếp tục trả lời theo phiên bản cũ — và không ai phát hiện cho tới khi khách hàng quote sai chính sách hoàn tiền cho bạn nghe.
+**Sửa:** Mỗi lần ingest, hash text gốc và so với hash đã lưu cùng embedding. Chỉ re-embed khi hash đổi (sẽ làm ở L32).
+
+**5. Model hosted bị deprecated bất ngờ.**
+`text-embedding-ada-002` từng là chuẩn năm 2023. Giữa 2024 OpenAI deprecate. Một ngày API trả về 404 — hoặc tệ hơn, provider âm thầm redirect sang model thay thế trả về vector khác nhưng vẫn 200 OK, và bạn chỉ phát hiện khi recall tụt.
+**Sửa:**
+- Pin version model chính xác trong code (`text-embedding-3-small`, không phải `text-embedding-default`).
+- Đăng ký notice deprecate của provider.
+- Dự trù 1 chu kỳ re-embed mỗi năm — cả tiền và thời gian engineering.
+
+<Callout type="warning" title="Ví dụ cụ thể — ngày bot ngừng hiểu khách">
+**Vài từ cần biết trước:**
+- **Corpus** = tập hợp toàn bộ file FAQ / chính sách / mô tả sản phẩm của bạn. Với concierge e-commerce, đây là khoảng 10,000 chunk đã lưu trong pgvector.
+- **Embed** = đưa một đoạn text qua embedding model để ra vector của nó. *"Embed corpus"* nghĩa là làm việc này cho từng chunk rồi lưu vector vào database.
+- **Re-embed** = làm lại bước embed cho text *đã có sẵn* trong database, thường vì bạn vừa đổi model và vector cũ không dùng được nữa.
+- **Ingest script** = chương trình đọc file markdown FAQ, cắt thành chunk, embed từng chunk, rồi ghi từng dòng vào pgvector.
+- **Cron** = một job chạy theo lịch. *"Cron ingest chạy 6 sáng"* nghĩa là OS tự chạy ingest script lúc 6 giờ sáng mỗi ngày, để FAQ vừa edit xuất hiện trong bot mà bạn không phải nhớ.
+
+**Bây giờ là câu chuyện.**
+
+Thứ Hai, 11 giờ đêm. Một junior dev đọc doc OpenAI và thấy `text-embedding-3-large` có điểm benchmark cao hơn `text-embedding-3-small` mà shop đang dùng từ lúc launch. Bạn ấy đổi một dòng rồi deploy:
+
+```ts
+// src/lib/embeddings.ts
+- model: 'text-embedding-3-small',
++ model: 'text-embedding-3-large',   // "tốt hơn theo doc"
+```
+
+Không có error lúc deploy. Không có gì hỏng nhìn thấy được. Bạn ấy đi ngủ.
+
+**Thứ Ba, 9:14 sáng.** Khách hàng nhận *"em không chắc ạ"* cho câu hỏi mà hôm qua trả lời được. Điểm chính xác (chính thức: `recall@5` — *"đáp án đúng có nằm trong top 5 chunk bot chọn không?"*) rớt từ **95% xuống 62%** qua đêm.
+
+**Cái gì hỏng — bằng ẩn dụ quán cà phê.**
+
+Hình dung mỗi embedding model là một *thông dịch viên* biến mỗi FAQ thành "hồ sơ vị" — danh sách 1536 điểm số (ngọt, mặn, đắng, ..., tổng 1536 chiều). Hai FAQ về cùng chủ đề sẽ có hồ sơ vị *gần giống nhau*, kể cả khi viết bằng từ hoàn toàn khác.
+
+Vấn đề: **`text-embedding-3-small` và `text-embedding-3-large` là hai thông dịch viên khác nhau**. Họ gán hồ sơ vị khác nhau cho cùng một text. *"0.83 điểm ngọt"* của ông này không có nghĩa gì với ông kia.
+
+**Trạng thái database lúc 9 sáng — ai đang nói ngôn ngữ nào:**
+
+| Loại dữ liệu trong DB | Số lượng | Thông dịch viên đã dùng | Nói cùng ngôn ngữ? |
+|---|---|---|---|
+| Chunk FAQ cũ (đã có sẵn) | 9,760 | `text-embedding-3-small` — thông dịch viên cũ | — (đây là chuẩn cũ của shop) |
+| Chunk mới do cron 6 sáng thêm | 240 | `text-embedding-3-large` — thông dịch viên mới | ❌ khác ngôn ngữ với 9,760 chunk cũ |
+| Câu hỏi của khách lúc query | 1 mỗi request | `text-embedding-3-large` (app dùng model nào thì câu hỏi đi qua model đó) | ❌ không nói được ngôn ngữ cũ |
+
+**Chuyện gì xảy ra khi khách hỏi *"trả hàng được không?"*:**
+
+1. App đưa câu hỏi cho *thông dịch viên mới* (`-3-large`) → nhận về một hồ sơ vị viết bằng ngôn ngữ mới.
+2. pgvector đi tìm 5 hàng xóm gần nhất, nhưng trong database đang có **hai loại hồ sơ trộn lẫn**: 9,760 hồ sơ viết bằng ngôn ngữ cũ và 240 hồ sơ viết bằng ngôn ngữ mới.
+3. So hồ sơ-mới với 9,760 hồ sơ-cũ giống như đối chiếu hai thực đơn viết bằng hai thứ tiếng không liên quan — cosine similarity chỉ ~0.2, **kể cả khi đáp án đúng nằm ngay đó**. Trên đồ thị nhìn như nhiễu hoàn toàn.
+4. Bot đành moi trong 240 chunk mới (quá ít, không cover hết chủ đề khách hỏi) → không tìm thấy chunk nào đủ khớp → fallback về *"em không chắc ạ"*.
+
+**Vì sao deploy không báo lỗi gì hết?** Vì cả hai model đều trả về vector 1536 chiều. pgvector chỉ kiểm tra *"dimension có khớp không?"*, thấy khớp thì cho qua — nó không có cách nào biết hai vector cùng số chiều lại đang nói hai thứ tiếng khác nhau. **Nên nó âm thầm trả về hàng xóm sai, không một lời cảnh báo.** Đây là kiểu bug khó chịu nhất: code chạy, log sạch, monitoring xanh — chỉ có khách là biết.
+
+**Sửa — dịch lại mọi chunk để cùng nói một ngôn ngữ.**
+
+Bạn cần *re-embed* toàn corpus: đọc lại text `content` của từng chunk từ database, đưa qua một model đã chọn (giả sử giữ `text-embedding-3-small`), rồi ghi đè tất cả vector. Khoảng 10,000 API call lên OpenAI, ~2 giờ thực tế, ~$0.20 phí.
+
+```sql
+-- Bước 1: Thêm cột mà bạn ước có từ ngày đầu.
+ALTER TABLE concierge.knowledge_chunks ADD COLUMN model_name TEXT;
+
+-- Bước 2: Xoá embedding (nhưng giữ text content — đó là phần mất công nhất).
+UPDATE concierge.knowledge_chunks SET embedding = NULL;
+```
+
+Rồi chạy một script Node nhỏ:
+
+```ts
+// scripts/reembed.ts — dịch lại mọi thứ bằng một model duy nhất
+import { embedQuery } from '@/lib/embeddings';        // dùng text-embedding-3-small
+
+const rows = await db.query('SELECT id, content FROM concierge.knowledge_chunks');
+for (const row of rows) {
+  const vector = await embedQuery(row.content);       // ← một call OpenAI mỗi chunk
+  await db.query(
+    `UPDATE concierge.knowledge_chunks
+     SET embedding = $1, model_name = 'text-embedding-3-small'
+     WHERE id = $2`,
+    [vector, row.id]
+  );
+}
+```
+
+Cuối cùng, chặn bug y hệt lặp lại mãi mãi:
+
+```sql
+-- Bước 3: Constraint sẽ la lên nếu ai đó cố mix model lần nữa.
+ALTER TABLE concierge.knowledge_chunks
+  ADD CONSTRAINT single_model CHECK (model_name = 'text-embedding-3-small');
+```
+
+10:30 sáng, độ chính xác về 95%. Chi phí: 90 phút debug + 2 giờ chờ script re-embed + một lời xin lỗi trong #engineering.
+
+**Một thói quen chặn cả lớp bug này — đánh dấu mỗi vector bằng tên model sinh ra nó.**
+
+Vấn đề gốc trong vụ vừa rồi: nhìn vào một row trong `knowledge_chunks`, bạn (và database) không có cách nào biết vector ở row đó được sinh bằng `-3-small` hay `-3-large`. Hai con vector 1536 chiều trông y hệt nhau trên đĩa. Vector tự nó không "đeo nhãn" cho biết mình thuộc về model nào.
+
+Cách khắc phục rất rẻ — chỉ cần *một cột text* để mỗi row tự khai báo ngôn ngữ của nó:
+
+**Bước 1 — ngày tạo bảng, thêm cột `model_name TEXT` ngay từ đầu.**
+
+Cột này lưu tên model đã sinh ra vector ở cùng row đó (ví dụ `"text-embedding-3-small"`). Quy ước cứng: mỗi lần insert một chunk mới, app phải ghi tên model vào cùng lúc với vector — không bao giờ được ghi vector mà bỏ trống `model_name`. (Đặt `NOT NULL` để database tự bắt lỗi cho bạn.)
+
+```sql
+CREATE TABLE concierge.knowledge_chunks (
+  id          SERIAL PRIMARY KEY,
+  content     TEXT NOT NULL,
+  embedding   VECTOR(1536) NOT NULL,
+  model_name  TEXT NOT NULL,        -- 👈 thêm cột này từ ngày đầu
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+```
+
+Giờ mỗi row đã *tự khai báo* nó "nói ngôn ngữ nào".
+
+**Bước 2 — bắt app tự kiểm tra ngôn ngữ ngay khi vừa khởi động.**
+
+*"Lúc app khởi động" (boot)* nghĩa là gì? Khi bạn deploy code mới lên Vercel/Railway, server chạy một process Node mới và mất vài giây để load code, kết nối DB, sẵn sàng nhận request. Khoảng vài giây ngắn ngủi đó — *trước khi* khách đầu tiên hỏi câu nào — chính là lúc app nên tự kiểm tra mình trước khi "mở cửa đón khách".
+
+Ý tưởng kiểm tra: so model mà *app đang dùng* với model mà *DB đang chứa*. Hai bên phải khớp, không thì crash.
+
+**Phần thứ nhất — model app đang dùng.** Ở đâu đó trong code bạn có một dòng kiểu:
+
+```ts
+// lib/embeddings.ts
+export const EMBEDDING_MODEL_NAME = 'text-embedding-3-small';
+```
+
+`EMBEDDING_MODEL_NAME` là một *hằng số* — biến không đổi giá trị khi app chạy. Mỗi lần khách hỏi gì đó, app đọc hằng số này rồi gọi `text-embedding-3-small` của OpenAI để dịch câu hỏi thành vector. Đây là "ngôn ngữ" mà app đang nói.
+
+**Phần thứ hai — model DB đang chứa.** Nhờ cột `model_name` ở bước 1, ta hỏi DB một câu SQL ngắn:
+
+```sql
+SELECT DISTINCT model_name FROM concierge.knowledge_chunks;
+```
+
+`DISTINCT` nghĩa là *"liệt kê các giá trị khác nhau xuất hiện trong cột này, mỗi giá trị chỉ in một lần"*. Kết quả là một danh sách ngắn — kiểu `['text-embedding-3-small']`, hoặc `['text-embedding-3-small', 'text-embedding-3-large']` nếu đang trộn lẫn.
+
+**So sánh hai phần — có hai kết quả xấu cần báo động:**
+
+1. **DB trả về nhiều hơn một model.** Nghĩa là trong DB đang trộn vector của ≥ 2 model khác nhau. Đây đúng là vụ thực tập sinh vừa rồi: cron 6 sáng đẩy 240 chunk `-3-large` vào một DB vốn đang chứa 9,760 chunk `-3-small`.
+
+2. **DB chỉ trả về một model, nhưng không phải model app đang dùng.** Ví dụ: tuần trước bạn muốn nâng cấp lên model mới, sửa hằng số trong code từ `'text-embedding-3-small'` → `'text-embedding-3-large'`, deploy lên — *nhưng quên chạy script re-embed lại toàn bộ DB*. Bây giờ app dịch câu hỏi của khách sang `-3-large`, còn DB toàn `-3-small`. Cũng là hai ngôn ngữ khác nhau, cũng cùng kiểu bug.
+
+Cả hai trường hợp đều dẫn đến *"hàng xóm sai âm thầm"* mà bạn vừa thấy ở vụ trên. Tốt hơn là cho app crash ngay lúc boot với một message rõ ràng:
+
+```ts
+// chạy một lần khi app boot
+const distinctModels = await db.query(
+  'SELECT DISTINCT model_name FROM concierge.knowledge_chunks'
+);
+if (
+  distinctModels.rows.length > 1 ||
+  distinctModels.rows[0].model_name !== EMBEDDING_MODEL_NAME
+) {
+  throw new Error(
+    `Model lệch! DB có ${distinctModels.rows.map(r => r.model_name).join(', ')}, ` +
+    `app dùng ${EMBEDDING_MODEL_NAME}. Quên re-embed à?`
+  );
+}
+```
+
+**Vì sao check lúc boot, không phải lúc query?** Vì check lúc boot làm app crash *ngay khi deploy* — Vercel/Railway thấy boot fail thì rollback tự động về version cũ, khách không bao giờ thấy lỗi. Nếu check lúc query thì khách đã nhận `"em không chắc"` cả đêm rồi alert mới bắn. Bạn muốn lỗi nổ lúc 6 giờ chiều khi bạn còn ngồi ở văn phòng, *không phải* 9 giờ sáng hôm sau khi khách bắt đầu hỏi.
+
+**Một câu để nhớ:** *text* trong database tồn tại mãi mãi. *Embedding* thì thuộc về cái model sinh ra nó — đổi model là phải re-embed lại từ đầu cho mọi chunk. Cột `model_name` chính là sợi dây buộc vector với model, để cả người lẫn máy đều không quên điều đó.
+</Callout>
+
+<Recap>
+- Embedding là `f(text) → vector` — dimension cố định theo model. Ý nghĩa giống nhau → vector gần nhau.
+- Cho text, **cosine** là metric mặc định. Dot product cho cùng đáp số nếu vector đã normalize.
+- Model mặc định: `text-embedding-3-small`. Tiếng Việt tốt nhất: `bge-m3` (self-host). Không bao giờ mix.
+- Dimension tốn storage tuyến tính. Dùng truncate Matryoshka hoặc `halfvec` trước khi index 100M+ vector.
+- Bẫy lớn: SKU ngoài domain, mix model, quên normalize, chunk cũ, model deprecated.
+</Recap>
+
+Tiếp: chunking. Vì *"một file PDF 50 trang"* là một document với hai mươi câu trả lời bên trong — và bạn cắt thế nào quyết định model có tìm thấy không.
+
+</VI>

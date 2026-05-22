@@ -1,0 +1,251 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- One architecture diagram covering every piece of the production concierge — the reading side, the writing side, and the cross-cutting layers (gateway, audit, monitoring).
+- The data-flow walk-through for the three most common user turns: a policy question, a stock check, and a "create my order" turn.
+- The vocabulary the rest of the course assumes: *chunk*, *tool*, *interrupt*, *gateway*, *action log*. One name per concept, used consistently.
+</Callout>
+
+A concierge is not a single program; it's a set of pipelines wired through a Next.js chat endpoint. Before week one starts, you want a picture in your head of where every piece sits. The picture is what makes "what should I read next" answerable — when you see a lesson about RAG, you know which pipe it goes in.
+
+## 01 — The picture
+
+```
+                       ┌────────────────────────────────────────────────────────────┐
+   user ──┐            │                 Next.js  /api/chat                          │
+   in     │            │                                                            │
+   browser│  HTTPS  ┌──┴─→ getCurrentUser (JWT → /auth/me, Redis-cached) ──┐         │
+          ├────────►│                                                      │         │
+          │         ├──→ ensureConversation (validate id ↔ user_id)         │         │
+          │         │                                                      ▼         │
+          │         │     classifyIntent (Haiku gateway model)  ──→ Intent enum      │
+          │         │                                  │                              │
+          │         │             ┌────────────────────┼───────────────────┐          │
+          │         │             ▼                    ▼                   ▼          │
+          │         │   ┌──────────────┐    ┌───────────────────┐  ┌──────────────┐   │
+          │         │   │   RAG path   │    │     Tool path     │  │  Plan path   │   │
+          │         │   │              │    │                   │  │              │   │
+          │         │   │ embed query  │    │  buildTools(ctx)  │  │ LangGraph    │   │
+          │         │   │ hybrid       │    │  - read_orders    │  │  graph w/    │   │
+          │         │   │ retrieve     │    │  - check_stock    │  │  interrupt() │   │
+          │         │   │ → top-5      │    │  - recommend      │  │              │   │
+          │         │   │   chunks     │    │  - get_profile    │  │ writes via   │   │
+          │         │   └──────┬───────┘    │  - create_order   │  │ confirmation │   │
+          │         │          │            │  - send_email     │  │ gate         │   │
+          │         │          │            └───────┬───────────┘  └──────┬───────┘   │
+          │         │          ▼                    ▼                     ▼            │
+          │         │   ┌────────────────────────────────────────────────────┐         │
+          │         │   │  streamText(model = Sonnet 4.6 via gateway,        │         │
+          │         │   │     system = prompt + locale + [chunks],            │         │
+          │         │   │     messages = sliding-window history,              │         │
+          │         │   │     tools = bound to ctx)                           │         │
+          │         │   └─────────────────────┬──────────────────────────────┘         │
+          │         │                         │                                         │
+          │         │                         ▼                                         │
+          │         │   ┌────────────────────────────────────────────────────┐         │
+          │         │   │ onFinish: persist messages, log cost,               │         │
+          │         │   │           commit any approved action_log rows       │         │
+          │         │   └────────────────────────────────────────────────────┘         │
+          │         │                                                                   │
+          │  SSE    │           ◄────  streamed response back to user                   │
+          │◄────────┘                                                                   │
+          │                                                                             │
+          └─────────────────────────────────────────────────────────────────────────────┘
+
+Storage:
+  ┌──────────────────────────┐  ┌──────────────────────────┐  ┌──────────────────┐
+  │ Postgres (one instance)  │  │ Redis                    │  │ AI Gateway       │
+  │ ├── public.*  (shop)     │  │ ├── auth:<sha256(jwt)>   │  │ ├── Anthropic    │
+  │ ├── concierge.knowledge_ │  │ ├── rate:chat:<userId>   │  │ └── OpenAI       │
+  │ │       chunks (vector)  │  │ ├── emb:<sha256(query)>  │  │   (fallback chain│
+  │ ├── concierge.conversa…  │  │ └── kill_switch          │  │    + cost cap)   │
+  │ ├── concierge.messages   │  │                          │  │                  │
+  │ └── concierge.action_log │  │                          │  │                  │
+  └──────────────────────────┘  └──────────────────────────┘  └──────────────────┘
+```
+
+That's the whole system. Each line is a wire; each box is something you write or configure. Nothing is hidden.
+
+## 02 — Three turns through the pipes
+
+**Turn one: "Chính sách giao hàng là gì?"**
+
+The classifier returns `faq`. RAG path runs: embed the query, hybrid retrieve (vector + keyword) over `concierge.knowledge_chunks` filtered by `locale = 'vi'`, get top-5 chunks. They're spliced into the system prompt. `streamText` runs without tools — the model just paraphrases the chunks. Stream back to the user. `onFinish` persists the messages. Round-trip: ~600 ms, cost ~$0.012.
+
+**Turn two: "Đơn ABC-9912 đến đâu rồi?"**
+
+The classifier returns `tool`. RAG path skipped (or runs in parallel for context — both are reasonable). `buildTools({ userId })` returns the closed-over tools; `streamText` runs with the tool list. The model emits a `get_order_status({ orderId: 'ABC-9912' })` call. The tool's `execute` runs SQL: `SELECT * FROM public.orders WHERE id = $1 AND user_id = $2` — the `user_id` clause is what stops user A from reading user B's order. Returns a status row. The model phrases it: *"Đơn ABC-9912 của bạn đang được vận chuyển, dự kiến đến 22/5."* Round-trip: ~900 ms, cost ~$0.014.
+
+**Turn three: "Đặt đơn 2 áo size M, giao 123 Lê Lợi."**
+
+The classifier returns `plan` — this has a side effect. The LangGraph plan path runs. The graph plans: `check_stock` (read), then `create_order` (write). Read runs automatically. Before write, `interrupt()` fires; the API returns a payload to the frontend ("AI muốn tạo đơn 2 × AT-100-M, ship 123 Lê Lợi, tổng 500k — xác nhận?"). The frontend renders a confirmation card. User clicks Approve; the frontend POSTs back with `Command({ resume: { approve: true } })`. The graph resumes, `create_order` runs (with an idempotency key from `action_log`), the order is created, the audit row is committed. Round-trip: ~3 seconds including the human pause, cost ~$0.05.
+
+Three turns, one architecture, three different paths through it. The whole point of the diagram is that the *same* code base handles all three — the path branches inside, not between separate services.
+
+## 03 — Vocabulary the rest of the course uses
+
+To keep lessons crisp, this course uses one word per concept. Aliases drift; nail them down once:
+
+| Term            | Means                                                                                              |
+| --------------- | -------------------------------------------------------------------------------------------------- |
+| **Chunk**       | A row in `concierge.knowledge_chunks`. The unit of RAG retrieval.                                  |
+| **Source**      | The frontmatter key that groups chunks from the same document. Idempotency key for re-ingestion.   |
+| **Tool**        | A typed function the model can call. Has args (Zod), `execute`, and closes over the session context. |
+| **Intent**      | The classifier's three-way output: `faq` / `tool` / `plan`. Routes to one of three paths.          |
+| **Gateway**     | The AI Gateway. Model strings dial it; it routes to providers, runs fallback, tracks cost.         |
+| **Locale**      | `'vi'` or `'en'`. Required field on every chunk; comes from the user's profile, not from the model.|
+| **Interrupt**   | The LangGraph primitive that pauses the graph before a write, surfacing a confirmation payload.    |
+| **Action log**  | `concierge.action_log` — one row per write attempt, with `idempotency_key` and a status field.     |
+| **Kill switch** | Two of them: the budget cap (refuses requests when daily spend exceeds threshold) and the rollout knob (`CONCIERGE_ROLLOUT_PCT`). |
+
+When a lesson says *"the chunk's source"*, it means the frontmatter field. When it says *"the gateway routes by intent"*, it means the dispatcher in section 02 picking which model to call. Naming consistency saves the most time in the latter half of week three when you're tired and reading old lessons backwards.
+
+## 04 — What's *not* in the architecture
+
+Equally important: things you might expect but won't find here.
+
+- **No vector database.** `pgvector` is an extension on the Postgres you already have.
+- **No service mesh.** One Next.js process talks to one Postgres and one Redis. No sidecars.
+- **No Kubernetes.** One VPS, three containers. (See AIYP L31.)
+- **No worker tier.** Long-running actions are *not* offloaded to a queue in this design — they run inline because `streamText` already handles streaming, and the longest single action (`create_order` with `interrupt`) is human-bound. If you genuinely need async (a 30-second invoice PDF generation), add BullMQ then. Not now.
+- **No frontend state management library beyond `useChat`.** The AI SDK's `useChat` hook is the state container. React `useState` for everything else.
+
+This is the part where you resist the urge to design for hypothetical scale. The architecture above runs a real shop's concierge into the millions of requests per month on one $80/mo VPS. Add complexity when you hit a real wall, not before.
+
+<Recap>
+- **One diagram, two halves.** Reading side: classify → RAG → stream. Writing side: classify → plan → tool → interrupt → tool → commit → audit.
+- **Three paths through the same code:** `faq`, `tool`, `plan`. The classifier (small model) picks; the chat endpoint dispatches.
+- **One Postgres, two schemas:** `public` (your shop) and `concierge` (this build). One Redis for cache/rate-limit. One AI Gateway for all LLM calls.
+- **Vocabulary nailed down:** chunk, source, tool, intent, gateway, locale, interrupt, action log, kill switch. The rest of the course uses these.
+- **No vector DB, no service mesh, no K8s, no worker tier.** Resist scale design before scale exists.
+</Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Một sơ đồ kiến trúc bao mọi mảnh của concierge production — phía đọc, phía ghi, và các lớp cross-cutting (gateway, audit, monitoring).
+- Walk-through data-flow cho ba lượt user thông thường nhất: câu hỏi chính sách, check stock, và lượt "tạo đơn cho tôi".
+- Vocabulary mà phần còn lại của course giả định: *chunk*, *tool*, *interrupt*, *gateway*, *action log*. Một tên một khái niệm, dùng nhất quán.
+</Callout>
+
+Concierge không phải một chương trình đơn lẻ; nó là tập các pipeline wire qua endpoint chat Next.js. Trước khi tuần một bắt đầu, bạn muốn có bức tranh trong đầu về chỗ mỗi mảnh nằm. Bức tranh là cái làm câu "tôi nên đọc gì tiếp" trả lời được — khi bạn thấy một bài về RAG, bạn biết nó vào ống nào.
+
+## 01 — Bức tranh
+
+```
+                       ┌────────────────────────────────────────────────────────────┐
+   user ──┐            │                 Next.js  /api/chat                          │
+   trên   │            │                                                            │
+   browser│  HTTPS  ┌──┴─→ getCurrentUser (JWT → /auth/me, cache Redis) ──┐          │
+          ├────────►│                                                      │         │
+          │         ├──→ ensureConversation (validate id ↔ user_id)         │         │
+          │         │                                                      ▼         │
+          │         │     classifyIntent (Haiku qua gateway)    ──→ Intent enum     │
+          │         │                                  │                             │
+          │         │             ┌────────────────────┼───────────────────┐         │
+          │         │             ▼                    ▼                   ▼         │
+          │         │   ┌──────────────┐    ┌───────────────────┐  ┌──────────────┐  │
+          │         │   │   RAG path   │    │     Tool path     │  │  Plan path   │  │
+          │         │   │              │    │                   │  │              │  │
+          │         │   │ embed query  │    │  buildTools(ctx)  │  │ LangGraph    │  │
+          │         │   │ hybrid       │    │  - read_orders    │  │  graph với   │  │
+          │         │   │ retrieve     │    │  - check_stock    │  │  interrupt() │  │
+          │         │   │ → top-5      │    │  - recommend      │  │              │  │
+          │         │   │   chunk      │    │  - get_profile    │  │ write qua    │  │
+          │         │   └──────┬───────┘    │  - create_order   │  │ cổng confirm │  │
+          │         │          │            │  - send_email     │  │              │  │
+          │         │          │            └───────┬───────────┘  └──────┬───────┘  │
+          │         │          ▼                    ▼                     ▼           │
+          │         │   ┌────────────────────────────────────────────────────┐        │
+          │         │   │  streamText(model = Sonnet 4.6 qua gateway,        │        │
+          │         │   │     system = prompt + locale + [chunks],            │        │
+          │         │   │     messages = sliding-window history,              │        │
+          │         │   │     tools = bound vào ctx)                          │        │
+          │         │   └─────────────────────┬──────────────────────────────┘        │
+          │         │                         │                                        │
+          │         │                         ▼                                        │
+          │         │   ┌────────────────────────────────────────────────────┐        │
+          │         │   │ onFinish: lưu message, log chi phí,                 │        │
+          │         │   │           commit row action_log đã approve          │        │
+          │         │   └────────────────────────────────────────────────────┘        │
+          │         │                                                                  │
+          │  SSE    │           ◄────  response stream về user                          │
+          │◄────────┘                                                                  │
+          │                                                                            │
+          └────────────────────────────────────────────────────────────────────────────┘
+
+Storage:
+  ┌──────────────────────────┐  ┌──────────────────────────┐  ┌──────────────────┐
+  │ Postgres (một instance)  │  │ Redis                    │  │ AI Gateway       │
+  │ ├── public.*  (shop)     │  │ ├── auth:<sha256(jwt)>   │  │ ├── Anthropic    │
+  │ ├── concierge.knowledge_ │  │ ├── rate:chat:<userId>   │  │ └── OpenAI       │
+  │ │       chunks (vector)  │  │ ├── emb:<sha256(query)>  │  │   (chuỗi fallback│
+  │ ├── concierge.conversa…  │  │ └── kill_switch          │  │    + cap chi phí)│
+  │ ├── concierge.messages   │  │                          │  │                  │
+  │ └── concierge.action_log │  │                          │  │                  │
+  └──────────────────────────┘  └──────────────────────────┘  └──────────────────┘
+```
+
+Đó là cả hệ thống. Mỗi đường là một dây; mỗi hộp là cái bạn viết hoặc config. Không có gì ẩn.
+
+## 02 — Ba lượt qua các ống
+
+**Lượt một: "Chính sách giao hàng là gì?"**
+
+Classifier trả `faq`. Đường RAG chạy: embed query, hybrid retrieve (vector + keyword) trên `concierge.knowledge_chunks` filter theo `locale = 'vi'`, lấy top-5 chunk. Chúng được nối vào system prompt. `streamText` chạy không tool — model chỉ diễn đạt lại chunk. Stream về user. `onFinish` lưu message. Round-trip: ~600 ms, chi phí ~$0.012.
+
+**Lượt hai: "Đơn ABC-9912 đến đâu rồi?"**
+
+Classifier trả `tool`. Đường RAG bỏ qua (hoặc chạy song song lấy context — cả hai hợp lý). `buildTools({ userId })` trả về tool đã đóng closure; `streamText` chạy với list tool. Model phát ra call `get_order_status({ orderId: 'ABC-9912' })`. `execute` của tool chạy SQL: `SELECT * FROM public.orders WHERE id = $1 AND user_id = $2` — mệnh đề `user_id` là cái chặn user A đọc đơn user B. Trả về row trạng thái. Model diễn đạt: *"Đơn ABC-9912 của bạn đang được vận chuyển, dự kiến đến 22/5."* Round-trip: ~900 ms, chi phí ~$0.014.
+
+**Lượt ba: "Đặt đơn 2 áo size M, giao 123 Lê Lợi."**
+
+Classifier trả `plan` — cái này có side effect. Đường plan LangGraph chạy. Graph lên kế hoạch: `check_stock` (read), rồi `create_order` (write). Read chạy tự động. Trước write, `interrupt()` bắn; API trả payload cho frontend ("AI muốn tạo đơn 2 × AT-100-M, ship 123 Lê Lợi, tổng 500k — xác nhận?"). Frontend render card xác nhận. User bấm Approve; frontend POST lại với `Command({ resume: { approve: true } })`. Graph resume, `create_order` chạy (với idempotency key từ `action_log`), đơn được tạo, row audit được commit. Round-trip: ~3 giây gồm khoảng dừng đợi người, chi phí ~$0.05.
+
+Ba lượt, một kiến trúc, ba đường khác qua nó. Cả ý của sơ đồ là *cùng* codebase xử cả ba — đường rẽ bên trong, không phải giữa các service riêng.
+
+## 03 — Vocabulary phần còn lại của course dùng
+
+Để giữ bài gọn, course này dùng một từ một khái niệm. Alias trôi; đóng đinh một lần:
+
+| Thuật ngữ      | Nghĩa                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| **Chunk**      | Một dòng trong `concierge.knowledge_chunks`. Đơn vị truy hồi RAG.                                  |
+| **Source**     | Khoá frontmatter gom chunk cùng tài liệu. Khoá idempotency cho re-ingestion.                        |
+| **Tool**       | Hàm có kiểu mà model gọi được. Có args (Zod), `execute`, và đóng closure quanh ngữ cảnh session.    |
+| **Intent**     | Đầu ra ba-chiều của classifier: `faq` / `tool` / `plan`. Route vào một trong ba đường.              |
+| **Gateway**    | AI Gateway. Chuỗi model quay vào nó; nó route sang provider, chạy fallback, theo dõi chi phí.       |
+| **Locale**     | `'vi'` hoặc `'en'`. Trường bắt buộc trên mỗi chunk; đến từ profile user, không từ model.            |
+| **Interrupt**  | Primitive LangGraph pause graph trước write, đẩy lên payload xác nhận.                              |
+| **Action log** | `concierge.action_log` — một dòng mỗi lần thử write, có `idempotency_key` và trường status.         |
+| **Kill switch**| Hai cái: cap ngân sách (từ chối request khi spend ngày vượt ngưỡng) và núm rollout (`CONCIERGE_ROLLOUT_PCT`). |
+
+Khi một bài nói *"source của chunk"*, ý là trường frontmatter. Khi nói *"gateway route theo intent"*, ý là dispatcher ở section 02 chọn model nào gọi. Nhất quán tên tiết kiệm thời gian nhiều nhất ở nửa sau tuần ba khi bạn mệt và đọc lại bài cũ.
+
+## 04 — Cái *không* có trong kiến trúc
+
+Quan trọng không kém: những thứ bạn có thể mong nhưng không có ở đây.
+
+- **Không vector database.** `pgvector` là extension trên Postgres bạn đã có.
+- **Không service mesh.** Một process Next.js nói với một Postgres và một Redis. Không sidecar.
+- **Không Kubernetes.** Một VPS, ba container. (Xem AIYP L31.)
+- **Không tier worker.** Action chạy lâu *không* được đẩy sang queue trong thiết kế này — chúng chạy inline vì `streamText` đã handle streaming, và action đơn dài nhất (`create_order` với `interrupt`) bound theo người. Nếu bạn thật sự cần async (sinh PDF invoice 30 giây), thêm BullMQ lúc đó. Không phải bây giờ.
+- **Không thư viện state-management frontend ngoài `useChat`.** Hook `useChat` của AI SDK là state container. React `useState` cho mọi thứ khác.
+
+Đây là chỗ bạn chống lại cám dỗ thiết kế cho scale giả định. Kiến trúc trên chạy concierge của một shop thật vào hàng triệu request mỗi tháng trên một VPS $80/tháng. Thêm phức tạp khi đụng tường thật, không trước đó.
+
+<Recap>
+- **Một sơ đồ, hai nửa.** Phía đọc: classify → RAG → stream. Phía ghi: classify → plan → tool → interrupt → tool → commit → audit.
+- **Ba đường qua cùng code:** `faq`, `tool`, `plan`. Classifier (model nhỏ) chọn; endpoint chat dispatch.
+- **Một Postgres, hai schema:** `public` (shop bạn) và `concierge` (build này). Một Redis cho cache/rate-limit. Một AI Gateway cho mọi call LLM.
+- **Vocabulary đã đóng đinh:** chunk, source, tool, intent, gateway, locale, interrupt, action log, kill switch. Phần còn lại của course dùng những từ này.
+- **Không vector DB, không service mesh, không K8s, không tier worker.** Chống thiết kế scale trước khi có scale.
+</Recap>
+
+</VI>

@@ -1,0 +1,229 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- A reading order through **AI in Your Project** Part 6 — what to study in what sequence for weeks 2 and 3.
+- For each foundation lesson, the one concrete concierge change it unlocks — so you know *why* you're reading it.
+- The "stop and apply" checkpoints: places to pause reading, write code in your project, and verify before continuing.
+</Callout>
+
+By the end of week one (the previous lesson) you have a chat endpoint that answers one FAQ in two languages. Weeks two and three are when you turn that into a real concierge — adding tools, write actions, and the safety machinery around them. The technical content for that work lives in **AI in Your Project Part 6** (eight lessons, L25-L31 + recap). This lesson is the reading guide: what to read in what order, what to *do* between readings, and how to know each week's milestone is actually hit.
+
+## 01 — Week 2: read tools and personal scope
+
+The goal at the end of week 2: the bot can answer *"đơn của tôi đến đâu rồi"* and *"còn áo size M không"* using live data, scoped to the logged-in user. No write actions yet.
+
+**Reading order for week 2:**
+
+| Day | Read                                    | Then do                                                                    |
+| --- | --------------------------------------- | -------------------------------------------------------------------------- |
+| 1   | AIYP **L25** (RAG vs Tools)              | Inventory the questions your shop gets — sort each as RAG or tool          |
+| 1-2 | AIYP **L09** (Your first tool)           | Add `check_stock` to your project. Verify it answers a real SKU            |
+| 2   | AIYP **L10** (Read tools at scale)       | Add `get_order_status`, `get_my_orders`. Test pagination/filtering         |
+| 3   | AIYP **L11** (Tool design principles)    | Re-read your tool descriptions and Zod schemas. Fix any that are vague     |
+| 3-4 | AIYP **L28** (Session + auth)            | Wire `getCurrentUser` against your backend's `/auth/me`. Verify Redis cache fires |
+| 5   | AIYP **L27** (Hybrid retrieval)          | Add the keyword channel + RRF on top of your existing vector retrieval     |
+
+**Stop and apply: end of day 2.** You should be able to ask the bot a stock question and get a live answer. If it makes up a number (or returns the same answer regardless of SKU), your tool isn't being called — check the `tools` array is actually passed to `streamText`.
+
+**Stop and apply: end of day 4.** You should be able to log in as user A and ask *"đơn của tôi"*, see *only A's orders*. Log in as B, ask the same, see only B's. If A ever sees B's data, **stop everything** and re-read L28 section 01 — there's a structural mistake somewhere.
+
+<Callout type="tip" title="Why hybrid retrieval before week 3, not after">
+Week 3 adds write actions, and write actions reference policies (*"can I refund?"* → policy retrieval). Hybrid retrieval makes those policy lookups robust to keyword-heavy queries (*"COD"*, *"VAT"*, *"đổi/trả"*). It's cheaper to add it now and have it ready than to retrofit it under write-action pressure.
+</Callout>
+
+## 02 — Week 3: write actions and confirmation
+
+The goal at the end of week 3: the bot can draft an order — *"đặt 2 áo size M, giao 123 Lê Lợi"* — show a confirmation card, and create the order only after the user approves. The `action_log` table has rows for every committed write.
+
+**Reading order for week 3:**
+
+| Day | Read                                    | Then do                                                                        |
+| --- | --------------------------------------- | ------------------------------------------------------------------------------ |
+| 1   | AIYP **L12** (Write tools & danger)      | List the writes your concierge needs: orders, bookings, emails, refunds, ...  |
+| 1   | AIYP **L13** (Idempotency)               | Decide the idempotency key for each. Add `idempotency_key` to `action_log`     |
+| 2   | AIYP **L14** (Errors & retries)          | Wrap each write in your retry policy. Test by killing the backend mid-call    |
+| 2-3 | AIYP **L16-17** (Welcome to LangGraph)   | Move your chat endpoint to a graph. The Part IV demo is the template          |
+| 3-4 | AIYP **L18-19** (State + interrupt)      | Add `await_confirmation` between read tools and write tools                   |
+| 4-5 | AIYP **L29** (Recommendations)           | Add the `recommend_products` tool. Sanity-check it on five real taste queries |
+| 5   | AIYP **L20** (Workflow end-to-end)        | Read as a reference — see all primitives wired into one demo                 |
+
+**Stop and apply: end of day 1.** You should have a written list of every write action your concierge needs, with an idempotency key chosen for each. If you have a write whose idempotency key isn't obvious, that's a structural issue — most likely the write is doing two things and needs to be split.
+
+**Stop and apply: end of day 3.** The confirmation card should appear in your UI when the bot proposes a write. **Test the reject path before the approve path.** If reject doesn't cleanly abort (and leaves the bot confused, or accidentally commits anyway), the gate isn't working and writes are dangerous. Fix before continuing.
+
+**Stop and apply: end of day 5.** A natural recommendation query (*"có món nào hợp dáng oversize không?"*) should return 3-5 products with a one-line `why` per product. If the bot recommends out-of-stock items or items from outside the tool's return list, re-read L29 section 07.
+
+<Callout type="warning" title="The single most-skipped step">
+Teams skip the reject-path test. *"It'll work."* It doesn't always — the failure modes are subtle: an idempotency key collision means a retry on reject commits the original, a graph state bug means the next user message after reject lands in a half-committed state. Find these in week 3, not when a customer reports a phantom order in week 5.
+</Callout>
+
+## 03 — Week 4: production
+
+The goal at the end of week 4: the concierge is live on your shop, gated to 100% of logged-in users, with daily cost caps and a runbook.
+
+**Reading order for week 4:**
+
+| Day | Read                                    | Then do                                                                        |
+| --- | --------------------------------------- | ------------------------------------------------------------------------------ |
+| 1   | AIYP **L21** (Safety + injection)        | Audit each tool schema; remove anything the model could abuse                  |
+| 1-2 | AIYP **L22** (Testing + eval)             | Build the 30-50 question eval set. Run weekly                                  |
+| 2-3 | AIYP **L23** (Observability + cost)       | Add tracing + cost logging. Wire the SQL view for spend                         |
+| 3   | AIYP **L30** (Gateway + cost routing)     | Add the classifier-then-route pattern. Daily cap at $10                         |
+| 4   | AIYP **L31** (Deploy concierge)            | docker-compose on the VPS. Postgres bound to 127.0.0.1, secrets as files        |
+| 5   | AIYP **L24** (Going to production)         | Read as reference; the L31 mechanics already cover the concrete swap            |
+| 6-7 | This course's **L04** (Going-live checklist) | The final inventory. Set rollout to 5%, ramp through the week                  |
+
+**Stop and apply: end of day 3.** Your daily cap should trigger when you stress the system. Run a test loop that fires 50 queries in a row; spend should approach the cap and the next request should 503. If it doesn't, the cap isn't wired.
+
+**Stop and apply: end of day 5.** The concierge runs on the VPS, end-to-end, with TLS. Health endpoint returns 200; backup cron is in place. Open in your phone's browser as a real user and click around for ten minutes.
+
+## 04 — Reading discipline
+
+Two anti-patterns to avoid.
+
+**Anti-pattern one: read all eight lessons in week one.** You can. You'll retain little. The lessons reference patterns ("the closure pattern from session/auth"), and patterns without the application context evaporate within a day. The schedule above interleaves reading with doing for a reason.
+
+**Anti-pattern two: skip lessons because the title sounds familiar.** *"I know what tool design principles are."* Maybe. But L11 specifically argues for narrow tools and idempotent writes, and most first-time concierges over-build tools that bundle five things together. The bug from skipping L11 surfaces in week 3 when a single tool with five args confuses the model and you can't reproduce the bug because the call signature is different every time.
+
+The hybrid path that works: **skim the lesson first** (5-10 minutes, just headings and Recaps), **decide which sections matter for your concierge**, **read those sections in full**, **stop and apply** before moving on.
+
+## 05 — When you finish AIYP Part 6
+
+You're roughly two-thirds of the way through week 4. The remaining work is in **L04** of this course (going-live checklist) and the project lesson (your shop's concierge). At this point your concierge:
+
+- Answers FAQs in VI and EN with hybrid retrieval.
+- Looks up live data with read tools scoped to the logged-in user.
+- Drafts write actions, shows confirmation cards, commits on approve, audits everything.
+- Recommends products with reasons.
+- Routes between cheap and expensive models depending on intent.
+- Runs on a VPS with a daily cost cap, per-user rate limits, and a health endpoint.
+
+The remaining work is **operational** — soft-launch ramp, monitoring discipline, the runbook. Not technical. The hard part is over.
+
+<Recap>
+- **Week 2 = read tools + auth + hybrid retrieval.** AIYP L25, L09-L11, L28, L27 in that order. Apply at end of days 2 and 4.
+- **Week 3 = write tools + confirmation + recommendations.** AIYP L12-14, L16-19, L29, L20. Apply at days 1, 3, and 5. **Test reject before approve.**
+- **Week 4 = safety + observability + gateway + deploy.** AIYP L21-24, L30, L31. Apply at days 3 and 5.
+- **Skim → decide → read → apply.** Don't read all eight at once. Don't skip on title alone.
+- **Stop-and-apply moments are non-negotiable.** A broken layer compounds; a verified layer doesn't.
+- **At the end of AIYP Part 6, the technical concierge is done.** The remaining work is operational and lives in L04.
+</Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Thứ tự đọc qua **AI in Your Project** Phần 6 — học gì theo thứ tự nào cho tuần 2 và 3.
+- Với mỗi bài foundation, một thay đổi concierge cụ thể nó mở khoá — để bạn biết *vì sao* đang đọc.
+- Các checkpoint "dừng và áp dụng": chỗ tạm dừng đọc, viết code trong project bạn, và verify trước khi tiếp.
+</Callout>
+
+Cuối tuần một (bài trước) bạn có endpoint chat trả lời một câu FAQ trong hai ngôn ngữ. Tuần hai và ba là lúc biến nó thành concierge thật — thêm tool, write action, và máy móc an toàn quanh chúng. Nội dung kỹ thuật cho việc đó sống ở **AI in Your Project Phần 6** (tám bài, L25-L31 + recap). Bài này là reading guide: đọc gì theo thứ tự nào, *làm* gì giữa các lần đọc, và biết milestone tuần thực sự đạt thế nào.
+
+## 01 — Tuần 2: read tool và scope cá nhân
+
+Mục tiêu cuối tuần 2: bot trả lời được *"đơn của tôi đến đâu rồi"* và *"còn áo size M không"* dùng live data, scope theo user logged-in. Chưa có write action.
+
+**Thứ tự đọc tuần 2:**
+
+| Ngày | Đọc                                    | Rồi làm                                                                       |
+| ---- | -------------------------------------- | ----------------------------------------------------------------------------- |
+| 1    | AIYP **L25** (RAG vs Tools)             | Kiểm kê câu hỏi shop bạn nhận — phân mỗi câu là RAG hay tool                  |
+| 1-2  | AIYP **L09** (Tool đầu tiên)            | Thêm `check_stock` vào project. Verify nó trả lời một SKU thật                |
+| 2    | AIYP **L10** (Tool đọc ở scale)         | Thêm `get_order_status`, `get_my_orders`. Test pagination/filter              |
+| 3    | AIYP **L11** (Tool design principles)   | Đọc lại description tool và Zod schema. Sửa cái nào mơ hồ                     |
+| 3-4  | AIYP **L28** (Session + auth)           | Wire `getCurrentUser` với `/auth/me` backend. Verify cache Redis hit          |
+| 5    | AIYP **L27** (Hybrid retrieval)         | Thêm kênh keyword + RRF trên vector retrieval đã có                            |
+
+**Dừng và áp dụng: cuối ngày 2.** Bạn nên hỏi bot câu về stock và được câu trả lời live. Nếu nó bịa con số (hoặc trả về cùng câu bất kể SKU), tool không được gọi — check mảng `tools` thực sự pass vào `streamText`.
+
+**Dừng và áp dụng: cuối ngày 4.** Bạn nên login user A và hỏi *"đơn của tôi"*, thấy *chỉ đơn của A*. Login B, hỏi cùng, thấy chỉ của B. Nếu A có lúc thấy data của B, **dừng mọi thứ** và đọc lại L28 section 01 — có sai sót cấu trúc đâu đó.
+
+<Callout type="tip" title="Sao hybrid retrieval trước tuần 3, không sau">
+Tuần 3 thêm write action, và write action tham chiếu policy (*"hoàn được không?"* → retrieval policy). Hybrid retrieval làm những lookup policy đó vững với query nặng keyword (*"COD"*, *"VAT"*, *"đổi/trả"*). Thêm bây giờ và sẵn sàng rẻ hơn retrofit dưới áp lực write-action.
+</Callout>
+
+## 02 — Tuần 3: write action và confirmation
+
+Mục tiêu cuối tuần 3: bot draft được đơn — *"đặt 2 áo size M, giao 123 Lê Lợi"* — show card xác nhận, và tạo đơn chỉ sau khi user approve. Bảng `action_log` có dòng cho mọi write đã commit.
+
+**Thứ tự đọc tuần 3:**
+
+| Ngày | Đọc                                    | Rồi làm                                                                          |
+| ---- | -------------------------------------- | -------------------------------------------------------------------------------- |
+| 1    | AIYP **L12** (Write tools & danger)     | List các write concierge bạn cần: đơn, booking, email, refund, ...               |
+| 1    | AIYP **L13** (Idempotency)              | Quyết idempotency key cho mỗi cái. Thêm `idempotency_key` vào `action_log`        |
+| 2    | AIYP **L14** (Errors & retries)         | Wrap mỗi write trong policy retry. Test bằng cách kill backend giữa call         |
+| 2-3  | AIYP **L16-17** (Welcome LangGraph)     | Chuyển endpoint chat sang graph. Demo Phần IV là template                        |
+| 3-4  | AIYP **L18-19** (State + interrupt)     | Thêm `await_confirmation` giữa read tool và write tool                            |
+| 4-5  | AIYP **L29** (Recommendations)          | Thêm tool `recommend_products`. Sanity-check trên năm câu khẩu vị thật            |
+| 5    | AIYP **L20** (Workflow end-to-end)       | Đọc như tham khảo — thấy mọi primitive wire vào một demo                          |
+
+**Dừng và áp dụng: cuối ngày 1.** Bạn nên có list viết của mọi write action concierge cần, với idempotency key chọn cho mỗi cái. Nếu có một write mà idempotency key không rõ ràng, đó là vấn đề cấu trúc — nhiều khả năng write làm hai việc và cần split.
+
+**Dừng và áp dụng: cuối ngày 3.** Card xác nhận nên xuất hiện trong UI khi bot đề xuất write. **Test đường reject trước đường approve.** Nếu reject không abort sạch (và để bot bối rối, hoặc vô tình commit dù gì), cổng không chạy và write nguy hiểm. Sửa trước khi tiếp.
+
+**Dừng và áp dụng: cuối ngày 5.** Một query recommend tự nhiên (*"có món nào hợp dáng oversize không?"*) nên trả về 3-5 sản phẩm với `why` một dòng mỗi sản phẩm. Nếu bot recommend món hết hàng hay món ngoài list trả về của tool, đọc lại L29 section 07.
+
+<Callout type="warning" title="Bước hay bị bỏ qua nhất">
+Team bỏ qua test đường reject. *"Sẽ chạy thôi."* Không phải lúc nào — failure mode tinh tế: idempotency key collision nghĩa là retry sau reject commit cái gốc, bug graph state nghĩa là message user kế sau reject rơi vào state half-committed. Tìm những cái này tuần 3, không phải khi khách báo đơn ma tuần 5.
+</Callout>
+
+## 03 — Tuần 4: production
+
+Mục tiêu cuối tuần 4: concierge live trên shop bạn, gate cho 100% user logged-in, có cap chi phí ngày và runbook.
+
+**Thứ tự đọc tuần 4:**
+
+| Ngày | Đọc                                       | Rồi làm                                                                          |
+| ---- | ----------------------------------------- | -------------------------------------------------------------------------------- |
+| 1    | AIYP **L21** (Safety + injection)         | Audit từng schema tool; bỏ cái nào model có thể lạm dụng                          |
+| 1-2  | AIYP **L22** (Testing + eval)              | Dựng eval set 30-50 câu. Chạy hằng tuần                                          |
+| 2-3  | AIYP **L23** (Observability + cost)        | Thêm tracing + log chi phí. Wire SQL view cho spend                              |
+| 3    | AIYP **L30** (Gateway + cost routing)      | Thêm pattern classifier-rồi-route. Cap ngày $10                                  |
+| 4    | AIYP **L31** (Deploy concierge)             | docker-compose trên VPS. Postgres bind 127.0.0.1, secret là file                  |
+| 5    | AIYP **L24** (Going to production)          | Đọc như tham khảo; cơ chế L31 đã cover phần swap cụ thể                          |
+| 6-7  | **L04** của course này (Going-live checklist) | Kiểm kê cuối. Set rollout 5%, ramp qua tuần                                    |
+
+**Dừng và áp dụng: cuối ngày 3.** Cap ngày nên trigger khi bạn stress hệ thống. Chạy loop test bắn 50 query liên tiếp; spend nên gần cap và request kế nên 503. Nếu không, cap không wire.
+
+**Dừng và áp dụng: cuối ngày 5.** Concierge chạy trên VPS, end-to-end, có TLS. Endpoint health trả 200; cron backup tại chỗ. Mở trên trình duyệt điện thoại như user thật và click loanh quanh mười phút.
+
+## 04 — Kỷ luật đọc
+
+Hai anti-pattern tránh.
+
+**Anti-pattern một: đọc cả tám bài tuần một.** Bạn có thể. Nhớ được rất ít. Bài tham chiếu pattern ("pattern closure từ session/auth"), và pattern không có ngữ cảnh áp dụng bay biến trong một ngày. Lịch trên đan xen đọc với làm vì lý do.
+
+**Anti-pattern hai: bỏ bài vì title nghe quen.** *"Tôi biết tool design principles là gì rồi."* Có thể. Nhưng L11 cụ thể tranh luận cho tool hẹp và write idempotent, và hầu hết concierge lần đầu over-build tool gộp năm thứ. Bug từ bỏ L11 nổi lên tuần 3 khi một tool với năm arg làm model bối rối và bạn không reproduce được bug vì call signature mỗi lần khác.
+
+Đường hybrid work: **scan bài trước** (5-10 phút, chỉ heading và Recap), **quyết section nào quan trọng cho concierge bạn**, **đọc đầy đủ những section đó**, **dừng và áp dụng** trước khi đi tiếp.
+
+## 05 — Khi bạn xong AIYP Phần 6
+
+Bạn đang ở khoảng hai-phần-ba tuần 4. Việc còn lại ở **L04** của course này (going-live checklist) và bài project (concierge shop bạn). Lúc này concierge của bạn:
+
+- Trả lời FAQ tiếng VI và EN với hybrid retrieval.
+- Tra live data với read tool scope theo user logged-in.
+- Draft write action, show card xác nhận, commit khi approve, audit mọi thứ.
+- Recommend sản phẩm có lý do.
+- Route giữa model rẻ và đắt theo intent.
+- Chạy trên VPS với cap chi phí ngày, rate limit theo user, và endpoint health.
+
+Việc còn lại là **vận hành** — ramp soft-launch, kỷ luật monitoring, runbook. Không kỹ thuật. Phần khó đã qua.
+
+<Recap>
+- **Tuần 2 = read tool + auth + hybrid retrieval.** AIYP L25, L09-L11, L28, L27 theo thứ tự đó. Áp dụng cuối ngày 2 và 4.
+- **Tuần 3 = write tool + confirmation + recommend.** AIYP L12-14, L16-19, L29, L20. Áp dụng ngày 1, 3, và 5. **Test reject trước approve.**
+- **Tuần 4 = safety + observability + gateway + deploy.** AIYP L21-24, L30, L31. Áp dụng ngày 3 và 5.
+- **Scan → quyết → đọc → áp dụng.** Đừng đọc cả tám một lần. Đừng bỏ vì title.
+- **Khoảnh khắc dừng-và-áp-dụng là không thương lượng.** Lớp vỡ tích luỹ; lớp đã verify thì không.
+- **Cuối AIYP Phần 6, concierge kỹ thuật đã xong.** Việc còn lại là vận hành và sống ở L04.
+</Recap>
+
+</VI>

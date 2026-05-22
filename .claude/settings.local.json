@@ -79,7 +79,15 @@
       "Bash(ADMIN_USERNAME=lamzuong ADMIN_PASSWORD_HASH='$2b$10$w0xQ4Ax3WPZXZKEZ1EEmpuCj7Thk6x8w7304GWje72ha3AtTWG1Ia' ADMIN_SESSION_SECRET=7bb78c4e3392e291c7611f353e755cd48ea0758d0e9ccc3be2e3b19157a47c2846bc0472272cf8a44d103683801af3a7 npm run build)",
       "Bash(ADMIN_USERNAME=lamzuong ADMIN_PASSWORD_HASH='$2b$10$w0xQ4Ax3WPZXZKEZ1EEmpuCj7Thk6x8w7304GWje72ha3AtTWG1Ia' npm run build)",
       "Bash(ADMIN_USERNAME=admin ADMIN_PASSWORD_HASH='$2b$10$90AXcCFhSuOgr2OeGu9gzOv4NrmpU1txyl/w36i58iUKnQeCK8VvC' npm run build)",
-      "Skill(superpowers:dispatching-parallel-agents)"
+      "Skill(superpowers:dispatching-parallel-agents)",
+      "PowerShell(Move-Item *)",
+      "Bash(tasklist /FI \"PID eq 19132\" /FO LIST)",
+      "Bash(taskkill *)",
+      "PowerShell(npm run *)",
+      "Read(//c/Users/ADMIN/AppData/Local/Temp/claude/C--Users-ADMIN-Desktop-claude-demo-IT-courses/8c7b6433-a8bc-4ca3-9720-728579b9effb/tasks/**)",
+      "Bash(python *)",
+      "PowerShell(Start-Process \"C:\\\\Users\\\\ADMIN\\\\Desktop\\\\claude-demo\\\\IT-courses\\\\docs\\\\ai-in-your-project-overview.html\")",
+      "PowerShell(Start-Process \"C:\\\\Users\\\\ADMIN\\\\AppData\\\\Local\\\\Temp\\\\test-rcm-output.html\")"
     ]
   }
 }

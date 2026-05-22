@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI in Your Project — Knowledge map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --primary:   #ff8fab;
+    --secondary: #b794f6;
+    --mint:      #6ee7c7;
+    --sunny:     #ffd166;
+    --peach:     #ffb088;
+    --coral:     #ff9b8c;
+    --sky:       #82c8f5;
+    --rose:      #f5a5c8;
+    --ink:       #2d1b4d;
+    --ink-soft:  #5b4880;
+    --muted:     #8e7fa8;
+    --bg:        #fbf9ff;
+    --card:      #ffffff;
+    --line:      #e3dbf3;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Quicksand', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    padding: 32px 20px 80px;
+  }
+
+  /* --------- Header --------- */
+  .hd {
+    max-width: 1500px;
+    margin: 0 auto 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .brand .mark {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    font-weight: 700;
+    font-size: 18px;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 8px 22px -10px rgba(183, 148, 246, 0.55);
+  }
+  .brand h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .brand .sub {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .lang-toggle {
+    display: inline-flex;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px;
+    box-shadow: 0 4px 14px -8px rgba(45, 27, 77, 0.18);
+  }
+  .lang-toggle button {
+    border: 0; background: transparent;
+    font-family: inherit; font-weight: 600;
+    color: var(--muted);
+    padding: 7px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: .18s ease;
+  }
+  .lang-toggle button.active {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    box-shadow: 0 4px 10px -4px rgba(183, 148, 246, 0.6);
+  }
+
+  body[data-lang="en"] .lang-vi { display: none; }
+  body[data-lang="vi"] .lang-en { display: none; }
+
+  .intro {
+    max-width: 1500px;
+    margin: 0 auto 24px;
+    color: var(--ink-soft);
+    font-size: 14.5px;
+  }
+  .intro .hint {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  /* --------- Diagram --------- */
+  .stage {
+    max-width: 1500px;
+    margin: 0 auto;
+    background: var(--card);
+    border-radius: 24px;
+    border: 1px solid var(--line);
+    padding: 14px;
+    box-shadow: 0 18px 60px -32px rgba(45, 27, 77, 0.28);
+    overflow: hidden;
+  }
+  svg.map {
+    width: 100%;
+    height: auto;
+    display: block;
+    font-family: 'Quicksand', sans-serif;
+    user-select: none;
+  }
+
+  .grid-ring {
+    fill: none;
+    stroke: var(--line);
+    stroke-width: 1;
+    opacity: 0.55;
+  }
+  .grid-ring.dashed { stroke-dasharray: 3 6; opacity: 0.35; }
+
+  .spoke {
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    transition: opacity 0.2s, stroke-width 0.2s;
+    opacity: 0.65;
+  }
+  .leaf-line {
+    fill: none;
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    transition: opacity 0.2s;
+    opacity: 0.55;
+  }
+
+  .hub rect {
+    transition: filter 0.2s, transform 0.2s;
+    filter: drop-shadow(0 6px 18px rgba(45, 27, 77, 0.14));
+  }
+  .hub text.title {
+    font-weight: 700;
+    font-size: 18px;
+    fill: var(--ink);
+    pointer-events: none;
+  }
+  .hub text.tag {
+    font-size: 11px;
+    fill: var(--ink-soft);
+    font-weight: 500;
+    pointer-events: none;
+  }
+
+  .leaf circle {
+    transition: r 0.18s, fill 0.18s;
+  }
+  .leaf text {
+    font-family: 'JetBrains Mono', 'Quicksand', monospace;
+    font-size: 11.5px;
+    fill: var(--ink-soft);
+    pointer-events: none;
+    font-weight: 500;
+  }
+  /* White halo behind labels so they read cleanly when a line passes through. */
+  .leaf text.leaf-halo {
+    stroke: var(--card);
+    stroke-width: 4.5;
+    stroke-linejoin: round;
+    fill: var(--card);
+    paint-order: stroke;
+  }
+
+  .center .ring {
+    fill: none;
+    stroke-width: 1.4;
+    opacity: 0.4;
+  }
+  .center .core {
+    filter: drop-shadow(0 14px 30px rgba(183, 148, 246, 0.45));
+  }
+  .center text.label {
+    font-weight: 700;
+    font-size: 22px;
+    fill: white;
+    pointer-events: none;
+  }
+  .center text.sub {
+    font-size: 11.5px;
+    fill: rgba(255, 255, 255, 0.85);
+    pointer-events: none;
+    font-weight: 500;
+  }
+
+  svg.map[data-active] .branch                  { opacity: 0.18; transition: opacity 0.22s; }
+  svg.map[data-active] .branch.is-active        { opacity: 1; }
+  svg.map[data-active] .branch.is-active .spoke { opacity: 1; stroke-width: 3; }
+  svg.map[data-active] .branch.is-active .leaf-line { opacity: 1; stroke-width: 2; }
+  svg.map[data-active] .center                  { opacity: 1; }
+  svg.map .branch                               { transition: opacity 0.22s; cursor: pointer; }
+
+  .below {
+    max-width: 1500px;
+    margin: 28px auto 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  @media (min-width: 980px) {
+    .below { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+  }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 22px 24px;
+    box-shadow: 0 10px 30px -22px rgba(45, 27, 77, 0.18);
+  }
+  .panel h2 {
+    margin: 0 0 14px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .panel h2::before {
+    content: '';
+    width: 6px; height: 22px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, var(--primary), var(--secondary));
+  }
+  .panel ul, .panel ol {
+    margin: 0;
+    padding-left: 22px;
+    color: var(--ink-soft);
+    font-size: 14.5px;
+  }
+  .panel li { margin-bottom: 10px; }
+  .panel li strong { color: var(--ink); font-weight: 700; }
+  .panel li code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    background: #f1ecfa;
+    padding: 1px 6px;
+    border-radius: 5px;
+    color: var(--ink);
+  }
+  .panel .sw {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 22px;
+    margin: 18px auto 0;
+    max-width: 1500px;
+    padding: 16px 22px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .legend .sw { width: 12px; height: 12px; border-radius: 50%; }
+</style>
+</head>
+<body data-lang="en">
+  <header class="hd">
+    <div class="brand">
+      <div class="mark">AI</div>
+      <div>
+        <h1>
+          <span class="lang-en">AI in Your Project — Knowledge map</span>
+          <span class="lang-vi">AI trong dự án — Bản đồ kiến thức</span>
+        </h1>
+        <div class="sub">
+          <span class="lang-en">Radial map · the LLM is the brain · hover a branch to focus it</span>
+          <span class="lang-vi">Bản đồ tỏa · LLM là bộ não · hover một nhánh để focus</span>
+        </div>
+      </div>
+    </div>
+    <div class="lang-toggle" role="tablist" aria-label="Language">
+      <button id="btn-en" class="active" data-lang="en">EN</button>
+      <button id="btn-vi" data-lang="vi">VI</button>
+    </div>
+  </header>
+
+  <p class="intro">
+    <span class="lang-en">
+      Every piece of knowledge in the course, arranged around the one thing it all serves: a working LLM agent. Each main branch is a category; each leaf is a sub-topic the course teaches. Hover any branch to isolate it.
+    </span>
+    <span class="lang-vi">
+      Toàn bộ kiến thức trong khóa học, xếp quanh thứ mà tất cả phục vụ: một LLM agent hoạt động được. Mỗi nhánh chính là một mảng; mỗi lá là một chủ đề con khóa học dạy. Hover một nhánh để cô lập nó.
+    </span>
+    <br />
+    <span class="hint">
+      <span class="lang-en">Tip — click a branch on the map (or an item in the talking-track below) to lock the focus; click again to release.</span>
+      <span class="lang-vi">Mẹo — bấm vào một nhánh trên bản đồ (hoặc một mục trong kịch bản dưới) để giữ focus; bấm lại để bỏ.</span>
+    </span>
+  </p>
+
+  <div class="stage">
+    <svg class="map" id="map" viewBox="0 0 1600 1200" preserveAspectRatio="xMidYMid meet" aria-label="Radial knowledge map for the AI in Your Project course"></svg>
+  </div>
+
+  <div class="legend">
+    <span><span class="sw" style="background: var(--secondary);"></span><span class="lang-en">LLM — the brain</span><span class="lang-vi">LLM — bộ não</span></span>
+    <span><span class="sw" style="background: var(--primary);"></span><span class="lang-en">Behaviour, powers, orchestration</span><span class="lang-vi">Hành vi, sức mạnh, điều phối</span></span>
+    <span><span class="sw" style="background: var(--coral);"></span><span class="lang-en">Human-in-the-loop</span><span class="lang-vi">Người trong vòng lặp</span></span>
+    <span><span class="sw" style="background: var(--mint);"></span><span class="lang-en">Knowledge layer (embeddings + retrieval)</span><span class="lang-vi">Lớp tri thức (embedding + retrieval)</span></span>
+    <span><span class="sw" style="background: var(--sunny);"></span><span class="lang-en">Production hygiene</span><span class="lang-vi">Vệ sinh sản xuất</span></span>
+    <span><span class="sw" style="background: var(--peach);"></span><span class="lang-en">Deploy &amp; operations</span><span class="lang-vi">Triển khai &amp; vận hành</span></span>
+  </div>
+
+  <div class="below">
+    <div class="panel">
+      <h2>
+        <span class="lang-en">Talking track — branch by branch</span>
+        <span class="lang-vi">Kịch bản thuyết trình — từng nhánh</span>
+      </h2>
+      <ol id="track"></ol>
+    </div>
+    <div class="panel">
+      <h2>
+        <span class="lang-en">How the pieces connect</span>
+        <span class="lang-vi">Các mảnh ghép kết nối với nhau như thế nào</span>
+      </h2>
+      <ul>
+        <li>
+          <span class="lang-en"><strong>Input flow</strong> — your <em>prompt</em> + <em>retrieved context</em> + <em>tool results</em> all feed into the LLM as messages. The LLM decides what to say next or which tool to call.</span>
+          <span class="lang-vi"><strong>Luồng đầu vào</strong> — <em>prompt</em> + <em>context lấy từ retrieval</em> + <em>kết quả tool</em> đều đi vào LLM dưới dạng message. LLM quyết định nói gì hoặc gọi tool nào tiếp theo.</span>
+        </li>
+        <li>
+          <span class="lang-en"><strong>Orchestration</strong> — LangGraph wraps the LLM and tools in nodes + edges. <code>interrupt()</code> sits between the agent and the write tools so a human approves every state-changing action.</span>
+          <span class="lang-vi"><strong>Điều phối</strong> — LangGraph gói LLM và tool vào các node + edge. <code>interrupt()</code> nằm giữa agent và write tool để con người duyệt mọi hành động thay đổi state.</span>
+        </li>
+        <li>
+          <span class="lang-en"><strong>Knowledge loop</strong> — Embeddings turn FAQ into vectors → Vector DB stores them → RAG retrieves the top-k for each query → the LLM answers with that context attached.</span>
+          <span class="lang-vi"><strong>Vòng tri thức</strong> — Embedding biến FAQ thành vector → Vector DB lưu → RAG lấy top-k cho mỗi query → LLM trả lời với context đó kèm theo.</span>
+        </li>
+        <li>
+          <span class="lang-en"><strong>Hygiene wrap</strong> — Safety validates every input and output; Evaluation runs golden tests on every prompt change; Observability traces tokens + cost per call.</span>
+          <span class="lang-vi"><strong>Vệ sinh bao quanh</strong> — Safety kiểm tra mọi input/output; Evaluation chạy golden test mỗi lần đổi prompt; Observability trace token + chi phí từng call.</span>
+        </li>
+        <li>
+          <span class="lang-en"><strong>Deploy &amp; cost</strong> — One VPS + three containers ships it; the AI Gateway routes between providers (cheap model for routing, expensive for answers) and fails over when one is down; a daily kill-switch caps the worst-case bill.</span>
+          <span class="lang-vi"><strong>Deploy &amp; chi phí</strong> — Một VPS + ba container đủ để ship; AI Gateway route giữa các provider (model rẻ cho routing, đắt cho câu trả lời) và failover khi một bên chết; kill-switch hàng ngày giới hạn chi phí xấu nhất.</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const COLORS = {
+    primary:   '#ff8fab',
+    secondary: '#b794f6',
+    mint:      '#6ee7c7',
+    sunny:     '#ffd166',
+    peach:     '#ffb088',
+    coral:     '#ff9b8c',
+    sky:       '#82c8f5',
+    rose:      '#f5a5c8',
+  };
+
+  const center = {
+    title:    { en: 'LLM Agent', vi: 'LLM Agent' },
+    subtitle: { en: 'the brain · Ollama + hosted',
+                vi: 'bộ não · Ollama + hosted' },
+  };
+
+  const branches = [
+    {
+      id: 'prompting', angle: -90, color: COLORS.primary,
+      title: { en: 'Prompting',     vi: 'Prompting' },
+      tag:   { en: 'shape behaviour', vi: 'định hình hành vi' },
+      leaves: [
+        { en: 'System prompt — role · tone · limits', vi: 'System prompt — vai trò · tone · giới hạn' },
+        { en: 'Few-shot examples',                    vi: 'Ví dụ few-shot' },
+        { en: 'Prompt engineering — what works',      vi: 'Prompt engineering — cái gì work' },
+        { en: 'withStructuredOutput + Zod',           vi: 'withStructuredOutput + Zod' },
+        { en: 'Feeding schema + samples',             vi: 'Đưa schema + mẫu vào context' },
+        { en: 'Token-cost warning',                   vi: 'Cảnh báo chi phí token' },
+      ],
+      story: {
+        en: '<strong>Prompting.</strong> The system prompt is the agent\'s job description; few-shot examples teach by demonstration; <strong>structured output with Zod</strong> turns prose into typed JSON (the prerequisite for tool calling); feeding schema + samples grounds answers in your data.',
+        vi: '<strong>Prompting.</strong> System prompt là bản mô tả công việc của agent; few-shot dạy qua ví dụ; <strong>structured output với Zod</strong> biến văn bản thành JSON có kiểu (điều kiện tiên quyết để tool calling); đưa schema và mẫu để câu trả lời bám vào dữ liệu thật.',
+      },
+    },
+    {
+      id: 'langgraph', angle: -45, color: COLORS.primary,
+      title: { en: 'LangGraph', vi: 'LangGraph' },
+      tag:   { en: 'orchestration', vi: 'điều phối' },
+      leaves: [
+        { en: 'StateGraph — typed state',          vi: 'StateGraph — state có kiểu' },
+        { en: 'Nodes — agent · tools · custom',    vi: 'Nodes — agent · tools · custom' },
+        { en: 'Edges — conditional routing',       vi: 'Edges — routing có điều kiện' },
+        { en: 'Read auto · Write asks',            vi: 'Read tự động · Write hỏi' },
+        { en: 'Checkpointer — Redis/Postgres',     vi: 'Checkpointer — Redis/Postgres' },
+        { en: 'compile().invoke / stream',         vi: 'compile().invoke / stream' },
+      ],
+      story: {
+        en: '<strong>LangGraph.</strong> The plain tool-call loop hits a wall fast; LangGraph turns it into <strong>state · nodes · edges</strong>. Conditional routing splits read tools (auto-run) from write tools (require approval). The checkpointer lets a graph pause and resume safely.',
+        vi: '<strong>LangGraph.</strong> Vòng lặp tool-call thuần gặp giới hạn nhanh; LangGraph biến nó thành <strong>state · node · edge</strong>. Conditional routing tách read tool (chạy tự động) khỏi write tool (cần duyệt). Checkpointer cho phép graph dừng và resume an toàn.',
+      },
+    },
+    {
+      id: 'tools', angle: 0, color: COLORS.primary,
+      title: { en: 'Tools', vi: 'Tools' },
+      tag:   { en: 'powers', vi: 'sức mạnh' },
+      leaves: [
+        { en: 'tool() with Zod schema',                vi: 'tool() với Zod schema' },
+        { en: 'Read tools — pagination · filters',     vi: 'Read tools — phân trang · filter' },
+        { en: 'Write tools — danger zone',             vi: 'Write tools — vùng nguy hiểm' },
+        { en: 'Design — narrow · idempotent · clear',  vi: 'Thiết kế — hẹp · idempotent · rõ ràng' },
+        { en: 'Idempotency keys',                      vi: 'Idempotency key' },
+        { en: 'Errors · retries · recovery',           vi: 'Errors · retry · phục hồi' },
+        { en: 'Per-user allowlists',                   vi: 'Allowlist theo user' },
+      ],
+      story: {
+        en: '<strong>Tools.</strong> What the LLM can <em>do</em>, not just say. <code>tool()</code> with a Zod schema is the contract. Read tools query; write tools change — and writes are the danger zone (need confirmation). Idempotency keys and retries make tools survive duplicate calls and transient failures.',
+        vi: '<strong>Tools.</strong> Những gì LLM <em>làm</em>, không chỉ nói. <code>tool()</code> với Zod schema là hợp đồng. Read tool truy vấn; write tool thay đổi — và write là vùng nguy hiểm (cần confirmation). Idempotency key và retry giúp tool sống sót qua duplicate call và lỗi nhất thời.',
+      },
+    },
+    {
+      id: 'confirmation', angle: 45, color: COLORS.coral,
+      title: { en: 'Confirmation', vi: 'Confirmation' },
+      tag:   { en: 'human-in-the-loop', vi: 'người trong vòng lặp' },
+      leaves: [
+        { en: 'interrupt() — pause the graph',  vi: 'interrupt() — dừng graph' },
+        { en: 'Saved state in checkpointer',    vi: 'State lưu trong checkpointer' },
+        { en: 'Approve / reject / edit UI',     vi: 'UI Duyệt / Từ chối / Sửa' },
+        { en: 'Resume from saved state',        vi: 'Resume từ state đã lưu' },
+        { en: 'Audit log of every approval',    vi: 'Audit log mỗi lần duyệt' },
+      ],
+      story: {
+        en: '<strong>Confirmation.</strong> LangGraph\'s killer feature — call <code>interrupt()</code> before any write tool, pause execution, surface the proposed action to a human, then resume with their decision baked in. Every state-changing action gets a human signature.',
+        vi: '<strong>Confirmation.</strong> Tính năng vương của LangGraph — gọi <code>interrupt()</code> trước mỗi write tool, dừng thực thi, đưa hành động đề xuất cho con người duyệt, rồi resume với quyết định của họ. Mọi hành động thay đổi state đều có chữ ký người.',
+      },
+    },
+    {
+      id: 'embeddings', angle: 90, color: COLORS.mint,
+      title: { en: 'Embeddings', vi: 'Embeddings' },
+      tag:   { en: 'meaning as vectors', vi: 'ý nghĩa thành vector' },
+      leaves: [
+        { en: 'Vector = point in meaning space', vi: 'Vector = điểm trong không gian ý nghĩa' },
+        { en: 'Dim — 1024 / 1536 / 3072',         vi: 'Dim — 1024 / 1536 / 3072' },
+        { en: 'Cosine vs dot vs L2',              vi: 'Cosine vs dot vs L2' },
+        { en: 'Normalize → length 1',             vi: 'Normalize → độ dài 1' },
+        { en: 'Models — text-embedding-3-*',      vi: 'Model — text-embedding-3-*' },
+        { en: 'bge-m3 for Vietnamese',            vi: 'bge-m3 cho tiếng Việt' },
+        { en: 'Matryoshka truncation',            vi: 'Matryoshka truncation' },
+      ],
+      story: {
+        en: '<strong>Embeddings.</strong> Run text through an embedding model and you get a fixed-length array of floats — a point in high-dimensional meaning space. Similar meanings land near each other. Pick <strong>cosine</strong> as similarity metric, pick a model that handles your language (<code>bge-m3</code> for Vietnamese), and pin both choices forever.',
+        vi: '<strong>Embeddings.</strong> Đưa text qua embedding model, bạn nhận một mảng float độ dài cố định — một điểm trong không gian ý nghĩa nhiều chiều. Ý nghĩa giống nhau rơi gần nhau. Chọn <strong>cosine</strong> làm metric, chọn model xử lý được tiếng Việt (<code>bge-m3</code>), và pin cả hai mãi mãi.',
+      },
+    },
+    {
+      id: 'rag', angle: 135, color: COLORS.mint,
+      title: { en: 'RAG / Retrieval', vi: 'RAG / Retrieval' },
+      tag:   { en: 'feed it knowledge', vi: 'cấp tri thức' },
+      leaves: [
+        { en: 'Chunking — fixed · recursive · semantic', vi: 'Chunking — fixed · recursive · semantic' },
+        { en: 'Index — flat · IVF · HNSW',                vi: 'Index — flat · IVF · HNSW' },
+        { en: 'pgvector vs Qdrant',                       vi: 'pgvector vs Qdrant' },
+        { en: 'Hybrid — vector + keyword + RRF',          vi: 'Hybrid — vector + keyword + RRF' },
+        { en: 'Recall@k · MRR',                           vi: 'Recall@k · MRR' },
+        { en: 'Rerankers',                                vi: 'Reranker' },
+        { en: 'Idempotent ingestion',                     vi: 'Ingest idempotent' },
+      ],
+      story: {
+        en: '<strong>RAG / Retrieval.</strong> Chunk documents, index them (flat / IVF / HNSW), store in pgvector or Qdrant, query with <strong>hybrid retrieval</strong> (vector + keyword + Reciprocal Rank Fusion) so both natural-language and exact-match terms work. Always measure recall@k — if retrieval is broken, no prompt fix can save you.',
+        vi: '<strong>RAG / Retrieval.</strong> Chunk tài liệu, index (flat / IVF / HNSW), lưu trong pgvector hoặc Qdrant, truy vấn bằng <strong>hybrid retrieval</strong> (vector + keyword + Reciprocal Rank Fusion) để cả ngôn ngữ tự nhiên lẫn từ khớp chính xác đều work. Luôn đo recall@k — nếu retrieval sai, không prompt nào cứu được.',
+      },
+    },
+    {
+      id: 'safety-eval', angle: 180, color: COLORS.sunny,
+      title: { en: 'Safety & Eval', vi: 'Safety & Eval' },
+      tag:   { en: 'guards · golden tests', vi: 'rào chắn · golden test' },
+      leaves: [
+        { en: 'Prompt injection guards',     vi: 'Chặn prompt injection' },
+        { en: 'Output validation — Zod',     vi: 'Output validation — Zod' },
+        { en: 'PII redaction before logs',   vi: 'Redact PII trước khi log' },
+        { en: 'Golden tests — input→output', vi: 'Golden test — input→output' },
+        { en: 'Snapshot regression',         vi: 'Snapshot regression' },
+        { en: 'Fake LLMs — no API cost',     vi: 'Fake LLM — không tốn API' },
+        { en: 'Jailbreak resistance',        vi: 'Chống jailbreak' },
+      ],
+      story: {
+        en: '<strong>Safety &amp; Evaluation.</strong> Input guards block prompt injection; <strong>output validation</strong> (Zod-parse every response) catches hallucinated shapes; PII redaction before logging. Golden tests catch regressions on prompt diffs; fake LLMs let you run those tests without burning API credit.',
+        vi: '<strong>Safety &amp; Evaluation.</strong> Input guard chặn prompt injection; <strong>output validation</strong> (Zod-parse mọi response) phát hiện shape ảo; redact PII trước khi log. Golden test phát hiện regression khi đổi prompt; fake LLM cho phép test mà không tốn API.',
+      },
+    },
+    {
+      id: 'deploy-obs', angle: 225, color: COLORS.peach,
+      title: { en: 'Deploy & Observability', vi: 'Deploy & Observability' },
+      tag:   { en: 'ship it · watch it', vi: 'ship · giám sát' },
+      leaves: [
+        { en: 'VPS — 3 containers',                  vi: 'VPS — 3 container' },
+        { en: 'AI Gateway — multi-provider',         vi: 'AI Gateway — đa provider' },
+        { en: 'Routing — cheap intent · pro answer', vi: 'Routing — model rẻ phân loại · đắt trả lời' },
+        { en: 'Failover when provider is down',      vi: 'Failover khi provider chết' },
+        { en: 'Tracing — every call · tokens · ms',  vi: 'Tracing — mọi call · token · ms' },
+        { en: 'Cost by feature, by user',            vi: 'Chi phí theo feature, theo user' },
+        { en: 'Daily kill-switch (budget cap)',      vi: 'Kill-switch ngày (giới hạn ngân sách)' },
+        { en: 'Soft-launch · canary ramp',           vi: 'Soft-launch · canary ramp' },
+      ],
+      story: {
+        en: '<strong>Deploy &amp; Observability.</strong> A single VPS with three containers (app · postgres · qdrant) is enough for week one. The <strong>AI Gateway</strong> routes between providers (cheap for routing, expensive for answers), fails over when one is down, and unifies billing. A daily kill-switch caps the worst-case spend; canary ramps you 5% → 50% → 100% with rollback.',
+        vi: '<strong>Deploy &amp; Observability.</strong> Một VPS với ba container (app · postgres · qdrant) đủ cho tuần đầu. <strong>AI Gateway</strong> route giữa các provider (rẻ cho phân loại, đắt cho câu trả lời), failover khi một bên chết, gộp hóa đơn. Kill-switch ngày giới hạn chi phí xấu nhất; canary tăng 5% → 50% → 100% với đường lùi.',
+      },
+    },
+  ];
+
+  const W = 1600, H = 1200;
+  const CX = 800, CY = 600;
+  const HUB_R = 270;
+  const LEAF_BASE = 400;
+  const LEAF_GAP = 40;
+  const FAN_DEG = 13;
+
+  const deg2rad = d => d * Math.PI / 180;
+  const polar = (r, deg) => ({ x: CX + r * Math.cos(deg2rad(deg)), y: CY + r * Math.sin(deg2rad(deg)) });
+
+  const svg = document.getElementById('map');
+  const ns = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs = {}, children = []) => {
+    const node = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v == null) continue;
+      node.setAttribute(k, v);
+    }
+    for (const c of children) {
+      if (c == null) continue;
+      if (typeof c === 'string') node.appendChild(document.createTextNode(c));
+      else node.appendChild(c);
+    }
+    return node;
+  };
+
+  // Background guide rings
+  const guides = el('g', { class: 'guides' });
+  [140, 240, 360, 480, 600].forEach((r, i) => {
+    guides.appendChild(el('circle', {
+      cx: CX, cy: CY, r,
+      class: 'grid-ring' + (i % 2 ? ' dashed' : ''),
+    }));
+  });
+  svg.appendChild(guides);
+
+  // Three layers, drawn in order so labels sit on top of any lines.
+  const linesLayer  = el('g', { class: 'layer-lines'  });
+  const hubsLayer   = el('g', { class: 'layer-hubs'   });
+  const leavesLayer = el('g', { class: 'layer-leaves' });
+
+  branches.forEach((b) => {
+    const branchId = b.id;
+    const hubPos = polar(HUB_R, b.angle);
+    const n = b.leaves.length;
+
+    const leafPositions = [];
+    for (let i = 0; i < n; i++) {
+      const side = i % 2 === 0 ? -1 : 1;
+      const angOff = side * FAN_DEG;
+      const dist = LEAF_BASE + i * LEAF_GAP;
+      leafPositions.push(polar(dist, b.angle + angOff));
+    }
+
+    // ---- Layer 1: spoke + leaf-lines ----
+    const linesG = el('g', { class: 'branch', 'data-branch': branchId });
+    const ctrlAngle = b.angle + 7;
+    const ctrl = polar(HUB_R * 0.55, ctrlAngle);
+    const startPos = polar(95, b.angle);
+    linesG.appendChild(el('path', {
+      d: `M ${startPos.x},${startPos.y} Q ${ctrl.x},${ctrl.y} ${hubPos.x},${hubPos.y}`,
+      class: 'spoke',
+      stroke: b.color,
+    }));
+    leafPositions.forEach((p) => {
+      linesG.appendChild(el('path', {
+        d: `M ${hubPos.x},${hubPos.y} L ${p.x},${p.y}`,
+        class: 'leaf-line',
+        stroke: b.color,
+      }));
+    });
+    linesLayer.appendChild(linesG);
+
+    // ---- Layer 2: hub bubble ----
+    const hubBranchG = el('g', { class: 'branch', 'data-branch': branchId });
+    const hubW = 180, hubH = 64;
+    const hub = el('g', { class: 'hub' });
+    hub.appendChild(el('rect', {
+      x: hubPos.x - hubW / 2,
+      y: hubPos.y - hubH / 2,
+      width: hubW, height: hubH, rx: 18,
+      fill: 'white', stroke: b.color, 'stroke-width': 2.4,
+    }));
+    hub.appendChild(el('rect', {
+      x: hubPos.x - hubW / 2 + 10,
+      y: hubPos.y - hubH / 2 + 8,
+      width: hubW - 20, height: 5, rx: 3,
+      fill: b.color, opacity: 0.85,
+    }));
+    const titleY = hubPos.y + 4;
+    const titleText = el('text', {
+      x: hubPos.x, y: titleY, 'text-anchor': 'middle', class: 'title',
+    });
+    titleText.appendChild(el('tspan', { class: 'lang-en' }, [b.title.en]));
+    titleText.appendChild(el('tspan', { class: 'lang-vi', x: hubPos.x, y: titleY }, [b.title.vi]));
+    hub.appendChild(titleText);
+    const tagText = el('text', {
+      x: hubPos.x, y: titleY + 16, 'text-anchor': 'middle', class: 'tag',
+    });
+    tagText.appendChild(el('tspan', { class: 'lang-en' }, [b.tag.en]));
+    tagText.appendChild(el('tspan', { class: 'lang-vi', x: hubPos.x, y: titleY + 16 }, [b.tag.vi]));
+    hub.appendChild(tagText);
+    hubBranchG.appendChild(hub);
+    hubsLayer.appendChild(hubBranchG);
+
+    // ---- Layer 3: leaf dots + labels ----
+    const leavesBranchG = el('g', { class: 'branch', 'data-branch': branchId });
+    for (let i = 0; i < n; i++) {
+      const leafPos = leafPositions[i];
+      const leafG = el('g', { class: 'leaf' });
+      const isRight = leafPos.x > CX;
+      const tx = leafPos.x + (isRight ? 11 : -11);
+      const ty = leafPos.y + 4;
+
+      // halo (white outline) under the real label so lines underneath don't read through
+      const halo = el('text', {
+        x: tx, y: ty, 'text-anchor': isRight ? 'start' : 'end', class: 'leaf-halo',
+      });
+      halo.appendChild(el('tspan', { class: 'lang-en' }, [b.leaves[i].en]));
+      halo.appendChild(el('tspan', { class: 'lang-vi', x: tx, y: ty }, [b.leaves[i].vi]));
+      leafG.appendChild(halo);
+
+      const txt = el('text', {
+        x: tx, y: ty, 'text-anchor': isRight ? 'start' : 'end',
+      });
+      txt.appendChild(el('tspan', { class: 'lang-en' }, [b.leaves[i].en]));
+      txt.appendChild(el('tspan', { class: 'lang-vi', x: tx, y: ty }, [b.leaves[i].vi]));
+      leafG.appendChild(txt);
+
+      leafG.appendChild(el('circle', {
+        cx: leafPos.x, cy: leafPos.y, r: 5,
+        fill: b.color, opacity: 0.9,
+      }));
+
+      leavesBranchG.appendChild(leafG);
+    }
+    leavesLayer.appendChild(leavesBranchG);
+  });
+
+  svg.appendChild(linesLayer);
+  svg.appendChild(hubsLayer);
+  svg.appendChild(leavesLayer);
+
+  // Centre node, drawn last to sit on top
+  const defs = el('defs');
+  defs.innerHTML = `<radialGradient id="coreGrad" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#cdb7fa"/>
+      <stop offset="60%" stop-color="${COLORS.secondary}"/>
+      <stop offset="100%" stop-color="#8a6bd8"/>
+    </radialGradient>`;
+  svg.appendChild(defs);
+
+  const centreG = el('g', { class: 'center' });
+  centreG.appendChild(el('circle', { cx: CX, cy: CY, r: 130, class: 'ring', stroke: COLORS.secondary, 'stroke-dasharray': '4 6' }));
+  centreG.appendChild(el('circle', { cx: CX, cy: CY, r: 110, class: 'ring', stroke: COLORS.secondary }));
+  centreG.appendChild(el('circle', {
+    cx: CX, cy: CY, r: 90,
+    fill: 'url(#coreGrad)',
+    class: 'core',
+  }));
+
+  const labelText = el('text', { x: CX, y: CY - 4, 'text-anchor': 'middle', class: 'label' });
+  labelText.appendChild(el('tspan', { class: 'lang-en' }, [center.title.en]));
+  labelText.appendChild(el('tspan', { class: 'lang-vi', x: CX, y: CY - 4 }, [center.title.vi]));
+  centreG.appendChild(labelText);
+
+  const subText = el('text', { x: CX, y: CY + 22, 'text-anchor': 'middle', class: 'sub' });
+  subText.appendChild(el('tspan', { class: 'lang-en' }, [center.subtitle.en]));
+  subText.appendChild(el('tspan', { class: 'lang-vi', x: CX, y: CY + 22 }, [center.subtitle.vi]));
+  centreG.appendChild(subText);
+
+  svg.appendChild(centreG);
+
+  // Talking-track list mirrors branches
+  const trackEl = document.getElementById('track');
+  branches.forEach(b => {
+    const li = document.createElement('li');
+    li.dataset.branch = b.id;
+    li.style.cursor = 'pointer';
+    li.style.padding = '6px 8px';
+    li.style.borderRadius = '8px';
+    li.style.transition = 'background .2s';
+    li.innerHTML = `
+      <span class="sw" style="background: ${b.color};"></span>
+      <span class="lang-en">${b.story.en}</span>
+      <span class="lang-vi">${b.story.vi}</span>
+    `;
+    trackEl.appendChild(li);
+  });
+
+  // Interactions
+  let pinned = null;
+  const setActive = (id) => {
+    if (id) {
+      svg.dataset.active = id;
+      svg.querySelectorAll('.branch').forEach(g => {
+        g.classList.toggle('is-active', g.dataset.branch === id);
+      });
+      trackEl.querySelectorAll('li').forEach(li => {
+        li.style.background = (li.dataset.branch === id) ? '#f5efff' : '';
+      });
+    } else {
+      delete svg.dataset.active;
+      svg.querySelectorAll('.branch').forEach(g => g.classList.remove('is-active'));
+      trackEl.querySelectorAll('li').forEach(li => { li.style.background = ''; });
+    }
+  };
+
+  // Event delegation — each branch now lives across three layers, so listening
+  // on the SVG root with mouseover/mouseout avoids flicker when the cursor
+  // crosses between line, hub, and leaf layers of the same branch.
+  svg.addEventListener('mouseover', e => {
+    if (pinned) return;
+    const g = e.target.closest?.('.branch');
+    if (!g) return;
+    setActive(g.dataset.branch);
+  });
+  svg.addEventListener('mouseout', e => {
+    if (pinned) return;
+    const g = e.target.closest?.('.branch');
+    if (!g) return;
+    const to = e.relatedTarget?.closest?.('.branch');
+    if (to && to.dataset.branch === g.dataset.branch) return;
+    setActive(to?.dataset.branch ?? null);
+  });
+  svg.addEventListener('click', e => {
+    const g = e.target.closest?.('.branch');
+    if (!g) return;
+    e.stopPropagation();
+    const id = g.dataset.branch;
+    if (pinned === id) { pinned = null; setActive(null); }
+    else { pinned = id; setActive(id); }
+  });
+
+  document.querySelector('.center').addEventListener('click', e => {
+    e.stopPropagation();
+    pinned = null; setActive(null);
+  });
+
+  trackEl.querySelectorAll('li').forEach(li => {
+    li.addEventListener('click', () => {
+      const id = li.dataset.branch;
+      if (pinned === id) { pinned = null; setActive(null); }
+      else { pinned = id; setActive(id); }
+    });
+  });
+
+  // Language toggle
+  const setLang = (lang) => {
+    document.body.dataset.lang = lang;
+    document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+    document.getElementById('btn-vi').classList.toggle('active', lang === 'vi');
+    try { localStorage.setItem('aimap.lang', lang); } catch {}
+  };
+  document.getElementById('btn-en').addEventListener('click', () => setLang('en'));
+  document.getElementById('btn-vi').addEventListener('click', () => setLang('vi'));
+  try {
+    const saved = localStorage.getItem('aimap.lang');
+    if (saved === 'vi' || saved === 'en') setLang(saved);
+  } catch {}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,417 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- Why a vector index exists at all — the brute-force baseline and where it stops being acceptable.
+- The three index families: **Flat**, **IVF**, **HNSW** — what each does, where each wins.
+- HNSW's three knobs: `M`, `ef_construction`, `ef_search` — what they actually do.
+- The recall-vs-latency curve, with numbers you can quote in a Slack thread.
+- The 100k-vector rule of thumb that tells you when to stop tuning and ship.
+</Callout>
+
+A vector search with no index is a `for` loop over every vector in the table. 10,000 vectors? ~5 ms. 100,000 vectors? ~50 ms. 10 million vectors? Five seconds — which is when the customer closes the tab.
+
+An index is the data structure that turns *"compare against every row"* into *"compare against ~100 rows and miss almost nothing"*. The "almost" is where all the interesting tradeoffs live.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 420" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="HNSW index visualized as three stacked graph layers — top layer sparse for long jumps, bottom layer dense for fine-grained search; arrows show a query descending the layers">
+    <text x="20" y="24" fontSize="13" fontWeight="700" fill="#16a34a">{'HNSW: layered graph, descend to find'}</text>
+
+    <text x="20" y="60" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.75">{'Layer 2 (sparse, long jumps)'}</text>
+    <circle cx="180" cy="80" r="6" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="380" cy="80" r="6" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="560" cy="80" r="6" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <line x1="180" y1="80" x2="380" y2="80" stroke="#16a34a" strokeWidth="1" opacity="0.5" />
+    <line x1="380" y1="80" x2="560" y2="80" stroke="#16a34a" strokeWidth="1" opacity="0.5" />
+
+    <text x="20" y="160" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.75">{'Layer 1 (mid density)'}</text>
+    <circle cx="160" cy="180" r="5" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="240" cy="180" r="5" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="320" cy="180" r="5" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="400" cy="180" r="5" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="480" cy="180" r="5" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="560" cy="180" r="5" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <line x1="160" y1="180" x2="240" y2="180" stroke="#16a34a" strokeWidth="0.8" opacity="0.4" />
+    <line x1="240" y1="180" x2="320" y2="180" stroke="#16a34a" strokeWidth="0.8" opacity="0.4" />
+    <line x1="320" y1="180" x2="400" y2="180" stroke="#16a34a" strokeWidth="0.8" opacity="0.4" />
+    <line x1="400" y1="180" x2="480" y2="180" stroke="#16a34a" strokeWidth="0.8" opacity="0.4" />
+    <line x1="480" y1="180" x2="560" y2="180" stroke="#16a34a" strokeWidth="0.8" opacity="0.4" />
+
+    <text x="20" y="260" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.75">{'Layer 0 (all vectors, dense)'}</text>
+    <circle cx="130" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="180" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="230" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="280" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="330" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="380" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="430" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="480" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="530" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="580" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="630" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <line x1="130" y1="280" x2="180" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="180" y1="280" x2="230" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="230" y1="280" x2="280" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="280" y1="280" x2="330" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="330" y1="280" x2="380" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="380" y1="280" x2="430" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="430" y1="280" x2="480" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="480" y1="280" x2="530" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="530" y1="280" x2="580" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="580" y1="280" x2="630" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+
+    <circle cx="380" cy="80"  r="9" fill="none" stroke="#dc2626" strokeWidth="2" />
+    <circle cx="320" cy="180" r="8" fill="none" stroke="#dc2626" strokeWidth="2" />
+    <circle cx="330" cy="280" r="7" fill="none" stroke="#dc2626" strokeWidth="2" />
+    <path d="M 380,86 L 322,174" stroke="#dc2626" strokeWidth="1.5" fill="none" markerEnd="url(#a27)" opacity="0.8" />
+    <path d="M 322,186 L 332,274" stroke="#dc2626" strokeWidth="1.5" fill="none" markerEnd="url(#a27)" opacity="0.8" />
+    <text x="660" y="80"  fontSize="10" fill="#dc2626" opacity="0.85">{'enter top'}</text>
+    <text x="660" y="180" fontSize="10" fill="#dc2626" opacity="0.85">{'narrow'}</text>
+    <text x="660" y="280" fontSize="10" fill="#dc2626" opacity="0.85">{'find neighbours'}</text>
+
+    <rect x="20" y="340" width="680" height="70" rx="8" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="362" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Three knobs: M (connections/node) · ef_construction (build quality) · ef_search (search width)'}</text>
+    <text x="360" y="382" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'M=16, ef_construction=64, ef_search=40  →  recall ~0.97, p95 latency ~3 ms for 1M vectors'}</text>
+    <text x="360" y="398" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.6">{'higher = better recall, more memory, slower build/query'}</text>
+
+    <defs>
+      <marker id="a27" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" opacity="0.85" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    HNSW: enter at the sparse top layer (fast long jumps), narrow downward, end with a fine search at the dense bottom. Three knobs, two of them at index-build time, one at query time.
+  </figcaption>
+</figure>
+
+## 01 — Flat (brute force) — when fine
+
+Flat is no index — store the vectors in a column, scan all of them on every query, return the top-K. Pgvector does this when you query a `vector` column without creating an index.
+
+**The honest numbers (1536-dim vectors, cosine):**
+
+| Rows | Sequential scan |
+|---|---|
+| 1,000 | < 1 ms |
+| 10,000 | ~5 ms |
+| 100,000 | ~50 ms |
+| 1,000,000 | ~500 ms |
+| 10,000,000 | ~5,000 ms |
+
+Up to ~50k vectors, flat is **the right choice** — it gives you perfect recall (no approximation), zero index-build time, zero index memory, and zero tuning. A new shop's first 6 months of FAQs and product descriptions live happily on flat.
+
+Beyond ~100k rows you start needing an index. The two options are IVF and HNSW.
+
+## 02 — IVF (inverted file) — cluster, then probe
+
+**What it does.** At build time, run k-means clustering on all vectors to produce `lists` centroids (e.g. 1000). Each vector is assigned to the nearest centroid. At query time, find the nearest `probes` centroids to your query (e.g. 10), then exhaust-scan only those clusters.
+
+**Pgvector syntax:**
+
+```sql
+CREATE INDEX ON concierge.knowledge_chunks
+  USING ivfflat (embedding vector_cosine_ops)
+  WITH (lists = 100);                  -- ~ sqrt(rows) is the rule of thumb
+
+-- At query time
+SET ivfflat.probes = 10;               -- more probes = better recall, slower
+```
+
+**Where IVF wins.** Smaller index size on disk than HNSW. Faster to *build* (a few minutes per million vectors vs. a few hours for HNSW). Works well when your data has clear clusters (e.g. product categories).
+
+**Where IVF loses.** Recall caps lower than HNSW — typically 0.90–0.94 in practice. Adding new vectors to an existing IVF index degrades recall (the centroids were chosen for the *old* distribution); you eventually have to rebuild. Tuning `lists` and `probes` is fiddly.
+
+**Use IVF when:** corpus is mostly static, build time matters, and you can tolerate ~93% recall.
+
+## 03 — HNSW (Hierarchical Navigable Small World) — the modern default
+
+**What it does.** Build a multi-layer graph where each vector is a node and edges connect to nearest neighbours. The top layer is sparse (a handful of nodes with long-distance edges); each layer below is denser. At query time you "drop in" at the top, greedily walk toward your query, then descend a layer and refine. By the time you reach the bottom layer, you're surrounded by your nearest neighbours.
+
+**Pgvector syntax:**
+
+```sql
+CREATE INDEX ON concierge.knowledge_chunks
+  USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
+
+-- At query time
+SET hnsw.ef_search = 40;
+```
+
+**Where HNSW wins.** Highest recall available — 0.97+ is normal with reasonable knobs. Add/delete operations don't require rebuilds (it's a graph, not a partition). Predictable query latency (sub-10 ms for millions of vectors).
+
+**Where HNSW loses.** 2–4× the disk and RAM of IVF. Build time is hours, not minutes, for tens of millions of vectors. Memory-hungry — the entire graph wants to live in RAM.
+
+**Use HNSW when:** you can afford the memory (most concierge use cases can), recall matters, and your corpus changes regularly. **This is the default for the concierge in L32.**
+
+## 04 — HNSW's three knobs
+
+**`M`** (default 16). Maximum edges per node in the bottom layer. Higher = denser graph = higher recall = more memory. Try 16 first; raise to 24 or 32 only if recall stalls.
+
+**`ef_construction`** (default 64). Search width during index build. Higher = better-built graph = higher recall, but build time scales roughly linearly. Try 64 first; raise to 128 if recall lift justifies the build cost.
+
+**`ef_search`** (default 40, query-time). Search width during query. Higher = better recall, slower query. **This is the one you tune per query** — set it conservatively (40–80), raise it for the hard queries:
+
+```sql
+-- A normal query
+SET LOCAL hnsw.ef_search = 40;
+
+-- An "I really need top recall on this one" query
+SET LOCAL hnsw.ef_search = 100;
+```
+
+The big lever in practice is `ef_search`. Build the index once with `M=16, ef_construction=64`; tune `ef_search` at query time based on the use case.
+
+## 05 — Recall vs latency: numbers to quote
+
+The tradeoff is real and worth knowing in concrete terms. Approximate numbers for 1M 1536-dim vectors on a modern dev laptop (your numbers will vary, but the *shape* is consistent):
+
+| Index | Knobs | Recall@10 | p95 latency | Index size |
+|---|---|---|---|---|
+| Flat | — | 1.00 | ~500 ms | 6 GB (raw) |
+| IVF | lists=1000, probes=10 | 0.92 | ~15 ms | ~6.5 GB |
+| IVF | lists=1000, probes=40 | 0.96 | ~40 ms | ~6.5 GB |
+| HNSW | M=16, ef_search=40 | 0.97 | ~3 ms | ~10 GB |
+| HNSW | M=16, ef_search=100 | 0.99 | ~7 ms | ~10 GB |
+| HNSW | M=32, ef_search=100 | 0.995 | ~9 ms | ~14 GB |
+
+The pattern: HNSW dominates at moderate scales. IVF wins on storage. Flat wins on simplicity until ~100k.
+
+## 06 — The 100k-vector rule
+
+Decision tree for picking an index, without overthinking it:
+
+- **< 50k vectors** → Flat. No index. Done.
+- **50k – 5M vectors** → HNSW with defaults (`M=16, ef_construction=64`). Tune `ef_search` per query if needed. Done.
+- **5M – 50M vectors** → HNSW, but watch RAM. Consider `halfvec(1536)` (L25) to halve the index size.
+- **50M+ vectors** → You probably want a dedicated vector DB (Qdrant — L29) for replication and shard management, or IVF if you can tolerate 93% recall.
+
+The single biggest mistake at this stage is tuning before measuring. Build the index with defaults, run your eval set (L30), look at recall@5. If it's above 0.95 you're done — go build something else.
+
+<Callout type="warning" title="Don't optimise what your data doesn't need">
+A 30k-chunk concierge with HNSW tuned to recall@10 of 0.99 is wasting your time. Flat would answer in 20 ms with perfect recall and no tuning. The index pays for itself only once query latency on flat is a problem the customer notices.
+</Callout>
+
+<Recap>
+- **Flat** = no index, perfect recall, fine up to ~50k vectors.
+- **IVF** = cluster + probe, smaller on disk, recall caps around 0.93, fiddly to tune, suffers from inserts.
+- **HNSW** = layered graph, modern default, recall 0.97+, insert-friendly, 2–4× the RAM of IVF.
+- HNSW knobs: `M` (graph density), `ef_construction` (build quality), `ef_search` (query width). Tune `ef_search` per-query; leave the others at defaults.
+- Rule of thumb: &lt;50k flat, 50k–5M HNSW with defaults, 5M+ HNSW with `halfvec`, 50M+ dedicated vector DB.
+- Don't tune until your eval set tells you to. A well-defaulted HNSW beats months of premature optimization.
+</Recap>
+
+Next: pgvector vs Qdrant, head to head. Same dataset, same query, same metric — which one actually wins for your use case?
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Vì sao tồn tại vector index — baseline brute-force và chỗ nó hết chấp nhận được.
+- Ba họ index: **Flat**, **IVF**, **HNSW** — mỗi cái làm gì, mỗi cái thắng ở đâu.
+- Ba núm vặn của HNSW: `M`, `ef_construction`, `ef_search` — thực ra làm gì.
+- Đường cong recall vs latency, với số bạn có thể quote trong Slack thread.
+- Quy tắc 100k-vector cho biết khi nào dừng tune và ship.
+</Callout>
+
+Vector search không index là vòng `for` qua mọi vector trong bảng. 10,000 vector? ~5 ms. 100,000 vector? ~50 ms. 10 triệu vector? Năm giây — chính là lúc khách đóng tab.
+
+Index là cấu trúc dữ liệu biến *"so với mọi row"* thành *"so với ~100 row và gần như không miss"*. "Gần như" là chỗ mọi tradeoff thú vị nằm.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 420" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="HNSW index như ba layer graph chồng — layer trên thưa cho nhảy xa, layer dưới đặc cho tìm tinh">
+    <text x="20" y="24" fontSize="13" fontWeight="700" fill="#16a34a">{'HNSW: graph nhiều tầng, đi xuống để tìm'}</text>
+
+    <text x="20" y="60" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.75">{'Tầng 2 (thưa, nhảy xa)'}</text>
+    <circle cx="180" cy="80" r="6" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="380" cy="80" r="6" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="560" cy="80" r="6" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <line x1="180" y1="80" x2="380" y2="80" stroke="#16a34a" strokeWidth="1" opacity="0.5" />
+    <line x1="380" y1="80" x2="560" y2="80" stroke="#16a34a" strokeWidth="1" opacity="0.5" />
+
+    <text x="20" y="160" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.75">{'Tầng 1 (đặc vừa)'}</text>
+    <circle cx="160" cy="180" r="5" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="240" cy="180" r="5" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="320" cy="180" r="5" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="400" cy="180" r="5" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="480" cy="180" r="5" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="560" cy="180" r="5" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <line x1="160" y1="180" x2="240" y2="180" stroke="#16a34a" strokeWidth="0.8" opacity="0.4" />
+    <line x1="240" y1="180" x2="320" y2="180" stroke="#16a34a" strokeWidth="0.8" opacity="0.4" />
+    <line x1="320" y1="180" x2="400" y2="180" stroke="#16a34a" strokeWidth="0.8" opacity="0.4" />
+    <line x1="400" y1="180" x2="480" y2="180" stroke="#16a34a" strokeWidth="0.8" opacity="0.4" />
+    <line x1="480" y1="180" x2="560" y2="180" stroke="#16a34a" strokeWidth="0.8" opacity="0.4" />
+
+    <text x="20" y="260" fontSize="11" fontWeight="700" fill="currentColor" opacity="0.75">{'Tầng 0 (mọi vector, đặc)'}</text>
+    <circle cx="130" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="180" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="230" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="280" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="330" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="380" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="430" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="480" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="530" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="580" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <circle cx="630" cy="280" r="4" fill="rgba(22,163,74,0.4)" stroke="#16a34a" />
+    <line x1="130" y1="280" x2="180" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="180" y1="280" x2="230" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="230" y1="280" x2="280" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="280" y1="280" x2="330" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="330" y1="280" x2="380" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="380" y1="280" x2="430" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="430" y1="280" x2="480" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="480" y1="280" x2="530" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="530" y1="280" x2="580" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+    <line x1="580" y1="280" x2="630" y2="280" stroke="#16a34a" strokeWidth="0.7" opacity="0.35" />
+
+    <circle cx="380" cy="80"  r="9" fill="none" stroke="#dc2626" strokeWidth="2" />
+    <circle cx="320" cy="180" r="8" fill="none" stroke="#dc2626" strokeWidth="2" />
+    <circle cx="330" cy="280" r="7" fill="none" stroke="#dc2626" strokeWidth="2" />
+    <path d="M 380,86 L 322,174" stroke="#dc2626" strokeWidth="1.5" fill="none" markerEnd="url(#a27vi)" opacity="0.8" />
+    <path d="M 322,186 L 332,274" stroke="#dc2626" strokeWidth="1.5" fill="none" markerEnd="url(#a27vi)" opacity="0.8" />
+    <text x="660" y="80"  fontSize="10" fill="#dc2626" opacity="0.85">{'vào tầng top'}</text>
+    <text x="660" y="180" fontSize="10" fill="#dc2626" opacity="0.85">{'thu hẹp'}</text>
+    <text x="660" y="280" fontSize="10" fill="#dc2626" opacity="0.85">{'tìm hàng xóm'}</text>
+
+    <rect x="20" y="340" width="680" height="70" rx="8" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="362" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Ba núm: M (connection/node) · ef_construction (chất lượng build) · ef_search (rộng search)'}</text>
+    <text x="360" y="382" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'M=16, ef_construction=64, ef_search=40  →  recall ~0.97, p95 latency ~3 ms cho 1M vector'}</text>
+    <text x="360" y="398" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.6">{'cao hơn = recall tốt hơn, nhiều memory, build/query chậm hơn'}</text>
+
+    <defs>
+      <marker id="a27vi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" opacity="0.85" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    HNSW: vào tầng đỉnh thưa (nhảy xa nhanh), thu hẹp xuống dưới, kết thúc bằng search tinh ở tầng đáy đặc. Ba núm, hai lúc build, một lúc query.
+  </figcaption>
+</figure>
+
+## 01 — Flat (brute force) — khi nào ổn
+
+Flat là không index — lưu vector trong cột, scan tất cả mỗi query, trả top-K. Pgvector làm thế khi bạn query cột `vector` mà không tạo index.
+
+**Số thật (vector 1536-dim, cosine):**
+
+| Rows | Sequential scan |
+|---|---|
+| 1,000 | < 1 ms |
+| 10,000 | ~5 ms |
+| 100,000 | ~50 ms |
+| 1,000,000 | ~500 ms |
+| 10,000,000 | ~5,000 ms |
+
+Lên tới ~50k vector, flat là **lựa chọn đúng** — recall hoàn hảo (không approximation), zero build time, zero memory index, zero tuning. Sáu tháng đầu của shop mới với FAQ và mô tả sản phẩm sống vui trên flat.
+
+Vượt ~100k row bạn bắt đầu cần index. Hai lựa chọn là IVF và HNSW.
+
+## 02 — IVF (inverted file) — cluster rồi probe
+
+**Làm gì.** Lúc build, chạy k-means trên mọi vector tạo `lists` centroid (vd. 1000). Mỗi vector gán cho centroid gần nhất. Lúc query, tìm `probes` centroid gần query nhất (vd. 10), rồi scan đầy đủ chỉ những cluster đó.
+
+**Cú pháp pgvector:**
+
+```sql
+CREATE INDEX ON concierge.knowledge_chunks
+  USING ivfflat (embedding vector_cosine_ops)
+  WITH (lists = 100);                  -- ~ sqrt(rows) là rule of thumb
+
+-- Lúc query
+SET ivfflat.probes = 10;               -- probe nhiều = recall tốt, chậm hơn
+```
+
+**Chỗ IVF thắng.** Size index trên đĩa nhỏ hơn HNSW. Build nhanh hơn (vài phút mỗi triệu vector vs vài giờ cho HNSW). Hoạt động tốt khi data có cluster rõ (vd. category sản phẩm).
+
+**Chỗ IVF thua.** Trần recall thấp hơn HNSW — thực tế 0.90–0.94. Thêm vector mới vào index IVF có sẵn làm giảm recall (centroid chọn cho phân bố *cũ*); cuối cùng phải rebuild. Tune `lists` và `probes` lằng nhằng.
+
+**Dùng IVF khi:** corpus đa số tĩnh, build time quan trọng, chấp nhận recall ~93%.
+
+## 03 — HNSW (Hierarchical Navigable Small World) — mặc định hiện đại
+
+**Làm gì.** Build graph nhiều tầng, mỗi vector là node và edge nối tới hàng xóm gần nhất. Tầng trên thưa (vài node với edge dài); mỗi tầng dưới đặc hơn. Lúc query bạn "thả" vào đỉnh, đi tham lam về phía query, rồi xuống một tầng và refine. Khi xuống tới tầng đáy, bạn đang ở giữa hàng xóm gần nhất.
+
+**Cú pháp pgvector:**
+
+```sql
+CREATE INDEX ON concierge.knowledge_chunks
+  USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
+
+-- Lúc query
+SET hnsw.ef_search = 40;
+```
+
+**Chỗ HNSW thắng.** Recall cao nhất có — 0.97+ là bình thường với núm hợp lý. Add/delete không cần rebuild (graph chứ không phải partition). Latency query dự đoán được (dưới 10 ms cho triệu vector).
+
+**Chỗ HNSW thua.** 2–4× disk và RAM của IVF. Build time là giờ, không phải phút, cho hàng chục triệu vector. Ngốn memory — cả graph muốn ở trong RAM.
+
+**Dùng HNSW khi:** có thể chịu được memory (đa số concierge use case được), recall quan trọng, và corpus đổi đều. **Đây là mặc định cho concierge ở L32.**
+
+## 04 — Ba núm của HNSW
+
+**`M`** (mặc định 16). Số edge tối đa mỗi node ở tầng đáy. Cao hơn = graph đặc hơn = recall cao hơn = nhiều memory. Thử 16 trước; nâng lên 24 hoặc 32 chỉ khi recall đứng.
+
+**`ef_construction`** (mặc định 64). Rộng search lúc build index. Cao hơn = graph build tốt hơn = recall cao hơn, nhưng build time scale gần tuyến tính. Thử 64 trước; nâng lên 128 nếu recall lift xứng chi phí build.
+
+**`ef_search`** (mặc định 40, lúc query). Rộng search lúc query. Cao hơn = recall tốt hơn, query chậm hơn. **Đây là cái bạn tune mỗi query** — set conservative (40–80), nâng lên cho query khó:
+
+```sql
+-- Query bình thường
+SET LOCAL hnsw.ef_search = 40;
+
+-- Query "tôi thực sự cần recall top cho cái này"
+SET LOCAL hnsw.ef_search = 100;
+```
+
+Đòn bẩy lớn thực tế là `ef_search`. Build index một lần với `M=16, ef_construction=64`; tune `ef_search` lúc query theo use case.
+
+## 05 — Recall vs latency: số để quote
+
+Tradeoff là thật và đáng biết cụ thể. Số xấp xỉ cho 1M vector 1536-dim trên laptop dev hiện đại (số của bạn sẽ khác, nhưng *hình dạng* nhất quán):
+
+| Index | Núm | Recall@10 | p95 latency | Size index |
+|---|---|---|---|---|
+| Flat | — | 1.00 | ~500 ms | 6 GB (raw) |
+| IVF | lists=1000, probes=10 | 0.92 | ~15 ms | ~6.5 GB |
+| IVF | lists=1000, probes=40 | 0.96 | ~40 ms | ~6.5 GB |
+| HNSW | M=16, ef_search=40 | 0.97 | ~3 ms | ~10 GB |
+| HNSW | M=16, ef_search=100 | 0.99 | ~7 ms | ~10 GB |
+| HNSW | M=32, ef_search=100 | 0.995 | ~9 ms | ~14 GB |
+
+Mẫu hình: HNSW áp đảo ở scale trung. IVF thắng về storage. Flat thắng về đơn giản tới ~100k.
+
+## 06 — Quy tắc 100k-vector
+
+Cây quyết định chọn index, không nghĩ quá:
+
+- **< 50k vector** → Flat. Không index. Xong.
+- **50k – 5M vector** → HNSW với mặc định (`M=16, ef_construction=64`). Tune `ef_search` mỗi query nếu cần. Xong.
+- **5M – 50M vector** → HNSW, nhưng theo dõi RAM. Cân nhắc `halfvec(1536)` (L25) để giảm nửa size index.
+- **50M+ vector** → Có lẽ bạn muốn vector DB chuyên dụng (Qdrant — L29) cho replication và quản lý shard, hoặc IVF nếu chấp nhận được recall 93%.
+
+Lỗi lớn nhất ở giai đoạn này là tune trước khi đo. Build index với mặc định, chạy eval set (L30), nhìn recall@5. Trên 0.95 là xong — đi build cái khác.
+
+<Callout type="warning" title="Đừng tối ưu thứ data không cần">
+Concierge 30k-chunk với HNSW tune recall@10 0.99 là phí thời gian. Flat sẽ trả lời trong 20 ms với recall hoàn hảo và không tune. Index trả công chỉ khi latency query trên flat là vấn đề khách thấy.
+</Callout>
+
+<Recap>
+- **Flat** = không index, recall hoàn hảo, ổn tới ~50k vector.
+- **IVF** = cluster + probe, đĩa nhỏ hơn, recall trần ~0.93, lằng nhằng tune, hỏng khi insert.
+- **HNSW** = graph nhiều tầng, mặc định hiện đại, recall 0.97+, thân thiện insert, 2–4× RAM của IVF.
+- Núm HNSW: `M` (đặc graph), `ef_construction` (chất lượng build), `ef_search` (rộng query). Tune `ef_search` mỗi query; để các núm khác mặc định.
+- Rule of thumb: &lt;50k flat, 50k–5M HNSW mặc định, 5M+ HNSW với `halfvec`, 50M+ vector DB chuyên dụng.
+- Đừng tune cho tới khi eval set bảo. HNSW mặc định tốt thắng nhiều tháng tối ưu sớm.
+</Recap>
+
+Tiếp: pgvector vs Qdrant, đấu head-to-head. Cùng dataset, cùng query, cùng metric — cái nào thực sự thắng cho use case của bạn?
+
+</VI>

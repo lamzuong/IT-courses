@@ -1,0 +1,487 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- Why pure vector search fails on Vietnamese acronyms and exact codes — and how a keyword channel rescues it.
+- Hybrid retrieval with Reciprocal Rank Fusion: one query, two rankings, one merged list.
+- The multilingual strategy: separate `vi` and `en` corpora, plus how to handle the user who switches mid-sentence.
+- Optional reranking with a cross-encoder for the top 20 → top 5 squeeze, and when it's worth the latency.
+</Callout>
+
+Vector search is great at *meaning* and bad at *strings*. A shopper types *"SKU AT-100-M"* and expects to see exactly that SKU — not a fuzzy semantic match to "AT-101-L" because their embeddings happen to be close. A shopper types *"VAT"* and expects to find the section about value-added tax; the embedding doesn't always pull that section to the top because the chunk uses the unabbreviated phrase. A shopper types *"đổi địa chỉ đơn ABC-9912"* and you want the order ID treated as a literal, not paraphrased.
+
+This is what hybrid retrieval fixes. Run vector search and keyword search in parallel, then merge their rankings. The result is robust to both *meaning queries* ("chính sách giao hàng") and *string queries* ("AT-100-M", "ABC-9912", "COD").
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 420" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Hybrid retrieval: a single query runs through both vector and keyword channels in parallel, Reciprocal Rank Fusion merges the two rankings, top-K returned to the model">
+    <rect x="270" y="20" width="180" height="50" rx="10" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="42" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Query'}</text>
+    <text x="360" y="58" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'"change address order ABC-9912"'}</text>
+
+    <path d="M 360,70 L 360,95 L 180,95 L 180,120" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 360,95 L 540,95 L 540,120" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+
+    <rect x="60" y="120" width="240" height="120" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="180" y="148" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Vector channel'}</text>
+    <text x="180" y="170" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.8">{'embedding <=> qVec'}</text>
+    <text x="180" y="188" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'great at meaning,'}</text>
+    <text x="180" y="202" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'paraphrase, synonym'}</text>
+    <text x="180" y="226" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.55">{'top-20 ranked list'}</text>
+
+    <rect x="420" y="120" width="240" height="120" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="540" y="148" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Keyword channel'}</text>
+    <text x="540" y="170" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.8">{'to_tsvector + ts_rank'}</text>
+    <text x="540" y="188" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'great at exact strings,'}</text>
+    <text x="540" y="202" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'SKU, codes, acronyms'}</text>
+    <text x="540" y="226" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.55">{'top-20 ranked list'}</text>
+
+    <path d="M 180,240 Q 180,280 340,290" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 540,240 Q 540,280 380,290" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+
+    <rect x="240" y="290" width="240" height="60" rx="10" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="314" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'RRF · Reciprocal Rank Fusion'}</text>
+    <text x="360" y="334" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'score += 1 / (60 + rank)'}</text>
+
+    <path d="M 360,350 L 360,378" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a27)" fill="none" />
+
+    <rect x="280" y="378" width="160" height="32" rx="8" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="399" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Top-K to model'}</text>
+
+    <defs>
+      <marker id="a27" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.55" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Two channels in parallel — vector for meaning, keyword for strings. RRF merges them.
+  </figcaption>
+</figure>
+
+## 01 — The two channels
+
+**Vector channel** uses what you built in L32: embed the query, cosine-distance against the `embedding` column, return top-K. Good for paraphrases, synonyms, and cross-language matching when the embeddings are multilingual.
+
+**Keyword channel** uses Postgres full-text search — `to_tsvector` + `ts_rank`. Good for exact strings, acronyms, codes, and proper nouns. Postgres has native `vietnamese`-friendly behaviour with the `simple` configuration; for accuracy on Vietnamese diacritics you can add the `unaccent` extension.
+
+```sql
+-- Add the FTS column on the same table
+ALTER TABLE concierge.knowledge_chunks
+  ADD COLUMN content_tsv tsvector
+  GENERATED ALWAYS AS (to_tsvector('simple', unaccent(content))) STORED;
+
+CREATE INDEX idx_chunks_tsv ON concierge.knowledge_chunks USING GIN (content_tsv);
+```
+
+`unaccent` ensures *"giao"* and *"giáo"* don't collide, but a search for *"giay"* still matches *"giày"* — the right tradeoff for Vietnamese typers who skip diacritics.
+
+## 02 — Reciprocal Rank Fusion (RRF)
+
+Each channel produces a ranked list. RRF merges them with one elegant rule: a chunk's combined score is the sum of `1 / (k + rank)` from each channel it appears in. `k=60` is the standard constant — small enough that the top of each list matters, large enough that the contribution decays smoothly.
+
+```ts
+// lib/rag/retrieve.ts
+type Hit = { id: number; source: string; content: string };
+
+function rrf(lists: Hit[][], k = 60): Hit[] {
+  const scores = new Map<number, { hit: Hit; score: number }>();
+  for (const list of lists) {
+    list.forEach((hit, i) => {
+      const entry = scores.get(hit.id);
+      const add = 1 / (k + i + 1);
+      if (entry) entry.score += add;
+      else scores.set(hit.id, { hit, score: add });
+    });
+  }
+  return [...scores.values()]
+    .sort((a, b) => b.score - a.score)
+    .map((e) => e.hit);
+}
+
+export async function retrieve(query: string, opts: {
+  locale: 'vi' | 'en';
+  topK?: number;
+}) {
+  const qVec = await embedQuery(query);
+
+  const [vecHits, kwHits] = await Promise.all([
+    db.query<Hit>(
+      `SELECT id, source, content FROM concierge.knowledge_chunks
+       WHERE locale = $1
+       ORDER BY embedding <=> $2::vector LIMIT 20`,
+      [opts.locale, qVec]
+    ),
+    db.query<Hit>(
+      `SELECT id, source, content FROM concierge.knowledge_chunks
+       WHERE locale = $1
+         AND content_tsv @@ plainto_tsquery('simple', unaccent($2))
+       ORDER BY ts_rank(content_tsv, plainto_tsquery('simple', unaccent($2))) DESC
+       LIMIT 20`,
+      [opts.locale, query]
+    ),
+  ]);
+
+  return rrf([vecHits.rows, kwHits.rows]).slice(0, opts.topK ?? 5);
+}
+```
+
+Two queries fire in parallel — same DB, two indexes, two round-trips' worth of work in one round-trip's wall time. The fused top-K usually beats either channel alone by 10-20% on real queries.
+
+<Callout type="note" title="Why RRF instead of weighted average">
+You don't know the calibration of your vector scores against your `ts_rank` scores. A vector score of 0.83 isn't twice as good as 0.41 — cosine similarity isn't linear in usefulness, and `ts_rank` lives on a different scale entirely. RRF dodges the calibration problem by only using **ranks**, not raw scores. Rank 1 is rank 1 in both channels; the math works.
+</Callout>
+
+## 03 — Multilingual: separate corpora, joined at the prompt
+
+The reflex move — embed everything in one corpus, filter at query time — is wrong for production. Two reasons.
+
+**Reason one: semantic drift across languages.** Even with multilingual embeddings, a Vietnamese query has a small bias toward Vietnamese chunks of the same topic. If both Vietnamese and English chunks are in the candidate pool, you sometimes get an English chunk in the top-3 for a Vietnamese question, and the model writes the answer half in English. Users notice.
+
+**Reason two: content asymmetry.** You write the Vietnamese FAQ first; the English version trails by a week. If you don't filter by locale, the bot returns the stale English version for the new policy you just added in Vietnamese. Filter-at-query keeps each language's view consistent with its own freshness.
+
+The setup is the one already in your schema: `locale` is a required field on every chunk, indexed, and every retrieval filters by it.
+
+```ts
+// in the chat route:
+const user = await getCurrentUser();
+const locale = user.locale; // from the JWT, lesson 28
+const docs = await retrieve(message, { locale, topK: 5 });
+```
+
+<Callout type="tip" title="The cross-lingual escape valve">
+If `vi` retrieval comes back empty (or all scores below a floor), fall back to `en` retrieval *plus* a translation hint in the system prompt: *"Câu trả lời lấy từ tài liệu tiếng Anh; dịch sang tiếng Việt khi trả lời."* Better than *"em chưa rõ ạ"* when the English doc actually has the answer. Triggers only when the Vietnamese corpus genuinely lacks the topic.
+</Callout>
+
+## 04 — Mid-sentence language switching
+
+Some users — especially developers and bilingual customers — type *"bao giờ ship invoice qua, cần record VAT"*. Half Vietnamese, half English. Pure-Vietnamese retrieval misses *"invoice"* and *"VAT"*; pure-English misses *"bao giờ ship"*.
+
+The pragmatic fix: detect the language of *each query* with a fast heuristic (token mix, character-set ratio) and run both corpora when the query is mixed.
+
+```ts
+function detectLocales(q: string): ('vi' | 'en')[] {
+  const hasVi = /[ăâđêôơưĂÂĐÊÔƠƯáàảãạ...]/u.test(q);
+  const hasEnWord = /\b[a-z]{4,}\b/i.test(q);
+  if (hasVi && hasEnWord) return ['vi', 'en']; // mixed
+  if (hasVi) return ['vi'];
+  return ['en'];
+}
+```
+
+Then run retrieval against each locale, fuse the four lists (vec-vi, kw-vi, vec-en, kw-en) with the same RRF. The model is told both languages are present in the context and instructed to reply in the **user's primary language** — the one set in their profile, not the language of any individual question.
+
+## 05 — Optional: reranking the top-20 down to top-5
+
+RRF gives you a strong top-20. For the highest-quality answers, run a **cross-encoder reranker** over those 20: a small model that takes `(query, chunk)` pairs and outputs a relevance score, more accurate than bi-encoder cosine but far slower per pair. Cohere Rerank, Voyage AI's rerank-2, and self-hosted `bge-reranker-v2-m3` all work.
+
+```ts
+import { rerank } from '@/lib/ai/rerank'; // wrapper around your chosen provider
+
+const candidates = await retrieve(message, { locale, topK: 20 });
+const reranked = await rerank({
+  query: message,
+  documents: candidates.map(c => c.content),
+  topK: 5,
+});
+const finalDocs = reranked.map(r => candidates[r.index]);
+```
+
+Latency cost: ~150-400 ms for 20 candidates on a hosted reranker. Quality lift: usually 5-15% on hard queries. Worth it for production; skip for week-one MVP.
+
+<Callout type="warning" title="Don't rerank without an eval set">
+Reranking is the kind of optimisation that *feels* helpful but can quietly hurt some queries while improving others. Before you turn it on, build the eval set from lesson 22: 30-50 real questions with the chunks you *want* returned. Compare top-5 hit rate with rerank on vs off. Only ship the version that wins on the eval, not the version that feels smart.
+</Callout>
+
+## 06 — The system prompt that uses retrieved chunks well
+
+Retrieval is half the work; the other half is the prompt telling the model what to do with what came back.
+
+```ts
+function buildSystemPrompt(locale: 'vi' | 'en', docs: Hit[]) {
+  const context = docs.map((d, i) =>
+    `[${i + 1}] (${d.source})\n${d.content}`
+  ).join('\n\n---\n\n');
+
+  return locale === 'vi'
+    ? `Bạn là concierge của Shop XYZ. Trả lời ngắn gọn, thân thiện.
+
+QUY TẮC:
+- Chỉ dùng thông tin từ CONTEXT cho câu hỏi chính sách, FAQ, mô tả sản phẩm.
+- Trích nguồn bằng ký hiệu [n] sau câu liên quan, n là số thứ tự trong CONTEXT.
+- Nếu CONTEXT không trả lời được, nói "Em chưa rõ ạ, em sẽ chuyển nhân viên hỗ trợ".
+- KHÔNG bịa giá, ngày, số điện thoại.
+
+CONTEXT:
+${context}`
+    : `You are the Shop XYZ concierge. ...`;
+}
+```
+
+Two details that matter: the chunks have numeric labels `[1]`, `[2]`, and the model is asked to cite them in its answer. This isn't just for the user — it's a debugging surface. When the reply is wrong, you check which `[n]` the model cited and look at exactly that chunk. The mismatch tells you whether the bug is in retrieval (wrong chunk in the top-5) or generation (right chunk, wrong reading).
+
+<Callout type="note" title="The minimum retrieval recipe for week one">
+Don't ship everything at once. Order of implementation:
+
+1. Pure vector retrieval, single locale (today, ~30 min).
+2. Add the keyword channel + RRF (tomorrow, ~1 hour).
+3. Detect mixed-language queries, run both locales (day 3-4).
+4. Add reranking if the eval set says it helps (week 4).
+
+Each step is independently testable. Don't combine steps 1 and 4 in one PR.
+</Callout>
+
+<Recap>
+- **Hybrid > vector alone.** Vector for meaning, keyword for strings/codes/acronyms. Combine with **Reciprocal Rank Fusion** (`1 / (k + rank)`, k=60).
+- **Two separate corpora — `vi` and `en` — filtered at query time.** Avoids semantic drift and freshness asymmetry. Required field on every chunk.
+- **Mixed-language queries get both locales.** Detect once with a regex heuristic, fuse the four resulting lists with the same RRF.
+- **Reranking is optional and measured.** Cross-encoder over the top-20 → top-5 typically lifts hard queries by 5-15%, costs 150-400 ms. Only ship if the eval set agrees.
+- **Cite chunks with `[n]` in the prompt.** Debugging surface when answers are wrong — you can tell retrieval bugs from generation bugs at a glance.
+- **Ship in order: vector → hybrid → mixed-language → rerank.** Don't combine steps.
+</Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Vì sao vector search thuần thất bại trên viết tắt tiếng Việt và mã chính xác — và làm sao một kênh keyword "giải cứu" được.
+- Hybrid retrieval với Reciprocal Rank Fusion: một query, hai bảng xếp hạng, một danh sách hợp nhất.
+- Chiến lược đa ngôn ngữ: tách riêng corpus `vi` và `en`, cộng với cách xử lý user đổi ngôn ngữ giữa câu.
+- Reranking tùy chọn bằng cross-encoder cho cú nén top 20 → top 5, và khi nào đáng đổi lấy latency.
+</Callout>
+
+Vector search giỏi về *nghĩa* và dở về *chuỗi*. Khách gõ *"SKU AT-100-M"* và mong thấy đúng SKU đó — không phải fuzzy match sang "AT-101-L" chỉ vì embedding tình cờ gần nhau. Khách gõ *"VAT"* và mong tìm thấy section về thuế giá trị gia tăng; embedding không phải lúc nào cũng kéo section đó lên đầu vì chunk dùng cụm chữ đầy đủ. Khách gõ *"đổi địa chỉ đơn ABC-9912"* và bạn muốn order ID được coi như literal, không bị diễn lại.
+
+Đó là cái hybrid retrieval sửa. Chạy vector search và keyword search song song, rồi merge rank của chúng. Kết quả vững với cả *query nghĩa* ("chính sách giao hàng") lẫn *query chuỗi* ("AT-100-M", "ABC-9912", "COD").
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 420" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Hybrid retrieval: một query chạy song song hai kênh vector và keyword, RRF gộp hai ranking, top-K trả về cho model">
+    <rect x="270" y="20" width="180" height="50" rx="10" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="42" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Query'}</text>
+    <text x="360" y="58" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'"đổi địa chỉ đơn ABC-9912"'}</text>
+
+    <path d="M 360,70 L 360,95 L 180,95 L 180,120" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 360,95 L 540,95 L 540,120" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+
+    <rect x="60" y="120" width="240" height="120" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="180" y="148" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Kênh vector'}</text>
+    <text x="180" y="170" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.8">{'embedding <=> qVec'}</text>
+    <text x="180" y="188" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'giỏi ý nghĩa,'}</text>
+    <text x="180" y="202" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'diễn giải, đồng nghĩa'}</text>
+    <text x="180" y="226" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.55">{'top-20 ranked list'}</text>
+
+    <rect x="420" y="120" width="240" height="120" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="540" y="148" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Kênh keyword'}</text>
+    <text x="540" y="170" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.8">{'to_tsvector + ts_rank'}</text>
+    <text x="540" y="188" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'giỏi chuỗi chính xác,'}</text>
+    <text x="540" y="202" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'SKU, mã, viết tắt'}</text>
+    <text x="540" y="226" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.55">{'top-20 ranked list'}</text>
+
+    <path d="M 180,240 Q 180,280 340,290" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 540,240 Q 540,280 380,290" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+
+    <rect x="240" y="290" width="240" height="60" rx="10" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="314" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'RRF · Reciprocal Rank Fusion'}</text>
+    <text x="360" y="334" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="currentColor" opacity="0.75">{'score += 1 / (60 + rank)'}</text>
+
+    <path d="M 360,350 L 360,378" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" markerEnd="url(#a27vi)" fill="none" />
+
+    <rect x="280" y="378" width="160" height="32" rx="8" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="399" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Top-K cho model'}</text>
+
+    <defs>
+      <marker id="a27vi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.55" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Hai kênh chạy song song — vector cho nghĩa, keyword cho chuỗi. RRF gộp lại.
+  </figcaption>
+</figure>
+
+## 01 — Hai kênh
+
+**Kênh vector** dùng những gì bạn dựng ở L32: embed query, cosine-distance với cột `embedding`, trả top-K. Tốt cho diễn đạt lại, từ đồng nghĩa, và khớp đa ngôn ngữ khi embedding là multilingual.
+
+**Kênh keyword** dùng full-text search của Postgres — `to_tsvector` + `ts_rank`. Tốt cho chuỗi chính xác, viết tắt, mã, và danh từ riêng. Postgres có hành vi thân thiện với tiếng Việt qua cấu hình `simple`; để chính xác hơn với dấu, thêm extension `unaccent`.
+
+```sql
+-- Thêm cột FTS trên cùng bảng
+ALTER TABLE concierge.knowledge_chunks
+  ADD COLUMN content_tsv tsvector
+  GENERATED ALWAYS AS (to_tsvector('simple', unaccent(content))) STORED;
+
+CREATE INDEX idx_chunks_tsv ON concierge.knowledge_chunks USING GIN (content_tsv);
+```
+
+`unaccent` đảm bảo *"giao"* và *"giáo"* không đụng nhau, nhưng search *"giay"* vẫn match *"giày"* — đánh đổi đúng cho người Việt gõ không dấu.
+
+## 02 — Reciprocal Rank Fusion (RRF)
+
+Mỗi kênh sinh ra một danh sách có rank. RRF merge chúng bằng một quy tắc gọn: điểm tổng hợp của một chunk là tổng `1 / (k + rank)` từ mỗi kênh nó xuất hiện. `k=60` là hằng số chuẩn — đủ nhỏ để đầu danh sách có trọng số, đủ lớn để đóng góp giảm mượt.
+
+```ts
+// lib/rag/retrieve.ts
+type Hit = { id: number; source: string; content: string };
+
+function rrf(lists: Hit[][], k = 60): Hit[] {
+  const scores = new Map<number, { hit: Hit; score: number }>();
+  for (const list of lists) {
+    list.forEach((hit, i) => {
+      const entry = scores.get(hit.id);
+      const add = 1 / (k + i + 1);
+      if (entry) entry.score += add;
+      else scores.set(hit.id, { hit, score: add });
+    });
+  }
+  return [...scores.values()]
+    .sort((a, b) => b.score - a.score)
+    .map((e) => e.hit);
+}
+
+export async function retrieve(query: string, opts: {
+  locale: 'vi' | 'en';
+  topK?: number;
+}) {
+  const qVec = await embedQuery(query);
+
+  const [vecHits, kwHits] = await Promise.all([
+    db.query<Hit>(
+      `SELECT id, source, content FROM concierge.knowledge_chunks
+       WHERE locale = $1
+       ORDER BY embedding <=> $2::vector LIMIT 20`,
+      [opts.locale, qVec]
+    ),
+    db.query<Hit>(
+      `SELECT id, source, content FROM concierge.knowledge_chunks
+       WHERE locale = $1
+         AND content_tsv @@ plainto_tsquery('simple', unaccent($2))
+       ORDER BY ts_rank(content_tsv, plainto_tsquery('simple', unaccent($2))) DESC
+       LIMIT 20`,
+      [opts.locale, query]
+    ),
+  ]);
+
+  return rrf([vecHits.rows, kwHits.rows]).slice(0, opts.topK ?? 5);
+}
+```
+
+Hai query bắn song song — cùng DB, hai index, lượng việc của hai round-trip xong trong thời gian một round-trip. Top-K fused thường đánh bại một kênh đơn lẻ 10-20% trên query thực.
+
+<Callout type="note" title="Vì sao RRF thay vì trung bình có trọng số">
+Bạn không biết calibration của điểm vector so với `ts_rank`. Điểm vector 0.83 không tốt gấp đôi 0.41 — cosine similarity không tuyến tính trong "tính hữu ích", và `ts_rank` ở thang điểm hoàn toàn khác. RRF tránh được bài toán calibration vì chỉ dùng **rank**, không dùng điểm thô. Rank 1 ở kênh nào cũng là rank 1; toán hoạt động.
+</Callout>
+
+## 03 — Đa ngôn ngữ: tách corpus, gắn lại ở prompt
+
+Phản xạ — embed mọi thứ vào một corpus, filter ở query time — là sai cho production. Hai lý do.
+
+**Lý do một: trôi nghĩa giữa các ngôn ngữ.** Kể cả với embedding đa ngôn ngữ, query tiếng Việt vẫn có thiên lệch nhỏ về phía chunk tiếng Việt cùng chủ đề. Nếu cả chunk Việt và Anh đều trong pool, đôi khi bạn được một chunk tiếng Anh trong top-3 cho câu hỏi tiếng Việt, và model viết câu trả lời nửa Anh nửa Việt. Khách để ý.
+
+**Lý do hai: bất đối xứng nội dung.** Bạn viết FAQ tiếng Việt trước; bản tiếng Anh trễ một tuần. Nếu không filter theo locale, bot trả về bản tiếng Anh cũ cho chính sách bạn vừa thêm vào tiếng Việt. Filter-tại-query giữ view của mỗi ngôn ngữ nhất quán với độ tươi của chính nó.
+
+Setup chính là cái đã có trong schema của bạn: `locale` là trường bắt buộc trên mỗi chunk, có index, và mọi retrieval filter theo nó.
+
+```ts
+// trong route chat:
+const user = await getCurrentUser();
+const locale = user.locale; // từ JWT, bài 28
+const docs = await retrieve(message, { locale, topK: 5 });
+```
+
+<Callout type="tip" title="Lối thoát cross-lingual">
+Nếu retrieval `vi` rỗng (hoặc tất cả điểm dưới một sàn), fallback sang retrieval `en` *cộng với* một hint dịch trong system prompt: *"Câu trả lời lấy từ tài liệu tiếng Anh; dịch sang tiếng Việt khi trả lời."* Tốt hơn *"em chưa rõ ạ"* khi tài liệu tiếng Anh thực sự có đáp án. Chỉ kích hoạt khi corpus tiếng Việt thực sự thiếu chủ đề đó.
+</Callout>
+
+## 04 — Đổi ngôn ngữ giữa câu
+
+Một số khách — đặc biệt là developer và khách song ngữ — gõ *"bao giờ ship invoice qua, cần record VAT"*. Nửa Việt, nửa Anh. Retrieval thuần Việt miss *"invoice"* và *"VAT"*; thuần Anh miss *"bao giờ ship"*.
+
+Fix thực tế: detect ngôn ngữ của *mỗi query* bằng heuristic nhanh (tỉ lệ token, character-set), và chạy cả hai corpus khi query mixed.
+
+```ts
+function detectLocales(q: string): ('vi' | 'en')[] {
+  const hasVi = /[ăâđêôơưĂÂĐÊÔƠƯáàảãạ...]/u.test(q);
+  const hasEnWord = /\b[a-z]{4,}\b/i.test(q);
+  if (hasVi && hasEnWord) return ['vi', 'en']; // mixed
+  if (hasVi) return ['vi'];
+  return ['en'];
+}
+```
+
+Rồi chạy retrieval với mỗi locale, fuse bốn danh sách (vec-vi, kw-vi, vec-en, kw-en) bằng cùng một RRF. Model được nói rằng cả hai ngôn ngữ có mặt trong context và được chỉ định trả lời bằng **ngôn ngữ chính của user** — cái set trong profile, không phải ngôn ngữ của câu hỏi nào.
+
+## 05 — Tùy chọn: rerank top-20 xuống top-5
+
+RRF cho bạn top-20 mạnh. Cho câu trả lời chất lượng cao nhất, chạy **cross-encoder reranker** trên 20 cái đó: một model nhỏ nhận cặp `(query, chunk)` và sinh điểm relevance, chính xác hơn cosine bi-encoder nhưng chậm hơn nhiều mỗi cặp. Cohere Rerank, Voyage AI rerank-2, và self-host `bge-reranker-v2-m3` đều dùng được.
+
+```ts
+import { rerank } from '@/lib/ai/rerank'; // wrapper quanh provider bạn chọn
+
+const candidates = await retrieve(message, { locale, topK: 20 });
+const reranked = await rerank({
+  query: message,
+  documents: candidates.map(c => c.content),
+  topK: 5,
+});
+const finalDocs = reranked.map(r => candidates[r.index]);
+```
+
+Chi phí latency: ~150-400 ms cho 20 candidate trên reranker hosted. Tăng chất lượng: thường 5-15% trên query khó. Đáng cho production; skip cho MVP tuần một.
+
+<Callout type="warning" title="Đừng rerank khi chưa có eval set">
+Reranking là loại optimization *cảm giác* hữu ích nhưng có thể âm thầm làm hại một số query trong khi cải thiện cái khác. Trước khi bật, dựng eval set như bài 22: 30-50 câu thực với các chunk bạn *muốn* trả về. So sánh hit rate top-5 với rerank on vs off. Chỉ ship version thắng trên eval, không phải version *cảm giác* thông minh.
+</Callout>
+
+## 06 — System prompt dùng chunk truy hồi đúng cách
+
+Retrieval là nửa việc; nửa còn lại là prompt nói model phải làm gì với cái nó nhận được.
+
+```ts
+function buildSystemPrompt(locale: 'vi' | 'en', docs: Hit[]) {
+  const context = docs.map((d, i) =>
+    `[${i + 1}] (${d.source})\n${d.content}`
+  ).join('\n\n---\n\n');
+
+  return locale === 'vi'
+    ? `Bạn là concierge của Shop XYZ. Trả lời ngắn gọn, thân thiện.
+
+QUY TẮC:
+- Chỉ dùng thông tin từ CONTEXT cho câu hỏi chính sách, FAQ, mô tả sản phẩm.
+- Trích nguồn bằng ký hiệu [n] sau câu liên quan, n là số thứ tự trong CONTEXT.
+- Nếu CONTEXT không trả lời được, nói "Em chưa rõ ạ, em sẽ chuyển nhân viên hỗ trợ".
+- KHÔNG bịa giá, ngày, số điện thoại.
+
+CONTEXT:
+${context}`
+    : `You are the Shop XYZ concierge. ...`;
+}
+```
+
+Hai chi tiết quan trọng: các chunk có nhãn số `[1]`, `[2]`, và model được yêu cầu trích nguồn chúng trong câu trả lời. Cái này không chỉ cho user — đó là bề mặt debug. Khi câu trả lời sai, bạn check model trích `[n]` nào và nhìn đúng chunk đó. Mismatch sẽ cho bạn biết bug ở retrieval (sai chunk trong top-5) hay generation (đúng chunk, đọc sai).
+
+<Callout type="note" title="Công thức retrieval tối thiểu cho tuần một">
+Đừng ship mọi thứ cùng lúc. Thứ tự thực hiện:
+
+1. Vector retrieval thuần, một locale (hôm nay, ~30 phút).
+2. Thêm kênh keyword + RRF (mai, ~1 giờ).
+3. Detect query mixed-language, chạy cả hai locale (ngày 3-4).
+4. Thêm reranking nếu eval set nói có ích (tuần 4).
+
+Mỗi bước test được độc lập. Đừng gộp bước 1 và 4 vào một PR.
+</Callout>
+
+<Recap>
+- **Hybrid > vector đơn.** Vector cho nghĩa, keyword cho chuỗi/mã/viết tắt. Gộp bằng **Reciprocal Rank Fusion** (`1 / (k + rank)`, k=60).
+- **Hai corpus tách rời — `vi` và `en` — filter tại query time.** Tránh trôi nghĩa và bất đối xứng độ tươi. Trường bắt buộc trên mọi chunk.
+- **Query mixed-language nhận cả hai locale.** Detect một lần bằng regex heuristic, fuse bốn danh sách kết quả bằng cùng RRF.
+- **Reranking là tùy chọn và phải đo lường.** Cross-encoder trên top-20 → top-5 thường nâng query khó 5-15%, tốn 150-400 ms. Chỉ ship nếu eval set đồng ý.
+- **Trích nguồn chunk bằng `[n]` trong prompt.** Bề mặt debug khi câu trả lời sai — bạn phân biệt bug retrieval với bug generation chỉ trong một liếc.
+- **Ship theo thứ tự: vector → hybrid → mixed-language → rerank.** Đừng gộp bước.
+</Recap>
+
+</VI>

@@ -1,0 +1,215 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this recap">
+- A mind map of Part VI — the six concepts (embeddings, chunking, indexes, the pgvector/Qdrant decision, hands-on Qdrant, evaluation) that turn "I added a vector DB" into "I run one".
+- The why-when matrix that pre-empts every Part VII decision.
+- A Recap that's also a checklist — if any of these aren't true yet, go back before you start the concierge build.
+</Callout>
+
+Part VI is the *understanding* part. Parts I–V built an internal operator and gave it text, tools, graphs, and a safety story. Part VII builds a customer-facing concierge on top of pgvector — but the moment retrieval matters, *how* you embed, chunk, index, and evaluate determines whether the concierge feels smart or feels broken.
+
+Six lessons gave you the language to make those decisions on purpose.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 520" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map of Part VI: a central node 'Vector DBs &amp; embeddings' with six branches — embeddings, chunking, index types, pgvector vs Qdrant, Qdrant hands-on, eval">
+    <path d="M 360,220 L 360,90"  stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 470,240 L 600,160" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 470,280 L 600,360" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 360,300 L 360,430" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 250,280 L 120,360" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 250,240 L 120,160" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+
+    <rect x="250" y="220" width="220" height="80" rx="14" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="252" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'Vector DBs & embeddings'}</text>
+    <text x="360" y="272" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'the foundation Part VII rests on'}</text>
+    <text x="360" y="290" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'Part VI'}</text>
+
+    <rect x="240" y="30" width="240" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Embeddings 101  ·  L25'}</text>
+    <text x="360" y="76" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'cosine · text-embed-3 / bge-m3'}</text>
+
+    <rect x="480" y="130" width="220" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="590" y="156" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Chunking  ·  L26'}</text>
+    <text x="590" y="176" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'section-aware · 400/60 · metadata'}</text>
+
+    <rect x="480" y="330" width="220" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="590" y="356" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Index types  ·  L27'}</text>
+    <text x="590" y="376" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'flat / IVF / HNSW · ef_search'}</text>
+
+    <rect x="240" y="430" width="240" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="456" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'pgvector vs Qdrant  ·  L28-29'}</text>
+    <text x="360" y="476" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'ops · payload filter · migration path'}</text>
+
+    <rect x="20" y="330" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="356" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Eval  ·  L30'}</text>
+    <text x="120" y="376" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'recall@k · MRR · nightly cron'}</text>
+
+    <rect x="20" y="130" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="156" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Reranker  ·  L30'}</text>
+    <text x="120" y="176" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'bge-reranker · when recall@5 lags'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Six concepts. Decide each on purpose before the concierge build, not in production at 2 a.m.
+  </figcaption>
+</figure>
+
+## How the pieces fit
+
+**Embeddings 101 (L25)** is the bedrock. An embedding is `f(text) → vector`, cosine is the default metric, and the model lineup that matters in 2026 is small: `text-embedding-3-small` for default, `bge-m3` for serious Vietnamese recall. Pick one, store the model name, never mix.
+
+**Chunking strategies (L26)** is the highest-leverage tuning you'll do all year. Section-aware first (markdown has `##` headings — use them), recursive inside large sections, 400 tokens with 60 overlap as the safe default. Capture metadata *at chunk time* — `source, heading, locale, updated_at, expires_at, hash, chunk_idx` — because adding fields later means re-embedding everything.
+
+**Index types (L27)** is where you stop tuning prematurely. Under 50k vectors, flat is correct — perfect recall, zero ops. 50k to 5M, HNSW with defaults (`M=16, ef_construction=64`); tune `ef_search` per query if needed. Past 50M, you're in vector-DB territory.
+
+**pgvector vs Qdrant (L28)** is the architectural fork. pgvector wins by default — one Postgres, one backup, ACID across vectors and orders. Qdrant wins for selective payload filters at scale, multi-tenant, built-in replication. You can start on pgvector and migrate to Qdrant later; it's not a one-way door.
+
+**Qdrant hands-on (L29)** is the *if you do switch* lesson. Docker compose, a collection with payload indexes, deterministic IDs that make upsert idempotent, the payload-filter syntax that justifies the migration, and snapshots that don't pretend to be backups.
+
+**Eval (L30)** is the metric that turns everything else into a decision. 20 rows, recall@k as the headline, MRR when ordering matters, latency on the same graph, nightly cron, alert on regression. Rerankers earn their latency only when `recall@10` is high but `recall@5` is low.
+
+## The decision matrix (one table for Part VII)
+
+| If your situation is … | Then pick … | Why |
+|---|---|---|
+| Postgres-shop, &lt;10M vectors | pgvector + HNSW defaults + `halfvec(1536)` if storage hurts | One database; ACID; ops surface stays flat |
+| &lt;50k vectors, just getting started | pgvector + flat (no index) | Perfect recall, zero tuning, fine until you scale |
+| Hot multi-tenant with strict payload filters | Qdrant + payload indexes | Filter inside HNSW traversal beats SQL post-filter at scale |
+| Mostly English with some Vietnamese | `text-embedding-3-small` | Cheap, hosted, good-enough Vietnamese |
+| Vietnamese-first, recall is bottleneck | `bge-m3` self-hosted via TEI | Best Vietnamese embedding, free if you run it |
+| Need top-tier precision on ambiguous queries | Hybrid (L33) + Cohere `rerank-v3-multilingual` | Reranker reorders when recall has the chunks but rank is wrong |
+| Three tuning knobs to choose between | Chunk size → embedding model → reranker (in that order) | Cheaper, simpler changes first; eval at each step |
+
+## Pre-flight checklist before Part VII
+
+If any of these aren't true, go back to the lesson before starting the concierge build:
+
+- [ ] You can articulate the difference between flat, IVF, and HNSW — and which you'd pick for a 200k-vector corpus.
+- [ ] You have a chunking strategy with a target token size and an overlap percentage you can defend.
+- [ ] You know which embedding model you're going to use *and* you've stored the model name as a column in your schema design.
+- [ ] You've decided pgvector vs Qdrant for the concierge, and you have a migration trigger (a metric crossing a threshold) — not a vibe.
+- [ ] You have an `eval/retrieval.jsonl` with at least 10 rows ready to grow.
+- [ ] You can name the three retrieval metrics (recall@k, MRR, nDCG) and which one you read first.
+
+<Recap>
+- **Embeddings are geometry.** `f(text) → vector`, cosine metric, pick one model and don't mix. `bge-m3` for serious Vietnamese; `text-embedding-3-small` for default.
+- **Chunking is the highest-leverage tuning knob.** Section-aware → recursive → 400/60 → tiktoken-counted → metadata captured at chunk time.
+- **Index by scale.** Flat &lt;50k, HNSW defaults to 5M, `halfvec` past that, vector DB past 50M. Don't tune until eval says to.
+- **pgvector by default, Qdrant when triggered by a metric.** Both can coexist; payload filters and multi-tenant scale push you toward Qdrant.
+- **Qdrant hands-on:** docker compose, deterministic IDs, payload indexes for fields you filter, snapshots tested quarterly.
+- **Eval is the cheapest insurance.** 20 rows, recall@k headline, MRR for rank, latency on the same graph, nightly cron, alert on regression.
+- **Rerankers fix rank, not recall.** Add them when `recall@10` is healthy but `recall@5` lags — never as a substitute for better retrieval.
+</Recap>
+
+**Part VI in one sentence.** You stopped guessing at retrieval. Every embedding, chunk, index, and DB choice in Part VII rests on the numbers your eval set gives you — and when the concierge ships, you'll know *why* it works, not just *that* it works.
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài tổng kết này">
+- Mind map của Phần VI — sáu khái niệm (embedding, chunking, index, quyết định pgvector/Qdrant, hands-on Qdrant, eval) biến "tôi thêm vector DB" thành "tôi vận hành một cái".
+- Ma trận why-when chặn trước mỗi quyết định Phần VII.
+- Recap kiêm checklist — nếu cái nào chưa đúng, quay lại trước khi bắt đầu build concierge.
+</Callout>
+
+Phần VI là phần *hiểu*. Phần I–V dựng operator nội bộ và cho nó text, tool, graph, và câu chuyện safety. Phần VII dựng concierge phục vụ khách trên pgvector — nhưng khi retrieval bắt đầu quan trọng, *cách* bạn embed, chunk, index, và đánh giá quyết định concierge thấy thông minh hay thấy hỏng.
+
+Sáu bài cho bạn ngôn ngữ để ra quyết định có chủ đích.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 520" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map Phần VI: nút trung tâm 'Vector DB &amp; embedding' với sáu nhánh">
+    <path d="M 360,220 L 360,90"  stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 470,240 L 600,160" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 470,280 L 600,360" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 360,300 L 360,430" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 250,280 L 120,360" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+    <path d="M 250,240 L 120,160" stroke="#16a34a" strokeWidth="1.5" fill="none" opacity="0.55" />
+
+    <rect x="250" y="220" width="220" height="80" rx="14" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="252" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'Vector DB & embedding'}</text>
+    <text x="360" y="272" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'nền móng Phần VII đứng trên'}</text>
+    <text x="360" y="290" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'Phần VI'}</text>
+
+    <rect x="240" y="30" width="240" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Embedding 101  ·  L25'}</text>
+    <text x="360" y="76" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'cosine · text-embed-3 / bge-m3'}</text>
+
+    <rect x="480" y="130" width="220" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="590" y="156" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Chunking  ·  L26'}</text>
+    <text x="590" y="176" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'section-aware · 400/60 · metadata'}</text>
+
+    <rect x="480" y="330" width="220" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="590" y="356" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Kiểu index  ·  L27'}</text>
+    <text x="590" y="376" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'flat / IVF / HNSW · ef_search'}</text>
+
+    <rect x="240" y="430" width="240" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="456" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'pgvector vs Qdrant  ·  L28-29'}</text>
+    <text x="360" y="476" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'ops · payload filter · đường migration'}</text>
+
+    <rect x="20" y="330" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="356" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Eval  ·  L30'}</text>
+    <text x="120" y="376" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'recall@k · MRR · cron đêm'}</text>
+
+    <rect x="20" y="130" width="200" height="60" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="120" y="156" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Reranker  ·  L30'}</text>
+    <text x="120" y="176" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.75">{'bge-reranker · khi recall@5 thua'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Sáu khái niệm. Quyết định có chủ đích trước khi build concierge, không phải ở production lúc 2 giờ sáng.
+  </figcaption>
+</figure>
+
+## Các mảnh ghép vào nhau
+
+**Embedding 101 (L25)** là nền đá. Embedding là `f(text) → vector`, cosine là metric mặc định, và danh sách model quan trọng năm 2026 nhỏ: `text-embedding-3-small` cho mặc định, `bge-m3` cho recall tiếng Việt nghiêm túc. Chọn một, lưu tên model, không bao giờ mix.
+
+**Chiến lược chunking (L26)** là núm tune có đòn bẩy cao nhất bạn làm cả năm. Section-aware trước (markdown có `##` heading — dùng), recursive bên trong section lớn, 400 token với overlap 60 là mặc định an toàn. Bắt metadata *lúc chunk* — `source, heading, locale, updated_at, expires_at, hash, chunk_idx` — vì thêm field sau = re-embed mọi thứ.
+
+**Kiểu index (L27)** là chỗ bạn dừng tune sớm. Dưới 50k vector, flat đúng — recall hoàn hảo, zero ops. 50k đến 5M, HNSW mặc định (`M=16, ef_construction=64`); tune `ef_search` mỗi query nếu cần. Qua 50M, bạn vào lãnh thổ vector DB.
+
+**pgvector vs Qdrant (L28)** là ngã rẽ kiến trúc. pgvector thắng mặc định — một Postgres, một backup, ACID xuyên vector và orders. Qdrant thắng cho payload filter chọn lọc ở scale, multi-tenant, replication built-in. Bạn có thể bắt đầu pgvector và migrate Qdrant sau; không phải cửa một chiều.
+
+**Qdrant hands-on (L29)** là bài *nếu bạn chuyển*. Docker compose, collection với payload index, ID deterministic làm upsert idempotent, cú pháp payload-filter biện minh cho migration, và snapshot không giả vờ làm backup.
+
+**Eval (L30)** là metric biến mọi thứ khác thành quyết định. 20 dòng, recall@k là headline, MRR khi thứ tự quan trọng, latency cùng biểu đồ, cron đêm, alert regression. Reranker trả công latency chỉ khi `recall@10` cao nhưng `recall@5` thấp.
+
+## Ma trận quyết định (một bảng cho Phần VII)
+
+| Nếu hoàn cảnh của bạn là … | Thì chọn … | Vì sao |
+|---|---|---|
+| Shop Postgres, &lt;10M vector | pgvector + HNSW mặc định + `halfvec(1536)` nếu storage đau | Một database; ACID; ops surface phẳng |
+| &lt;50k vector, mới bắt đầu | pgvector + flat (không index) | Recall hoàn hảo, zero tune, ổn tới khi scale |
+| Multi-tenant nóng với payload filter nghiêm | Qdrant + payload index | Filter trong HNSW traversal thắng SQL post-filter ở scale |
+| Đa số tiếng Anh có chút tiếng Việt | `text-embedding-3-small` | Rẻ, hosted, tiếng Việt đủ tốt |
+| Việt-trước, recall là bottleneck | `bge-m3` self-host qua TEI | Embedding tiếng Việt tốt nhất, miễn phí nếu tự chạy |
+| Cần precision top trên query mơ hồ | Hybrid (L33) + Cohere `rerank-v3-multilingual` | Reranker re-order khi recall có chunk nhưng rank sai |
+| Ba núm tune để chọn giữa | Chunk size → embedding model → reranker (theo thứ tự đó) | Thay đổi rẻ, đơn giản trước; eval ở mỗi bước |
+
+## Checklist trước khi vào Phần VII
+
+Nếu cái nào chưa đúng, quay lại bài trước khi bắt đầu build concierge:
+
+- [ ] Bạn nói rõ khác biệt giữa flat, IVF, HNSW — và chọn cái nào cho corpus 200k vector.
+- [ ] Bạn có chiến lược chunking với token size mục tiêu và phần trăm overlap biện minh được.
+- [ ] Bạn biết model embedding nào sẽ dùng *và* đã lưu tên model làm cột trong schema design.
+- [ ] Bạn quyết định pgvector vs Qdrant cho concierge, và có trigger migration (metric vượt ngưỡng) — không phải cảm giác.
+- [ ] Bạn có `eval/retrieval.jsonl` với ít nhất 10 dòng sẵn sàng lớn lên.
+- [ ] Bạn gọi tên được ba metric retrieval (recall@k, MRR, nDCG) và cái nào đọc trước.
+
+<Recap>
+- **Embedding là hình học.** `f(text) → vector`, metric cosine, chọn một model và không mix. `bge-m3` cho tiếng Việt nghiêm túc; `text-embedding-3-small` cho mặc định.
+- **Chunking là núm tune đòn bẩy cao nhất.** Section-aware → recursive → 400/60 → đếm tiktoken → metadata bắt lúc chunk.
+- **Index theo scale.** Flat &lt;50k, HNSW mặc định tới 5M, `halfvec` qua đó, vector DB qua 50M. Đừng tune cho tới khi eval bảo.
+- **pgvector mặc định, Qdrant khi trigger bằng metric.** Cả hai cùng tồn tại được; payload filter và scale multi-tenant đẩy bạn về Qdrant.
+- **Qdrant hands-on:** docker compose, ID deterministic, payload index cho field filter, snapshot test mỗi quý.
+- **Eval là bảo hiểm rẻ nhất.** 20 dòng, recall@k headline, MRR cho rank, latency cùng biểu đồ, cron đêm, alert regression.
+- **Reranker sửa rank, không sửa recall.** Thêm khi `recall@10` khoẻ nhưng `recall@5` thua — không bao giờ thay cho retrieval tốt hơn.
+</Recap>
+
+**Phần VI trong một câu.** Bạn dừng đoán retrieval. Mỗi lựa chọn embedding, chunk, index, DB ở Phần VII dựa trên số mà eval set của bạn cho — và khi concierge ship, bạn sẽ biết *vì sao* nó hoạt động, không chỉ *rằng* nó hoạt động.
+
+</VI>

@@ -1,0 +1,611 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- `docker-compose up` and you have a vector DB on your laptop — three lines of YAML.
+- Creating a collection: vectors + payload + the HNSW knobs from L27 in one config call.
+- Upserting from the same `knowledge/` markdown corpus the concierge uses, so this lesson plugs into your existing data flow.
+- Payload filters — the reason you'd pick Qdrant over pgvector — with a real example you can copy.
+- Snapshots and restores: how Qdrant backups actually work in production.
+</Callout>
+
+If L28 talked you into trying Qdrant for a real workload — or you just want to see the hands-on side of vector-native storage — this lesson walks you from zero to a working Qdrant instance, a populated collection, and a filterable hybrid query. Same dataset as the concierge in L32, same Vietnamese FAQ files, different storage engine.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 380" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Qdrant collection: a points box with vectors + payload, with filtered HNSW query showing how the payload filter narrows the graph traversal">
+    <rect x="20"  y="40" width="180" height="280" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="110" y="68" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'knowledge/ → upsert'}</text>
+    <text x="110" y="92" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'point {'}</text>
+    <text x="110" y="108" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  id: hash(source+idx),'}</text>
+    <text x="110" y="124" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  vector: [0.12, ...],'}</text>
+    <text x="110" y="140" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  payload: {'}</text>
+    <text x="110" y="156" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"    source: 'faq.md',"}</text>
+    <text x="110" y="172" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"    locale: 'vi',"}</text>
+    <text x="110" y="188" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"    category: 'returns',"}</text>
+    <text x="110" y="204" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"    updated_at: '...',"}</text>
+    <text x="110" y="220" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  }'}</text>
+    <text x="110" y="236" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'}'}</text>
+    <text x="110" y="270" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.6">{'4000 points,'}</text>
+    <text x="110" y="284" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.6">{'1536-dim,'}</text>
+    <text x="110" y="298" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.6">{'cosine'}</text>
+
+    <path d="M 205,180 L 245,180" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a29)" opacity="0.7" fill="none" />
+
+    <rect x="250" y="40" width="220" height="280" rx="10" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="68" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Qdrant collection'}</text>
+    <text x="360" y="86" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'concierge_kb'}</text>
+
+    <text x="360" y="118" textAnchor="middle" fontSize="11" fontWeight="700" fill="currentColor">{'HNSW index'}</text>
+    <text x="360" y="134" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'m=16, ef_construct=64'}</text>
+
+    <text x="360" y="166" textAnchor="middle" fontSize="11" fontWeight="700" fill="currentColor">{'Payload index ★'}</text>
+    <text x="360" y="182" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'locale, category, updated_at'}</text>
+
+    <text x="360" y="220" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'filter applied during'}</text>
+    <text x="360" y="234" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'HNSW traversal,'}</text>
+    <text x="360" y="248" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'not post-hoc'}</text>
+
+    <rect x="280" y="270" width="160" height="36" rx="6" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="284" textAnchor="middle" fontSize="10" fontWeight="700" fill="#16a34a">{'snapshots → S3'}</text>
+    <text x="360" y="298" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.7">{'nightly cron'}</text>
+
+    <path d="M 475,180 L 515,180" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a29)" opacity="0.7" fill="none" />
+
+    <rect x="520" y="60" width="180" height="240" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="610" y="88" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Query'}</text>
+    <text x="610" y="116" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"vector: embed('trả'),"}</text>
+    <text x="610" y="132" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'filter: {'}</text>
+    <text x="610" y="148" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"  locale: 'vi',"}</text>
+    <text x="610" y="164" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  category: ['}</text>
+    <text x="610" y="180" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"    'returns',"}</text>
+    <text x="610" y="196" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"    'refunds'"}</text>
+    <text x="610" y="212" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  ],'}</text>
+    <text x="610" y="228" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  updated_at: { gte: ... }'}</text>
+    <text x="610" y="244" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'},'}</text>
+    <text x="610" y="260" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'limit: 10'}</text>
+    <text x="610" y="284" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'~3 ms, ~10 results'}</text>
+
+    <defs>
+      <marker id="a29" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.7" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Same markdown corpus, upserted as Qdrant points. The payload filter narrows the HNSW search at index-traversal time — the lesson L28 promised would matter.
+  </figcaption>
+</figure>
+
+## 01 — Docker compose: three lines and you're running
+
+Local dev or VPS — same image, same config:
+
+```yaml
+# docker-compose.yml
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.13.0
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:6333:6333'   # REST API
+      - '127.0.0.1:6334:6334'   # gRPC (faster for bulk upsert)
+    volumes:
+      - qdrant-data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}   # set in .env, never blank in prod
+volumes:
+  qdrant-data:
+```
+
+```powershell
+docker compose up -d
+curl http://127.0.0.1:6333/collections    # should return { result: { collections: [] }, ... }
+```
+
+The `127.0.0.1:` prefix matters — same rule as L37 for pgvector. Qdrant has no role-based auth, only a single API key. Without `API_KEY`, *anyone* on the network can read and write your vectors.
+
+For local dev, you can omit the API key; for the VPS, never. Add it to `.env` and require it on every request:
+
+```ts
+// src/lib/qdrant.ts
+import { QdrantClient } from '@qdrant/js-client-rest';
+
+export const qdrant = new QdrantClient({
+  url: process.env.QDRANT_URL ?? 'http://127.0.0.1:6333',
+  apiKey: process.env.QDRANT_API_KEY,    // required in prod
+});
+```
+
+## 02 — Create the collection
+
+A Qdrant *collection* is the equivalent of one pgvector table. You declare the vector dimension, the metric, and the HNSW knobs at create time:
+
+```ts
+// scripts/qdrant-init.ts
+import { qdrant } from '@/lib/qdrant';
+
+await qdrant.createCollection('concierge_kb', {
+  vectors: {
+    size: 1536,                          // text-embedding-3-small
+    distance: 'Cosine',                  // 'Cosine' | 'Dot' | 'Euclid'
+  },
+  hnsw_config: {
+    m: 16,                                // L27 defaults
+    ef_construct: 64,
+  },
+  optimizers_config: {
+    default_segment_number: 2,           // small corpus
+  },
+  on_disk_payload: true,                 // payload from disk; vectors stay in RAM
+});
+
+// Add payload indexes for the fields you'll filter on
+await qdrant.createPayloadIndex('concierge_kb', { field_name: 'locale',     field_schema: 'keyword' });
+await qdrant.createPayloadIndex('concierge_kb', { field_name: 'category',   field_schema: 'keyword' });
+await qdrant.createPayloadIndex('concierge_kb', { field_name: 'updated_at', field_schema: 'datetime' });
+```
+
+The payload indexes are what make filters fast. Without them, Qdrant scans every point's payload to evaluate the filter — slow at scale. **Index the fields you'll filter on, skip the rest.**
+
+<Callout type="tip" title="Café analogy">
+A Qdrant collection is the cabinet of recipe cards in a café. Each card is one point: the recipe text (payload) plus a barcode of flavour-vectors (the embedding). The HNSW index is the index tabs on the cabinet — flip to the right section fast. The payload indexes are the colour-coded stickers on each card — *"all the gluten-free starters from this season"* is a flick through one colour, not a re-read of every card.
+</Callout>
+
+## 03 — Upsert from `knowledge/`
+
+The ingestion script reuses the chunking from L32 (section-aware + recursive overlap, tiktoken-counted). Only the storage step changes:
+
+```ts
+// scripts/qdrant-ingest.ts
+import { glob } from 'glob';
+import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { qdrant } from '@/lib/qdrant';
+import { chunkBySections } from '@/lib/chunk';        // from L26 / L32
+import { embedBatch } from '@/lib/embeddings';        // text-embedding-3-small
+
+const COLLECTION = 'concierge_kb';
+const BATCH = 64;                                       // tune for memory; 64 is safe
+
+for (const file of await glob('knowledge/**/*.md')) {
+  const raw = await readFile(file, 'utf8');
+  const chunks = chunkBySections(raw, { maxTokens: 400, overlap: 60 });
+
+  for (let i = 0; i < chunks.length; i += BATCH) {
+    const slice = chunks.slice(i, i + BATCH);
+    const vectors = await embedBatch(slice.map((c) => c.content));
+
+    await qdrant.upsert(COLLECTION, {
+      wait: true,                                       // wait for write to flush
+      points: slice.map((chunk, j) => ({
+        id: createHash('sha1').update(`${file}#${chunk.idx}`).digest('hex').slice(0, 16),
+        vector: vectors[j],
+        payload: {
+          source:     file,
+          heading:    chunk.heading,
+          locale:     chunk.locale,                     // 'vi' | 'en'
+          category:   chunk.frontmatter.category,
+          chunk_idx:  chunk.idx,
+          content:    chunk.content,                    // store the text — payload, not vector
+          updated_at: new Date().toISOString(),
+          hash:       createHash('sha256').update(chunk.content).digest('hex'),
+        },
+      })),
+    });
+  }
+  console.log(`upserted ${chunks.length} chunks from ${file}`);
+}
+```
+
+Note the `id` is a *deterministic* hash of `source + chunk_idx` — re-running the script on an unchanged file upserts the same IDs and Qdrant overwrites in place. **No DELETE-before-INSERT needed**; Qdrant's upsert *is* idempotent on stable IDs.
+
+For changed files you still want to remove orphaned chunks (the source got shorter). The pattern:
+
+```ts
+await qdrant.delete(COLLECTION, {
+  filter: { must: [{ key: 'source', match: { value: file } }] },
+});
+// then upsert the new chunks
+```
+
+Run delete-then-upsert per file inside a small concurrency limit — Qdrant handles parallel upserts well via gRPC.
+
+## 04 — The payload filter that makes Qdrant earn its keep
+
+This is the query pattern L28 sold you on. The filter narrows the HNSW search *during* traversal, not after — so on a 10M-point collection with a selective filter, you get a sub-10 ms query instead of "10 ms vector search + 200 ms post-filter":
+
+```ts
+const queryVector = await embed('có trả hàng sau khi mặc 1 lần được không?');
+
+const results = await qdrant.search(COLLECTION, {
+  vector: queryVector,
+  filter: {
+    must: [
+      { key: 'locale',   match: { value: 'vi' } },
+      { key: 'category', match: { any: ['returns', 'refunds'] } },
+    ],
+    must_not: [
+      { key: 'expires_at', range: { lt: new Date().toISOString() } },
+    ],
+  },
+  limit: 10,
+  with_payload: true,                       // return the chunk text, not just IDs
+  score_threshold: 0.5,                     // optional: drop weak matches
+  params: {
+    hnsw_ef: 80,                            // L27's ef_search; higher = better recall, slower
+  },
+});
+
+for (const hit of results) {
+  console.log(hit.score, hit.payload.heading, '|', hit.payload.content.slice(0, 80));
+}
+```
+
+The filter syntax is verbose but composable. `must` is AND, `should` is OR (and contributes to score if you set boost), `must_not` is NAND. You'll mainly use `must` + `must_not` for hard filters and `should` only when you want soft preferences.
+
+For the concierge: pre-filter by `locale` and `category`, exclude expired content, return top-10 with `score_threshold` set just high enough to drop irrelevant noise. That's the recipe.
+
+## 05 — Snapshots and restores
+
+Backups are the part most "I tried a new vector DB" blog posts skip. Qdrant's snapshot API is straightforward — but you do need to wire it up yourself.
+
+**Create a snapshot:**
+
+```bash
+curl -X POST 'http://127.0.0.1:6333/collections/concierge_kb/snapshots' \
+  -H "api-key: ${QDRANT_API_KEY}"
+# → { result: { name: 'concierge_kb-1234567890.snapshot', ... }, status: 'ok' }
+```
+
+The snapshot is a tarball at `/qdrant/storage/snapshots/concierge_kb/<name>.snapshot`. Ship it off-host with a nightly cron:
+
+```bash
+# /etc/cron.daily/qdrant-backup
+#!/usr/bin/env bash
+set -euo pipefail
+SNAP=$(curl -fsS -X POST \
+  -H "api-key: ${QDRANT_API_KEY}" \
+  http://127.0.0.1:6333/collections/concierge_kb/snapshots | jq -r .result.name)
+aws s3 cp "/var/lib/qdrant/snapshots/concierge_kb/${SNAP}" \
+  "s3://concierge-backups/qdrant/$(date +%Y-%m-%d)/${SNAP}" \
+  --storage-class STANDARD_IA
+# keep last 14 days on disk
+find /var/lib/qdrant/snapshots/concierge_kb -mtime +14 -delete
+```
+
+**Restore on a fresh instance:**
+
+```bash
+# 1. drop the snapshot file into the new node's storage dir
+# 2. recover from it
+curl -X PUT 'http://127.0.0.1:6333/collections/concierge_kb/snapshots/recover' \
+  -H "api-key: ${QDRANT_API_KEY}" \
+  -H 'Content-Type: application/json' \
+  -d '{"location": "file:///qdrant/storage/snapshots/concierge_kb/concierge_kb-XXX.snapshot"}'
+```
+
+Test the restore path *before* you need it. Spin up a second container, restore last night's snapshot, run your eval set against it (L30) — if recall@5 matches production, the backup is real. Untested backups are theatre.
+
+<Callout type="warning" title="Don't run Qdrant on the same RAM budget as Postgres">
+Qdrant wants the HNSW index in RAM. A 1M-point 1536-dim collection with default HNSW is ~10 GB resident. If your VPS has 16 GB and you're also running Postgres + Next.js + Redis, Qdrant will OOM-kill them. Size your box to *both* services' working set, not just one.
+</Callout>
+
+<Recap>
+- `docker compose up` and you have Qdrant on `127.0.0.1:6333` (REST) and `:6334` (gRPC). Always bind to localhost, always set an API key in prod.
+- A collection declares vector size + metric + HNSW knobs at create time. **Add payload indexes for fields you'll filter on** — that's what makes filtered queries fast.
+- Upsert from the same `knowledge/` markdown using a deterministic ID (`hash(source + chunk_idx)`) — re-runs overwrite in place; no DELETE-before-INSERT dance needed.
+- The payload filter (`must`, `must_not`, `should`) narrows search *inside* the HNSW traversal — the killer feature L28 promised.
+- Snapshots go via the REST API; ship them off-host nightly via cron + S3; test the restore quarterly. Untested backups are theatre.
+- Size your VPS for both Postgres-class services *and* Qdrant's in-RAM HNSW — they don't share the same memory budget.
+</Recap>
+
+Next: eval. You've built two retrieval stacks now — pgvector and Qdrant. How do you know which one's *actually* better for your corpus?
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- `docker-compose up` và bạn có vector DB trên laptop — ba dòng YAML.
+- Tạo collection: vector + payload + núm HNSW từ L27 trong một config.
+- Upsert từ cùng corpus markdown `knowledge/` mà concierge dùng, để bài này cắm vào data flow có sẵn.
+- Payload filter — lý do bạn chọn Qdrant thay vì pgvector — với ví dụ thật copy được.
+- Snapshot và restore: backup Qdrant thực sự hoạt động ra sao trong production.
+</Callout>
+
+Nếu L28 đã thuyết phục bạn thử Qdrant cho workload thật — hoặc chỉ muốn thấy mặt hands-on của storage vector-native — bài này dẫn bạn từ zero tới Qdrant chạy được, collection có data, và filtered hybrid query. Cùng dataset với concierge ở L32, cùng file FAQ tiếng Việt, engine lưu trữ khác.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 380" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Collection Qdrant: hộp point có vector + payload, với query filtered HNSW">
+    <rect x="20"  y="40" width="180" height="280" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="110" y="68" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'knowledge/ → upsert'}</text>
+    <text x="110" y="92" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'point {'}</text>
+    <text x="110" y="108" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  id: hash(source+idx),'}</text>
+    <text x="110" y="124" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  vector: [0.12, ...],'}</text>
+    <text x="110" y="140" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  payload: {'}</text>
+    <text x="110" y="156" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"    source: 'faq.md',"}</text>
+    <text x="110" y="172" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"    locale: 'vi',"}</text>
+    <text x="110" y="188" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"    category: 'returns',"}</text>
+    <text x="110" y="204" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"    updated_at: '...',"}</text>
+    <text x="110" y="220" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  }'}</text>
+    <text x="110" y="236" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'}'}</text>
+    <text x="110" y="270" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.6">{'4000 point,'}</text>
+    <text x="110" y="284" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.6">{'1536-dim,'}</text>
+    <text x="110" y="298" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.6">{'cosine'}</text>
+
+    <path d="M 205,180 L 245,180" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a29vi)" opacity="0.7" fill="none" />
+
+    <rect x="250" y="40" width="220" height="280" rx="10" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="68" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Collection Qdrant'}</text>
+    <text x="360" y="86" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'concierge_kb'}</text>
+
+    <text x="360" y="118" textAnchor="middle" fontSize="11" fontWeight="700" fill="currentColor">{'Index HNSW'}</text>
+    <text x="360" y="134" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'m=16, ef_construct=64'}</text>
+
+    <text x="360" y="166" textAnchor="middle" fontSize="11" fontWeight="700" fill="currentColor">{'Index payload ★'}</text>
+    <text x="360" y="182" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'locale, category, updated_at'}</text>
+
+    <text x="360" y="220" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'filter áp dụng'}</text>
+    <text x="360" y="234" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'trong lúc HNSW đi,'}</text>
+    <text x="360" y="248" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.55">{'không phải sau'}</text>
+
+    <rect x="280" y="270" width="160" height="36" rx="6" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="284" textAnchor="middle" fontSize="10" fontWeight="700" fill="#16a34a">{'snapshot → S3'}</text>
+    <text x="360" y="298" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.7">{'cron đêm'}</text>
+
+    <path d="M 475,180 L 515,180" stroke="#16a34a" strokeWidth="1.8" markerEnd="url(#a29vi)" opacity="0.7" fill="none" />
+
+    <rect x="520" y="60" width="180" height="240" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="610" y="88" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Query'}</text>
+    <text x="610" y="116" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"vector: embed('trả'),"}</text>
+    <text x="610" y="132" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'filter: {'}</text>
+    <text x="610" y="148" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"  locale: 'vi',"}</text>
+    <text x="610" y="164" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  category: ['}</text>
+    <text x="610" y="180" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"    'returns',"}</text>
+    <text x="610" y="196" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{"    'refunds'"}</text>
+    <text x="610" y="212" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  ],'}</text>
+    <text x="610" y="228" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'  updated_at: { gte: ... }'}</text>
+    <text x="610" y="244" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'},'}</text>
+    <text x="610" y="260" textAnchor="middle" fontSize="10" fontFamily="monospace" fill="currentColor" opacity="0.75">{'limit: 10'}</text>
+    <text x="610" y="284" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'~3 ms, ~10 kết quả'}</text>
+
+    <defs>
+      <marker id="a29vi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" opacity="0.7" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Cùng corpus markdown, upsert thành point Qdrant. Payload filter thu hẹp search HNSW lúc index-traversal — bài học L28 hứa sẽ quan trọng.
+  </figcaption>
+</figure>
+
+## 01 — Docker compose: ba dòng và bạn chạy được
+
+Dev local hay VPS — cùng image, cùng config:
+
+```yaml
+# docker-compose.yml
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.13.0
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:6333:6333'   # API REST
+      - '127.0.0.1:6334:6334'   # gRPC (nhanh hơn cho bulk upsert)
+    volumes:
+      - qdrant-data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}   # set trong .env, không bao giờ blank ở prod
+volumes:
+  qdrant-data:
+```
+
+```powershell
+docker compose up -d
+curl http://127.0.0.1:6333/collections    # nên trả { result: { collections: [] }, ... }
+```
+
+Prefix `127.0.0.1:` quan trọng — cùng rule L37 cho pgvector. Qdrant không có role-based auth, chỉ một API key duy nhất. Không `API_KEY`, *bất kỳ ai* trên mạng đọc và ghi vector của bạn.
+
+Dev local có thể bỏ API key; VPS thì không bao giờ. Thêm vào `.env` và require mỗi request:
+
+```ts
+// src/lib/qdrant.ts
+import { QdrantClient } from '@qdrant/js-client-rest';
+
+export const qdrant = new QdrantClient({
+  url: process.env.QDRANT_URL ?? 'http://127.0.0.1:6333',
+  apiKey: process.env.QDRANT_API_KEY,    // bắt buộc ở prod
+});
+```
+
+## 02 — Tạo collection
+
+Một *collection* Qdrant tương đương một bảng pgvector. Bạn khai báo vector dimension, metric, và núm HNSW lúc create:
+
+```ts
+// scripts/qdrant-init.ts
+import { qdrant } from '@/lib/qdrant';
+
+await qdrant.createCollection('concierge_kb', {
+  vectors: {
+    size: 1536,                          // text-embedding-3-small
+    distance: 'Cosine',                  // 'Cosine' | 'Dot' | 'Euclid'
+  },
+  hnsw_config: {
+    m: 16,                                // mặc định L27
+    ef_construct: 64,
+  },
+  optimizers_config: {
+    default_segment_number: 2,           // corpus nhỏ
+  },
+  on_disk_payload: true,                 // payload từ disk; vector ở RAM
+});
+
+// Thêm payload index cho field bạn sẽ filter
+await qdrant.createPayloadIndex('concierge_kb', { field_name: 'locale',     field_schema: 'keyword' });
+await qdrant.createPayloadIndex('concierge_kb', { field_name: 'category',   field_schema: 'keyword' });
+await qdrant.createPayloadIndex('concierge_kb', { field_name: 'updated_at', field_schema: 'datetime' });
+```
+
+Payload index là cái làm filter nhanh. Không có, Qdrant scan payload mọi point để eval filter — chậm ở scale. **Index field bạn sẽ filter, bỏ qua phần còn lại.**
+
+<Callout type="tip" title="Ẩn dụ quán cà phê">
+Một collection Qdrant là tủ thẻ công thức trong quán cà phê. Mỗi thẻ là một point: text công thức (payload) cộng mã vạch vị (embedding). Index HNSW là tab index trên tủ — lật tới đúng section nhanh. Payload index là sticker màu trên mỗi thẻ — *"mọi món khai vị gluten-free mùa này"* là một cú flick qua một màu, không phải đọc lại mọi thẻ.
+</Callout>
+
+## 03 — Upsert từ `knowledge/`
+
+Script ingestion tái dùng chunking từ L32 (section-aware + recursive overlap, đếm tiktoken). Chỉ bước lưu thay đổi:
+
+```ts
+// scripts/qdrant-ingest.ts
+import { glob } from 'glob';
+import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { qdrant } from '@/lib/qdrant';
+import { chunkBySections } from '@/lib/chunk';        // từ L26 / L32
+import { embedBatch } from '@/lib/embeddings';        // text-embedding-3-small
+
+const COLLECTION = 'concierge_kb';
+const BATCH = 64;                                       // tune cho memory; 64 an toàn
+
+for (const file of await glob('knowledge/**/*.md')) {
+  const raw = await readFile(file, 'utf8');
+  const chunks = chunkBySections(raw, { maxTokens: 400, overlap: 60 });
+
+  for (let i = 0; i < chunks.length; i += BATCH) {
+    const slice = chunks.slice(i, i + BATCH);
+    const vectors = await embedBatch(slice.map((c) => c.content));
+
+    await qdrant.upsert(COLLECTION, {
+      wait: true,                                       // chờ write flush
+      points: slice.map((chunk, j) => ({
+        id: createHash('sha1').update(`${file}#${chunk.idx}`).digest('hex').slice(0, 16),
+        vector: vectors[j],
+        payload: {
+          source:     file,
+          heading:    chunk.heading,
+          locale:     chunk.locale,                     // 'vi' | 'en'
+          category:   chunk.frontmatter.category,
+          chunk_idx:  chunk.idx,
+          content:    chunk.content,                    // lưu text — payload, không phải vector
+          updated_at: new Date().toISOString(),
+          hash:       createHash('sha256').update(chunk.content).digest('hex'),
+        },
+      })),
+    });
+  }
+  console.log(`upserted ${chunks.length} chunk từ ${file}`);
+}
+```
+
+Chú ý `id` là hash *deterministic* của `source + chunk_idx` — re-chạy script trên file không đổi upsert cùng ID và Qdrant overwrite tại chỗ. **Không cần DELETE-trước-INSERT**; upsert của Qdrant *là* idempotent trên ID ổn định.
+
+Cho file đã đổi bạn vẫn muốn xoá chunk mồ côi (source ngắn hơn). Pattern:
+
+```ts
+await qdrant.delete(COLLECTION, {
+  filter: { must: [{ key: 'source', match: { value: file } }] },
+});
+// rồi upsert chunk mới
+```
+
+Chạy delete-rồi-upsert mỗi file trong concurrency giới hạn nhỏ — Qdrant xử lý upsert song song tốt qua gRPC.
+
+## 04 — Payload filter làm Qdrant xứng công
+
+Đây là pattern query L28 bán cho bạn. Filter thu hẹp search HNSW *trong* lúc traverse, không phải sau — nên trên collection 10M point với filter chọn lọc, bạn được query dưới 10 ms thay vì "10 ms vector search + 200 ms post-filter":
+
+```ts
+const queryVector = await embed('có trả hàng sau khi mặc 1 lần được không?');
+
+const results = await qdrant.search(COLLECTION, {
+  vector: queryVector,
+  filter: {
+    must: [
+      { key: 'locale',   match: { value: 'vi' } },
+      { key: 'category', match: { any: ['returns', 'refunds'] } },
+    ],
+    must_not: [
+      { key: 'expires_at', range: { lt: new Date().toISOString() } },
+    ],
+  },
+  limit: 10,
+  with_payload: true,                       // trả text chunk, không chỉ ID
+  score_threshold: 0.5,                     // tuỳ chọn: bỏ match yếu
+  params: {
+    hnsw_ef: 80,                            // ef_search L27; cao hơn = recall tốt, chậm
+  },
+});
+
+for (const hit of results) {
+  console.log(hit.score, hit.payload.heading, '|', hit.payload.content.slice(0, 80));
+}
+```
+
+Cú pháp filter dài dòng nhưng compose được. `must` là AND, `should` là OR (và đóng góp vào score nếu set boost), `must_not` là NAND. Chủ yếu bạn dùng `must` + `must_not` cho hard filter và `should` chỉ khi muốn ưu tiên mềm.
+
+Cho concierge: pre-filter theo `locale` và `category`, loại trừ nội dung hết hạn, trả top-10 với `score_threshold` đủ cao để bỏ noise. Đó là công thức.
+
+## 05 — Snapshot và restore
+
+Backup là phần nhiều blog "tôi thử vector DB mới" skip. API snapshot của Qdrant đơn giản — nhưng phải tự wire.
+
+**Tạo snapshot:**
+
+```bash
+curl -X POST 'http://127.0.0.1:6333/collections/concierge_kb/snapshots' \
+  -H "api-key: ${QDRANT_API_KEY}"
+# → { result: { name: 'concierge_kb-1234567890.snapshot', ... }, status: 'ok' }
+```
+
+Snapshot là tarball ở `/qdrant/storage/snapshots/concierge_kb/<name>.snapshot`. Ship off-host với cron đêm:
+
+```bash
+# /etc/cron.daily/qdrant-backup
+#!/usr/bin/env bash
+set -euo pipefail
+SNAP=$(curl -fsS -X POST \
+  -H "api-key: ${QDRANT_API_KEY}" \
+  http://127.0.0.1:6333/collections/concierge_kb/snapshots | jq -r .result.name)
+aws s3 cp "/var/lib/qdrant/snapshots/concierge_kb/${SNAP}" \
+  "s3://concierge-backups/qdrant/$(date +%Y-%m-%d)/${SNAP}" \
+  --storage-class STANDARD_IA
+# giữ 14 ngày cuối trên disk
+find /var/lib/qdrant/snapshots/concierge_kb -mtime +14 -delete
+```
+
+**Restore trên instance mới:**
+
+```bash
+# 1. thả file snapshot vào storage dir của node mới
+# 2. recover từ nó
+curl -X PUT 'http://127.0.0.1:6333/collections/concierge_kb/snapshots/recover' \
+  -H "api-key: ${QDRANT_API_KEY}" \
+  -H 'Content-Type: application/json' \
+  -d '{"location": "file:///qdrant/storage/snapshots/concierge_kb/concierge_kb-XXX.snapshot"}'
+```
+
+Test path restore *trước khi* cần. Spin up container thứ hai, restore snapshot đêm qua, chạy eval set lên (L30) — nếu recall@5 match production, backup là thật. Backup không test là sân khấu.
+
+<Callout type="warning" title="Đừng chạy Qdrant trên cùng ngân sách RAM với Postgres">
+Qdrant muốn index HNSW trong RAM. Collection 1M point 1536-dim với HNSW mặc định khoảng 10 GB resident. Nếu VPS có 16 GB và bạn cũng đang chạy Postgres + Next.js + Redis, Qdrant sẽ OOM-kill chúng. Size box cho working set của *cả hai* service, không chỉ một.
+</Callout>
+
+<Recap>
+- `docker compose up` và bạn có Qdrant trên `127.0.0.1:6333` (REST) và `:6334` (gRPC). Luôn bind localhost, luôn set API key ở prod.
+- Một collection khai báo size vector + metric + núm HNSW lúc create. **Thêm payload index cho field bạn sẽ filter** — đó là cái làm filtered query nhanh.
+- Upsert từ cùng markdown `knowledge/` dùng ID deterministic (`hash(source + chunk_idx)`) — re-chạy overwrite tại chỗ; không cần điệu nhảy DELETE-trước-INSERT.
+- Payload filter (`must`, `must_not`, `should`) thu hẹp search *bên trong* traversal HNSW — killer feature L28 hứa.
+- Snapshot qua API REST; ship off-host đêm qua cron + S3; test restore mỗi quý. Backup không test là sân khấu.
+- Size VPS cho cả service tầm Postgres *và* HNSW in-RAM của Qdrant — chúng không chia cùng ngân sách memory.
+</Recap>
+
+Tiếp: eval. Bạn đã build hai stack retrieval — pgvector và Qdrant. Làm sao biết cái nào *thực sự* tốt hơn cho corpus của bạn?
+
+</VI>

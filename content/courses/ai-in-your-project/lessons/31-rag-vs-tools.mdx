@@ -1,0 +1,373 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- The two ways an LLM "gets information": **RAG** (semantic search over text) and **tool calling** (function calls into your code).
+- The decision rule that picks one over the other in under thirty seconds — based on the **shape** of the data, not the topic.
+- The hybrid pattern that a real concierge uses: RAG for policy and product copy, tools for stock and orders, and one system prompt that gates them cleanly.
+</Callout>
+
+Part 1 to 5 of this course taught you tool calling as the *only* way an agent reaches into your app. That was true for the lapsed-customer workflow — every piece of data the agent touched lived in a structured table. The moment you build a customer-facing concierge, the assumption breaks. A shopper asks *"chính sách đổi trả mặt hàng giày dép là gì?"* and there is no row in any table named "return policy for footwear". The answer is **prose** — a paragraph buried in a PDF that the legal team wrote, translated, and updated last quarter.
+
+Prose is what RAG is for. This lesson is the decision that separates the two halves of every concierge build.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 420" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Decision diagram: a user question splits by data shape — prose goes to RAG, structured live data goes to tool calls, and the same model uses both">
+    <rect x="280" y="20" width="160" height="46" rx="10" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="40" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'User question'}</text>
+    <text x="360" y="56" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'"return policy?"'}</text>
+
+    <polygon points="360,90 450,135 360,180 270,135" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="132" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Data shape?'}</text>
+    <text x="360" y="150" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'prose vs live'}</text>
+
+    <path d="M 360,66 L 360,90" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 270,135 Q 180,170 180,210" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 450,135 Q 540,170 540,210" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+
+    <text x="220" y="200" textAnchor="middle" fontSize="10" fill="#16a34a" opacity="0.7">{'paragraphs →'}</text>
+    <text x="500" y="200" textAnchor="middle" fontSize="10" fill="#16a34a" opacity="0.7">{'rows / IDs →'}</text>
+
+    <rect x="60" y="210" width="240" height="100" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="180" y="238" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'RAG'}</text>
+    <text x="180" y="258" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.8">{'embed → search → paste'}</text>
+    <text x="180" y="278" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'policy · FAQ · product copy'}</text>
+    <text x="180" y="296" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.55">{'pgvector + cosine'}</text>
+
+    <rect x="420" y="210" width="240" height="100" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="540" y="238" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Tool call'}</text>
+    <text x="540" y="258" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.8">{'typed fn → return value'}</text>
+    <text x="540" y="278" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'orders · stock · vouchers'}</text>
+    <text x="540" y="296" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.55">{'SQL on live tables'}</text>
+
+    <path d="M 180,310 Q 180,360 360,372" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 540,310 Q 540,360 360,372" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+
+    <rect x="220" y="355" width="280" height="55" rx="12" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="378" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Same model uses BOTH'}</text>
+    <text x="360" y="396" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'one system prompt gates them cleanly'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    The shape of the data — not the topic — picks the channel.
+  </figcaption>
+</figure>
+
+## 01 — What RAG actually is
+
+**RAG** stands for *Retrieval-Augmented Generation*. The mechanism is two steps. Step one: take the user's question, embed it into a vector, run a similarity search against a table of pre-embedded text chunks, return the top-K matches. Step two: paste those matches into the system prompt as context and let the model write its answer from the retrieved text.
+
+```ts
+// Step 1 — retrieve
+const qVec = await embedQuery('chính sách đổi trả giày dép');
+const chunks = await db.query(
+  `SELECT content FROM concierge.knowledge_chunks
+   WHERE locale = $1
+   ORDER BY embedding <=> $2::vector LIMIT 5`,
+  ['vi', qVec]
+);
+
+// Step 2 — generate
+const result = await streamText({
+  model,
+  system: `Trả lời từ CONTEXT dưới đây:\n${chunks.map(c => c.content).join('\n\n')}`,
+  messages: [{ role: 'user', content: 'chính sách đổi trả giày dép?' }],
+});
+```
+
+That is the entire pattern. No reasoning loop, no tool registry, no Zod schemas. The model is doing one thing: reading and summarising paragraphs you handed it. The "search" part runs on Postgres with `pgvector`; the "generation" part runs on whatever chat model you already wired up. The result is a chatbot that can answer from a policy document without ever having seen it during training.
+
+<Callout type="tip" title="The mental model">
+RAG is **library reference**. The model doesn't *know* the answer — it knows how to read the paragraphs you slid across the desk and rewrite them in the user's words. Change the paragraphs, the answer changes. Update the policy file, run ingestion, and the next reply reflects the new policy by lunchtime.
+</Callout>
+
+## 02 — What tool calling actually is
+
+You wrote tool calling in lessons 09 to 14. The mechanism is also two steps, but the steps are very different. Step one: define a function — typed args, typed return — and describe it to the model. Step two: when the user asks something the function can answer, the model emits a *call* (function name + JSON args), your code runs the function, you hand the return value back to the model, and it writes the user-facing reply.
+
+```ts
+const checkStock = tool({
+  name: 'check_stock',
+  description: 'Trả về số lượng tồn kho hiện tại cho một SKU.',
+  schema: z.object({ sku: z.string() }),
+  execute: async ({ sku }) => {
+    const { rows } = await db.query(
+      'SELECT quantity FROM public.products WHERE sku = $1', [sku]
+    );
+    return rows[0]?.quantity ?? 0;
+  },
+});
+```
+
+The thing the model does *not* see is the implementation. From its side, `check_stock` is a black box that takes a SKU and returns a number. The number is fresh — it was computed at the moment of the call, against live data, by code you control. Authorization, rate limiting, audit logging, idempotency keys — all of that lives inside `execute`, where you can reason about it like normal application code.
+
+<Callout type="tip" title="The mental model">
+Tool calling is **picking up the phone**. The model doesn't know the answer and can't read it anywhere — it asks your service, your service does the work, hands back a typed answer, the model phrases it. Live data, computed answers, side effects: tools, every time.
+</Callout>
+
+## 03 — The decision rule
+
+Look at the data, not the question. One rule covers ninety percent of cases:
+
+> **Is the answer a paragraph that already exists somewhere, or is it a computation that has to run against live data?**
+
+If the answer is already-written prose — policy, FAQ, product description, brand voice, terms of service, blog post — it's **RAG**. The text exists; the model just needs to find the right chunk and paraphrase. There's no live computation.
+
+If the answer is a number, a status, a list, or a record from a database — stock count, order tracking, user balance, today's promo codes, who bought what — it's **a tool**. The text *doesn't* exist; it has to be computed at request time from live state.
+
+| User asks                                       | Data shape       | Pick     |
+| ----------------------------------------------- | ---------------- | -------- |
+| "chính sách đổi trả là gì?"                     | Prose (FAQ)      | **RAG**  |
+| "mô tả áo thun cotton này?"                     | Prose (product)  | **RAG**  |
+| "shop có giao Cà Mau không?"                    | Prose (policy)   | **RAG**  |
+| "đơn ABC-123 đến đâu rồi?"                       | DB record        | **Tool** |
+| "còn áo size M không?"                           | Live count       | **Tool** |
+| "user của tôi có voucher nào dùng được?"        | DB record + auth | **Tool** |
+| "tạo đơn 2 áo, giao 123 Lê Lợi"                  | Mutation         | **Tool** (write — gate it) |
+
+<Callout type="warning" title="The trap: trying to RAG live data">
+A common first-build mistake: ingest the entire product catalogue — including stock numbers — into the vector store. Now the bot says *"còn 8 cái size M"* with full confidence, because that's what the chunk said when it was ingested last Tuesday. The stock changed at 3 p.m. yesterday; the chunk did not. **Stock count is a tool, not RAG, every time.** Anything that changes faster than your ingestion cron is a tool.
+</Callout>
+
+## 04 — The hybrid pattern (the only one that ships)
+
+Real concierges use both. The split is not "RAG vs tools" — it's "RAG **and** tools, each for the data shape they fit." A single user turn often touches both:
+
+> *"Tôi muốn áo thun unisex cotton, có size M không, ship Đà Nẵng bao lâu?"*
+
+That one sentence is three sub-questions:
+
+1. *"áo thun unisex cotton"* — **RAG over product descriptions.** The catalogue has prose. Semantic match: "cotton tee", "áo phông", "áo thun nam nữ" all retrieve the same family.
+2. *"có size M không"* — **`check_stock` tool.** Live count, per SKU, must be fresh.
+3. *"ship Đà Nẵng bao lâu"* — **RAG over shipping FAQ.** Policy is prose; the answer is "2-3 ngày làm việc" written in a markdown file.
+
+The agent's job — and the reason LangGraph keeps showing up in this course — is to plan that decomposition: which sub-question is RAG, which is a tool, in what order, returning what shape. The system prompt makes the rule explicit so the model doesn't have to guess:
+
+```
+Bạn là concierge của Shop XYZ.
+
+CÁCH BẠN LẤY THÔNG TIN:
+- Câu hỏi về chính sách, mô tả sản phẩm, FAQ → ĐỌC từ CONTEXT (đã được hệ thống tự chèn).
+- Câu hỏi về tồn kho, đơn hàng, voucher, profile khách → GỌI tool tương ứng.
+- KHÔNG được bịa số liệu. Nếu CONTEXT không có và không tool nào trả lời được, nói "Em chưa rõ ạ".
+
+CONTEXT:
+{retrieved_chunks}
+```
+
+That paragraph is what makes the hybrid stable. The model has explicit guidance on *which mechanism for which kind of question*, the retrieved chunks are right there in front of it, and the tool list is the only escape hatch for live data. Hallucination — the failure mode that scares e-commerce teams most — drops sharply when the model is told **where each kind of answer comes from**.
+
+<Callout type="note" title="What changes in your prompt budget">
+RAG adds ~2-4k tokens per turn (the retrieved chunks). Tools add ~50-200 tokens per definition (the schema + description). For an e-commerce concierge with eight tools and five-chunk retrieval, expect ~5k tokens of context overhead per user message before the conversation history. That's the budget line you watch in lesson 23 — it grows fast if you forget about it.
+</Callout>
+
+## 05 — What the next lessons build
+
+The next six lessons turn this decision rule into a working concierge:
+
+- **L32** — install `pgvector`, design the `concierge` schema, write the ingestion script that turns markdown FAQ files into searchable chunks.
+- **L33** — hybrid retrieval (vector + keyword), reranking, and the multilingual VI/EN locale strategy.
+- **L34** — session and auth: passing a logged-in user's identity into tools so the concierge can answer *"my orders"* without leaking other users' orders.
+- **L35** — the recommendation engine: a hybrid of embedding similarity and order-history signal, exposed as a tool.
+- **L36** — multi-provider routing through Vercel AI Gateway, fallback, and per-task model selection.
+- **L37** — VPS deployment, backup, soft-launch, and the production monitoring loop.
+
+Everything in Part 1 to 6 still applies — interrupt confirmation for writes (L19), idempotency for actions (L13), safety for prompt injection (L21), and the embeddings, chunking and index choices from Part VI. Part 7 adds **what's new** for a customer-facing concierge: hybrid retrieval, per-user scoping, recommendation, cost routing, and deploy.
+
+<Recap>
+- **RAG** = semantic search over pre-embedded prose + paste-and-summarise. Library reference.
+- **Tool calling** = typed function + the model picks up the phone. Live data and side effects.
+- The decision rule is **data shape, not topic**: prose that already exists → RAG; numbers/records/mutations that must be computed live → tool.
+- Real concierges are **hybrid**: one user turn often invokes both, and the system prompt explicitly tells the model which mechanism for which kind of question.
+- Anything that changes faster than your ingestion cron is a tool. Stock is a tool. Policy is RAG. Get this one boundary right and most other things follow.
+- The next six lessons implement this hybrid end-to-end on Next.js + Postgres + pgvector, in both Vietnamese and English.
+</Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Hai cách LLM "lấy thông tin": **RAG** (semantic search trên văn bản) và **tool calling** (gọi hàm vào code của bạn).
+- Quy tắc quyết định chọn cái nào trong dưới ba mươi giây — dựa trên **hình dạng** của dữ liệu, không phải chủ đề.
+- Pattern hybrid mà một concierge thật sử dụng: RAG cho chính sách và mô tả sản phẩm, tool cho tồn kho và đơn hàng, và một system prompt gắn cả hai lại gọn gàng.
+</Callout>
+
+Phần 1 đến 5 của khoá học dạy bạn tool calling như là cách *duy nhất* để agent với tay vào ứng dụng. Điều đó đúng cho workflow lapsed-customer — mọi mảnh dữ liệu agent chạm vào đều nằm trong bảng có cấu trúc. Khoảnh khắc bạn dựng một concierge phục vụ khách hàng, giả định đó vỡ. Một khách hỏi *"chính sách đổi trả mặt hàng giày dép là gì?"* và không có dòng nào trong bảng nào tên là "chính sách đổi trả cho giày dép". Câu trả lời là **văn xuôi** — một đoạn nằm trong PDF mà bộ phận pháp lý đã viết, dịch, và cập nhật quý trước.
+
+Văn xuôi là chỗ RAG dùng đến. Bài này là quyết định tách đôi mỗi lần dựng concierge.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 420" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Sơ đồ quyết định: câu hỏi của user phân nhánh theo hình dạng dữ liệu — văn bản đi qua RAG, dữ liệu sống có cấu trúc đi qua tool call, cùng một model dùng cả hai">
+    <rect x="280" y="20" width="160" height="46" rx="10" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="40" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Câu hỏi của user'}</text>
+    <text x="360" y="56" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'"chính sách đổi trả?"'}</text>
+
+    <polygon points="360,90 450,135 360,180 270,135" fill="rgba(22,163,74,0.08)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="360" y="132" textAnchor="middle" fontSize="12" fontWeight="700" fill="#16a34a">{'Dạng dữ liệu?'}</text>
+    <text x="360" y="150" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.7">{'văn bản vs sống'}</text>
+
+    <path d="M 360,66 L 360,90" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 270,135 Q 180,170 180,210" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 450,135 Q 540,170 540,210" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+
+    <text x="220" y="200" textAnchor="middle" fontSize="10" fill="#16a34a" opacity="0.7">{'đoạn văn →'}</text>
+    <text x="500" y="200" textAnchor="middle" fontSize="10" fill="#16a34a" opacity="0.7">{'dòng / ID →'}</text>
+
+    <rect x="60" y="210" width="240" height="100" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="180" y="238" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'RAG'}</text>
+    <text x="180" y="258" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.8">{'embed → tìm → dán'}</text>
+    <text x="180" y="278" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'chính sách · FAQ · mô tả'}</text>
+    <text x="180" y="296" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.55">{'pgvector + cosine'}</text>
+
+    <rect x="420" y="210" width="240" height="100" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="1.5" />
+    <text x="540" y="238" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Tool call'}</text>
+    <text x="540" y="258" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.8">{'hàm có kiểu → giá trị trả về'}</text>
+    <text x="540" y="278" textAnchor="middle" fontSize="11" fill="currentColor" opacity="0.7">{'đơn · tồn kho · voucher'}</text>
+    <text x="540" y="296" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.55">{'SQL trên bảng sống'}</text>
+
+    <path d="M 180,310 Q 180,360 360,372" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+    <path d="M 540,310 Q 540,360 360,372" stroke="#16a34a" strokeWidth="1.5" opacity="0.55" fill="none" />
+
+    <rect x="220" y="355" width="280" height="55" rx="12" fill="rgba(22,163,74,0.16)" stroke="#16a34a" strokeWidth="2" />
+    <text x="360" y="378" textAnchor="middle" fontSize="13" fontWeight="700" fill="#16a34a">{'Cùng một model dùng CẢ HAI'}</text>
+    <text x="360" y="396" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.75">{'một system prompt phân làn rõ ràng'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Hình dạng dữ liệu — không phải chủ đề — quyết định kênh nào.
+  </figcaption>
+</figure>
+
+## 01 — RAG thực ra là gì
+
+**RAG** viết tắt *Retrieval-Augmented Generation* (sinh có hỗ trợ truy hồi). Cơ chế hai bước. Bước một: lấy câu hỏi của khách, embed thành vector, chạy similarity search trên một bảng các chunk văn bản đã được embed sẵn, trả về top-K kết quả khớp nhất. Bước hai: dán những chunk đó vào system prompt như context và để model viết câu trả lời từ chính văn bản đã truy hồi.
+
+```ts
+// Bước 1 — retrieve
+const qVec = await embedQuery('chính sách đổi trả giày dép');
+const chunks = await db.query(
+  `SELECT content FROM concierge.knowledge_chunks
+   WHERE locale = $1
+   ORDER BY embedding <=> $2::vector LIMIT 5`,
+  ['vi', qVec]
+);
+
+// Bước 2 — generate
+const result = await streamText({
+  model,
+  system: `Trả lời từ CONTEXT dưới đây:\n${chunks.map(c => c.content).join('\n\n')}`,
+  messages: [{ role: 'user', content: 'chính sách đổi trả giày dép?' }],
+});
+```
+
+Đó là toàn bộ pattern. Không reasoning loop, không tool registry, không Zod schema. Model làm đúng một việc: đọc và tóm tắt những đoạn bạn vừa đưa cho nó. Phần "search" chạy trên Postgres với `pgvector`; phần "generation" chạy trên model chat bạn đã có sẵn. Kết quả là một chatbot biết trả lời từ một policy document mà nó chưa bao giờ nhìn thấy trong quá trình training.
+
+<Callout type="tip" title="Mô hình tư duy">
+RAG là **tra cứu thư viện**. Model không *biết* câu trả lời — nó biết cách đọc các đoạn văn bạn vừa đẩy qua bàn và viết lại bằng ngôn ngữ của khách. Đổi đoạn văn, câu trả lời đổi. Cập nhật file policy, chạy ingestion, đến trưa câu trả lời tiếp theo đã phản ánh chính sách mới.
+</Callout>
+
+## 02 — Tool calling thực ra là gì
+
+Bạn đã viết tool calling ở bài 09 đến 14. Cơ chế cũng hai bước, nhưng hai bước rất khác. Bước một: định nghĩa một hàm — args có kiểu, return có kiểu — và mô tả nó cho model. Bước hai: khi khách hỏi điều mà hàm trả lời được, model phát ra một *call* (tên hàm + JSON args), code của bạn chạy hàm, bạn trả giá trị return về cho model, và nó viết câu trả lời cho khách.
+
+```ts
+const checkStock = tool({
+  name: 'check_stock',
+  description: 'Trả về số lượng tồn kho hiện tại cho một SKU.',
+  schema: z.object({ sku: z.string() }),
+  execute: async ({ sku }) => {
+    const { rows } = await db.query(
+      'SELECT quantity FROM public.products WHERE sku = $1', [sku]
+    );
+    return rows[0]?.quantity ?? 0;
+  },
+});
+```
+
+Cái model *không* nhìn thấy là phần implementation. Từ phía nó, `check_stock` là một hộp đen nhận SKU và trả về một con số. Con số đó tươi — được tính ngay tại thời điểm gọi, trên live data, bởi code mà bạn kiểm soát. Phân quyền, rate limit, audit log, idempotency key — tất cả sống trong `execute`, nơi bạn có thể tư duy về chúng như application code thông thường.
+
+<Callout type="tip" title="Mô hình tư duy">
+Tool calling là **nhấc điện thoại**. Model không biết câu trả lời và không đọc được ở đâu cả — nó hỏi service của bạn, service làm việc, trả lại đáp án có kiểu, model diễn đạt. Live data, đáp án phải tính ra, có side effect: dùng tool, luôn luôn.
+</Callout>
+
+## 03 — Quy tắc quyết định
+
+Nhìn vào dữ liệu, không phải câu hỏi. Một quy tắc bao quát chín mươi phần trăm trường hợp:
+
+> **Câu trả lời là một đoạn văn đã tồn tại sẵn ở đâu đó, hay là một phép tính phải chạy trên live data?**
+
+Nếu câu trả lời là văn xuôi đã viết sẵn — chính sách, FAQ, mô tả sản phẩm, brand voice, điều khoản dịch vụ, blog — đó là **RAG**. Văn bản đã có; model chỉ cần tìm chunk đúng và diễn đạt lại. Không có phép tính live nào.
+
+Nếu câu trả lời là một con số, một trạng thái, một danh sách, hay một record từ database — số tồn kho, tracking đơn, số dư user, mã giảm giá hôm nay, ai mua gì — đó là **một tool**. Văn bản *không* tồn tại; phải được tính ra ngay lúc request từ state hiện tại.
+
+| Khách hỏi                                        | Hình dạng data       | Chọn     |
+| ------------------------------------------------ | -------------------- | -------- |
+| "chính sách đổi trả là gì?"                       | Văn xuôi (FAQ)       | **RAG**  |
+| "mô tả áo thun cotton này?"                       | Văn xuôi (sản phẩm)  | **RAG**  |
+| "shop có giao Cà Mau không?"                      | Văn xuôi (policy)    | **RAG**  |
+| "đơn ABC-123 đến đâu rồi?"                        | Record DB            | **Tool** |
+| "còn áo size M không?"                            | Live count           | **Tool** |
+| "user của tôi có voucher nào dùng được?"          | Record DB + auth     | **Tool** |
+| "tạo đơn 2 áo, giao 123 Lê Lợi"                   | Mutation             | **Tool** (write — gắn cổng) |
+
+<Callout type="warning" title="Cái bẫy: cố RAG live data">
+Một sai lầm hay gặp khi mới dựng: ingest toàn bộ catalogue sản phẩm — bao gồm cả số tồn kho — vào vector store. Giờ bot nói *"còn 8 cái size M"* đầy tự tin, vì chunk lúc ingest thứ Ba tuần trước viết thế. Stock đã đổi lúc 3 giờ chiều hôm qua; chunk thì không. **Số tồn kho là tool, không phải RAG, luôn luôn.** Bất cứ thứ gì đổi nhanh hơn ingestion cron của bạn đều là tool.
+</Callout>
+
+## 04 — Pattern hybrid (cái duy nhất đem lên production được)
+
+Concierge thật dùng cả hai. Cách chia không phải "RAG vs tool" — là "RAG **và** tool, mỗi cái cho hình dạng dữ liệu nó hợp." Một lượt nói của khách thường chạm cả hai:
+
+> *"Tôi muốn áo thun unisex cotton, có size M không, ship Đà Nẵng bao lâu?"*
+
+Một câu đó là ba câu hỏi con:
+
+1. *"áo thun unisex cotton"* — **RAG trên mô tả sản phẩm.** Catalogue là văn xuôi. Khớp semantic: "cotton tee", "áo phông", "áo thun nam nữ" đều truy hồi cùng họ sản phẩm.
+2. *"có size M không"* — **tool `check_stock`.** Live count, theo từng SKU, phải tươi.
+3. *"ship Đà Nẵng bao lâu"* — **RAG trên FAQ giao hàng.** Policy là văn xuôi; câu trả lời "2-3 ngày làm việc" nằm trong file markdown.
+
+Việc của agent — và lý do LangGraph lại xuất hiện xuyên suốt khoá học — là lập kế hoạch cho cái phân rã đó: câu nào RAG, câu nào tool, theo thứ tự nào, trả về hình dạng gì. System prompt làm cho quy tắc tường minh để model không phải đoán:
+
+```
+Bạn là concierge của Shop XYZ.
+
+CÁCH BẠN LẤY THÔNG TIN:
+- Câu hỏi về chính sách, mô tả sản phẩm, FAQ → ĐỌC từ CONTEXT (đã được hệ thống tự chèn).
+- Câu hỏi về tồn kho, đơn hàng, voucher, profile khách → GỌI tool tương ứng.
+- KHÔNG được bịa số liệu. Nếu CONTEXT không có và không tool nào trả lời được, nói "Em chưa rõ ạ".
+
+CONTEXT:
+{retrieved_chunks}
+```
+
+Đoạn đó là cái làm hybrid ổn định. Model có hướng dẫn rõ ràng về *cơ chế nào cho loại câu hỏi nào*, các chunk truy hồi được nằm sẵn trước mặt nó, và danh sách tool là lối thoát duy nhất cho live data. Hallucination — failure mode khiến e-commerce team sợ nhất — giảm mạnh khi model được nói rõ **mỗi loại câu trả lời đến từ đâu**.
+
+<Callout type="note" title="Ngân sách prompt thay đổi thế nào">
+RAG thêm ~2-4k token mỗi lượt (các chunk truy hồi). Tool thêm ~50-200 token mỗi định nghĩa (schema + description). Với concierge e-commerce có tám tool và retrieval năm chunk, dự kiến ~5k token overhead context cho mỗi message của khách, trước khi tính lịch sử hội thoại. Đó là dòng ngân sách bạn theo dõi ở bài 23 — nó tăng nhanh nếu bạn quên.
+</Callout>
+
+## 05 — Sáu bài tiếp theo dựng gì
+
+Sáu bài tiếp biến quy tắc quyết định này thành một concierge chạy được:
+
+- **L32** — cài `pgvector`, thiết kế schema `concierge`, viết ingestion script biến file markdown FAQ thành các chunk tìm kiếm được.
+- **L33** — hybrid retrieval (vector + keyword), reranking, và chiến lược đa ngôn ngữ VI/EN.
+- **L34** — session và auth: truyền danh tính user đã đăng nhập vào tool để concierge trả lời được *"đơn của tôi"* mà không rò rỉ đơn của user khác.
+- **L35** — engine gợi ý: hybrid của similarity embedding và tín hiệu từ lịch sử đơn hàng, expose dưới dạng một tool.
+- **L36** — routing đa nhà cung cấp qua Vercel AI Gateway, fallback, và chọn model theo từng loại task.
+- **L37** — deploy VPS, backup, soft launch, và vòng monitor production.
+
+Mọi thứ ở Phần 1 đến 6 vẫn áp dụng — interrupt confirmation cho write (L19), idempotency cho action (L13), safety cho prompt injection (L21), và những lựa chọn embedding, chunking, index từ Phần VI. Phần 7 thêm **những gì mới** cho một concierge phục vụ khách hàng: hybrid retrieval, scope theo từng user, recommend, route chi phí, và deploy.
+
+<Recap>
+- **RAG** = semantic search trên văn xuôi đã embed sẵn + dán-và-tóm-tắt. Tra cứu thư viện.
+- **Tool calling** = hàm có kiểu + model nhấc điện thoại. Live data và side effect.
+- Quy tắc quyết định là **hình dạng dữ liệu, không phải chủ đề**: văn xuôi đã có sẵn → RAG; số/record/mutation phải tính live → tool.
+- Concierge thật là **hybrid**: một lượt khách thường gọi cả hai, và system prompt nói thẳng cho model biết cơ chế nào cho loại câu hỏi nào.
+- Bất cứ thứ gì đổi nhanh hơn ingestion cron của bạn đều là tool. Stock là tool. Policy là RAG. Đặt đúng cái biên giới này, phần lớn các thứ khác theo sau.
+- Sáu bài tiếp theo dựng hybrid này end-to-end trên Next.js + Postgres + pgvector, song ngữ Việt và Anh.
+</Recap>
+
+</VI>

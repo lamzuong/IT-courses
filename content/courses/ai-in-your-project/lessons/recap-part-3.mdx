@@ -12,6 +12,8 @@ import { EN, VI } from '@/components/mdx/bilingual';
 
 Part III is where the model stops being a paragraph generator and starts being a system that does things. That shift is the most consequential moment in the course. A tool is a typed function the model can call; six lessons turn that one sentence into a working catalog. You learn how to define one, how to scale read tools when the data is large, the four design rules that decide whether the model picks the right one, the danger zone where writes need a confirmation gate, idempotency as the default, and finally the typed-error shape that turns failures into self-healing recovery paths.
 
+The prerequisite that opens Part III is **L08 — Structured output with Zod**. `withStructuredOutput(zSchema)` is the typed-JSON precondition that every tool call sits on top of: the model emits values your TypeScript can trust, and the same Zod schema that validates a structured-output call also validates a tool-call argument. Internalise L08 first; the six lessons that follow assume you have it.
+
 <figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
   <svg viewBox="0 0 720 480" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map of Part III: a central node 'Tools — AI that does things' with six branches — first tool, read tools at scale, design principles, write danger zone, idempotency, and errors and retries">
     {/* connectors */}
@@ -78,6 +80,7 @@ Part III is where the model stops being a paragraph generator and starts being a
 **Errors & retries (L14)** is the lesson that elevates error messages to first-class prompt material. *What failed. Why. What to do instead.* Three sentences, and most of the time the model fixes its call on the next turn — a self-healing recovery path with no scaffolding.
 
 <Recap>
+- **L08 is the prereq.** `withStructuredOutput(zSchema)` returns a typed object the rest of your code can trust — that's the foundation tool calling stands on. Internalise L08 before L09.
 - **A tool is `name + description + Zod schema + function`.** The Zod schema is the contract that tells the model what to emit and lets your function trust what it receives.
 - **Reads at scale: paginate, filter, aggregate.** Cursor-based pagination, typed filter objects translated to parameterised queries, and pre-computed summaries instead of raw rows.
 - **Never interpolate model output into SQL.** Parse with Zod, validate, translate. Your function writes the SQL; the model only describes intent.
@@ -101,6 +104,8 @@ Part III is where the model stops being a paragraph generator and starts being a
 </Callout>
 
 Phần III là chỗ model thôi đóng vai "máy đẻ ra văn bản" và bắt đầu trở thành một hệ thống *làm được việc*. Bước chuyển này là khoảnh khắc quan trọng nhất trong cả khoá. Tool là một hàm có kiểu mà model có thể gọi; sáu bài biến một câu đó thành một catalog chạy được. Bạn học cách định nghĩa một tool, cách scale tool đọc khi data lớn, bốn quy tắc thiết kế quyết định model có chọn đúng tool hay không, vùng nguy hiểm nơi mọi tool ghi cần một bước xác nhận, idempotency là mặc định, và cuối cùng là hình dạng error có kiểu — biến lỗi thành con đường tự hồi phục.
+
+Điều kiện tiên quyết mở Phần III là **L08 — Structured output với Zod**. `withStructuredOutput(zSchema)` là tiền đề JSON-có-kiểu mà mọi tool call đặt lên trên: model phát ra giá trị TypeScript có thể tin được, và cùng Zod schema validate được structured-output call cũng validate được tool-call argument. Nắm L08 trước; sáu bài tiếp theo giả định bạn đã có nó.
 
 <figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
   <svg viewBox="0 0 720 480" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Mind map của Phần III: nút trung tâm 'Tools — AI làm được việc' với sáu nhánh — tool đầu tiên, read tools ở quy mô lớn, nguyên tắc thiết kế, vùng nguy hiểm khi ghi, idempotency, và lỗi & retry">
@@ -168,6 +173,7 @@ Phần III là chỗ model thôi đóng vai "máy đẻ ra văn bản" và bắt
 **Lỗi & retry (L14)** là bài nâng "thông điệp lỗi" lên thành "vật liệu prompt hạng nhất". *Cái gì hỏng. Tại sao. Nên làm gì thay vào đó.* Ba câu, và phần lớn thời gian model tự sửa lệnh gọi của nó ở lượt sau — một lối tự hồi phục, không cần dựng giàn giáo gì cả.
 
 <Recap>
+- **L08 là prereq.** `withStructuredOutput(zSchema)` trả về object có kiểu mà phần còn lại của code có thể tin được — đó là nền móng tool calling đứng trên. Nắm L08 trước L09.
 - **Một tool = `name + description + Zod schema + function`.** Zod schema là hợp đồng nói cho model biết phải phát ra gì, và cho hàm của bạn quyền tin tưởng những gì nhận về.
 - **Đọc ở quy mô: phân trang, filter, gộp.** Phân trang cursor-based, object filter có kiểu được dịch sang query có tham số, và summary tính sẵn thay vì kéo từng row.
 - **Không bao giờ nhét output của model vào SQL.** Parse bằng Zod, validate, dịch. Hàm của bạn viết SQL; model chỉ mô tả ý định.

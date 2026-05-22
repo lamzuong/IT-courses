@@ -104,7 +104,7 @@ It's organised by cluster, not alphabetically — terms that show up together in
 
   The 22 failures on the 3B model break down as: 14× capitalisation drift (`"Lapsed"` instead of `"lapsed"`, fails the enum), 5× missing the `segment` field entirely, 3× hallucinating `segment: "inactive"` (not in the enum). All three failure modes are exactly the gotchas from lesson 08 §04.
 
-  _The takeaway:_ you can run the **whole course** on a 3B model — it's slow and you'll hit retries — but if a lesson's structured-output demo flakes on you, change `'qwen2.5:3b'` to `'llama3.1:8b'` in the same `ChatOllama({ model: ... })` line and the failures usually go away. Save the hosted frontier model for production (lesson 24).
+  _The takeaway:_ you can run the **whole course** on a 3B model — it's slow and you'll hit retries — but if a lesson's structured-output demo flakes on you, change `'qwen2.5:3b'` to `'llama3.1:8b'` in the same `ChatOllama({ model: ... })` line and the failures usually go away. Save the hosted frontier model for production (lesson 37).
 
 - **Token** — the unit a model reads and writes in. Roughly ¾ of an English word. _"Hello, world"_ is about 3 tokens. Pricing, context limits, and speed are all measured in tokens.
 - **Context window** — the maximum number of tokens the model can "see" at once (your prompt + its reply). When you exceed it, older messages get cut. Bigger windows aren't free — they cost more and slow down.
@@ -172,7 +172,7 @@ It's organised by cluster, not alphabetically — terms that show up together in
   <StreamingTextDemo />
 </Demo>
 
-- **Provider** — the service that hosts the model. **Ollama** runs models on your laptop. **OpenAI**, **Anthropic**, **Google** host them in the cloud. LangChain lets you swap providers without rewriting your app (lesson 24).
+- **Provider** — the service that hosts the model. **Ollama** runs models on your laptop. **OpenAI**, **Anthropic**, **Google** host them in the cloud. LangChain lets you swap providers without rewriting your app (lesson 37).
 
 <figure style={{ margin: '1.5rem auto', maxWidth: '560px' }}>
   <svg viewBox="0 0 560 220" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Reliability of the same structured-extraction task across four model sizes: 3B 78%, 8B 97%, 14B 99%, 100B+ 100%">

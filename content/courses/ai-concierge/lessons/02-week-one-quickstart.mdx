@@ -1,0 +1,535 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- A one-sitting code-along that takes you from nothing to a chatbot answering one real FAQ question, in your two languages.
+- The five checkpoints that catch errors before they pile up — verify Postgres, verify ingestion, verify retrieval, verify auth, verify chat.
+- The deliberately-narrow scope: no tools, no recommendations, no write actions. Just RAG over one FAQ file. Everything else comes in weeks 2-4.
+</Callout>
+
+The fastest way to ruin the four-week timeline is to start by writing every piece at once. Week one has one job: a chat endpoint that answers a real FAQ question from a real markdown file in your shop's voice. When this works, you've proven the entire stack — Postgres, embeddings, retrieval, streaming, the AI Gateway — at the smallest possible scale. Everything you build in weeks 2-4 hangs from that proof.
+
+This lesson is the code-along. Expect to spend one focused afternoon on it.
+
+## 01 — Set up Postgres + pgvector (15 minutes)
+
+```powershell
+# Install Docker Desktop if you don't have it.
+docker run -d --name concierge-pg `
+  -e POSTGRES_PASSWORD=devpass123 `
+  -e POSTGRES_DB=shop `
+  -p 5432:5432 `
+  -v concierge-pgdata:/var/lib/postgresql/data `
+  pgvector/pgvector:pg16
+
+docker ps  # should show concierge-pg, Status: Up
+```
+
+Connect with DBeaver or `psql` to verify. Run the full migration from **AIYP L26** — it creates the `concierge` schema, the `knowledge_chunks` table with the `vector(1536)` column and HNSW index, the `conversations`, `messages`, and `action_log` tables. Verify:
+
+```sql
+\dn                                                -- should list 'concierge'
+\dt concierge.*                                    -- should list 4 tables
+SELECT * FROM pg_extension WHERE extname='vector'; -- should return 1 row
+```
+
+**Checkpoint 1.** If any of those three queries return nothing, stop and fix before continuing.
+
+## 02 — Set up the Next.js project (20 minutes)
+
+```bash
+npx create-next-app@latest concierge --typescript --app --no-src-dir
+cd concierge
+npm i ai @ai-sdk/gateway @ai-sdk/openai @ai-sdk/anthropic zod
+npm i pg gray-matter glob tiktoken
+npm i -D @types/pg tsx
+```
+
+`.env.local`:
+
+```
+DATABASE_URL=postgres://postgres:devpass123@localhost:5432/shop
+OPENAI_API_KEY=sk-...
+AI_GATEWAY_API_KEY=...
+```
+
+Get the AI Gateway key at [vercel.com/ai-gateway](https://vercel.com/ai-gateway) — it costs nothing to create and you'll be billed only per-call. OpenAI key separately for embeddings (cheaper not through the gateway for now).
+
+Create the helper modules from AIYP L26-27. Minimum for this lesson:
+
+```ts
+// lib/db/client.ts — connection pool
+// lib/ai/embeddings.ts — embedQuery + embedBatch
+// lib/rag/chunk.ts — chunkText + chunkBySections (heading-first chunker)
+// lib/rag/ingest.ts — ingestDoc (delete-by-source then insert)
+// lib/rag/retrieve.ts — pure vector retrieval to start (hybrid in week 2)
+```
+
+The full code is in AIYP L26 and L27. Copy-paste, don't re-derive.
+
+**Checkpoint 2.** `npm run dev` should boot to the default Next.js page on localhost:3000. If it doesn't, fix Node/npm before continuing.
+
+## 03 — Write your first FAQ file (30 minutes)
+
+Create `knowledge/faq/vi/shipping.md`:
+
+```md
+---
+source: faq:shipping
+locale: vi
+category: shipping
+last_updated: 2026-05-20
+---
+
+# Giao hàng
+
+## Thời gian giao hàng (ship bao lâu)
+
+Nội thành TP.HCM: 1-2 ngày làm việc.
+Hà Nội, Đà Nẵng, các tỉnh lớn: 2-3 ngày.
+Tỉnh khác: 3-5 ngày, vùng sâu vùng xa có thể chậm 1-2 ngày.
+
+Không giao Chủ Nhật và ngày lễ.
+
+## Phí giao hàng
+
+Đơn dưới 500.000đ: phí ship 30.000đ (nội thành), 40.000đ (tỉnh).
+Đơn từ 500.000đ: miễn phí ship toàn quốc.
+
+## Theo dõi đơn
+
+Sau khi đơn được giao cho shipper, khách nhận email kèm mã vận đơn.
+```
+
+The detailed writing guidelines are in **the conversation log that produced this course** (or in AIYP L26 if you'd rather see it as a formal lesson): one chunk per `##`, keyword variants in the heading, concrete numbers not adjectives, no cross-section references.
+
+Make an English twin: `knowledge/faq/en/shipping.md` with `locale: en`. Same content, written from scratch (don't machine-translate).
+
+**Checkpoint 3.** Two `.md` files, each with a complete frontmatter block. Open them and re-read — each `##` section should make sense standing alone.
+
+## 04 — Ingest (10 minutes)
+
+```bash
+npx tsx scripts/ingest.ts
+```
+
+Expected output:
+
+```
+✅ faq:shipping → 4 chunks
+✅ faq:shipping → 4 chunks   (the en version)
+```
+
+Verify in SQL:
+
+```sql
+SELECT source, locale, count(*)
+FROM concierge.knowledge_chunks
+GROUP BY source, locale;
+```
+
+Two rows, each ~4 chunks. If you get drastically different numbers (1 chunk, or 20 chunks), your `chunkBySections` is misbehaving — check the `## ` splitter regex matches your file.
+
+**Checkpoint 4.** Two `source/locale` pairs in the DB, sensible chunk counts.
+
+## 05 — Wire the chat endpoint (45 minutes)
+
+For week one, **skip auth and intent classification** — both come in week two. The week-one chat endpoint is the minimum:
+
+```ts
+// app/api/chat/route.ts
+import { streamText, convertToModelMessages } from 'ai';
+import { gateway } from '@ai-sdk/gateway';
+import { retrieve } from '@/lib/rag/retrieve';
+
+export async function POST(req: Request) {
+  const { messages, locale = 'vi' } = await req.json();
+
+  const lastUser = lastUserText(messages);
+  const docs = await retrieve(lastUser, { locale, topK: 5 });
+
+  const context = docs.map((d, i) => `[${i + 1}] (${d.source})\n${d.content}`).join('\n\n---\n\n');
+  const system = locale === 'vi'
+    ? `Bạn là concierge của shop. Trả lời ngắn gọn từ CONTEXT bên dưới. Nếu CONTEXT không có, nói "em chưa rõ ạ".\n\nCONTEXT:\n${context}`
+    : `You are the shop concierge. ...`;
+
+  const result = streamText({
+    model: gateway('anthropic/claude-sonnet-4-6'),
+    system,
+    messages: convertToModelMessages(messages),
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+
+function lastUserText(messages: any[]): string {
+  const u = [...messages].reverse().find(m => m.role === 'user');
+  if (!u) return '';
+  if (typeof u.content === 'string') return u.content;
+  return (u.parts ?? []).find((p: any) => p.type === 'text')?.text ?? '';
+}
+```
+
+A minimal UI at `app/page.tsx`:
+
+```tsx
+'use client';
+import { useChat } from '@ai-sdk/react';
+import { useState } from 'react';
+
+export default function Home() {
+  const [locale, setLocale] = useState<'vi' | 'en'>('vi');
+  const { messages, sendMessage, status } = useChat({
+    api: '/api/chat',
+    body: { locale },
+  });
+
+  return (
+    <main className="max-w-2xl mx-auto p-6 space-y-4">
+      <select value={locale} onChange={e => setLocale(e.target.value as any)}>
+        <option value="vi">Tiếng Việt</option>
+        <option value="en">English</option>
+      </select>
+      <div className="space-y-3">
+        {messages.map(m => (
+          <div key={m.id} className={m.role === 'user' ? 'text-right text-blue-700' : ''}>
+            <b>{m.role}:</b>{' '}
+            {(m.parts ?? []).map((p, i) => p.type === 'text' ? <span key={i}>{p.text}</span> : null)}
+          </div>
+        ))}
+      </div>
+      <form onSubmit={e => {
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget);
+        const text = fd.get('q') as string;
+        if (text) sendMessage({ text });
+        e.currentTarget.reset();
+      }}>
+        <input
+          name="q"
+          autoFocus
+          disabled={status === 'streaming'}
+          placeholder="Hỏi gì cũng được..."
+          className="border w-full p-2 rounded"
+        />
+      </form>
+    </main>
+  );
+}
+```
+
+## 06 — The first answer (5 minutes)
+
+`npm run dev`, open localhost:3000, type *"shop ship bao lâu?"*. You should get something like:
+
+> *Dạ shop giao nội thành TP.HCM trong 1-2 ngày làm việc ạ, Hà Nội/Đà Nẵng/tỉnh lớn 2-3 ngày, các tỉnh khác 3-5 ngày. Shop không giao vào Chủ Nhật và ngày lễ ạ.*
+
+Switch the dropdown to English, ask *"how long does shipping take?"*. You should get the English equivalent.
+
+**Checkpoint 5.** Both languages produce sensible answers grounded in your `.md` files. If the bot hallucinates a delivery time you didn't write, your retrieval isn't returning the right chunks — go back to step 4 and inspect the chunk contents in SQL.
+
+## 07 — What you have, what's missing
+
+You have:
+
+- A working chat endpoint with hybrid streaming response.
+- Postgres + pgvector storing real chunks of your shop's FAQ.
+- Bilingual retrieval gated by `locale`.
+- An AI Gateway connection that can swap providers in one line.
+
+What's missing — and you don't need this in week one:
+
+- **Authentication.** Anyone can hit `/api/chat` right now. Week two.
+- **Tools.** No way to look up live orders or stock. Week two.
+- **Write actions.** No way to create an order. Week three.
+- **Cost cap and rate limits.** No protection from a runaway loop. Week four.
+- **Deployment.** Still on localhost. Week four.
+
+That gap is the *point*. By the end of day five, you've validated the stack at the smallest scale. Each missing piece is now a concrete next step, not a vague mystery.
+
+<Callout type="note" title="Where to go next">
+- **AIYP L25-26-27** to deeply understand what you just built — RAG decision, pgvector schema, hybrid retrieval.
+- **AIYP L09-11** when you start week two — first tool, read tools at scale, tool design.
+- **AIYP L28** for the auth integration with your existing backend.
+
+L03 of this course is the reading guide that orders all of these for weeks 2-3.
+</Callout>
+
+<Recap>
+- **One afternoon, one answered question.** Don't build more in week one than that.
+- **Five checkpoints:** Postgres running, project booting, FAQ files written, ingestion populated, chat answers grounded.
+- **Skip auth, tools, writes, cost caps, deploy** — all of those come in weeks 2-4. Don't pre-stage them.
+- **The chat endpoint at this point is ~50 lines.** That's the right size — every additional concern (auth, tools, gateway routing, cost) adds its own slice of code in its own week.
+- **If a checkpoint fails, stop and fix.** Don't pile on top of a broken layer.
+</Recap>
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Một code-along trong một buổi đưa bạn từ không có gì đến chatbot trả lời được một câu FAQ thật, song ngữ.
+- Năm checkpoint bắt lỗi trước khi chúng chồng chất — verify Postgres, verify ingestion, verify retrieval, verify auth, verify chat.
+- Scope cố ý hẹp: không tool, không recommend, không write action. Chỉ RAG trên một file FAQ. Mọi thứ khác đến trong tuần 2-4.
+</Callout>
+
+Cách nhanh nhất phá timeline bốn tuần là bắt đầu bằng viết mọi mảnh cùng lúc. Tuần một có một việc: một endpoint chat trả lời được một câu FAQ thật từ một file markdown thật bằng giọng shop bạn. Khi cái này chạy, bạn đã chứng minh cả stack — Postgres, embedding, retrieval, streaming, AI Gateway — ở scale nhỏ nhất có thể. Mọi thứ bạn dựng tuần 2-4 móc vào chứng minh đó.
+
+Bài này là code-along. Dự kiến một buổi chiều tập trung.
+
+## 01 — Cài Postgres + pgvector (15 phút)
+
+```powershell
+# Cài Docker Desktop nếu chưa có.
+docker run -d --name concierge-pg `
+  -e POSTGRES_PASSWORD=devpass123 `
+  -e POSTGRES_DB=shop `
+  -p 5432:5432 `
+  -v concierge-pgdata:/var/lib/postgresql/data `
+  pgvector/pgvector:pg16
+
+docker ps  # nên thấy concierge-pg, Status: Up
+```
+
+Connect bằng DBeaver hoặc `psql` để verify. Chạy migration đầy đủ từ **AIYP L26** — nó tạo schema `concierge`, bảng `knowledge_chunks` với cột `vector(1536)` và index HNSW, các bảng `conversations`, `messages`, `action_log`. Verify:
+
+```sql
+\dn                                                -- nên list 'concierge'
+\dt concierge.*                                    -- nên list 4 bảng
+SELECT * FROM pg_extension WHERE extname='vector'; -- nên trả 1 dòng
+```
+
+**Checkpoint 1.** Nếu một trong ba query đó trả về không, dừng và sửa trước khi tiếp.
+
+## 02 — Cài project Next.js (20 phút)
+
+```bash
+npx create-next-app@latest concierge --typescript --app --no-src-dir
+cd concierge
+npm i ai @ai-sdk/gateway @ai-sdk/openai @ai-sdk/anthropic zod
+npm i pg gray-matter glob tiktoken
+npm i -D @types/pg tsx
+```
+
+`.env.local`:
+
+```
+DATABASE_URL=postgres://postgres:devpass123@localhost:5432/shop
+OPENAI_API_KEY=sk-...
+AI_GATEWAY_API_KEY=...
+```
+
+Lấy key AI Gateway tại [vercel.com/ai-gateway](https://vercel.com/ai-gateway) — tạo không tốn gì và bạn chỉ bị bill theo call. Key OpenAI riêng cho embedding (rẻ hơn nếu không qua gateway lúc này).
+
+Tạo các module helper từ AIYP L26-27. Tối thiểu cho bài này:
+
+```ts
+// lib/db/client.ts — connection pool
+// lib/ai/embeddings.ts — embedQuery + embedBatch
+// lib/rag/chunk.ts — chunkText + chunkBySections (chunker heading-trước)
+// lib/rag/ingest.ts — ingestDoc (delete-by-source rồi insert)
+// lib/rag/retrieve.ts — vector retrieval thuần để bắt đầu (hybrid tuần 2)
+```
+
+Code đầy đủ ở AIYP L26 và L27. Copy-paste, đừng nghĩ lại.
+
+**Checkpoint 2.** `npm run dev` boot được lên trang Next.js mặc định ở localhost:3000. Nếu không, sửa Node/npm trước khi tiếp.
+
+## 03 — Viết file FAQ đầu tiên (30 phút)
+
+Tạo `knowledge/faq/vi/shipping.md`:
+
+```md
+---
+source: faq:shipping
+locale: vi
+category: shipping
+last_updated: 2026-05-20
+---
+
+# Giao hàng
+
+## Thời gian giao hàng (ship bao lâu)
+
+Nội thành TP.HCM: 1-2 ngày làm việc.
+Hà Nội, Đà Nẵng, các tỉnh lớn: 2-3 ngày.
+Tỉnh khác: 3-5 ngày, vùng sâu vùng xa có thể chậm 1-2 ngày.
+
+Không giao Chủ Nhật và ngày lễ.
+
+## Phí giao hàng
+
+Đơn dưới 500.000đ: phí ship 30.000đ (nội thành), 40.000đ (tỉnh).
+Đơn từ 500.000đ: miễn phí ship toàn quốc.
+
+## Theo dõi đơn
+
+Sau khi đơn được giao cho shipper, khách nhận email kèm mã vận đơn.
+```
+
+Hướng dẫn viết chi tiết ở **log hội thoại tạo ra course này** (hoặc ở AIYP L26 nếu bạn muốn xem dạng bài chính thức): một chunk mỗi `##`, biến thể từ khoá trong heading, số liệu cụ thể không tính từ, không tham chiếu giữa các section.
+
+Làm bản tiếng Anh: `knowledge/faq/en/shipping.md` với `locale: en`. Cùng nội dung, viết lại từ đầu (đừng dịch máy).
+
+**Checkpoint 3.** Hai file `.md`, mỗi cái có block frontmatter đầy đủ. Mở và đọc lại — mỗi section `##` nên hiểu được khi đứng riêng.
+
+## 04 — Ingest (10 phút)
+
+```bash
+npx tsx scripts/ingest.ts
+```
+
+Output dự kiến:
+
+```
+✅ faq:shipping → 4 chunks
+✅ faq:shipping → 4 chunks   (bản en)
+```
+
+Verify trong SQL:
+
+```sql
+SELECT source, locale, count(*)
+FROM concierge.knowledge_chunks
+GROUP BY source, locale;
+```
+
+Hai dòng, mỗi cái ~4 chunk. Nếu bạn được số khác hẳn (1 chunk, hay 20 chunk), `chunkBySections` của bạn đang sai — check regex split `## ` có khớp file không.
+
+**Checkpoint 4.** Hai cặp `source/locale` trong DB, số chunk hợp lý.
+
+## 05 — Wire endpoint chat (45 phút)
+
+Cho tuần một, **bỏ qua auth và phân loại intent** — cả hai đến tuần hai. Endpoint chat tuần một là tối thiểu:
+
+```ts
+// app/api/chat/route.ts
+import { streamText, convertToModelMessages } from 'ai';
+import { gateway } from '@ai-sdk/gateway';
+import { retrieve } from '@/lib/rag/retrieve';
+
+export async function POST(req: Request) {
+  const { messages, locale = 'vi' } = await req.json();
+
+  const lastUser = lastUserText(messages);
+  const docs = await retrieve(lastUser, { locale, topK: 5 });
+
+  const context = docs.map((d, i) => `[${i + 1}] (${d.source})\n${d.content}`).join('\n\n---\n\n');
+  const system = locale === 'vi'
+    ? `Bạn là concierge của shop. Trả lời ngắn gọn từ CONTEXT bên dưới. Nếu CONTEXT không có, nói "em chưa rõ ạ".\n\nCONTEXT:\n${context}`
+    : `You are the shop concierge. ...`;
+
+  const result = streamText({
+    model: gateway('anthropic/claude-sonnet-4-6'),
+    system,
+    messages: convertToModelMessages(messages),
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+
+function lastUserText(messages: any[]): string {
+  const u = [...messages].reverse().find(m => m.role === 'user');
+  if (!u) return '';
+  if (typeof u.content === 'string') return u.content;
+  return (u.parts ?? []).find((p: any) => p.type === 'text')?.text ?? '';
+}
+```
+
+UI tối thiểu tại `app/page.tsx`:
+
+```tsx
+'use client';
+import { useChat } from '@ai-sdk/react';
+import { useState } from 'react';
+
+export default function Home() {
+  const [locale, setLocale] = useState<'vi' | 'en'>('vi');
+  const { messages, sendMessage, status } = useChat({
+    api: '/api/chat',
+    body: { locale },
+  });
+
+  return (
+    <main className="max-w-2xl mx-auto p-6 space-y-4">
+      <select value={locale} onChange={e => setLocale(e.target.value as any)}>
+        <option value="vi">Tiếng Việt</option>
+        <option value="en">English</option>
+      </select>
+      <div className="space-y-3">
+        {messages.map(m => (
+          <div key={m.id} className={m.role === 'user' ? 'text-right text-blue-700' : ''}>
+            <b>{m.role}:</b>{' '}
+            {(m.parts ?? []).map((p, i) => p.type === 'text' ? <span key={i}>{p.text}</span> : null)}
+          </div>
+        ))}
+      </div>
+      <form onSubmit={e => {
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget);
+        const text = fd.get('q') as string;
+        if (text) sendMessage({ text });
+        e.currentTarget.reset();
+      }}>
+        <input
+          name="q"
+          autoFocus
+          disabled={status === 'streaming'}
+          placeholder="Hỏi gì cũng được..."
+          className="border w-full p-2 rounded"
+        />
+      </form>
+    </main>
+  );
+}
+```
+
+## 06 — Câu trả lời đầu tiên (5 phút)
+
+`npm run dev`, mở localhost:3000, gõ *"shop ship bao lâu?"*. Bạn nên nhận gì đó như:
+
+> *Dạ shop giao nội thành TP.HCM trong 1-2 ngày làm việc ạ, Hà Nội/Đà Nẵng/tỉnh lớn 2-3 ngày, các tỉnh khác 3-5 ngày. Shop không giao vào Chủ Nhật và ngày lễ ạ.*
+
+Đổi dropdown sang English, hỏi *"how long does shipping take?"*. Bạn nên nhận bản English tương đương.
+
+**Checkpoint 5.** Cả hai ngôn ngữ trả lời hợp lý dựa trên file `.md` của bạn. Nếu bot bịa thời gian giao hàng bạn không viết, retrieval không trả về đúng chunk — quay lại bước 4 và inspect nội dung chunk trong SQL.
+
+## 07 — Cái bạn có, cái còn thiếu
+
+Bạn có:
+
+- Endpoint chat chạy được với response streaming hybrid.
+- Postgres + pgvector lưu chunk thật của FAQ shop.
+- Retrieval song ngữ filter theo `locale`.
+- Kết nối AI Gateway swap provider được một dòng.
+
+Cái còn thiếu — và bạn không cần ở tuần một:
+
+- **Authentication.** Ai cũng đập được `/api/chat` lúc này. Tuần hai.
+- **Tools.** Không có cách tra đơn live hay stock. Tuần hai.
+- **Write action.** Không có cách tạo đơn. Tuần ba.
+- **Cap chi phí và rate limit.** Không bảo vệ khỏi runaway loop. Tuần bốn.
+- **Deployment.** Vẫn ở localhost. Tuần bốn.
+
+Cái khoảng cách đó là *mục đích*. Cuối ngày năm, bạn đã validate stack ở scale nhỏ nhất. Mỗi mảnh thiếu giờ là một bước tiếp cụ thể, không phải bí ẩn mơ hồ.
+
+<Callout type="note" title="Đi đâu tiếp">
+- **AIYP L25-26-27** để hiểu sâu cái bạn vừa dựng — quyết định RAG, schema pgvector, hybrid retrieval.
+- **AIYP L09-11** khi bạn bắt đầu tuần hai — tool đầu tiên, tool đọc ở scale, thiết kế tool.
+- **AIYP L28** cho tích hợp auth với backend bạn đã có.
+
+L03 của course này là reading guide xếp tất cả cho tuần 2-3.
+</Callout>
+
+<Recap>
+- **Một buổi chiều, một câu trả lời.** Đừng dựng nhiều hơn ở tuần một.
+- **Năm checkpoint:** Postgres chạy, project boot, file FAQ viết, ingestion đổ đầy, chat trả lời grounded.
+- **Bỏ qua auth, tool, write, cost cap, deploy** — tất cả đến tuần 2-4. Đừng pre-stage.
+- **Endpoint chat ở điểm này ~50 dòng.** Đó là cỡ đúng — mỗi concern thêm (auth, tool, gateway routing, cost) thêm phần code riêng ở tuần riêng.
+- **Nếu một checkpoint fail, dừng và sửa.** Đừng chồng lên một lớp vỡ.
+</Recap>
+
+</VI>

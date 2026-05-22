@@ -253,7 +253,7 @@ Three stages this time:
 
 - `deps` — install dependencies. Cached as long as `package.json` is unchanged.
 - `builder` — reuse the deps layer, copy source, run `next build`.
-- `runtime` — copy only the standalone server + static assets. Final image often <100 MB even for a sizeable Next app.
+- `runtime` — copy only the standalone server + static assets. Final image often &lt;100 MB even for a sizeable Next app.
 
 ## Multi-stage for a Go binary (the dramatic one)
 
@@ -304,7 +304,7 @@ Lần này 3 stage:
 
 - `deps` — cài dependency. Còn cache bao lâu `package.json` không đổi.
 - `builder` — tái dùng layer deps, copy source, chạy `next build`.
-- `runtime` — copy chỉ server standalone + asset tĩnh. Image cuối thường <100 MB ngay cả với Next app cỡ vừa.
+- `runtime` — copy chỉ server standalone + asset tĩnh. Image cuối thường &lt;100 MB ngay cả với Next app cỡ vừa.
 
 ## Multi-stage cho binary Go (cú đẹp nhất)
 

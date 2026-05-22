@@ -1,0 +1,307 @@
+import { Recap } from '@/components/mdx/recap';
+import { Callout } from '@/components/mdx/callout';
+import { EN, VI } from '@/components/mdx/bilingual';
+
+<EN>
+
+<Callout type="note" title="In this lesson">
+- The five decision axes that actually matter: ops surface, payload filters, replication, transactional consistency, cost.
+- Side-by-side: same dataset, same query, same metric — what pgvector and Qdrant each return.
+- When pgvector wins (and it wins more often than you'd think).
+- When Qdrant wins (and the specific signals that tell you you've crossed the line).
+- The full decision matrix including Pinecone, Weaviate, Milvus, Chroma — so you can pick once and not relitigate every quarter.
+- Migration paths: how to start on pgvector and move only if you must.
+</Callout>
+
+A vector DB comparison post-mortem usually opens with "we should have stayed on pgvector" — or, less often, "we should have moved off pgvector a year earlier". The decision is rarely about the vector math (HNSW is HNSW everywhere) and almost always about everything around it: how you operate it, how you filter, how you scale, how you back it up.
+
+This lesson is the decision framework — not a benchmark shoot-out — so you pick once and ship.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 420" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Side-by-side comparison of pgvector and Qdrant on five axes: ops surface, payload filters, scale, replication, transactions">
+    <rect x="20"  y="20" width="320" height="380" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="2" />
+    <text x="180" y="50" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'pgvector'}</text>
+    <text x="180" y="68" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'Postgres extension'}</text>
+
+    <text x="40" y="100" fontSize="11" fontWeight="700" fill="currentColor">{'Ops surface'}</text>
+    <text x="40" y="116" fontSize="10" fill="currentColor" opacity="0.75">{'• Same Postgres backup, same psql, same migrations'}</text>
+    <text x="40" y="130" fontSize="10" fill="currentColor" opacity="0.75">{'• Zero new infra to learn'}</text>
+
+    <text x="40" y="160" fontSize="11" fontWeight="700" fill="currentColor">{'Filters'}</text>
+    <text x="40" y="176" fontSize="10" fill="currentColor" opacity="0.75">{'• Full SQL — JOIN to products, JSONB on metadata'}</text>
+    <text x="40" y="190" fontSize="10" fill="currentColor" opacity="0.75">{'• Pre-filter or post-filter; planner picks'}</text>
+
+    <text x="40" y="220" fontSize="11" fontWeight="700" fill="currentColor">{'Scale'}</text>
+    <text x="40" y="236" fontSize="10" fill="currentColor" opacity="0.75">{'• Comfortable to ~10M vectors'}</text>
+    <text x="40" y="250" fontSize="10" fill="currentColor" opacity="0.75">{'• Past 50M, ops pain starts'}</text>
+
+    <text x="40" y="280" fontSize="11" fontWeight="700" fill="currentColor">{'Replication'}</text>
+    <text x="40" y="296" fontSize="10" fill="currentColor" opacity="0.75">{'• Whatever Postgres has (streaming, logical)'}</text>
+    <text x="40" y="310" fontSize="10" fill="currentColor" opacity="0.75">{'• You handle failover'}</text>
+
+    <text x="40" y="340" fontSize="11" fontWeight="700" fill="currentColor">{'Transactions'}</text>
+    <text x="40" y="356" fontSize="10" fill="currentColor" opacity="0.75">{'• ACID across vector + products + orders'}</text>
+    <text x="40" y="370" fontSize="10" fill="currentColor" opacity="0.75">{'• One BEGIN, one COMMIT'}</text>
+
+    <rect x="380" y="20" width="320" height="380" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="2" />
+    <text x="540" y="50" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'Qdrant'}</text>
+    <text x="540" y="68" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'vector-native, Rust'}</text>
+
+    <text x="400" y="100" fontSize="11" fontWeight="700" fill="currentColor">{'Ops surface'}</text>
+    <text x="400" y="116" fontSize="10" fill="currentColor" opacity="0.75">{'• Second daemon, second backup pipeline'}</text>
+    <text x="400" y="130" fontSize="10" fill="currentColor" opacity="0.75">{'• Snapshots → S3, REST + gRPC API'}</text>
+
+    <text x="400" y="160" fontSize="11" fontWeight="700" fill="currentColor">{'Filters'}</text>
+    <text x="400" y="176" fontSize="10" fill="currentColor" opacity="0.75">{'• Payload filter native to the index — ★ killer feature'}</text>
+    <text x="400" y="190" fontSize="10" fill="currentColor" opacity="0.75">{'• Filter inside HNSW, not post-hoc'}</text>
+
+    <text x="400" y="220" fontSize="11" fontWeight="700" fill="currentColor">{'Scale'}</text>
+    <text x="400" y="236" fontSize="10" fill="currentColor" opacity="0.75">{'• Comfortable past 100M+ vectors'}</text>
+    <text x="400" y="250" fontSize="10" fill="currentColor" opacity="0.75">{'• Sharding built-in'}</text>
+
+    <text x="400" y="280" fontSize="11" fontWeight="700" fill="currentColor">{'Replication'}</text>
+    <text x="400" y="296" fontSize="10" fill="currentColor" opacity="0.75">{'• First-class — Raft consensus, configurable factor'}</text>
+    <text x="400" y="310" fontSize="10" fill="currentColor" opacity="0.75">{'• Automatic failover'}</text>
+
+    <text x="400" y="340" fontSize="11" fontWeight="700" fill="currentColor">{'Transactions'}</text>
+    <text x="400" y="356" fontSize="10" fill="currentColor" opacity="0.75">{'• Per-point only; no cross-collection ACID'}</text>
+    <text x="400" y="370" fontSize="10" fill="currentColor" opacity="0.75">{'• Eventually consistent on replicas'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Same HNSW math on both sides. The difference is everything *around* the index — and that's what your decision rests on.
+  </figcaption>
+</figure>
+
+## 01 — The five axes that decide it
+
+Forget "which is faster" — they're both fast enough at any reasonable scale. The real questions:
+
+**Ops surface.** Do you want one daemon to back up, monitor, restart, version-upgrade — or two? pgvector adds zero new ops; Qdrant adds a second system you have to learn.
+
+**Payload filters at scale.** Can you filter the result set efficiently? *"Top 10 chunks where `locale = 'vi'` AND `category = 'returns'` AND `not expired`"*. pgvector does this with SQL but the planner can struggle when the filter is very selective on a large HNSW index. Qdrant filters *inside* the HNSW traversal — its killer feature.
+
+**Replication and HA.** Do you need multi-node redundancy? pgvector inherits whatever Postgres replication you've set up (streaming / logical / Patroni). Qdrant has Raft-based replication built in — three nodes, automatic failover, no manual intervention.
+
+**Transactional consistency.** Do your vectors need to commit/rollback alongside your `orders` table? pgvector is in the same transaction. Qdrant is its own world — eventually consistent, no cross-system ACID.
+
+**Cost.** pgvector adds disk + RAM to your existing Postgres bill — usually marginal. Qdrant adds another machine (or another cluster), another monitoring contract, another on-call rotation.
+
+## 02 — The pgvector-wins case
+
+You should default to pgvector if any of these hold:
+
+- **You already run Postgres.** You inherit backup, replication, monitoring, IAM. The marginal cost of pgvector is the disk for the embeddings and the RAM for the HNSW index.
+- **Your corpus is under ~10M vectors.** Throughput and latency stay well under 10 ms p95 with HNSW defaults. No reason to add a second system.
+- **You filter against `JOIN`ed business data.** *"Find chunks where `category = ?` AND `expires_at > now()`"* is one SQL statement against pgvector + the products table. With Qdrant you'd need to duplicate the filterable fields into Qdrant's payload, then keep them in sync.
+- **You need transactional consistency.** If a chunk and the product it describes must commit together (or roll back together), they need to be in the same database.
+- **Your team is small.** Two-person teams cannot afford to operate two databases. Five-person teams can. Ten-person teams must.
+
+For a typical e-commerce concierge in Vietnam, **all five of these conditions hold**. pgvector is the right call. That's why L32 builds on pgvector.
+
+## 03 — The Qdrant-wins case
+
+You should plan a migration to Qdrant (or start there) if any of these hold:
+
+- **Payload filters are very selective and frequent.** *"Show only documents from this customer's tenant, in this language, marked active"* on a 50M-vector index. pgvector's planner can degrade badly here; Qdrant's filterable HNSW shines.
+- **Multi-tenancy with strict per-tenant isolation.** Qdrant's payload-indexed collections handle "millions of small tenants" gracefully — pgvector with a `tenant_id` filter starts to struggle past 10k tenants without partitioning.
+- **You need built-in replication and sharding.** Qdrant clusters with Raft; you `kubectl scale` and it spreads. With pgvector you wire up Patroni or a managed Postgres HA.
+- **Vector-only access patterns.** If your queries are *purely* vector + payload, never JOINing to relational data, you're paying the Postgres overhead for no benefit.
+- **You're past 50M vectors.** HNSW indexes get fat. Qdrant's binary quantization and disk-backed indices give you more headroom than pgvector at this scale.
+
+Qdrant is also a reasonable choice when your stack isn't Postgres-centric — a Mongo + Node shop with no existing Postgres is happier adding Qdrant than introducing Postgres just for pgvector.
+
+## 04 — The full decision matrix
+
+For context, here's how the broader landscape sits in 2026. Sources you should benchmark yourself before any migration:
+
+| Solution | Type | Best at | Worst at | When to pick |
+|---|---|---|---|---|
+| **pgvector** | Postgres extension | Operational simplicity, JOINs, ACID | Filter-heavy 50M+ workloads | Default if you have Postgres |
+| **Qdrant** | Self-hosted / cloud, Rust | Payload filters, replication, multi-tenant | Adds a daemon; eventual consistency | When pgvector hits its scaling wall |
+| **Weaviate** | Self-hosted / cloud, Go | GraphQL API, hybrid built-in | Heavier ops; smaller community | When you want hybrid + reranking out of the box |
+| **Milvus** | Self-hosted / cloud, distributed | Billion-scale, GPU acceleration | Operational complexity (etcd, Pulsar) | True billion-vector workloads |
+| **Pinecone** | Hosted only | Zero ops, predictable latency | Vendor lock-in, per-pod minimums | When ops time is more expensive than license cost |
+| **Chroma** | Embedded / hosted | Quickest local dev experience | Limited prod hardening | Prototypes, notebooks, RAG demos |
+| **Elastic / OpenSearch** | Search engine + vector | Already have it for logs | Recall lower than vector-native | Don't add it for vectors alone; piggyback if you have it |
+| **Redis (RediSearch)** | In-memory + vector | Sub-ms latency on hot data | RAM cost; vector second-class | Cache layer in front of pgvector |
+
+The two **default-correct** answers in 2026: **pgvector** if you already have Postgres, **Qdrant** if you don't or you've outgrown pgvector. Anything else needs a specific reason.
+
+## 05 — Migration: start small, move only if you must
+
+If you're in doubt, start on pgvector. The migration to Qdrant is well-understood and the data is portable (export embeddings + payload as JSONL, re-upsert in Qdrant). The reverse — Qdrant → pgvector — is also doable but rarer.
+
+A clean migration path that doesn't bet the farm:
+
+1. **Phase 1 (months 0–6).** Everything on pgvector. Build the eval set (L30). Track recall@k and query p95 latency in a dashboard.
+2. **Phase 2 (when a metric crosses a threshold).** Latency p95 > 200ms, recall@10 < 0.92 after tuning, or filter queries timing out. Spin up Qdrant in parallel.
+3. **Phase 3.** Dual-write to both for a week. Compare recall on the same eval set. If Qdrant is meaningfully better and the ops cost is justified, cut over reads.
+4. **Phase 4.** Keep pgvector for vectors that JOIN to products (small index, fast queries). Put the big static corpus in Qdrant. **Both can coexist; you don't have to pick one for the whole company.**
+
+<Callout type="tip" title="The trigger is a graph, not a vibe">
+"It feels slow" is not a migration trigger. "p95 latency on the FAQ retrieval crossed 300 ms last Tuesday and stayed there even after tuning ef_search" is. Build the dashboard first; let the data tell you when.
+</Callout>
+
+<Recap>
+- The decision rests on five axes: **ops surface, payload filters, replication, transactional consistency, cost** — not on raw HNSW speed.
+- **pgvector wins by default** if you have Postgres and are under ~10M vectors and need JOINs / ACID. Most concierges live here.
+- **Qdrant wins** for selective payload filters at scale, multi-tenant, built-in replication, or pure vector workloads past 50M.
+- Beyond pgvector and Qdrant, the rest of the field is niche — Pinecone for zero-ops hosted, Milvus for billion-scale, Chroma for prototyping, Weaviate for GraphQL+hybrid.
+- Migration path: start on pgvector, measure, and only move when a *graphed metric* crosses a threshold. They can coexist — you don't have to pick one for the whole company.
+</Recap>
+
+Next: Qdrant hands-on. Docker compose, a collection, an upsert from the same `knowledge/` markdown, and the payload filter that makes Qdrant earn its keep.
+
+</EN>
+
+<VI>
+
+<Callout type="note" title="Trong bài này">
+- Năm trục quyết định thực sự quan trọng: ops surface, payload filter, replication, nhất quán giao dịch, chi phí.
+- Cạnh nhau: cùng dataset, cùng query, cùng metric — pgvector và Qdrant mỗi cái trả gì.
+- Khi nào pgvector thắng (thắng nhiều hơn bạn nghĩ).
+- Khi nào Qdrant thắng (và tín hiệu cụ thể nói bạn đã qua ranh giới).
+- Ma trận quyết định đầy đủ gồm Pinecone, Weaviate, Milvus, Chroma — để chọn một lần và không relitigate mỗi quý.
+- Đường migration: bắt đầu pgvector và chỉ chuyển khi bắt buộc.
+</Callout>
+
+Một post-mortem so sánh vector DB thường mở đầu bằng "lẽ ra chúng tôi nên ở lại pgvector" — hoặc, ít khi hơn, "lẽ ra chúng tôi nên rời pgvector sớm hơn một năm". Quyết định hiếm khi về toán vector (HNSW là HNSW khắp nơi) và gần như luôn về mọi thứ xung quanh: bạn vận hành thế nào, lọc thế nào, scale thế nào, backup thế nào.
+
+Bài này là khung quyết định — không phải benchmark đấu — để bạn chọn một lần và ship.
+
+<figure style={{ margin: '2rem auto', maxWidth: '720px' }}>
+  <svg viewBox="0 0 720 420" style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="So sánh cạnh nhau pgvector và Qdrant trên năm trục">
+    <rect x="20"  y="20" width="320" height="380" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="2" />
+    <text x="180" y="50" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'pgvector'}</text>
+    <text x="180" y="68" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'extension Postgres'}</text>
+
+    <text x="40" y="100" fontSize="11" fontWeight="700" fill="currentColor">{'Ops surface'}</text>
+    <text x="40" y="116" fontSize="10" fill="currentColor" opacity="0.75">{'• Cùng backup Postgres, cùng psql, cùng migration'}</text>
+    <text x="40" y="130" fontSize="10" fill="currentColor" opacity="0.75">{'• Zero infra mới phải học'}</text>
+
+    <text x="40" y="160" fontSize="11" fontWeight="700" fill="currentColor">{'Filter'}</text>
+    <text x="40" y="176" fontSize="10" fill="currentColor" opacity="0.75">{'• SQL đủ — JOIN sang products, JSONB trên metadata'}</text>
+    <text x="40" y="190" fontSize="10" fill="currentColor" opacity="0.75">{'• Pre-filter hoặc post-filter; planner chọn'}</text>
+
+    <text x="40" y="220" fontSize="11" fontWeight="700" fill="currentColor">{'Scale'}</text>
+    <text x="40" y="236" fontSize="10" fill="currentColor" opacity="0.75">{'• Thoải mái tới ~10M vector'}</text>
+    <text x="40" y="250" fontSize="10" fill="currentColor" opacity="0.75">{'• Qua 50M, đau ops bắt đầu'}</text>
+
+    <text x="40" y="280" fontSize="11" fontWeight="700" fill="currentColor">{'Replication'}</text>
+    <text x="40" y="296" fontSize="10" fill="currentColor" opacity="0.75">{'• Postgres có gì dùng nấy (streaming, logical)'}</text>
+    <text x="40" y="310" fontSize="10" fill="currentColor" opacity="0.75">{'• Bạn tự lo failover'}</text>
+
+    <text x="40" y="340" fontSize="11" fontWeight="700" fill="currentColor">{'Giao dịch'}</text>
+    <text x="40" y="356" fontSize="10" fill="currentColor" opacity="0.75">{'• ACID xuyên vector + products + orders'}</text>
+    <text x="40" y="370" fontSize="10" fill="currentColor" opacity="0.75">{'• Một BEGIN, một COMMIT'}</text>
+
+    <rect x="380" y="20" width="320" height="380" rx="10" fill="rgba(22,163,74,0.06)" stroke="#16a34a" strokeWidth="2" />
+    <text x="540" y="50" textAnchor="middle" fontSize="14" fontWeight="700" fill="#16a34a">{'Qdrant'}</text>
+    <text x="540" y="68" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.6">{'vector-native, Rust'}</text>
+
+    <text x="400" y="100" fontSize="11" fontWeight="700" fill="currentColor">{'Ops surface'}</text>
+    <text x="400" y="116" fontSize="10" fill="currentColor" opacity="0.75">{'• Daemon thứ hai, pipeline backup thứ hai'}</text>
+    <text x="400" y="130" fontSize="10" fill="currentColor" opacity="0.75">{'• Snapshot → S3, API REST + gRPC'}</text>
+
+    <text x="400" y="160" fontSize="11" fontWeight="700" fill="currentColor">{'Filter'}</text>
+    <text x="400" y="176" fontSize="10" fill="currentColor" opacity="0.75">{'• Payload filter native vào index — ★ killer feature'}</text>
+    <text x="400" y="190" fontSize="10" fill="currentColor" opacity="0.75">{'• Filter bên trong HNSW, không post-hoc'}</text>
+
+    <text x="400" y="220" fontSize="11" fontWeight="700" fill="currentColor">{'Scale'}</text>
+    <text x="400" y="236" fontSize="10" fill="currentColor" opacity="0.75">{'• Thoải mái qua 100M+ vector'}</text>
+    <text x="400" y="250" fontSize="10" fill="currentColor" opacity="0.75">{'• Sharding built-in'}</text>
+
+    <text x="400" y="280" fontSize="11" fontWeight="700" fill="currentColor">{'Replication'}</text>
+    <text x="400" y="296" fontSize="10" fill="currentColor" opacity="0.75">{'• First-class — đồng thuận Raft, factor cấu hình'}</text>
+    <text x="400" y="310" fontSize="10" fill="currentColor" opacity="0.75">{'• Failover tự động'}</text>
+
+    <text x="400" y="340" fontSize="11" fontWeight="700" fill="currentColor">{'Giao dịch'}</text>
+    <text x="400" y="356" fontSize="10" fill="currentColor" opacity="0.75">{'• Chỉ per-point; không ACID xuyên collection'}</text>
+    <text x="400" y="370" fontSize="10" fill="currentColor" opacity="0.75">{'• Eventually consistent trên replica'}</text>
+  </svg>
+  <figcaption style={{ marginTop: '0.75rem', fontSize: '0.875rem', textAlign: 'center', opacity: 0.7 }}>
+    Cùng toán HNSW hai bên. Khác biệt là mọi thứ *quanh* index — và đó là chỗ quyết định của bạn nằm.
+  </figcaption>
+</figure>
+
+## 01 — Năm trục quyết định
+
+Quên "cái nào nhanh hơn" — cả hai đủ nhanh ở mọi scale hợp lý. Câu hỏi thật:
+
+**Ops surface.** Bạn muốn một daemon để backup, monitor, restart, version-upgrade — hay hai? pgvector thêm zero ops mới; Qdrant thêm hệ thống thứ hai phải học.
+
+**Payload filter ở scale.** Lọc result set hiệu quả được không? *"Top 10 chunk nơi `locale = 'vi'` AND `category = 'returns'` AND chưa hết hạn"*. pgvector làm bằng SQL nhưng planner có thể vật lộn khi filter rất chọn lọc trên index HNSW lớn. Qdrant lọc *bên trong* traversal HNSW — killer feature của nó.
+
+**Replication và HA.** Cần dự phòng đa node không? pgvector kế thừa replication Postgres bạn set (streaming / logical / Patroni). Qdrant có replication Raft built-in — ba node, failover tự động, không can thiệp tay.
+
+**Nhất quán giao dịch.** Vector của bạn cần commit/rollback cùng bảng `orders` không? pgvector cùng giao dịch. Qdrant là thế giới riêng — eventually consistent, không ACID xuyên hệ thống.
+
+**Chi phí.** pgvector thêm disk + RAM vào bill Postgres có sẵn — thường nhỏ. Qdrant thêm máy khác (hoặc cluster khác), hợp đồng monitoring khác, lịch on-call khác.
+
+## 02 — Trường hợp pgvector thắng
+
+Bạn nên mặc định pgvector nếu bất kỳ điều nào sau đúng:
+
+- **Đã chạy Postgres.** Kế thừa backup, replication, monitoring, IAM. Chi phí biên của pgvector là disk cho embedding và RAM cho index HNSW.
+- **Corpus dưới ~10M vector.** Throughput và latency thoải mái dưới 10 ms p95 với mặc định HNSW. Không lý do gì thêm hệ thống thứ hai.
+- **Lọc dựa vào data business `JOIN`.** *"Tìm chunk nơi `category = ?` AND `expires_at > now()`"* là một SQL trên pgvector + bảng products. Với Qdrant phải duplicate field lọc được vào payload Qdrant, rồi giữ đồng bộ.
+- **Cần nhất quán giao dịch.** Nếu chunk và sản phẩm nó mô tả phải commit cùng nhau (hoặc rollback cùng nhau), chúng phải ở cùng database.
+- **Team nhỏ.** Team hai người không kham được vận hành hai database. Team năm có thể. Team mười phải.
+
+Cho concierge e-commerce điển hình ở Việt Nam, **cả năm điều đều đúng**. pgvector là lựa chọn đúng. Đó là vì sao L32 dựng trên pgvector.
+
+## 03 — Trường hợp Qdrant thắng
+
+Bạn nên lên kế hoạch migration sang Qdrant (hoặc bắt đầu từ đó) nếu bất kỳ điều nào sau đúng:
+
+- **Payload filter rất chọn lọc và thường xuyên.** *"Chỉ hiện document từ tenant này của khách, ngôn ngữ này, đánh dấu active"* trên index 50M vector. Planner pgvector có thể xuống cấp tệ ở đây; HNSW có filter của Qdrant toả sáng.
+- **Multi-tenancy với cách ly per-tenant nghiêm.** Collection payload-indexed của Qdrant xử lý "triệu tenant nhỏ" duyên dáng — pgvector với filter `tenant_id` bắt đầu vật lộn qua 10k tenant không partition.
+- **Cần replication và sharding built-in.** Cluster Qdrant với Raft; bạn `kubectl scale` và nó trải. Với pgvector bạn wire Patroni hoặc Postgres HA managed.
+- **Pattern truy cập chỉ vector.** Nếu query *thuần* là vector + payload, không bao giờ JOIN sang data relational, bạn đang trả overhead Postgres không lợi ích.
+- **Qua 50M vector.** Index HNSW phình ra. Quantization binary và index disk-backed của Qdrant cho bạn nhiều headroom hơn pgvector ở scale này.
+
+Qdrant cũng là lựa chọn hợp lý khi stack không Postgres-centric — shop Mongo + Node không có Postgres sẵn vui hơn khi thêm Qdrant hơn là giới thiệu Postgres chỉ để dùng pgvector.
+
+## 04 — Ma trận quyết định đầy đủ
+
+Cho bối cảnh, đây là cảnh quan rộng hơn ngồi ở đâu năm 2026. Nguồn bạn nên benchmark trước bất kỳ migration nào:
+
+| Giải pháp | Loại | Giỏi nhất | Tệ nhất | Khi chọn |
+|---|---|---|---|---|
+| **pgvector** | Extension Postgres | Đơn giản vận hành, JOIN, ACID | Workload filter-nặng 50M+ | Mặc định nếu có Postgres |
+| **Qdrant** | Self-host / cloud, Rust | Payload filter, replication, multi-tenant | Thêm daemon; eventual consistency | Khi pgvector chạm tường scaling |
+| **Weaviate** | Self-host / cloud, Go | API GraphQL, hybrid built-in | Ops nặng hơn; cộng đồng nhỏ hơn | Khi muốn hybrid + reranking out of box |
+| **Milvus** | Self-host / cloud, phân tán | Scale tỷ, tăng tốc GPU | Phức tạp vận hành (etcd, Pulsar) | Workload tỷ vector thật |
+| **Pinecone** | Chỉ hosted | Zero ops, latency dự đoán được | Vendor lock-in, minimum per-pod | Khi thời gian ops đắt hơn chi phí license |
+| **Chroma** | Embedded / hosted | Trải nghiệm dev local nhanh nhất | Cứng cáp production hạn chế | Prototype, notebook, demo RAG |
+| **Elastic / OpenSearch** | Search engine + vector | Đã có sẵn cho log | Recall thấp hơn vector-native | Đừng thêm chỉ cho vector; ghép thêm nếu đã có |
+| **Redis (RediSearch)** | In-memory + vector | Latency dưới ms cho data hot | Chi phí RAM; vector hạng hai | Lớp cache trước pgvector |
+
+Hai đáp án **default-đúng** năm 2026: **pgvector** nếu đã có Postgres, **Qdrant** nếu không hoặc đã vượt qua pgvector. Cái khác cần lý do cụ thể.
+
+## 05 — Migration: bắt đầu nhỏ, chỉ chuyển khi bắt buộc
+
+Nếu nghi ngờ, bắt đầu pgvector. Migration sang Qdrant hiểu rõ và data portable (export embedding + payload thành JSONL, re-upsert vào Qdrant). Ngược lại — Qdrant → pgvector — cũng làm được nhưng hiếm.
+
+Đường migration sạch không đặt cược trang trại:
+
+1. **Phase 1 (tháng 0–6).** Mọi thứ trên pgvector. Dựng eval set (L30). Theo dõi recall@k và query p95 latency trong dashboard.
+2. **Phase 2 (khi metric vượt ngưỡng).** Latency p95 > 200ms, recall@10 < 0.92 sau tune, hoặc query filter timeout. Spin up Qdrant song song.
+3. **Phase 3.** Dual-write cả hai một tuần. So recall trên cùng eval set. Nếu Qdrant tốt hơn có ý nghĩa và chi phí ops chính đáng, cut over read.
+4. **Phase 4.** Giữ pgvector cho vector JOIN sang products (index nhỏ, query nhanh). Đặt corpus tĩnh lớn vào Qdrant. **Cả hai có thể cùng tồn tại; bạn không phải chọn một cho cả công ty.**
+
+<Callout type="tip" title="Trigger là biểu đồ, không phải cảm giác">
+"Có vẻ chậm" không phải trigger migration. "p95 latency trên retrieval FAQ vượt 300 ms thứ Ba tuần trước và ở đó kể cả sau khi tune ef_search" mới phải. Dựng dashboard trước; để data nói khi nào.
+</Callout>
+
+<Recap>
+- Quyết định dựa trên năm trục: **ops surface, payload filter, replication, nhất quán giao dịch, chi phí** — không phải tốc độ HNSW thuần.
+- **pgvector thắng mặc định** nếu có Postgres và dưới ~10M vector và cần JOIN / ACID. Đa số concierge sống ở đây.
+- **Qdrant thắng** cho payload filter chọn lọc ở scale, multi-tenant, replication built-in, hoặc workload vector thuần qua 50M.
+- Ngoài pgvector và Qdrant, phần còn lại là niche — Pinecone cho hosted zero-ops, Milvus cho tỷ-scale, Chroma cho prototype, Weaviate cho GraphQL+hybrid.
+- Đường migration: bắt đầu pgvector, đo, và chỉ chuyển khi *metric biểu đồ* vượt ngưỡng. Cả hai có thể cùng tồn tại — không phải chọn một cho cả công ty.
+</Recap>
+
+Tiếp: Qdrant hands-on. Docker compose, một collection, upsert từ cùng `knowledge/` markdown, và payload filter làm Qdrant xứng công.
+
+</VI>
