@@ -1,0 +1,1091 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI in Your Project — Study & presentation notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --primary:   #ff8fab;
+    --secondary: #b794f6;
+    --mint:      #6ee7c7;
+    --sunny:     #ffd166;
+    --peach:     #ffb088;
+    --coral:     #ff9b8c;
+    --sky:       #82c8f5;
+    --rose:      #f5a5c8;
+    --ink:       #2d1b4d;
+    --ink-soft:  #5b4880;
+    --muted:     #8e7fa8;
+    --bg:        #fbf9ff;
+    --card:      #ffffff;
+    --line:      #e3dbf3;
+    --chip-bg:   #f1ecfa;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Quicksand', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    padding: 32px 20px 80px;
+  }
+
+  /* --------- Header --------- */
+  .hd {
+    max-width: 1200px;
+    margin: 0 auto 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand .mark {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white; font-weight: 700; font-size: 18px;
+    display: grid; place-items: center;
+    box-shadow: 0 8px 22px -10px rgba(183, 148, 246, 0.55);
+  }
+  .brand h1 { margin: 0; font-size: 22px; font-weight: 700; color: var(--ink); }
+  .brand .sub { font-size: 13px; color: var(--muted); font-weight: 500; }
+
+  .lang-toggle {
+    display: inline-flex;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px;
+    box-shadow: 0 4px 14px -8px rgba(45, 27, 77, 0.18);
+  }
+  .lang-toggle button {
+    border: 0; background: transparent;
+    font-family: inherit; font-weight: 600;
+    color: var(--muted);
+    padding: 7px 16px; border-radius: 999px;
+    cursor: pointer; transition: .18s ease;
+  }
+  .lang-toggle button.active {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    box-shadow: 0 4px 10px -4px rgba(183, 148, 246, 0.6);
+  }
+  body[data-lang="en"] .lang-vi { display: none; }
+  body[data-lang="vi"] .lang-en { display: none; }
+
+  .intro {
+    max-width: 1200px;
+    margin: 0 auto 28px;
+    color: var(--ink-soft);
+    font-size: 14.5px;
+  }
+  .intro a { color: var(--secondary); font-weight: 600; text-decoration: none; }
+  .intro a:hover { text-decoration: underline; }
+  .intro .hint { display: inline-block; margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+
+  /* --------- Center (LLM Agent intro) --------- */
+  .center-card {
+    max-width: 1200px;
+    margin: 0 auto 28px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border-radius: 24px;
+    padding: 28px 32px;
+    color: white;
+    box-shadow: 0 24px 60px -28px rgba(183, 148, 246, 0.6);
+  }
+  .center-card h2 { margin: 0 0 6px; font-size: 22px; font-weight: 700; }
+  .center-card .sub { font-size: 13px; opacity: 0.85; margin-bottom: 14px; font-family: 'JetBrains Mono', monospace; }
+  .center-card p { margin: 0 0 10px; font-size: 15px; line-height: 1.65; opacity: 0.96; }
+  .center-card p strong { font-weight: 700; }
+  .center-card code {
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(255,255,255,0.18);
+    padding: 1px 7px; border-radius: 5px;
+    font-size: 0.88em;
+  }
+
+  /* --------- Cards grid --------- */
+  .cards {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: 20px;
+    border: 1px solid var(--line);
+    padding: 0;
+    box-shadow: 0 14px 40px -28px rgba(45, 27, 77, 0.25);
+    overflow: hidden;
+  }
+  .card .stripe { height: 6px; }
+  .card .body { padding: 24px 28px 26px; }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .card-head h2 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .card-head .num {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .card-head .tag {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    background: var(--chip-bg);
+    padding: 4px 12px;
+    border-radius: 999px;
+  }
+
+  .hook {
+    font-size: 15.5px;
+    font-style: italic;
+    color: var(--ink);
+    padding: 14px 18px;
+    border-left: 3px solid var(--secondary);
+    background: linear-gradient(90deg, rgba(183,148,246,0.06), transparent);
+    border-radius: 0 12px 12px 0;
+    margin-bottom: 18px;
+  }
+  .card[data-color="primary"] .hook  { border-left-color: var(--primary); }
+  .card[data-color="mint"] .hook     { border-left-color: var(--mint); }
+  .card[data-color="sunny"] .hook    { border-left-color: var(--sunny); }
+  .card[data-color="peach"] .hook    { border-left-color: var(--peach); }
+  .card[data-color="coral"] .hook    { border-left-color: var(--coral); }
+
+  .section { margin-bottom: 18px; }
+  .section:last-child { margin-bottom: 0; }
+  .section h3 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .card[data-color="primary"] .section h3 { color: var(--primary); }
+  .card[data-color="mint"] .section h3    { color: #2ab38e; }
+  .card[data-color="sunny"] .section h3   { color: #d49e1f; }
+  .card[data-color="peach"] .section h3   { color: #d97849; }
+  .card[data-color="coral"] .section h3   { color: #d76b5b; }
+
+  .section p {
+    margin: 0 0 10px;
+    color: var(--ink-soft);
+    font-size: 14.5px;
+  }
+  .section p:last-child { margin-bottom: 0; }
+  .section strong { color: var(--ink); font-weight: 700; }
+  .section code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    background: var(--chip-bg);
+    padding: 1px 6px;
+    border-radius: 5px;
+    color: var(--ink);
+  }
+
+  ul.terms {
+    margin: 0; padding: 0; list-style: none;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  @media (min-width: 720px) {
+    ul.terms { grid-template-columns: 1fr 1fr; }
+  }
+  ul.terms li {
+    background: #faf7ff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+  ul.terms li strong {
+    display: block;
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  ol.script { margin: 0; padding-left: 22px; color: var(--ink-soft); font-size: 14.5px; }
+  ol.script li { margin-bottom: 8px; }
+  ol.script li strong { color: var(--ink); font-weight: 700; }
+
+  .remember {
+    margin-top: 14px;
+    padding: 12px 16px;
+    background: #fffaeb;
+    border: 1px dashed #f5d77a;
+    border-radius: 12px;
+    font-size: 14px;
+    color: #6b5715;
+  }
+  .remember strong { color: #4d3e0a; font-weight: 700; }
+
+  /* --------- Flow panel --------- */
+  .flow {
+    max-width: 1200px;
+    margin: 32px auto 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 24px 28px;
+    box-shadow: 0 14px 40px -28px rgba(45, 27, 77, 0.25);
+  }
+  .flow h2 {
+    margin: 0 0 12px;
+    font-size: 18px;
+    color: var(--ink);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .flow h2::before {
+    content: '';
+    width: 6px; height: 22px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, var(--primary), var(--secondary));
+  }
+  .flow ol { margin: 0; padding-left: 22px; color: var(--ink-soft); font-size: 14.5px; }
+  .flow ol li { margin-bottom: 10px; }
+  .flow ol li strong { color: var(--ink); font-weight: 700; }
+
+  .footer-note {
+    max-width: 1200px;
+    margin: 24px auto 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+</style>
+</head>
+<body data-lang="en">
+  <header class="hd">
+    <div class="brand">
+      <div class="mark">AI</div>
+      <div>
+        <h1>
+          <span class="lang-en">AI in Your Project — Study notes</span>
+          <span class="lang-vi">AI trong dự án — Note học thuộc</span>
+        </h1>
+        <div class="sub">
+          <span class="lang-en">Eight cards · one per branch · learn by heart, then present</span>
+          <span class="lang-vi">Tám thẻ · mỗi thẻ một nhánh · học thuộc rồi trình bày</span>
+        </div>
+      </div>
+    </div>
+    <div class="lang-toggle" role="tablist">
+      <button type="button" data-lang="en" class="active">EN</button>
+      <button type="button" data-lang="vi">VI</button>
+    </div>
+  </header>
+
+  <div class="intro">
+    <span class="lang-en">
+      Companion to <a href="./ai-in-your-project-overview.html">the knowledge mindmap</a>.
+      Each card below corresponds to one branch and gives you: a one-line <em>hook</em> to open with,
+      the <em>problem</em> it solves, the <em>key terms</em> with brief explanations, a 4–5 step
+      <em>talking script</em>, and the single thing you must <em>remember</em>.
+    </span>
+    <span class="lang-vi">
+      Bản đi kèm <a href="./ai-in-your-project-overview.html">bản đồ kiến thức</a>.
+      Mỗi thẻ tương ứng một nhánh và cho bạn: một câu <em>mở đầu</em>, <em>vấn đề</em> mà nó giải quyết,
+      các <em>thuật ngữ chính</em> giải thích ngắn gọn, một <em>kịch bản nói</em> 4–5 bước, và
+      điều duy nhất bạn phải <em>nhớ</em>.
+    </span>
+    <div class="hint">
+      <span class="lang-en">Tip — read one card per day, then close the tab and explain it out loud to yourself.</span>
+      <span class="lang-vi">Mẹo — mỗi ngày đọc một thẻ, rồi đóng tab và nói lại to thành tiếng cho chính bạn nghe.</span>
+    </div>
+  </div>
+
+  <!-- Center concept -->
+  <section class="center-card">
+    <h2>
+      <span class="lang-en">The center — LLM Agent</span>
+      <span class="lang-vi">Trung tâm — LLM Agent</span>
+    </h2>
+    <div class="sub">
+      <span class="lang-en">the brain · Ollama (local) + hosted (cloud)</span>
+      <span class="lang-vi">bộ não · Ollama (local) + hosted (cloud)</span>
+    </div>
+    <p>
+      <span class="lang-en">
+        Everything in this course orbits one idea: an <strong>LLM agent</strong> is a language model
+        that can <em>act</em>, not just chat. It reads, decides, calls tools, asks for confirmation,
+        and reports back. The eight branches around it are the eight things you must wire up to make
+        that work in a real project.
+      </span>
+      <span class="lang-vi">
+        Mọi thứ trong khoá này xoay quanh một ý: một <strong>LLM agent</strong> là model ngôn ngữ
+        có thể <em>hành động</em>, không chỉ chat. Nó đọc, quyết định, gọi tool, xin xác nhận, rồi
+        báo lại. Tám nhánh quanh nó là tám thứ bạn phải lắp ráp để nó chạy trong dự án thật.
+      </span>
+    </p>
+    <p>
+      <span class="lang-en">
+        Two model worlds matter: <code>Ollama</code> (you run the model on your machine — cheap, slow, private)
+        and <strong>hosted</strong> providers like OpenAI / Anthropic / Google (fast, expensive, off your premises).
+        Production usually mixes both via an AI Gateway.
+      </span>
+      <span class="lang-vi">
+        Hai thế giới model quan trọng: <code>Ollama</code> (chạy model trên máy bạn — rẻ, chậm, riêng tư)
+        và provider <strong>hosted</strong> như OpenAI / Anthropic / Google (nhanh, đắt, không ở máy bạn).
+        Production thường trộn cả hai qua AI Gateway.
+      </span>
+    </p>
+  </section>
+
+  <div class="cards">
+
+    <!-- 1. Prompting -->
+    <article class="card" data-color="primary">
+      <div class="stripe" style="background: var(--primary);"></div>
+      <div class="body">
+        <div class="card-head">
+          <h2><span class="num">01</span> Prompting</h2>
+          <span class="tag">
+            <span class="lang-en">shape behaviour</span>
+            <span class="lang-vi">định hình hành vi</span>
+          </span>
+        </div>
+
+        <div class="hook">
+          <span class="lang-en">"The system prompt is the agent's job description — write it like you're onboarding a new hire."</span>
+          <span class="lang-vi">"System prompt là bản mô tả công việc của agent — viết như bạn đang onboard nhân viên mới."</span>
+        </div>
+
+        <div class="section">
+          <h3>Why</h3>
+          <p>
+            <span class="lang-en">
+              The model has no idea what your app is, who the user is, or what tone fits. Prompting is how
+              you give it that context <em>before</em> it sees the first user message. Bad prompting wastes
+              tokens and produces wrong-shaped answers; good prompting is the cheapest engineering you can do.
+            </span>
+            <span class="lang-vi">
+              Model không biết app bạn là gì, user là ai, tone nào hợp. Prompting là cách bạn cho nó context đó
+              <em>trước khi</em> nó nhìn thấy tin nhắn đầu tiên từ user. Prompt tệ tốn token và ra câu trả lời sai shape;
+              prompt tốt là việc kỹ thuật rẻ nhất bạn có thể làm.
+            </span>
+          </p>
+        </div>
+
+        <div class="section">
+          <h3>Key terms</h3>
+          <ul class="terms">
+            <li><strong>System prompt</strong>
+              <span class="lang-en">Role, tone, hard limits. Loaded once per conversation.</span>
+              <span class="lang-vi">Vai trò, tone, giới hạn cứng. Nạp một lần mỗi conversation.</span>
+            </li>
+            <li><strong>Few-shot</strong>
+              <span class="lang-en">2–4 input→output examples that teach by demonstration.</span>
+              <span class="lang-vi">2–4 ví dụ input→output, dạy bằng demo.</span>
+            </li>
+            <li><strong>withStructuredOutput + Zod</strong>
+              <span class="lang-en">Forces the model to return JSON matching a schema. Prerequisite for tool calling.</span>
+              <span class="lang-vi">Ép model trả JSON khớp schema. Điều kiện tiên quyết để tool calling.</span>
+            </li>
+            <li><strong>Schema + samples in context</strong>
+              <span class="lang-en">Paste your data shape and 1–2 real rows so answers stay grounded.</span>
+              <span class="lang-vi">Paste shape dữ liệu và 1–2 dòng thật để câu trả lời bám vào dữ liệu thật.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h3>Talking script</h3>
+          <ol class="script">
+            <li><span class="lang-en"><strong>Open:</strong> prompts are the cheapest lever.</span><span class="lang-vi"><strong>Mở:</strong> prompt là đòn bẩy rẻ nhất.</span></li>
+            <li><span class="lang-en"><strong>System prompt</strong> = role + tone + limits.</span><span class="lang-vi"><strong>System prompt</strong> = vai trò + tone + giới hạn.</span></li>
+            <li><span class="lang-en"><strong>Few-shot</strong> beats long instructions when behaviour is hard to describe.</span><span class="lang-vi"><strong>Few-shot</strong> hơn hướng dẫn dài khi hành vi khó tả bằng lời.</span></li>
+            <li><span class="lang-en"><strong>Structured output with Zod</strong> turns prose into typed JSON — this is what unlocks tools.</span><span class="lang-vi"><strong>Structured output với Zod</strong> biến prose thành JSON có kiểu — đây là thứ mở khoá tools.</span></li>
+            <li><span class="lang-en"><strong>Watch tokens.</strong> Every line in the prompt is paid for on every call.</span><span class="lang-vi"><strong>Coi chừng token.</strong> Mỗi dòng trong prompt đều bị tính tiền mỗi lần gọi.</span></li>
+          </ol>
+        </div>
+
+        <div class="remember">
+          <span class="lang-en"><strong>Remember:</strong> if the model keeps "almost" doing the right thing, the answer is usually a few-shot example — not a longer instruction.</span>
+          <span class="lang-vi"><strong>Nhớ:</strong> nếu model cứ "gần như" làm đúng, lời giải thường là thêm một few-shot — không phải viết hướng dẫn dài hơn.</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- 2. LangGraph -->
+    <article class="card" data-color="primary">
+      <div class="stripe" style="background: var(--primary);"></div>
+      <div class="body">
+        <div class="card-head">
+          <h2><span class="num">02</span> LangGraph</h2>
+          <span class="tag">
+            <span class="lang-en">orchestration</span>
+            <span class="lang-vi">điều phối</span>
+          </span>
+        </div>
+
+        <div class="hook">
+          <span class="lang-en">"A plain while-loop calling tools works for a demo. For anything real, you need a graph."</span>
+          <span class="lang-vi">"Vòng while gọi tool đơn giản chỉ đủ demo. Bất cứ thứ gì thật, bạn cần một graph."</span>
+        </div>
+
+        <div class="section">
+          <h3>Why</h3>
+          <p>
+            <span class="lang-en">
+              The naive "ask LLM → call tool → ask LLM again" loop breaks down once you need conditional paths,
+              human approvals, retries, or state that survives a crash. LangGraph models the agent as a
+              <strong>state machine</strong>: typed state flows through nodes connected by edges, and you can pause
+              and resume any time.
+            </span>
+            <span class="lang-vi">
+              Vòng "hỏi LLM → gọi tool → hỏi LLM tiếp" sẽ vỡ khi bạn cần nhánh điều kiện, người duyệt, retry, hoặc
+              state sống sót qua crash. LangGraph mô hình agent thành <strong>state machine</strong>: state có kiểu
+              chảy qua các node nối bằng edge, và bạn có thể dừng / resume bất cứ lúc nào.
+            </span>
+          </p>
+        </div>
+
+        <div class="section">
+          <h3>Key terms</h3>
+          <ul class="terms">
+            <li><strong>StateGraph</strong>
+              <span class="lang-en">The whole machine. State has a TypeScript type; every node reads and writes it.</span>
+              <span class="lang-vi">Cả cỗ máy. State có type TypeScript; mọi node đọc và ghi nó.</span>
+            </li>
+            <li><strong>Nodes</strong>
+              <span class="lang-en">Functions that transform state — typically <code>agentNode</code>, <code>toolsNode</code>, custom logic.</span>
+              <span class="lang-vi">Hàm biến đổi state — thường là <code>agentNode</code>, <code>toolsNode</code>, logic riêng.</span>
+            </li>
+            <li><strong>Edges</strong>
+              <span class="lang-en">How control flows. Conditional edges branch on state — e.g. "if a write tool, go to confirmation."</span>
+              <span class="lang-vi">Cách control chảy. Conditional edge rẽ nhánh theo state — ví dụ "nếu là write tool, sang confirmation."</span>
+            </li>
+            <li><strong>Checkpointer</strong>
+              <span class="lang-en">Persists state to Redis or Postgres so the graph can pause / resume / recover.</span>
+              <span class="lang-vi">Lưu state vào Redis hoặc Postgres để graph pause / resume / phục hồi.</span>
+            </li>
+            <li><strong>compile().invoke / stream</strong>
+              <span class="lang-en">Two ways to run: <code>invoke</code> waits for final state; <code>stream</code> yields each step live.</span>
+              <span class="lang-vi">Hai cách chạy: <code>invoke</code> chờ state cuối; <code>stream</code> trả từng bước trực tiếp.</span>
+            </li>
+            <li><strong>Read auto · Write asks</strong>
+              <span class="lang-en">Read tools run automatically; write tools route through a confirmation node first.</span>
+              <span class="lang-vi">Read tool chạy tự động; write tool đi qua node confirmation trước.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h3>Talking script</h3>
+          <ol class="script">
+            <li><span class="lang-en"><strong>Open:</strong> plain tool-call loop hits a wall fast.</span><span class="lang-vi"><strong>Mở:</strong> vòng tool-call thuần gặp giới hạn nhanh.</span></li>
+            <li><span class="lang-en"><strong>LangGraph</strong> = <code>state · nodes · edges</code>.</span><span class="lang-vi"><strong>LangGraph</strong> = <code>state · node · edge</code>.</span></li>
+            <li><span class="lang-en"><strong>Conditional routing</strong> splits read (auto) from write (approval).</span><span class="lang-vi"><strong>Conditional routing</strong> tách read (tự động) khỏi write (cần duyệt).</span></li>
+            <li><span class="lang-en"><strong>Checkpointer</strong> = pause + resume. This is what makes confirmation possible.</span><span class="lang-vi"><strong>Checkpointer</strong> = pause + resume. Đây là thứ cho phép confirmation hoạt động.</span></li>
+            <li><span class="lang-en"><strong>Stream</strong> for live UI; <strong>invoke</strong> for batch.</span><span class="lang-vi"><strong>Stream</strong> cho UI live; <strong>invoke</strong> cho batch.</span></li>
+          </ol>
+        </div>
+
+        <div class="remember">
+          <span class="lang-en"><strong>Remember:</strong> the checkpointer is not optional. Without it, the moment you call <code>interrupt()</code> you've lost the conversation.</span>
+          <span class="lang-vi"><strong>Nhớ:</strong> checkpointer không phải tuỳ chọn. Không có nó, ngay khi gọi <code>interrupt()</code> bạn mất conversation.</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- 3. Tools -->
+    <article class="card" data-color="primary">
+      <div class="stripe" style="background: var(--primary);"></div>
+      <div class="body">
+        <div class="card-head">
+          <h2><span class="num">03</span> Tools</h2>
+          <span class="tag">
+            <span class="lang-en">what the LLM can do</span>
+            <span class="lang-vi">sức mạnh thực sự</span>
+          </span>
+        </div>
+
+        <div class="hook">
+          <span class="lang-en">"A chatbot talks. An agent acts. Tools are the difference."</span>
+          <span class="lang-vi">"Chatbot chỉ nói. Agent hành động. Tools là khác biệt."</span>
+        </div>
+
+        <div class="section">
+          <h3>Why</h3>
+          <p>
+            <span class="lang-en">
+              The LLM by itself only produces text. Tools are <em>functions you let it call</em> — query the database,
+              send an email, charge a card. The contract is a Zod schema: name, description, input shape.
+              The model picks which tool to call and what arguments to pass; your code executes it.
+            </span>
+            <span class="lang-vi">
+              LLM một mình chỉ sinh text. Tools là <em>các function bạn cho phép nó gọi</em> — query database, gửi email,
+              tính tiền thẻ. Hợp đồng là một Zod schema: tên, mô tả, shape input. Model chọn tool nào gọi và truyền
+              tham số gì; code của bạn thực thi.
+            </span>
+          </p>
+        </div>
+
+        <div class="section">
+          <h3>Key terms</h3>
+          <ul class="terms">
+            <li><strong>tool() + Zod</strong>
+              <span class="lang-en">The wrapper. Zod schema is the contract — the model sees it and matches arguments to it.</span>
+              <span class="lang-vi">Wrapper. Zod schema là hợp đồng — model nhìn thấy và khớp tham số theo nó.</span>
+            </li>
+            <li><strong>Read tools</strong>
+              <span class="lang-en">Safe to run automatically. Always paginate and filter — don't return 10k rows.</span>
+              <span class="lang-vi">An toàn để chạy tự động. Luôn phân trang và filter — đừng trả về 10k dòng.</span>
+            </li>
+            <li><strong>Write tools</strong>
+              <span class="lang-en">Change state. Treat them like a "submit" button — they need confirmation.</span>
+              <span class="lang-vi">Thay đổi state. Đối xử như nút "submit" — cần xác nhận.</span>
+            </li>
+            <li><strong>Idempotency key</strong>
+              <span class="lang-en">A unique id per logical action. Retrying with the same key must not duplicate the effect.</span>
+              <span class="lang-vi">Id duy nhất cho mỗi hành động logic. Retry cùng key không được nhân đôi tác động.</span>
+            </li>
+            <li><strong>Narrow · idempotent · clear</strong>
+              <span class="lang-en">Design rule: one job per tool, safe to retry, name + description leaves no doubt.</span>
+              <span class="lang-vi">Quy tắc thiết kế: một việc mỗi tool, retry an toàn, tên + mô tả không gây hiểu nhầm.</span>
+            </li>
+            <li><strong>Per-user allowlist</strong>
+              <span class="lang-en">Don't expose every tool to every user. Permission check before adding to the toolset.</span>
+              <span class="lang-vi">Đừng phơi bày mọi tool cho mọi user. Check quyền trước khi thêm vào toolset.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h3>Talking script</h3>
+          <ol class="script">
+            <li><span class="lang-en"><strong>Open:</strong> tools turn a chatbot into an agent.</span><span class="lang-vi"><strong>Mở:</strong> tools biến chatbot thành agent.</span></li>
+            <li><span class="lang-en"><strong>tool() + Zod schema</strong> = contract.</span><span class="lang-vi"><strong>tool() + Zod schema</strong> = hợp đồng.</span></li>
+            <li><span class="lang-en"><strong>Read vs Write.</strong> Read = query. Write = the danger zone.</span><span class="lang-vi"><strong>Read vs Write.</strong> Read = query. Write = vùng nguy hiểm.</span></li>
+            <li><span class="lang-en"><strong>Idempotency keys + retries</strong> so duplicates and transient failures don't break anything.</span><span class="lang-vi"><strong>Idempotency key + retry</strong> để duplicate và lỗi nhất thời không phá hỏng gì.</span></li>
+            <li><span class="lang-en"><strong>Allowlist per user</strong> — never trust the LLM to enforce permissions.</span><span class="lang-vi"><strong>Allowlist theo user</strong> — đừng tin LLM tự kiểm tra quyền.</span></li>
+          </ol>
+        </div>
+
+        <div class="remember">
+          <span class="lang-en"><strong>Remember:</strong> the tool description is part of the prompt. The model only knows what you wrote in it — so write it like you're explaining to a junior.</span>
+          <span class="lang-vi"><strong>Nhớ:</strong> mô tả tool là một phần của prompt. Model chỉ biết những gì bạn viết trong đó — viết như đang giải thích cho junior.</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- 4. Confirmation -->
+    <article class="card" data-color="coral">
+      <div class="stripe" style="background: var(--coral);"></div>
+      <div class="body">
+        <div class="card-head">
+          <h2><span class="num">04</span> Confirmation</h2>
+          <span class="tag">
+            <span class="lang-en">human-in-the-loop</span>
+            <span class="lang-vi">người trong vòng lặp</span>
+          </span>
+        </div>
+
+        <div class="hook">
+          <span class="lang-en">"Before any write — pause, ask, then act. This one pattern is what makes agents production-safe."</span>
+          <span class="lang-vi">"Trước mọi write — dừng, hỏi, rồi làm. Một pattern này là thứ làm cho agent dùng được trong production."</span>
+        </div>
+
+        <div class="section">
+          <h3>Why</h3>
+          <p>
+            <span class="lang-en">
+              LLMs hallucinate. They will, eventually, propose an action you don't want — delete the wrong row,
+              email the wrong person. Confirmation is the <em>safety brake</em>: every state-changing action gets
+              a human signature before it executes. Without it, you cannot ship to real users.
+            </span>
+            <span class="lang-vi">
+              LLM hallucinate. Sớm muộn nó sẽ đề xuất một hành động bạn không muốn — xoá nhầm dòng, gửi email sai
+              người. Confirmation là <em>phanh an toàn</em>: mọi hành động thay đổi state đều có chữ ký người
+              trước khi thực thi. Không có nó, bạn không thể ship cho user thật.
+            </span>
+          </p>
+        </div>
+
+        <div class="section">
+          <h3>Key terms</h3>
+          <ul class="terms">
+            <li><strong>interrupt()</strong>
+              <span class="lang-en">LangGraph call that pauses execution and saves state to the checkpointer.</span>
+              <span class="lang-vi">Hàm của LangGraph dừng thực thi và lưu state vào checkpointer.</span>
+            </li>
+            <li><strong>Saved state</strong>
+              <span class="lang-en">Everything needed to resume — last messages, pending tool call, user context.</span>
+              <span class="lang-vi">Mọi thứ cần để resume — message cuối, tool call đang chờ, context user.</span>
+            </li>
+            <li><strong>Approve / Reject / Edit</strong>
+              <span class="lang-en">Three UI choices for the human: run as-is, cancel, or tweak the arguments first.</span>
+              <span class="lang-vi">Ba lựa chọn UI cho người: chạy nguyên, huỷ, hoặc sửa tham số trước.</span>
+            </li>
+            <li><strong>Resume</strong>
+              <span class="lang-en">Load saved state, splice in the decision, continue from the node after <code>interrupt()</code>.</span>
+              <span class="lang-vi">Nạp state đã lưu, chèn quyết định, chạy tiếp từ node sau <code>interrupt()</code>.</span>
+            </li>
+            <li><strong>Audit log</strong>
+              <span class="lang-en">Every approval (who, when, what was proposed, what was approved) — non-negotiable for compliance.</span>
+              <span class="lang-vi">Mỗi lần duyệt (ai, khi nào, đề xuất gì, duyệt gì) — không thể bỏ với compliance.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h3>Talking script</h3>
+          <ol class="script">
+            <li><span class="lang-en"><strong>Open:</strong> hallucination is not "if" but "when".</span><span class="lang-vi"><strong>Mở:</strong> hallucination không phải "nếu" mà là "khi nào".</span></li>
+            <li><span class="lang-en"><strong>interrupt()</strong> before any write tool — pause and surface the action.</span><span class="lang-vi"><strong>interrupt()</strong> trước mọi write tool — dừng và hiện hành động ra.</span></li>
+            <li><span class="lang-en">Human sees <strong>approve / reject / edit</strong>.</span><span class="lang-vi">Người dùng thấy <strong>duyệt / từ chối / sửa</strong>.</span></li>
+            <li><span class="lang-en"><strong>Resume</strong> with the decision baked in.</span><span class="lang-vi"><strong>Resume</strong> với quyết định đã bake vào.</span></li>
+            <li><span class="lang-en"><strong>Log everything.</strong> One row per approval, forever.</span><span class="lang-vi"><strong>Log mọi thứ.</strong> Một dòng mỗi lần duyệt, mãi mãi.</span></li>
+          </ol>
+        </div>
+
+        <div class="remember">
+          <span class="lang-en"><strong>Remember:</strong> if a user can "approve all" without reading, you've built the wrong UI. Make the proposed action impossible to miss.</span>
+          <span class="lang-vi"><strong>Nhớ:</strong> nếu user có thể "duyệt tất cả" mà không đọc, bạn xây UI sai. Làm cho hành động đề xuất không thể bỏ qua.</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- 5. Embeddings -->
+    <article class="card" data-color="mint">
+      <div class="stripe" style="background: var(--mint);"></div>
+      <div class="body">
+        <div class="card-head">
+          <h2><span class="num">05</span> Embeddings</h2>
+          <span class="tag">
+            <span class="lang-en">meaning as vectors</span>
+            <span class="lang-vi">ý nghĩa thành vector</span>
+          </span>
+        </div>
+
+        <div class="hook">
+          <span class="lang-en">"Embeddings turn 'similar meaning' into 'nearby points'. That single shift unlocks search, RAG, clustering."</span>
+          <span class="lang-vi">"Embeddings biến 'ý nghĩa giống nhau' thành 'điểm gần nhau'. Một thay đổi nhỏ đó mở khoá search, RAG, clustering."</span>
+        </div>
+
+        <div class="section">
+          <h3>Why</h3>
+          <p>
+            <span class="lang-en">
+              Keyword search misses synonyms ("buy" vs "purchase"), languages, paraphrases. Embeddings give every
+              piece of text a coordinate in a high-dimensional space — and two texts about the same idea land near
+              each other regardless of word choice. That's the prerequisite for everything in retrieval.
+            </span>
+            <span class="lang-vi">
+              Keyword search bỏ sót đồng nghĩa ("mua" vs "tậu"), ngôn ngữ khác, paraphrase. Embeddings cho mỗi đoạn
+              text một toạ độ trong không gian nhiều chiều — và hai text cùng ý nghĩa rơi gần nhau bất kể chọn từ.
+              Đó là điều kiện tiên quyết cho mọi thứ trong retrieval.
+            </span>
+          </p>
+        </div>
+
+        <div class="section">
+          <h3>Key terms</h3>
+          <ul class="terms">
+            <li><strong>Vector</strong>
+              <span class="lang-en">An array of floats. Length is fixed by the model (e.g. 1024).</span>
+              <span class="lang-vi">Mảng float. Độ dài cố định theo model (ví dụ 1024).</span>
+            </li>
+            <li><strong>Dim (dimension)</strong>
+              <span class="lang-en">How many numbers in the array. 1024 / 1536 / 3072 are common. Higher = more nuance + more storage.</span>
+              <span class="lang-vi">Bao nhiêu số trong mảng. 1024 / 1536 / 3072 hay gặp. Cao hơn = tinh tế hơn + tốn storage hơn.</span>
+            </li>
+            <li><strong>Cosine vs dot vs L2</strong>
+              <span class="lang-en">Three ways to measure "closeness". Pick <em>cosine</em> for text and never change.</span>
+              <span class="lang-vi">Ba cách đo "gần". Chọn <em>cosine</em> cho text và đừng đổi.</span>
+            </li>
+            <li><strong>Normalize</strong>
+              <span class="lang-en">Scale every vector to length 1. After this, cosine and dot give the same answer.</span>
+              <span class="lang-vi">Co mọi vector về độ dài 1. Sau bước này, cosine và dot cho cùng kết quả.</span>
+            </li>
+            <li><strong>Model choice</strong>
+              <span class="lang-en"><code>text-embedding-3-*</code> for English; <code>bge-m3</code> for Vietnamese / multilingual.</span>
+              <span class="lang-vi"><code>text-embedding-3-*</code> cho tiếng Anh; <code>bge-m3</code> cho tiếng Việt / đa ngữ.</span>
+            </li>
+            <li><strong>Matryoshka truncation</strong>
+              <span class="lang-en">Some models let you keep just the first N dims and still work — like a Russian doll. Saves storage.</span>
+              <span class="lang-vi">Vài model cho phép giữ N chiều đầu mà vẫn chạy — như búp bê Nga. Tiết kiệm storage.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h3>Talking script</h3>
+          <ol class="script">
+            <li><span class="lang-en"><strong>Open:</strong> meaning becomes geometry.</span><span class="lang-vi"><strong>Mở:</strong> ý nghĩa trở thành hình học.</span></li>
+            <li><span class="lang-en"><strong>Vector + dim</strong> — fixed-length array of floats.</span><span class="lang-vi"><strong>Vector + dim</strong> — mảng float độ dài cố định.</span></li>
+            <li><span class="lang-en"><strong>Cosine</strong> is the metric. Always.</span><span class="lang-vi"><strong>Cosine</strong> là metric. Luôn luôn.</span></li>
+            <li><span class="lang-en"><strong>Normalize once at write-time.</strong> Then your search becomes a cheap dot product.</span><span class="lang-vi"><strong>Normalize một lần khi ghi.</strong> Rồi search trở thành dot product rẻ tiền.</span></li>
+            <li><span class="lang-en"><strong>Pin your model.</strong> Different model = different space — old and new vectors don't talk to each other.</span><span class="lang-vi"><strong>Pin model.</strong> Model khác = không gian khác — vector cũ và mới không nói chuyện được với nhau.</span></li>
+          </ol>
+        </div>
+
+        <div class="remember">
+          <span class="lang-en"><strong>Remember:</strong> the day you change the embedding model is the day you re-index everything. Pin it on day one.</span>
+          <span class="lang-vi"><strong>Nhớ:</strong> ngày bạn đổi embedding model là ngày bạn phải index lại toàn bộ. Pin nó từ ngày đầu.</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- 6. RAG / Retrieval -->
+    <article class="card" data-color="mint">
+      <div class="stripe" style="background: var(--mint);"></div>
+      <div class="body">
+        <div class="card-head">
+          <h2><span class="num">06</span> RAG / Retrieval</h2>
+          <span class="tag">
+            <span class="lang-en">feed it knowledge</span>
+            <span class="lang-vi">cấp tri thức</span>
+          </span>
+        </div>
+
+        <div class="hook">
+          <span class="lang-en">"The model doesn't know your data. RAG is how you put the right paragraph in front of it before it answers."</span>
+          <span class="lang-vi">"Model không biết dữ liệu của bạn. RAG là cách bạn đặt đoạn văn đúng trước mặt nó trước khi nó trả lời."</span>
+        </div>
+
+        <div class="section">
+          <h3>Why</h3>
+          <p>
+            <span class="lang-en">
+              Stuffing your whole document corpus into every prompt is impossible (context limit) and expensive (tokens).
+              RAG = <em>Retrieval-Augmented Generation</em>: at query time, find the most relevant chunks of your data,
+              paste just those into the prompt, then let the model answer with that context. Cheap, scalable, accurate.
+            </span>
+            <span class="lang-vi">
+              Nhét toàn bộ tài liệu vào mỗi prompt là không thể (giới hạn context) và đắt (token).
+              RAG = <em>Retrieval-Augmented Generation</em>: lúc query, tìm các chunk liên quan nhất, paste chỉ chừng đó
+              vào prompt, rồi cho model trả lời với context đó. Rẻ, scale được, chính xác.
+            </span>
+          </p>
+        </div>
+
+        <div class="section">
+          <h3>Key terms</h3>
+          <ul class="terms">
+            <li><strong>Chunking</strong>
+              <span class="lang-en">Split docs into pieces. Fixed-size (simple), recursive (respects structure), semantic (slowest, best quality).</span>
+              <span class="lang-vi">Cắt tài liệu. Cố định (đơn giản), recursive (theo cấu trúc), semantic (chậm nhất, chất lượng nhất).</span>
+            </li>
+            <li><strong>Index type</strong>
+              <span class="lang-en"><code>flat</code> (exact, slow), <code>IVF</code> (cluster-based), <code>HNSW</code> (graph, fast — the default).</span>
+              <span class="lang-vi"><code>flat</code> (chính xác, chậm), <code>IVF</code> (theo cụm), <code>HNSW</code> (graph, nhanh — default).</span>
+            </li>
+            <li><strong>pgvector vs Qdrant</strong>
+              <span class="lang-en">pgvector = your existing Postgres. Qdrant = dedicated vector DB, faster at scale. Start with pgvector.</span>
+              <span class="lang-vi">pgvector = chính Postgres bạn đang có. Qdrant = DB vector chuyên dụng, scale nhanh hơn. Bắt đầu bằng pgvector.</span>
+            </li>
+            <li><strong>Hybrid retrieval</strong>
+              <span class="lang-en">Vector (meaning) + keyword (exact match like SKUs) merged via <em>Reciprocal Rank Fusion</em>.</span>
+              <span class="lang-vi">Vector (ý nghĩa) + keyword (khớp chính xác như SKU) trộn qua <em>Reciprocal Rank Fusion</em>.</span>
+            </li>
+            <li><strong>Recall@k · MRR</strong>
+              <span class="lang-en">Recall@k = "is the right chunk in the top k?". MRR = how high up it sits on average.</span>
+              <span class="lang-vi">Recall@k = "chunk đúng có trong top k không?". MRR = trung bình nó nằm ở vị trí thứ mấy.</span>
+            </li>
+            <li><strong>Reranker</strong>
+              <span class="lang-en">A second, slower model that re-orders the top 20 → top 5 by careful relevance scoring.</span>
+              <span class="lang-vi">Model thứ hai chậm hơn, sắp lại top 20 → top 5 bằng cách chấm điểm relevance kỹ hơn.</span>
+            </li>
+            <li><strong>Idempotent ingestion</strong>
+              <span class="lang-en">Re-running the indexer must not duplicate chunks. Hash content + upsert by hash.</span>
+              <span class="lang-vi">Chạy lại indexer không được nhân đôi chunk. Hash content + upsert theo hash.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h3>Talking script</h3>
+          <ol class="script">
+            <li><span class="lang-en"><strong>Open:</strong> the model doesn't know your data.</span><span class="lang-vi"><strong>Mở:</strong> model không biết dữ liệu của bạn.</span></li>
+            <li><span class="lang-en"><strong>Chunk → embed → index → retrieve.</strong> Four steps, always in that order.</span><span class="lang-vi"><strong>Chunk → embed → index → retrieve.</strong> Bốn bước, luôn theo thứ tự đó.</span></li>
+            <li><span class="lang-en"><strong>Hybrid retrieval</strong> because exact-match terms (codes, names) need keyword search too.</span><span class="lang-vi"><strong>Hybrid retrieval</strong> vì các từ phải khớp chính xác (mã, tên) cần keyword search.</span></li>
+            <li><span class="lang-en"><strong>Measure recall@k.</strong> If retrieval is wrong, no prompt can save you.</span><span class="lang-vi"><strong>Đo recall@k.</strong> Nếu retrieval sai, không prompt nào cứu nổi.</span></li>
+            <li><span class="lang-en"><strong>Rerank the top 20 → top 5</strong> only if retrieval alone isn't precise enough.</span><span class="lang-vi"><strong>Rerank top 20 → top 5</strong> chỉ khi retrieval một mình chưa đủ chính xác.</span></li>
+          </ol>
+        </div>
+
+        <div class="remember">
+          <span class="lang-en"><strong>Remember:</strong> a wrong answer is almost always a retrieval bug, not a prompt bug. Look at what got retrieved before you touch the prompt.</span>
+          <span class="lang-vi"><strong>Nhớ:</strong> câu trả lời sai gần như luôn là bug retrieval, không phải bug prompt. Xem cái gì được lấy ra trước khi sửa prompt.</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- 7. Safety & Eval -->
+    <article class="card" data-color="sunny">
+      <div class="stripe" style="background: var(--sunny);"></div>
+      <div class="body">
+        <div class="card-head">
+          <h2><span class="num">07</span> Safety & Eval</h2>
+          <span class="tag">
+            <span class="lang-en">guards · golden tests</span>
+            <span class="lang-vi">rào chắn · golden test</span>
+          </span>
+        </div>
+
+        <div class="hook">
+          <span class="lang-en">"LLMs are non-deterministic. The fix isn't 'better prompts' — it's guards on input, validation on output, tests on both."</span>
+          <span class="lang-vi">"LLM không tất định. Cách chữa không phải 'prompt tốt hơn' — mà là rào input, validate output, test cả hai."</span>
+        </div>
+
+        <div class="section">
+          <h3>Why</h3>
+          <p>
+            <span class="lang-en">
+              The same prompt can produce different outputs on different days. Users can paste malicious instructions
+              into a chat box ("ignore everything above and…"). Without safety and eval, your agent looks fine in dev
+              and silently regresses in prod. This branch is the engineering discipline layer.
+            </span>
+            <span class="lang-vi">
+              Cùng một prompt có thể ra output khác nhau ở các ngày khác nhau. User có thể paste chỉ thị độc hại vào
+              chat ("bỏ qua mọi thứ ở trên và…"). Không có safety và eval, agent của bạn nhìn ổn ở dev và lặng lẽ
+              regress ở prod. Nhánh này là lớp kỷ luật kỹ thuật.
+            </span>
+          </p>
+        </div>
+
+        <div class="section">
+          <h3>Key terms</h3>
+          <ul class="terms">
+            <li><strong>Prompt injection guard</strong>
+              <span class="lang-en">Strip / detect attempts to override the system prompt from user input.</span>
+              <span class="lang-vi">Loại / phát hiện nỗ lực ghi đè system prompt từ input user.</span>
+            </li>
+            <li><strong>Output validation</strong>
+              <span class="lang-en">Run every LLM response through <code>schema.parse()</code> — reject hallucinated shapes immediately.</span>
+              <span class="lang-vi">Chạy mỗi response qua <code>schema.parse()</code> — từ chối shape ảo ngay lập tức.</span>
+            </li>
+            <li><strong>PII redaction</strong>
+              <span class="lang-en">Strip emails, phone numbers, names before writing to logs or sending to external providers.</span>
+              <span class="lang-vi">Bỏ email, số điện thoại, tên trước khi ghi log hoặc gửi đến provider ngoài.</span>
+            </li>
+            <li><strong>Golden test</strong>
+              <span class="lang-en">A locked input → expected output pair. Re-run on every prompt change to catch regressions.</span>
+              <span class="lang-vi">Cặp input khoá → output mong đợi. Chạy lại mỗi khi đổi prompt để bắt regression.</span>
+            </li>
+            <li><strong>Snapshot regression</strong>
+              <span class="lang-en">Diff today's output against yesterday's "good" snapshot. Loud alarm when they differ.</span>
+              <span class="lang-vi">Diff output hôm nay với snapshot "tốt" hôm qua. Báo động to khi khác nhau.</span>
+            </li>
+            <li><strong>Fake LLM</strong>
+              <span class="lang-en">A test double that returns canned responses. Lets you run thousands of tests without API cost.</span>
+              <span class="lang-vi">Double test trả response có sẵn. Cho phép chạy hàng nghìn test không tốn API.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h3>Talking script</h3>
+          <ol class="script">
+            <li><span class="lang-en"><strong>Open:</strong> LLMs are non-deterministic — you have to engineer around that.</span><span class="lang-vi"><strong>Mở:</strong> LLM không tất định — phải kỹ thuật quanh nó.</span></li>
+            <li><span class="lang-en"><strong>Input guards</strong> — block injection and obviously malicious patterns.</span><span class="lang-vi"><strong>Input guard</strong> — chặn injection và pattern độc rõ ràng.</span></li>
+            <li><span class="lang-en"><strong>Output validation with Zod</strong> — every response.</span><span class="lang-vi"><strong>Output validation với Zod</strong> — mọi response.</span></li>
+            <li><span class="lang-en"><strong>Redact PII</strong> before logging or before any third-party hop.</span><span class="lang-vi"><strong>Redact PII</strong> trước khi log hoặc đi qua bên thứ ba.</span></li>
+            <li><span class="lang-en"><strong>Golden tests + fake LLMs</strong> — cheap CI that catches prompt drift.</span><span class="lang-vi"><strong>Golden test + fake LLM</strong> — CI rẻ bắt được prompt drift.</span></li>
+          </ol>
+        </div>
+
+        <div class="remember">
+          <span class="lang-en"><strong>Remember:</strong> if your CI doesn't have at least 5 golden tests for the agent, you'll find out about prompt regressions from your users — never let that happen.</span>
+          <span class="lang-vi"><strong>Nhớ:</strong> nếu CI không có ít nhất 5 golden test cho agent, bạn sẽ biết về prompt regression qua user — đừng để chuyện đó xảy ra.</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- 8. Deploy & Observability -->
+    <article class="card" data-color="peach">
+      <div class="stripe" style="background: var(--peach);"></div>
+      <div class="body">
+        <div class="card-head">
+          <h2><span class="num">08</span> Deploy & Observability</h2>
+          <span class="tag">
+            <span class="lang-en">ship it · watch it</span>
+            <span class="lang-vi">ship · giám sát</span>
+          </span>
+        </div>
+
+        <div class="hook">
+          <span class="lang-en">"You don't need Kubernetes. You need three containers, an AI Gateway, and a kill-switch."</span>
+          <span class="lang-vi">"Bạn không cần Kubernetes. Bạn cần ba container, một AI Gateway, và một kill-switch."</span>
+        </div>
+
+        <div class="section">
+          <h3>Why</h3>
+          <p>
+            <span class="lang-en">
+              The minimum viable production setup for an agent is much smaller than people assume. A single VPS
+              running three containers (your app, Postgres, Qdrant) handles real traffic for weeks. The bigger
+              risks are <em>cost runaway</em> and <em>silent breakage</em> — both solved by an AI Gateway and tracing.
+            </span>
+            <span class="lang-vi">
+              Setup production tối thiểu cho agent nhỏ hơn nhiều so với mọi người nghĩ. Một VPS chạy ba container
+              (app của bạn, Postgres, Qdrant) gánh được traffic thật vài tuần. Rủi ro lớn hơn là <em>chi phí mất kiểm soát</em>
+              và <em>hỏng âm thầm</em> — cả hai đều giải quyết bằng AI Gateway và tracing.
+            </span>
+          </p>
+        </div>
+
+        <div class="section">
+          <h3>Key terms</h3>
+          <ul class="terms">
+            <li><strong>3-container VPS</strong>
+              <span class="lang-en">app · postgres (with pgvector) · qdrant. One docker-compose, one machine, week-one ready.</span>
+              <span class="lang-vi">app · postgres (kèm pgvector) · qdrant. Một docker-compose, một máy, sẵn sàng tuần đầu.</span>
+            </li>
+            <li><strong>AI Gateway</strong>
+              <span class="lang-en">A proxy in front of all providers. Unifies billing, adds retries, lets you swap models without code changes.</span>
+              <span class="lang-vi">Proxy đứng trước mọi provider. Gộp hoá đơn, thêm retry, cho phép đổi model không sửa code.</span>
+            </li>
+            <li><strong>Routing</strong>
+              <span class="lang-en">Cheap model classifies the intent; expensive model writes the answer. Saves ~70% on bills.</span>
+              <span class="lang-vi">Model rẻ phân loại ý định; model đắt viết câu trả lời. Tiết kiệm ~70% hoá đơn.</span>
+            </li>
+            <li><strong>Failover</strong>
+              <span class="lang-en">When primary provider 500s or rate-limits, gateway transparently retries on a fallback.</span>
+              <span class="lang-vi">Khi provider chính 500 hoặc rate-limit, gateway retry trong suốt sang fallback.</span>
+            </li>
+            <li><strong>Tracing</strong>
+              <span class="lang-en">Every call captured — tokens in, tokens out, latency, which tool fired, which user. Searchable.</span>
+              <span class="lang-vi">Mỗi call lưu lại — token vào, token ra, latency, tool nào chạy, user nào. Tìm kiếm được.</span>
+            </li>
+            <li><strong>Kill-switch</strong>
+              <span class="lang-en">A daily budget cap. When today's spend exceeds X, the gateway returns errors until tomorrow.</span>
+              <span class="lang-vi">Giới hạn ngân sách ngày. Khi chi tiêu hôm nay vượt X, gateway trả error đến mai.</span>
+            </li>
+            <li><strong>Canary ramp</strong>
+              <span class="lang-en">Send the new version to 5% → 50% → 100% of users with a fast rollback path.</span>
+              <span class="lang-vi">Đẩy version mới cho 5% → 50% → 100% user, có đường lùi nhanh.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h3>Talking script</h3>
+          <ol class="script">
+            <li><span class="lang-en"><strong>Open:</strong> production starts small — 3 containers, 1 VPS.</span><span class="lang-vi"><strong>Mở:</strong> production bắt đầu nhỏ — 3 container, 1 VPS.</span></li>
+            <li><span class="lang-en"><strong>AI Gateway</strong> in front of every provider — single billing, retries, model swap.</span><span class="lang-vi"><strong>AI Gateway</strong> đứng trước mọi provider — gộp tiền, retry, đổi model.</span></li>
+            <li><span class="lang-en"><strong>Routing</strong> — cheap for intent, expensive for answers.</span><span class="lang-vi"><strong>Routing</strong> — rẻ cho phân loại, đắt cho trả lời.</span></li>
+            <li><span class="lang-en"><strong>Trace everything</strong> — tokens, latency, cost-per-feature, cost-per-user.</span><span class="lang-vi"><strong>Trace mọi thứ</strong> — token, latency, chi phí theo feature, theo user.</span></li>
+            <li><span class="lang-en"><strong>Daily kill-switch + canary ramp.</strong> Two cheap habits, two big disasters avoided.</span><span class="lang-vi"><strong>Kill-switch ngày + canary ramp.</strong> Hai thói quen rẻ, tránh được hai thảm hoạ lớn.</span></li>
+          </ol>
+        </div>
+
+        <div class="remember">
+          <span class="lang-en"><strong>Remember:</strong> the day you ship is the day you need tracing. Adding it after the first incident is too late — you'll be debugging blind.</span>
+          <span class="lang-vi"><strong>Nhớ:</strong> ngày bạn ship là ngày bạn cần tracing. Thêm vào sau sự cố đầu tiên là quá trễ — bạn sẽ debug trong bóng tối.</span>
+        </div>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- Presentation flow -->
+  <section class="flow">
+    <h2>
+      <span class="lang-en">Presentation flow — how to chain the eight pieces</span>
+      <span class="lang-vi">Mạch trình bày — cách nối tám phần lại</span>
+    </h2>
+    <p style="color: var(--ink-soft); font-size: 14.5px; margin: 0 0 14px;">
+      <span class="lang-en">
+        When you present the whole picture, don't go branch-by-branch — that sounds like a list.
+        Tell it as a story in this order:
+      </span>
+      <span class="lang-vi">
+        Khi bạn trình bày toàn bộ, đừng đi từng nhánh — sẽ giống đọc list.
+        Kể như một câu chuyện theo thứ tự này:
+      </span>
+    </p>
+    <ol>
+      <li>
+        <span class="lang-en"><strong>Start with the agent.</strong> "An LLM agent is a model that <em>acts</em>, not just chats."</span>
+        <span class="lang-vi"><strong>Bắt đầu từ agent.</strong> "LLM agent là model <em>hành động</em>, không chỉ chat."</span>
+      </li>
+      <li>
+        <span class="lang-en"><strong>How does it know what to do? → Prompting.</strong> System prompt + structured output.</span>
+        <span class="lang-vi"><strong>Nó biết phải làm gì bằng cách nào? → Prompting.</strong> System prompt + structured output.</span>
+      </li>
+      <li>
+        <span class="lang-en"><strong>How does it act? → Tools.</strong> Functions wrapped in Zod schemas.</span>
+        <span class="lang-vi"><strong>Nó hành động thế nào? → Tools.</strong> Function bọc trong Zod schema.</span>
+      </li>
+      <li>
+        <span class="lang-en"><strong>How do all those pieces flow? → LangGraph.</strong> State machine, conditional edges, checkpointer.</span>
+        <span class="lang-vi"><strong>Các phần đó nối nhau thế nào? → LangGraph.</strong> State machine, conditional edge, checkpointer.</span>
+      </li>
+      <li>
+        <span class="lang-en"><strong>How do we keep it safe? → Confirmation.</strong> Pause before any write; human approves.</span>
+        <span class="lang-vi"><strong>Làm sao giữ an toàn? → Confirmation.</strong> Dừng trước mọi write; người duyệt.</span>
+      </li>
+      <li>
+        <span class="lang-en"><strong>How does it know your data? → Embeddings + RAG.</strong> Vectors, hybrid retrieval, recall@k.</span>
+        <span class="lang-vi"><strong>Nó biết dữ liệu của bạn thế nào? → Embeddings + RAG.</strong> Vector, hybrid retrieval, recall@k.</span>
+      </li>
+      <li>
+        <span class="lang-en"><strong>How do we stop it breaking? → Safety & Eval.</strong> Guards, validation, golden tests.</span>
+        <span class="lang-vi"><strong>Làm sao tránh nó hỏng? → Safety & Eval.</strong> Guard, validation, golden test.</span>
+      </li>
+      <li>
+        <span class="lang-en"><strong>How do we ship it? → Deploy & Observability.</strong> 3 containers, AI Gateway, kill-switch, canary.</span>
+        <span class="lang-vi"><strong>Ship thế nào? → Deploy & Observability.</strong> 3 container, AI Gateway, kill-switch, canary.</span>
+      </li>
+      <li>
+        <span class="lang-en"><strong>Close:</strong> "These eight pieces aren't optional — they're what 'an agent in production' actually means."</span>
+        <span class="lang-vi"><strong>Kết:</strong> "Tám phần này không phải tuỳ chọn — đó chính là nghĩa của 'agent trong production'."</span>
+      </li>
+    </ol>
+  </section>
+
+  <div class="footer-note">
+    <span class="lang-en">Open the <a href="./ai-in-your-project-overview.html" style="color: var(--secondary);">mindmap</a> on a second screen while you practice.</span>
+    <span class="lang-vi">Mở <a href="./ai-in-your-project-overview.html" style="color: var(--secondary);">mindmap</a> ở màn hình thứ hai khi luyện tập.</span>
+  </div>
+
+<script>
+  const buttons = document.querySelectorAll('.lang-toggle button');
+  const stored = localStorage.getItem('savyu.doc.lang');
+  const startLang = stored === 'vi' ? 'vi' : 'en';
+  document.body.dataset.lang = startLang;
+  buttons.forEach(b => b.classList.toggle('active', b.dataset.lang === startLang));
+
+  buttons.forEach(b => b.addEventListener('click', () => {
+    const lang = b.dataset.lang;
+    document.body.dataset.lang = lang;
+    buttons.forEach(o => o.classList.toggle('active', o === b));
+    localStorage.setItem('savyu.doc.lang', lang);
+  }));
+</script>
+</body>
+</html>

@@ -85,11 +85,19 @@ Don't guess. Once you have an eval set (L30), measure recall@5 at three chunk si
 
 **Fixed-size.** Count tokens, split every N. Simplest, fastest, dumbest. Useful as a baseline — but it slices mid-sentence, mid-table, mid-code block. *Last resort.*
 
+> *Example (N = 20 tokens):* `"Inner-city shipping is 25,000đ. Free over 300,000đ. Outer is 45,000đ. Free over 500,000đ."` → chunk 1 ends at *"Free over"*, chunk 2 starts with *"300,000đ. Outer is 45,000đ..."*. The amount got separated from its label. A retrieval hit on chunk 2 returns a number with no idea which zone it belongs to.
+
 **Recursive character splitter.** Try splitting on `\n\n` first, then `\n`, then `.`, then space, then character. Stop when chunks fit the target size. LangChain's `RecursiveCharacterTextSplitter` is this. **Default choice when you don't know the structure** — handles markdown, prose, even messy HTML reasonably.
+
+> *Example:* a 1,200-token blog post with three paragraphs separated by `\n\n`. The splitter tries `\n\n` first → three pieces of ~400 tokens each, done. But if one paragraph alone is 600 tokens, it falls back to `.` (sentence-level) *just inside that paragraph*; the other two stay whole. The cuts always land at the strongest available boundary.
 
 **Semantic.** Embed every sentence, find points where consecutive sentences' embeddings disagree the most, split there. Expensive (one embedding per sentence at chunk time) but produces chunks where each one is about *one thing*. Use when retrieval quality is bottlenecking conversion.
 
+> *Example:* a 10-sentence support article — sentences 1–5 explain *"how to return an item"*, sentences 6–10 explain *"how to track a shipment"*. The biggest embedding gap sits between sentence 5 and 6 (the topic flips). Cut goes there → two chunks, each about one topic. A fixed-size cut would have sliced through the middle of *one* topic and merged half of the other.
+
 **Section-aware.** Split on structural markers — `## headings` in markdown, `<h2>` in HTML, page breaks in PDF. **Best choice when your source is markdown** (which you control, because you wrote the FAQ). Then re-chunk anything that exceeds the token budget using recursive.
+
+> *Example:* `faq/policies.md` with `## Returns`, `## Shipping`, `## Refunds`. Section-aware gives you three chunks — one per heading, each titled by its own section. `## Shipping` happens to be 700 tokens (over the 400 budget) → recursively split *just that section* on paragraph boundaries; the other two stay whole.
 
 For the concierge: **section-aware first, then recursive inside large sections**. That's what L32 implements.
 
@@ -146,8 +154,11 @@ A 400-token chunk that ends mid-explanation breaks retrieval. The trick is overl
 **Source sentence in your FAQ document:**
 
 <div style={{ margin: '0.75rem 0 1rem', padding: '0.9rem 1rem', background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.3)', borderRadius: '6px', fontSize: '0.95rem', lineHeight: 1.6 }}>
-  <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700, marginBottom: '0.4rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>📄 faq/returns.md · paragraph 3</div>
-  Customers may return items within 7 days <mark style={{ background: 'rgba(22,163,74,0.25)', color: 'inherit', padding: '2px 5px', borderRadius: '3px', fontWeight: 600 }}>if the product is unworn and the original receipt is included</mark>.
+
+<div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700, marginBottom: '0.4rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>📄 faq/returns.md · paragraph 3</div>
+
+Customers may return items within 7 days <mark style={{ background: 'rgba(22,163,74,0.25)', color: 'inherit', padding: '2px 5px', borderRadius: '3px', fontWeight: 600 }}>if the product is unworn and the original receipt is included</mark>.
+
 </div>
 
 A user types the question: *"What do I need to return something?"* — the answer lives in the highlighted clause.
@@ -385,34 +396,38 @@ Five recurring failure modes that every recursive splitter hits. None of them th
 **Source document:**
 
 <div style={{ margin: '0.75rem 0 1rem', padding: '0.9rem 1rem', background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.3)', borderRadius: '6px' }}>
-  <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700, marginBottom: '0.5rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>📄 faq/shipping-fees.md</div>
-  <h4 style={{ margin: '0.25rem 0 0.75rem', fontSize: '1rem', fontWeight: 700 }}>Shipping fees by zone</h4>
-  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', margin: 0 }}>
-    <thead>
-      <tr style={{ borderBottom: '2px solid #16a34a' }}>
-        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Zone</th>
-        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Fee</th>
-        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Free over</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
-        <td style={{ padding: '0.4rem 0.7rem' }}>Inner</td>
-        <td style={{ padding: '0.4rem 0.7rem' }}>25,000đ</td>
-        <td style={{ padding: '0.4rem 0.7rem' }}>300,000đ</td>
-      </tr>
-      <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
-        <td style={{ padding: '0.4rem 0.7rem' }}>Outer</td>
-        <td style={{ padding: '0.4rem 0.7rem' }}>45,000đ</td>
-        <td style={{ padding: '0.4rem 0.7rem' }}>500,000đ</td>
-      </tr>
-      <tr>
-        <td style={{ padding: '0.4rem 0.7rem' }}>Remote</td>
-        <td style={{ padding: '0.4rem 0.7rem' }}>80,000đ</td>
-        <td style={{ padding: '0.4rem 0.7rem' }}>—</td>
-      </tr>
-    </tbody>
-  </table>
+
+<div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700, marginBottom: '0.5rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>📄 faq/shipping-fees.md</div>
+
+<h4 style={{ margin: '0.25rem 0 0.75rem', fontSize: '1rem', fontWeight: 700 }}>Shipping fees by zone</h4>
+
+<table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', margin: 0 }}>
+  <thead>
+    <tr style={{ borderBottom: '2px solid #16a34a' }}>
+      <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Zone</th>
+      <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Fee</th>
+      <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Free over</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
+      <td style={{ padding: '0.4rem 0.7rem' }}>Inner</td>
+      <td style={{ padding: '0.4rem 0.7rem' }}>25,000đ</td>
+      <td style={{ padding: '0.4rem 0.7rem' }}>300,000đ</td>
+    </tr>
+    <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
+      <td style={{ padding: '0.4rem 0.7rem' }}>Outer</td>
+      <td style={{ padding: '0.4rem 0.7rem' }}>45,000đ</td>
+      <td style={{ padding: '0.4rem 0.7rem' }}>500,000đ</td>
+    </tr>
+    <tr>
+      <td style={{ padding: '0.4rem 0.7rem' }}>Remote</td>
+      <td style={{ padding: '0.4rem 0.7rem' }}>80,000đ</td>
+      <td style={{ padding: '0.4rem 0.7rem' }}>—</td>
+    </tr>
+  </tbody>
+</table>
+
 </div>
 
 User asks: *"Phí ship Inner bao nhiêu?"*
@@ -576,11 +591,19 @@ Kích thước chunk cân được cả hai là **chunk nhỏ nhất chứa đư
 
 **Fixed-size.** Đếm token, cắt mỗi N token một lần. Đơn giản nhất, nhanh nhất, ngu nhất. Hữu ích như baseline — nhưng cắt giữa câu, giữa bảng, giữa code block. *Phương án cuối.*
 
+> *Ví dụ (N = 20 token):* `"Ship nội thành 25,000đ. Free từ 300,000đ. Ngoại thành 45,000đ. Free từ 500,000đ."` → chunk 1 kết ở *"Free từ"*, chunk 2 bắt đầu bằng *"300,000đ. Ngoại thành 45,000đ..."*. Số tiền bị tách khỏi label của nó. Retrieval hit chunk 2 trả về một số mà không biết thuộc khu nào.
+
 **Recursive character splitter.** Thử chia trên `\n\n` trước, rồi `\n`, rồi `.`, rồi space, rồi ký tự. Dừng khi chunk vừa size mục tiêu. `RecursiveCharacterTextSplitter` của LangChain là cái này. **Lựa chọn mặc định khi không biết cấu trúc** — xử lý markdown, prose, kể cả HTML lộn xộn ổn.
+
+> *Ví dụ:* một bài blog 1,200 token với ba đoạn ngăn nhau bằng `\n\n`. Splitter thử `\n\n` trước → ba mảnh ~400 token mỗi cái, xong. Nhưng nếu một đoạn riêng đã 600 token, nó tụt xuống thử `.` (mức câu) *chỉ bên trong đoạn đó*; hai đoạn kia giữ nguyên. Cắt luôn rơi vào biên mạnh nhất còn sẵn.
 
 **Semantic.** Embed mỗi câu, tìm điểm mà embedding của hai câu liên tiếp khác nhau nhiều nhất, chia ở đó. Đắt (một embedding mỗi câu lúc chunk) nhưng tạo chunk mỗi cái về *một thứ*. Dùng khi chất lượng retrieval đang là bottleneck của conversion.
 
+> *Ví dụ:* một bài support 10 câu — câu 1–5 nói *"cách trả hàng"*, câu 6–10 nói *"cách track đơn"*. Khoảng cách embedding lớn nhất nằm giữa câu 5 và câu 6 (lật chủ đề). Cắt rơi đúng chỗ đó → hai chunk, mỗi cái về một chủ đề. Fixed-size sẽ cắt thẳng qua giữa *cùng* một chủ đề và trộn nửa của cái còn lại vào.
+
 **Section-aware.** Chia theo marker cấu trúc — `## heading` trong markdown, `<h2>` trong HTML, page break trong PDF. **Lựa chọn tốt nhất khi nguồn là markdown** (bạn kiểm soát, vì bạn viết FAQ). Sau đó re-chunk bất kỳ section nào vượt budget token bằng recursive.
+
+> *Ví dụ:* `faq/policies.md` có `## Trả hàng`, `## Ship`, `## Hoàn tiền`. Section-aware cho bạn ba chunk — mỗi heading một chunk, mỗi cái tự gắn tiêu đề. Section `## Ship` lỡ dài 700 token (vượt budget 400) → đệ quy chia *riêng section đó* theo biên đoạn; hai cái còn lại giữ nguyên.
 
 Cho concierge: **section-aware trước, recursive bên trong section lớn**. Đó là cái L32 implement.
 
@@ -637,8 +660,11 @@ Một chunk 400 token kết thúc giữa giải thích phá retrieval. Mẹo là
 **Câu gốc trong file FAQ của bạn:**
 
 <div style={{ margin: '0.75rem 0 1rem', padding: '0.9rem 1rem', background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.3)', borderRadius: '6px', fontSize: '0.95rem', lineHeight: 1.6 }}>
-  <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700, marginBottom: '0.4rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>📄 faq/returns.md · đoạn 3</div>
-  Khách có thể trả hàng trong vòng 7 ngày <mark style={{ background: 'rgba(22,163,74,0.25)', color: 'inherit', padding: '2px 5px', borderRadius: '3px', fontWeight: 600 }}>nếu sản phẩm còn nguyên trạng và có hoá đơn gốc</mark>.
+
+<div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700, marginBottom: '0.4rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>📄 faq/returns.md · đoạn 3</div>
+
+Khách có thể trả hàng trong vòng 7 ngày <mark style={{ background: 'rgba(22,163,74,0.25)', color: 'inherit', padding: '2px 5px', borderRadius: '3px', fontWeight: 600 }}>nếu sản phẩm còn nguyên trạng và có hoá đơn gốc</mark>.
+
 </div>
 
 Một user gõ câu hỏi: *"Trả hàng cần điều kiện gì?"* — đáp án nằm trong mệnh đề được highlight.
@@ -876,34 +902,38 @@ Năm chế độ thất bại tái diễn mà mọi recursive splitter đều m�
 **Document nguồn:**
 
 <div style={{ margin: '0.75rem 0 1rem', padding: '0.9rem 1rem', background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.3)', borderRadius: '6px' }}>
-  <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700, marginBottom: '0.5rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>📄 faq/shipping-fees.md</div>
-  <h4 style={{ margin: '0.25rem 0 0.75rem', fontSize: '1rem', fontWeight: 700 }}>Phí ship theo khu</h4>
-  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', margin: 0 }}>
-    <thead>
-      <tr style={{ borderBottom: '2px solid #16a34a' }}>
-        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Khu</th>
-        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Phí</th>
-        <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Freeship từ</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
-        <td style={{ padding: '0.4rem 0.7rem' }}>Nội thành</td>
-        <td style={{ padding: '0.4rem 0.7rem' }}>25,000đ</td>
-        <td style={{ padding: '0.4rem 0.7rem' }}>300,000đ</td>
-      </tr>
-      <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
-        <td style={{ padding: '0.4rem 0.7rem' }}>Ngoại thành</td>
-        <td style={{ padding: '0.4rem 0.7rem' }}>45,000đ</td>
-        <td style={{ padding: '0.4rem 0.7rem' }}>500,000đ</td>
-      </tr>
-      <tr>
-        <td style={{ padding: '0.4rem 0.7rem' }}>Vùng xa</td>
-        <td style={{ padding: '0.4rem 0.7rem' }}>80,000đ</td>
-        <td style={{ padding: '0.4rem 0.7rem' }}>—</td>
-      </tr>
-    </tbody>
-  </table>
+
+<div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700, marginBottom: '0.5rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>📄 faq/shipping-fees.md</div>
+
+<h4 style={{ margin: '0.25rem 0 0.75rem', fontSize: '1rem', fontWeight: 700 }}>Phí ship theo khu</h4>
+
+<table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', margin: 0 }}>
+  <thead>
+    <tr style={{ borderBottom: '2px solid #16a34a' }}>
+      <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Khu</th>
+      <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Phí</th>
+      <th style={{ padding: '0.4rem 0.7rem', textAlign: 'left', fontWeight: 700 }}>Freeship từ</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
+      <td style={{ padding: '0.4rem 0.7rem' }}>Nội thành</td>
+      <td style={{ padding: '0.4rem 0.7rem' }}>25,000đ</td>
+      <td style={{ padding: '0.4rem 0.7rem' }}>300,000đ</td>
+    </tr>
+    <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.15)' }}>
+      <td style={{ padding: '0.4rem 0.7rem' }}>Ngoại thành</td>
+      <td style={{ padding: '0.4rem 0.7rem' }}>45,000đ</td>
+      <td style={{ padding: '0.4rem 0.7rem' }}>500,000đ</td>
+    </tr>
+    <tr>
+      <td style={{ padding: '0.4rem 0.7rem' }}>Vùng xa</td>
+      <td style={{ padding: '0.4rem 0.7rem' }}>80,000đ</td>
+      <td style={{ padding: '0.4rem 0.7rem' }}>—</td>
+    </tr>
+  </tbody>
+</table>
+
 </div>
 
 User hỏi: *"Phí ship nội thành bao nhiêu?"*

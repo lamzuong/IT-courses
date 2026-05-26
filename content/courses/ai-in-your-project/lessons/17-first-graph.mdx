@@ -11,13 +11,22 @@ import { EN, VI } from '@/components/mdx/bilingual';
 - A spine you'll bolt confirmation, conditional routing, and persistence onto across lessons 18-20.
 </Callout>
 
-Take the tool-calling agent from Part III and rebuild it as a graph. Same tools, same prompts, same model — only the orchestrator changes. The behaviour you'll see at the end of this lesson is identical to lesson 14: the model decides whether to call tools, the runtime executes them, the model speaks again, and the loop terminates when there's nothing left to do. The difference is invisible from the outside and structural on the inside: every step is a node, every transition is an edge, and you have somewhere to *put* every concern that's coming in the rest of Part IV.
+Remember the `while` loop from lesson 14? The agent thought, called a tool, thought again, called another tool, and stopped when it was done. It worked. But every new requirement — *"confirm before writes", "log every action", "route differently when the user is logged out"* — meant wedging another `if` branch into the same loop. After three or four additions, the function gets too dense to read.
 
-This is the canonical *ReAct* shape — Reason, Act, Reason, Act, until the model decides it's done. It's the spine you'll bolt confirmation, conditional routing, and persistence onto over the next three lessons.
+In this lesson we rebuild that exact same loop as a **graph**. Same tools, same prompts, same model, same final behaviour. What changes is the *layout*: instead of one growing function, we have a small diagram made of named boxes (called **nodes**) connected by labeled arrows (called **edges**). Every step sits in a specific spot on the page; every decision is a labeled arrow you can point at.
 
-## 01 — The state
+Picture a small café with two stations:
 
-The simplest possible state is a transcript. Just messages.
+- The **head barista** (`agent` node) reads the order and decides what to do next.
+- The **prep helper** (`tools` node) executes whatever the barista asks for — steam milk, brew espresso, grab syrup — and hands the result back.
+
+After every barista step, there's exactly one question: *does the barista need more prep, or is the drink ready to serve?* If more prep is needed, the order routes to the helper and comes back. If the drink is ready, it goes out and the run ends. That's the entire pattern — called **ReAct** (Reason, Act, Reason, Act, ... until the model decides it's done). For the rest of Part IV we'll bolt new behaviours onto this café: a "confirm before writing" gate, an audit log, persistence across restarts. Each new behaviour is a new node and a new arrow — never a new `if` inside a tangled function.
+
+## 01 — What flows through the graph (the *state*)
+
+As the barista and prep helper hand work back and forth, *something* travels with the order — the running transcript of who said what. In a `while` loop that "something" would just be a local variable. In a graph it gets promoted to a first-class object called the **state**.
+
+For our basic ReAct graph, the state is comically simple: a single list of messages. Every node reads it; every node appends to it. That's the whole thing.
 
 ```ts
 import { StateGraph, END } from '@langchain/langgraph';      // → graph builder + END sentinel
@@ -32,7 +41,29 @@ const graph = new StateGraph<GraphState>({        // → empty StateGraph<GraphS
 });
 ```
 
-That's it. Later we'll grow this to include a plan, a `pendingTool`, an audit trail. For lesson 17, a transcript is all we need to faithfully reproduce the lesson 14 loop.
+Four words in that code recur all lesson, so it's worth grounding them now:
+
+- **StateGraph** — the builder you give nodes and edges to. You'll call `.addNode()`, `.addEdge()`, then `.compile()` to turn it into something runnable.
+- **Channel** (the `messages` key inside `channels`) — one named slot in the state. A graph can have several channels side by side (later we'll add `plan`, `pendingTool`, `audit`). This lesson uses exactly one: `messages`.
+- **Reducer** — the function that answers *"when a node returns a new value for this channel, how do I merge it with the existing value?"*
+
+  The subtle part — a node *never* returns the whole state. It only returns the slice it's contributing. The reducer is a two-argument function: `a` is the existing channel value, `b` is whatever the node just returned, and it must combine them into the new value. Walking through `(a, b) => a.concat(b)` with real data:
+
+  ```ts
+  // Before agentNode runs:
+  state.messages = [HumanMessage("Who hasn't ordered in 60 days?")]   // ← this is `a`
+
+  // agentNode returns its contribution:
+  { messages: [AIMessage(tool_calls: [...])] }                         // ← this is `b`
+
+  // Reducer runs: a.concat(b)  →  new state.messages:
+  [HumanMessage("Who hasn't ordered..."), AIMessage(tool_calls: [...])]
+  ```
+
+  Why it matters: flip `a.concat(b)` to `(a, b) => b` and every node would overwrite the whole transcript with whatever it just returned. The customer's `HumanMessage` would disappear the moment the agent posted its reply, and on round 2 the model would walk in blind — no idea what the customer asked. *Append-merge* — stacking the new chunk onto the end of the old list — is the right default for a transcript that grows turn by turn. Other channels can need other reducers: later lessons add a `plan` channel where each new plan replaces the old one instead of stacking on top. For a conversation, stacking is what you want.
+- **END** (imported alongside `StateGraph`) — a built-in finish line, not a node you write code for. Think of it as the slot the barista routes the order to when the drink is ready: the runtime sees `END` and shuts the run down instead of sending the order to another station.
+
+For lesson 17, a transcript is all we need to faithfully reproduce the lesson 14 loop. Later lessons will grow the state to include a plan, a `pendingTool`, an audit trail — each as its own new channel.
 
 ## 02 — The agent node
 
@@ -159,9 +190,9 @@ The unconditional edge `tools → agent` fires next. The runtime loops back to `
 If the agent had emitted **two** tool calls in one `AIMessage` (parallel reads — say `customers.search` AND `orders.totalThisWeek`), `toolsNode` would loop twice and emit two `ToolMessage`s. Each carries the `tool_call_id` of the originating call. On the next round, the model sees both results in the transcript and pairs them up by id — *"`call_a3f1` was the customers query, this is its result; `call_b7e2` was the orders query, that's its result."* Drop the id and the model has to guess from positional order — which works until it doesn't (a tool errors out and shifts the array).
 </Callout>
 
-## 04 — The router
+## 04 — The one decision: loop or stop?
 
-A graph this small has exactly one decision: *should we loop, or should we stop?* That's the conditional edge attached to the agent node.
+A graph this small has exactly one decision to make: *after the barista speaks, do we send the order back to the prep helper, or is the drink ready to serve?* That decision lives in a small function called a **router** (in LangGraph terminology, the function attached to a *conditional edge*). It looks at the current state and returns either the name of the next node, or the special value `END`.
 
 ```ts
 import { isAIMessage } from '@langchain/core/messages'; // → type guard for AIMessage
@@ -187,7 +218,17 @@ const final = await app.invoke({                  // → final GraphState
 // → final.messages.at(-1) is the AIMessage with the prose answer
 ```
 
-Read the wiring out loud and you have your answer to *what is this thing?* The graph starts at `agent`. After `agent`, it asks `shouldContinue`; if there are tool calls, it goes to `tools`; otherwise it ends. After `tools`, it always loops back to `agent`. That's the entire ReAct pattern in nine lines of edge declarations.
+Read the wiring like a recipe:
+
+1. `addNode('agent', agentNode)` — register the barista station.
+2. `addNode('tools', toolsNode)` — register the prep helper station.
+3. `setEntryPoint('agent')` — every run begins at the barista.
+4. `addConditionalEdges('agent', shouldContinue, { tools: 'tools', [END]: END })` — after the barista, the router decides where to go. If `shouldContinue` returns `'tools'`, head to the prep station; if it returns `END`, stop.
+5. `addEdge('tools', 'agent')` — after the prep station, *always* return to the barista. No decision needed; the barista is the one who reads the result and decides what's next.
+6. `graph.compile()` — freeze the structure into a runnable.
+7. `app.invoke({ messages: [...] })` — feed in the seed transcript and let the graph run until something returns `END`.
+
+That's the entire ReAct pattern in nine lines of edge declarations. The behaviour you saw in lesson 14 — model thinks, calls tools, loops, eventually answers — is now visible *as a shape* on the page instead of folded inside a `while` body.
 
 ## 05 — Watch the graph step
 
@@ -222,13 +263,22 @@ You have, structurally, exactly what lesson 14 had — and a place to grow. The 
 - Một bộ "xương sống" để bạn gắn xác nhận, routing có điều kiện, và persistence vào suốt các bài 18-20.
 </Callout>
 
-Lấy agent gọi tool ở Phần III và dựng lại nó thành một graph. Cùng tool, cùng prompt, cùng model — chỉ thay đổi bộ điều phối. Hành vi bạn thấy ở cuối bài này y hệt bài 14: model quyết định có gọi tool hay không, runtime thực thi, model nói tiếp, và vòng lặp dừng khi không còn gì để làm. Khác biệt nhìn từ ngoài là vô hình, nhìn vào trong là kiến trúc: mỗi bước là một node, mỗi chuyển tiếp là một edge, và bạn có *chỗ để đặt* mọi mối lo sắp xuất hiện trong phần còn lại của Phần IV.
+Nhớ vòng `while` ở bài 14 không? Agent suy nghĩ, gọi một tool, suy nghĩ tiếp, gọi tool khác, dừng khi xong. Nó chạy được. Nhưng mỗi yêu cầu mới — *"xác nhận trước khi ghi", "log lại mọi thao tác", "route khác đi khi user chưa đăng nhập"* — đều có nghĩa là chèn thêm một nhánh `if` vào cùng cái vòng đó. Sau ba bốn lần thêm thắt, function trở nên quá dày để đọc được.
 
-Đây là hình dạng *ReAct* kinh điển — Reason, Act, Reason, Act, cho tới khi model quyết định xong. Nó là xương sống bạn sẽ gắn xác nhận, routing có điều kiện, và persistence vào trong ba bài kế tiếp.
+Bài này ta dựng lại đúng vòng lặp đó dưới dạng một **graph**. Cùng tool, cùng prompt, cùng model, cùng hành vi cuối cùng. Cái thay đổi là *cách bố trí*: thay vì một function cứ phình ra, ta có một sơ đồ nhỏ gồm các hộp có tên (gọi là **node**) nối với nhau bằng các mũi tên có nhãn (gọi là **edge**). Mỗi bước nằm ở một vị trí cụ thể trên trang giấy; mỗi quyết định là một mũi tên bạn có thể chỉ tay vào.
 
-## 01 — State
+Hình dung một quán cà phê nhỏ với hai trạm:
 
-State đơn giản nhất có thể là một transcript. Chỉ là messages.
+- **Barista chính** (`agent` node) đọc order rồi quyết định bước tiếp theo.
+- **Phụ pha chế** (`tools` node) làm bất cứ việc gì barista yêu cầu — đánh sữa, pha espresso, lấy syrup — rồi trả kết quả lại.
+
+Sau mỗi lượt barista, đúng một câu hỏi: *barista có cần phụ pha chế làm thêm gì không, hay ly đã sẵn sàng để giao?* Nếu cần thêm, order chạy qua phụ pha chế rồi quay về. Nếu xong, ly được giao và run kết thúc. Đó là toàn bộ mô hình — gọi là **ReAct** (Reason, Act, Reason, Act, ... cho tới khi model quyết định xong). Trong phần còn lại của Phần IV, ta sẽ lắp thêm nhiều thứ vào "quán" này: một cổng "xác nhận trước khi ghi", một sổ audit, persistence khi restart. Mỗi thứ lắp thêm là một node mới + một mũi tên mới — chứ không phải một nhánh `if` mới trong một function rối rắm.
+
+## 01 — Cái gì trôi qua graph (đó gọi là *state*)
+
+Khi barista và phụ pha chế đưa qua đưa lại công việc, *có thứ gì đó* đi cùng với order — chính là transcript hội thoại ai vừa nói gì. Trong một vòng `while` thì "thứ đó" chỉ là một biến cục bộ. Trong một graph thì nó được "lên hạng" thành một đối tượng chính danh tên là **state** (trạng thái).
+
+Với graph ReAct cơ bản, state đơn giản đến mức buồn cười: một danh sách messages duy nhất. Mỗi node đọc danh sách; mỗi node append vào danh sách. Toàn bộ là thế.
 
 ```ts
 import { StateGraph, END } from '@langchain/langgraph';      // → graph builder + END sentinel
@@ -243,7 +293,29 @@ const graph = new StateGraph<GraphState>({        // → empty StateGraph<GraphS
 });
 ```
 
-Thế thôi. Sau này ta sẽ mở rộng để có thêm plan, `pendingTool`, audit trail. Với bài 17, một transcript là đủ để tái hiện trung thành vòng lặp ở bài 14.
+Bốn từ trong đoạn code đó sẽ tái xuất suốt bài, nên cần định nghĩa ngay bây giờ:
+
+- **StateGraph** — bộ "builder" để bạn lắp node và edge vào. Bạn sẽ gọi `.addNode()`, `.addEdge()`, rồi `.compile()` để biến nó thành một thứ chạy được.
+- **Channel** (cái `messages` bên trong `channels`) — một "ngăn có tên" trong state. Một graph có thể có nhiều channel cùng lúc (các bài sau ta sẽ thêm `plan`, `pendingTool`, `audit`). Bài này có đúng một: `messages`.
+- **Reducer** — hàm trả lời câu hỏi *"khi một node return giá trị mới cho channel này, ta gộp với giá trị cũ ra sao?"*
+
+  Điểm tinh tế ở đây — mỗi node *không* trả về toàn bộ state mới. Nó chỉ trả về phần *nó đóng góp thêm*. Reducer là một hàm nhận hai đối số: `a` là giá trị hiện có trong channel, `b` là cái node vừa return, và nó phải gộp hai cái thành giá trị mới. Đi qua `(a, b) => a.concat(b)` với dữ liệu thật:
+
+  ```ts
+  // Trước khi agentNode chạy:
+  state.messages = [HumanMessage("Khách nào chưa đặt hàng 60 ngày qua?")]   // ← đây là `a`
+
+  // agentNode return phần đóng góp của nó:
+  { messages: [AIMessage(tool_calls: [...])] }                                // ← đây là `b`
+
+  // Reducer chạy: a.concat(b)  →  state.messages mới:
+  [HumanMessage("Khách nào chưa đặt hàng..."), AIMessage(tool_calls: [...])]
+  ```
+
+  Vì sao quan trọng: đổi `a.concat(b)` thành `(a, b) => b` thì mỗi node sẽ ghi đè toàn bộ transcript bằng đúng cái nó vừa return. `HumanMessage` của khách sẽ biến mất ngay khi agent trả lời lượt đầu, và ở vòng 2 model bước vào trong trạng thái mù — không còn biết khách đã hỏi gì. *Append-merge* — nối phần mới vào cuối danh sách cũ — mới là default đúng cho một transcript lớn dần qua từng lượt. Channel khác có thể cần reducer khác: các bài sau ta thêm channel `plan` mà mỗi plan mới sẽ thay plan cũ chứ không xếp chồng. Với hội thoại, xếp chồng mới là cái bạn cần.
+- **END** (import cùng với `StateGraph`) — một vạch đích có sẵn, không phải node bạn phải tự viết code. Hình dung nó là chỗ barista đưa order tới khi ly đã sẵn sàng để giao: runtime thấy `END` và đóng run lại, thay vì gửi order sang một trạm khác.
+
+Với bài 17, một transcript là đủ để tái hiện trung thành vòng lặp ở bài 14. Các bài sau ta sẽ mở rộng state để có thêm plan, `pendingTool`, audit trail — mỗi cái là một channel mới riêng.
 
 ## 02 — Agent node
 
@@ -370,9 +442,9 @@ Edge vô điều kiện `tools → agent` fire tiếp theo. Runtime quay lại `
 Nếu agent emit **hai** tool call trong cùng một `AIMessage` (đọc song song — ví dụ `customers.search` VÀ `orders.totalThisWeek`), `toolsNode` sẽ lặp hai lần và emit hai `ToolMessage`. Mỗi cái mang `tool_call_id` của call gốc. Ở vòng kế, model thấy cả hai kết quả trong transcript và ghép theo id — *"`call_a3f1` là query khách hàng, đây là kết quả của nó; `call_b7e2` là query orders, đó là kết quả của nó."* Bỏ id đi và model phải đoán theo thứ tự xuất hiện — vẫn chạy đúng cho tới khi không đúng (một tool lỗi và xáo mảng).
 </Callout>
 
-## 04 — Router
+## 04 — Quyết định duy nhất: lặp tiếp hay dừng?
 
-Một graph nhỏ như vậy chỉ có đúng một quyết định: *lặp tiếp, hay dừng?* Đó là edge có điều kiện gắn vào agent node.
+Một graph nhỏ như vậy chỉ có đúng một quyết định cần đưa ra: *sau khi barista nói xong, ta gửi order quay lại phụ pha chế, hay ly đã sẵn sàng để giao?* Quyết định đó nằm trong một function nhỏ gọi là **router** (trong từ vựng LangGraph, đó là function gắn vào một *conditional edge*). Nó nhìn vào state hiện tại rồi return tên của node tiếp theo, hoặc giá trị đặc biệt `END`.
 
 ```ts
 import { isAIMessage } from '@langchain/core/messages'; // → type guard for AIMessage
@@ -398,7 +470,17 @@ const final = await app.invoke({                  // → final GraphState
 // → final.messages.at(-1) is the AIMessage with the prose answer
 ```
 
-Đọc to phần wiring lên và bạn có câu trả lời cho *cái này là cái gì?* Graph bắt đầu ở `agent`. Sau `agent`, nó hỏi `shouldContinue`; nếu có tool call, nó tới `tools`; nếu không, nó kết thúc. Sau `tools`, nó luôn quay lại `agent`. Đó là toàn bộ mô hình ReAct trong chín dòng khai báo edge.
+Đọc phần wiring như đọc một công thức:
+
+1. `addNode('agent', agentNode)` — đăng ký trạm barista.
+2. `addNode('tools', toolsNode)` — đăng ký trạm phụ pha chế.
+3. `setEntryPoint('agent')` — mọi lần chạy đều bắt đầu ở barista.
+4. `addConditionalEdges('agent', shouldContinue, { tools: 'tools', [END]: END })` — sau barista, router quyết định đi đâu. Nếu `shouldContinue` return `'tools'`, đi tới trạm phụ pha chế; nếu return `END`, dừng.
+5. `addEdge('tools', 'agent')` — sau trạm phụ pha chế, *luôn luôn* quay về barista. Không cần quyết định gì cả; barista là người sẽ đọc kết quả và quyết bước tiếp theo.
+6. `graph.compile()` — đóng băng cấu trúc thành một thứ có thể chạy được.
+7. `app.invoke({ messages: [...] })` — đưa transcript hạt giống vào và để graph chạy tới khi có cái gì đó return `END`.
+
+Đó là toàn bộ mô hình ReAct trong chín dòng khai báo edge. Hành vi bạn thấy ở bài 14 — model suy nghĩ, gọi tool, lặp, cuối cùng trả lời — giờ đã hiện ra *như một hình dạng* trên trang giấy, thay vì bị gấp lại bên trong thân một vòng `while`.
 
 ## 05 — Xem graph bước qua từng node
 

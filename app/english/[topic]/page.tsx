@@ -80,7 +80,27 @@ export default async function EnglishTopicPage({
 
       {topic.memoryTip && (
         <aside className="memory-tip" aria-label="Gợi ý cách ghi nhớ nhanh">
-          <p className="memory-tip-label">Gợi ý cách ghi nhớ nhanh</p>
+          <span className="memory-tip-tape" aria-hidden />
+          <div className="memory-tip-head">
+            <span className="memory-tip-mark" aria-hidden>
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 3 13.6 8.4 19 10 13.6 11.6 12 17 10.4 11.6 5 10 10.4 8.4z" />
+                <path d="M19 17.5v3" />
+                <path d="M17.5 19h3" />
+              </svg>
+            </span>
+            <p className="memory-tip-label">Gợi ý cách ghi nhớ nhanh</p>
+            <span className="memory-tip-rule" aria-hidden />
+          </div>
           <p className="memory-tip-body">{renderMemoryTip(topic.memoryTip)}</p>
         </aside>
       )}
