@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Build Locally, Deploy to VPS — Guide / Hướng dẫn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-1: #fff5f1;
+    --bg-2: #f3f0ff;
+    --bg-3: #e8faf3;
+    --card: #ffffff;
+    --text: #3a3354;
+    --text-soft: #7a7592;
+    --primary: #ff8fab;
+    --primary-2: #b794f6;
+    --accent: #6ee7c7;
+    --sunny: #ffd166;
+    --peach: #ffb088;
+    --sky: #8ecae6;
+    --warn: #f4a261;
+    --danger: #f48fb1;
+    --border: #f0ebf7;
+    --code-bg: #2d2640;
+    --code-text: #f5f0ff;
+    --shadow-sm: 0 2px 8px rgba(183, 148, 246, 0.08);
+    --shadow: 0 8px 24px rgba(183, 148, 246, 0.12);
+    --shadow-lg: 0 14px 38px rgba(183, 148, 246, 0.18);
+    --radius: 22px;
+    --radius-sm: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Quicksand", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background:
+      radial-gradient(circle at 0% 0%, var(--bg-1) 0%, transparent 50%),
+      radial-gradient(circle at 100% 0%, var(--bg-2) 0%, transparent 55%),
+      radial-gradient(circle at 50% 100%, var(--bg-3) 0%, transparent 55%),
+      #fdfbff;
+    background-attachment: fixed;
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 16.5px;
+    font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before, body::after {
+    content: ""; position: fixed; width: 320px; height: 320px;
+    border-radius: 50%; filter: blur(80px); opacity: 0.35;
+    z-index: -1; pointer-events: none;
+  }
+  body::before { background: var(--primary); top: -100px; right: -80px; }
+  body::after  { background: var(--accent);  bottom: -100px; left: -80px; }
+
+  header.topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    padding: 14px 26px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid rgba(240, 235, 247, 0.6);
+  }
+  header.topbar .brand {
+    display: flex; align-items: center; gap: 12px;
+    font-weight: 700; font-size: 18px; color: var(--text);
+  }
+  header.topbar .brand .logo {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    border-radius: 12px; display: grid; place-items: center;
+    font-size: 18px; box-shadow: 0 6px 16px rgba(255, 143, 171, 0.35);
+    transform: rotate(-5deg); transition: transform 0.3s;
+  }
+  header.topbar .brand:hover .logo { transform: rotate(5deg) scale(1.05); }
+
+  .lang-switch {
+    display: flex; gap: 4px;
+    background: rgba(183, 148, 246, 0.08);
+    border-radius: 999px; padding: 5px;
+    border: 1px solid var(--border);
+  }
+  .lang-switch button {
+    font-family: inherit; background: transparent; color: var(--text-soft);
+    border: none; padding: 7px 16px; border-radius: 999px;
+    cursor: pointer; font-weight: 700; font-size: 13px;
+    letter-spacing: 0.5px; transition: all 0.25s ease;
+  }
+  .lang-switch button.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    color: #fff; box-shadow: 0 4px 12px rgba(255, 143, 171, 0.4);
+  }
+  .lang-switch button:not(.active):hover {
+    background: rgba(183, 148, 246, 0.12); color: var(--text);
+  }
+
+  .container { max-width: 980px; margin: 0 auto; padding: 36px 24px 100px; }
+
+  .hero { text-align: center; padding: 56px 20px 36px; }
+  .hero .wave {
+    display: inline-block; font-size: 48px; margin-bottom: 8px;
+    animation: wave 2.4s ease-in-out infinite;
+    transform-origin: 70% 70%;
+  }
+  @keyframes wave {
+    0%, 100% { transform: rotate(0deg); }
+    20%, 60% { transform: rotate(14deg); }
+    40%, 80% { transform: rotate(-10deg); }
+  }
+  .hero h1 {
+    font-family: "Quicksand", sans-serif; font-weight: 700;
+    font-size: 46px; line-height: 1.15; margin: 0 0 14px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 50%, var(--sky) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    letter-spacing: -0.5px;
+  }
+  .hero p.tag {
+    font-size: 18px; color: var(--text-soft);
+    max-width: 640px; margin: 0 auto 28px; font-weight: 500;
+  }
+  .hero .pills { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .pill {
+    background: #fff; border: 1px solid var(--border);
+    padding: 8px 16px; border-radius: 999px;
+    font-size: 14px; font-weight: 600; color: var(--text);
+    box-shadow: var(--shadow-sm); transition: all 0.25s ease;
+  }
+  .pill:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+  .toc {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 26px 30px;
+    margin: 34px 0; box-shadow: var(--shadow);
+  }
+  .toc h3 {
+    margin: 0 0 16px; font-size: 14px; color: var(--text-soft);
+    text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .toc h3::before { content: "✨"; font-size: 18px; }
+  .toc ol {
+    margin: 0; padding-left: 0; list-style: none; counter-reset: toc;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 4px 18px;
+  }
+  .toc ol li {
+    counter-increment: toc; padding: 6px 0;
+    position: relative; padding-left: 32px;
+  }
+  .toc ol li::before {
+    content: counter(toc); position: absolute; left: 0; top: 50%;
+    transform: translateY(-50%); width: 24px; height: 24px;
+    background: linear-gradient(135deg, var(--bg-2), var(--bg-3));
+    color: var(--primary-2); border-radius: 50%;
+    display: grid; place-items: center; font-size: 11px; font-weight: 700;
+  }
+  .toc a { color: var(--text); text-decoration: none; font-weight: 600; transition: color 0.2s; }
+  .toc a:hover { color: var(--primary); }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 32px 34px;
+    margin: 26px 0; box-shadow: var(--shadow);
+    scroll-margin-top: 90px;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .step:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .step-header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  .step-num {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    color: #fff; border-radius: 16px;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 20px; flex-shrink: 0;
+    box-shadow: 0 6px 16px rgba(255, 143, 171, 0.3);
+    transform: rotate(-4deg); transition: transform 0.3s ease;
+  }
+  .step:hover .step-num { transform: rotate(4deg) scale(1.05); }
+  .step:nth-child(3n) .step-num {
+    background: linear-gradient(135deg, var(--sky), var(--accent));
+    box-shadow: 0 6px 16px rgba(110, 231, 199, 0.3);
+  }
+  .step:nth-child(3n+1) .step-num {
+    background: linear-gradient(135deg, var(--sunny), var(--peach));
+    box-shadow: 0 6px 16px rgba(255, 209, 102, 0.3);
+  }
+  .step h2 { margin: 0; font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+  .step h3 {
+    font-size: 19px; font-weight: 700; margin-top: 28px; margin-bottom: 10px;
+    color: var(--text); display: flex; align-items: center; gap: 8px;
+  }
+  .step h3::before {
+    content: ""; width: 6px; height: 18px;
+    background: linear-gradient(180deg, var(--primary), var(--primary-2));
+    border-radius: 3px;
+  }
+  .step p { margin: 12px 0; }
+
+  pre, code { font-family: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace; }
+  pre {
+    background: var(--code-bg); color: var(--code-text);
+    padding: 18px 20px; border-radius: var(--radius-sm);
+    overflow-x: auto; font-size: 14px; line-height: 1.7;
+    position: relative; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+  p code, li code, td code {
+    background: linear-gradient(135deg, var(--bg-2), #fff);
+    color: var(--primary-2); padding: 3px 9px; border-radius: 7px;
+    font-size: 0.88em; font-weight: 500; border: 1px solid var(--border);
+  }
+  .copy-btn {
+    font-family: "Quicksand", sans-serif;
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(255,255,255,0.1); color: #fff;
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 5px 12px; border-radius: 8px;
+    font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.22); transform: translateY(-1px); }
+  .copy-btn.copied { background: var(--accent); border-color: var(--accent); color: var(--text); }
+
+  .box {
+    border-radius: var(--radius-sm); padding: 16px 20px;
+    margin: 18px 0; border: none; position: relative; overflow: hidden;
+  }
+  .box::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 5px; border-radius: 3px;
+  }
+  .box.info   { background: #eaf6ff; }
+  .box.info::before   { background: var(--sky); }
+  .box.warn   { background: #fff4e3; }
+  .box.warn::before   { background: var(--warn); }
+  .box.tip    { background: #e7faf2; }
+  .box.tip::before    { background: var(--accent); }
+  .box.danger { background: #ffe9ee; }
+  .box.danger::before { background: var(--danger); }
+  .box-title { font-weight: 700; margin-bottom: 4px; font-size: 15px; letter-spacing: 0.2px; }
+
+  .checklist { list-style: none; padding: 0; margin: 16px 0; }
+  .checklist li { padding: 10px 0 10px 38px; position: relative; }
+  .checklist li::before {
+    content: "✓"; position: absolute; left: 0; top: 50%;
+    transform: translateY(-50%); width: 26px; height: 26px;
+    background: linear-gradient(135deg, var(--accent), #4dd8b0);
+    color: #fff; border-radius: 50%; display: grid; place-items: center;
+    font-weight: 900; font-size: 13px;
+    box-shadow: 0 3px 8px rgba(110, 231, 199, 0.35);
+  }
+
+  table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    margin: 16px 0; background: #fff;
+    border-radius: var(--radius-sm); overflow: hidden;
+    font-size: 15px; border: 1px solid var(--border);
+  }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  th {
+    background: linear-gradient(135deg, var(--bg-2), var(--bg-1));
+    font-weight: 700; color: var(--text); font-size: 12px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #faf8ff; }
+
+  kbd {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.82em;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 6px;
+    padding: 2px 7px;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .tree {
+    background: #fbf9ff; border: 1px dashed var(--border);
+    border-radius: var(--radius-sm); padding: 16px 22px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 13.5px; line-height: 1.85; color: var(--text);
+    overflow-x: auto; margin: 16px 0;
+  }
+  .tree .c { color: var(--text-soft); }
+  .tree .h { color: var(--primary); font-weight: 700; }
+
+  [data-lang="en"] .vi { display: none; }
+  [data-lang="vi"] .en { display: none; }
+
+  footer { text-align: center; padding: 40px 20px; color: var(--text-soft); font-size: 15px; }
+  footer .heart {
+    display: inline-block; color: var(--primary);
+    animation: beat 1.4s ease-in-out infinite;
+  }
+  @keyframes beat {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+  }
+  footer a { color: var(--primary-2); text-decoration: none; font-weight: 700; }
+  footer a:hover { text-decoration: underline; }
+
+  .step a { color: var(--primary-2); font-weight: 700; }
+  .step a:hover { color: var(--primary); }
+  .step strong { color: var(--text); font-weight: 700; }
+
+  @media (max-width: 640px) {
+    body { font-size: 15.5px; }
+    .hero h1 { font-size: 34px; }
+    .hero .wave { font-size: 40px; }
+    .step { padding: 24px 20px; }
+    .container { padding: 22px 14px 70px; }
+    .toc ol { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">🚀</div>
+    <span>
+      <span class="en">Build Locally, Deploy to VPS</span>
+      <span class="vi">Build máy, deploy lên VPS</span>
+    </span>
+  </div>
+  <div class="lang-switch" role="tablist">
+    <button id="btn-en" class="active" onclick="setLang('en')">EN</button>
+    <button id="btn-vi" onclick="setLang('vi')">VI</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <section class="hero">
+    <div class="wave">👋</div>
+    <h1>
+      <span class="en">Build on your laptop, ship .next to the VPS</span>
+      <span class="vi">Build trên máy bạn, đẩy <code>.next</code> lên VPS</span>
+    </h1>
+    <p class="tag">
+      <span class="en">Skip the slow build on a 1 GB Cloudfly VPS. Compile Next.js on your beefy desktop, then upload only the artifacts via scp. The server just runs <code>node server.js</code> — no npm install, no Git pull, no waiting.</span>
+      <span class="vi">Bỏ qua bước build chậm rì trên VPS Cloudfly 1 GB RAM. Build Next.js trên máy bàn mạnh của bạn, rồi chỉ upload kết quả qua scp. Server chỉ việc chạy <code>node server.js</code> — không npm install, không git pull, không phải đợi.</span>
+    </p>
+    <div class="pills">
+      <span class="pill">💻 <span class="en">Windows + PowerShell</span><span class="vi">Windows + PowerShell</span></span>
+      <span class="pill">📦 <span class="en">Next.js standalone</span><span class="vi">Next.js standalone</span></span>
+      <span class="pill">📤 <span class="en">scp upload</span><span class="vi">Upload bằng scp</span></span>
+      <span class="pill">⏱️ <span class="en">~45 min first time</span><span class="vi">~45 phút lần đầu</span></span>
+      <span class="pill">⚡ <span class="en">~2 min every deploy</span><span class="vi">~2 phút mỗi lần deploy</span></span>
+    </div>
+  </section>
+
+  <nav class="toc">
+    <h3>
+      <span class="en">Contents</span>
+      <span class="vi">Mục lục</span>
+    </h3>
+    <ol>
+      <li><a href="#step-1"><span class="en">Why build locally</span><span class="vi">Vì sao build trên máy</span></a></li>
+      <li><a href="#step-2"><span class="en">What you need</span><span class="vi">Bạn cần gì</span></a></li>
+      <li><a href="#step-3"><span class="en">Enable standalone output</span><span class="vi">Bật standalone output</span></a></li>
+      <li><a href="#step-4"><span class="en">Build on your desktop</span><span class="vi">Build trên máy bàn</span></a></li>
+      <li><a href="#step-5"><span class="en">Bundle the deploy folder</span><span class="vi">Gói folder để deploy</span></a></li>
+      <li><a href="#step-6"><span class="en">First-time server setup</span><span class="vi">Chuẩn bị server lần đầu</span></a></li>
+      <li><a href="#step-7"><span class="en">Upload with scp</span><span class="vi">Upload bằng scp</span></a></li>
+      <li><a href="#step-8"><span class="en">Start with PM2</span><span class="vi">Khởi động bằng PM2</span></a></li>
+      <li><a href="#step-9"><span class="en">The everyday deploy cycle</span><span class="vi">Quy trình deploy hằng ngày</span></a></li>
+      <li><a href="#step-10"><span class="en">One-command deploy script</span><span class="vi">Script deploy một lệnh</span></a></li>
+      <li><a href="#trouble"><span class="en">Troubleshooting</span><span class="vi">Khắc phục sự cố</span></a></li>
+      <li><a href="#glossary"><span class="en">Glossary</span><span class="vi">Bảng thuật ngữ</span></a></li>
+    </ol>
+  </nav>
+
+  <!-- 01 -->
+  <section id="step-1" class="step">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <h2>
+        <span class="en">Why build locally instead of on the server</span>
+        <span class="vi">Vì sao build trên máy bàn thay vì trên server</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>The original Cloudfly guide had you clone the repo on the VPS and run <code>npm run build</code> there. That works, but it has three pain points:</p>
+      <ul>
+        <li><strong>RAM.</strong> A Next.js 16 build with MDX can peak above 1.5 GB. On a 1 GB VPS it gets killed by the OOM killer mid-build — you end up needing a swapfile or a bigger plan.</li>
+        <li><strong>Time.</strong> Cloudfly's vCPU is shared. A build that takes 40 seconds on your laptop can take 5–6 minutes on the VPS.</li>
+        <li><strong>Source code on the server.</strong> If the VPS gets compromised, the attacker reads your whole codebase, env files, and Git history.</li>
+      </ul>
+      <p>Building locally flips the trade-off. Your desktop has 16+ GB RAM and a fast CPU — the build finishes quickly. Then you upload only the compiled <code>.next/</code> output. The server never sees source code, never runs <code>npm install</code>, and only needs enough RAM to <em>run</em> the app (~150 MB), not build it.</p>
+      <div class="box info">
+        <div class="box-title">📝 When this is NOT the right approach</div>
+        If multiple developers deploy from different machines (different Node versions, different OSes), local builds can drift apart and "works on my machine" bugs creep in. For a team, set up GitHub Actions instead. For a solo project, local-build is the simplest reliable workflow.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Hướng dẫn Cloudfly gốc bảo bạn clone repo lên VPS rồi chạy <code>npm run build</code> ngay trên đó. Cách này chạy được, nhưng có 3 điểm khó chịu:</p>
+      <ul>
+        <li><strong>RAM.</strong> Build Next.js 16 có MDX dễ ngốn trên 1.5 GB. Trên VPS 1 GB là bị OOM killer giết giữa chừng — cuối cùng phải tạo swapfile hoặc nâng gói.</li>
+        <li><strong>Thời gian.</strong> vCPU của Cloudfly là loại chia sẻ. Một build chạy 40 giây trên laptop có thể mất 5–6 phút trên VPS.</li>
+        <li><strong>Source code nằm trên server.</strong> Nếu VPS bị xâm nhập, kẻ tấn công đọc được toàn bộ code, file env, lịch sử git của bạn.</li>
+      </ul>
+      <p>Build trên máy bàn lật ngược thế cờ. Máy bạn có 16+ GB RAM và CPU mạnh — build xong trong tích tắc. Sau đó bạn chỉ upload thư mục <code>.next/</code> đã compile. Server không bao giờ thấy source code, không phải chạy <code>npm install</code>, và chỉ cần đủ RAM để <em>chạy</em> app (~150 MB) chứ không phải để build.</p>
+      <div class="box info">
+        <div class="box-title">📝 Khi nào KHÔNG nên dùng cách này</div>
+        Nếu nhiều dev deploy từ nhiều máy khác nhau (Node version khác, hệ điều hành khác), build trên máy mỗi người có thể lệch nhau và sinh ra bug kiểu "trên máy tao chạy được mà". Với team, hãy dùng GitHub Actions thay thế. Còn dự án solo thì build trên máy là cách đơn giản và đáng tin cậy nhất.
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 -->
+  <section id="step-2" class="step">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <h2>
+        <span class="en">What you need before starting</span>
+        <span class="vi">Cần chuẩn bị gì trước khi bắt đầu</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <ul class="checklist">
+        <li><strong>This project on your Windows desktop</strong> — at <code>C:\Users\ADMIN\Desktop\claude-demo\IT-courses</code>. Run <code>npm run dev</code> at least once to confirm it boots.</li>
+        <li><strong>Node.js 22 LTS</strong> on both your desktop AND the VPS. <code>node --version</code> must match (or at least same major). Mismatched versions cause weird native-module crashes.</li>
+        <li><strong>The VPS already up and reachable</strong> via <code>ssh root@your-ip</code> — see steps 5–8 of the Cloudfly guide.</li>
+        <li><strong>PM2 installed on the server</strong> — <code>sudo npm install -g pm2</code>. We'll use it to keep the app running and restart it after each deploy.</li>
+        <li><strong>OpenSSH client on Windows</strong> (for <code>scp</code>) — built into Windows 10/11. Test with <code>ssh -V</code> in PowerShell. If "command not found": <em>Settings → Apps → Optional Features → Add → OpenSSH Client</em>.</li>
+        <li><strong>An SSH key pair</strong> — so you don't type your password 5 times per deploy. <code>ssh-keygen</code> in PowerShell, then <code>ssh-copy-id user@ip</code> (or paste the public key into <code>~/.ssh/authorized_keys</code> on the server manually).</li>
+      </ul>
+      <div class="box warn">
+        <div class="box-title">⚠ Node version match really matters</div>
+        Next.js binaries like <code>@next/swc-win32-x64-msvc</code> (Windows) versus <code>@next/swc-linux-x64-gnu</code> (Ubuntu) are platform-specific. The <strong>standalone build</strong> we use in step 3 bundles the right Linux binaries automatically, so this is fine — but only if both Node majors match.
+      </div>
+    </div>
+
+    <div class="vi">
+      <ul class="checklist">
+        <li><strong>Project này trên máy Windows của bạn</strong> — tại <code>C:\Users\ADMIN\Desktop\claude-demo\IT-courses</code>. Chạy <code>npm run dev</code> ít nhất 1 lần để chắc chắn project chạy bình thường.</li>
+        <li><strong>Node.js 22 LTS</strong> trên CẢ máy bàn VÀ VPS. <code>node --version</code> phải trùng (ít nhất là cùng major version). Lệch version là sinh lỗi native-module rất khó hiểu.</li>
+        <li><strong>VPS đã chạy và truy cập được</strong> qua <code>ssh root@ip-cua-ban</code> — xem bước 5–8 trong hướng dẫn Cloudfly.</li>
+        <li><strong>PM2 đã cài trên server</strong> — <code>sudo npm install -g pm2</code>. Mình dùng PM2 để giữ app chạy 24/7 và restart sau mỗi lần deploy.</li>
+        <li><strong>OpenSSH client trên Windows</strong> (cho <code>scp</code>) — có sẵn trong Windows 10/11. Test bằng <code>ssh -V</code> trong PowerShell. Nếu báo "không tìm thấy lệnh": <em>Settings → Apps → Optional Features → Add → OpenSSH Client</em>.</li>
+        <li><strong>SSH key pair</strong> — để khỏi gõ mật khẩu 5 lần mỗi lần deploy. Chạy <code>ssh-keygen</code> trong PowerShell, rồi <code>ssh-copy-id user@ip</code> (hoặc dán public key vào <code>~/.ssh/authorized_keys</code> trên server bằng tay).</li>
+      </ul>
+      <div class="box warn">
+        <div class="box-title">⚠ Node version phải trùng — quan trọng đấy</div>
+        Các binary của Next.js như <code>@next/swc-win32-x64-msvc</code> (Windows) và <code>@next/swc-linux-x64-gnu</code> (Ubuntu) là khác nhau theo nền tảng. Bản <strong>standalone build</strong> ở bước 3 sẽ tự đóng gói binary Linux đúng nhé — nên không lo phần này, miễn là Node major version giống nhau.
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 -->
+  <section id="step-3" class="step">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <h2>
+        <span class="en">Turn on Next.js standalone output</span>
+        <span class="vi">Bật chế độ standalone output của Next.js</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>By default, <code>npm run build</code> produces a <code>.next/</code> folder that requires the full <code>node_modules/</code> (often 400–800 MB) to run. The <strong>standalone</strong> output mode tells Next.js to trace exactly which dependencies your app uses at runtime, copy only those into <code>.next/standalone/</code>, and emit a tiny self-contained Node server.</p>
+      <p>Open <code>next.config.mjs</code> and add the <code>output</code> line:</p>
+      <pre><code>/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'standalone',          // ← add this line
+  pageExtensions: ['ts', 'tsx', 'mdx'],
+  turbopack: {
+    root: __dirname,
+  },
+};
+
+export default withMDX(nextConfig);</code></pre>
+      <p>Commit it now so the change is reproducible:</p>
+      <pre><code>git add next.config.mjs
+git commit -m "build: enable standalone output for local-build deploy"</code></pre>
+      <div class="box tip">
+        <div class="box-title">💡 What "standalone" actually does</div>
+        Next.js uses <a href="https://github.com/vercel/nft" target="_blank" rel="noopener">@vercel/nft</a> to scan your code and figure out exactly which files inside <code>node_modules/</code> are touched at runtime. Anything not traced (devDependencies, build-only tools, unused packages) is skipped. Result: <code>.next/standalone/</code> is typically 30–80 MB instead of 500+ MB.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Mặc định, <code>npm run build</code> tạo ra thư mục <code>.next/</code> cần CẢ <code>node_modules/</code> (thường 400–800 MB) thì mới chạy được. Chế độ <strong>standalone</strong> bảo Next.js lần ra chính xác những dependency mà app cần lúc chạy, chỉ copy đúng những cái đó vào <code>.next/standalone/</code>, và xuất ra một Node server tí hon tự đứng được một mình.</p>
+      <p>Mở file <code>next.config.mjs</code> và thêm dòng <code>output</code>:</p>
+      <pre><code>/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'standalone',          // ← thêm dòng này
+  pageExtensions: ['ts', 'tsx', 'mdx'],
+  turbopack: {
+    root: __dirname,
+  },
+};
+
+export default withMDX(nextConfig);</code></pre>
+      <p>Commit ngay để thay đổi có thể tái lập:</p>
+      <pre><code>git add next.config.mjs
+git commit -m "build: enable standalone output for local-build deploy"</code></pre>
+      <div class="box tip">
+        <div class="box-title">💡 "Standalone" làm gì cụ thể?</div>
+        Next.js dùng <a href="https://github.com/vercel/nft" target="_blank" rel="noopener">@vercel/nft</a> để quét code và tìm chính xác những file nào trong <code>node_modules/</code> được dùng lúc chạy. Những thứ không bị dùng tới (devDependencies, công cụ chỉ phục vụ build, package thừa) sẽ bị bỏ qua. Kết quả: <code>.next/standalone/</code> thường chỉ 30–80 MB thay vì 500+ MB.
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 -->
+  <section id="step-4" class="step">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <h2>
+        <span class="en">Build the project on your desktop</span>
+        <span class="vi">Build project trên máy bàn của bạn</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Open PowerShell in your project root:</p>
+      <pre><code>cd C:\Users\ADMIN\Desktop\claude-demo\IT-courses</code></pre>
+      <p>If you haven't installed dependencies recently, do it now:</p>
+      <pre><code>npm install</code></pre>
+      <p>Then build for production:</p>
+      <pre><code>npm run build</code></pre>
+      <p>You'll see Next.js compile pages, optimize images, and print a summary table at the end:</p>
+      <pre><code>Route (app)                              Size  First Load JS
+┌ ○ /                                  4.2 kB         110 kB
+├ ○ /english/[topic]                  6.8 kB         115 kB
+...
+○  (Static)   prerendered as static content
+
+✓ Generated standalone output</code></pre>
+      <p>That last line — <strong>✓ Generated standalone output</strong> — is the one you want to see. It confirms <code>.next/standalone/</code> was created.</p>
+      <div class="box warn">
+        <div class="box-title">⚠ Build errors? Don't proceed</div>
+        If the build fails (red <code>Error</code> lines, no "Generated standalone output" message), <strong>fix it locally first</strong>. Don't try to deploy a failed build — you'll just push broken artifacts to the server. Most beginner build errors are: a missing import, a TypeScript error, or an env var the build needs.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Mở PowerShell trong thư mục gốc của project:</p>
+      <pre><code>cd C:\Users\ADMIN\Desktop\claude-demo\IT-courses</code></pre>
+      <p>Nếu chưa cài dependencies gần đây, cài lại cho chắc:</p>
+      <pre><code>npm install</code></pre>
+      <p>Rồi build bản production:</p>
+      <pre><code>npm run build</code></pre>
+      <p>Bạn sẽ thấy Next.js compile các trang, tối ưu ảnh, và in ra bảng tổng kết ở cuối:</p>
+      <pre><code>Route (app)                              Size  First Load JS
+┌ ○ /                                  4.2 kB         110 kB
+├ ○ /english/[topic]                  6.8 kB         115 kB
+...
+○  (Static)   prerendered as static content
+
+✓ Generated standalone output</code></pre>
+      <p>Dòng cuối — <strong>✓ Generated standalone output</strong> — chính là dòng bạn cần thấy. Nó xác nhận <code>.next/standalone/</code> đã được tạo.</p>
+      <div class="box warn">
+        <div class="box-title">⚠ Build báo lỗi? Đừng đi tiếp</div>
+        Nếu build bị lỗi (các dòng <code>Error</code> màu đỏ, không có dòng "Generated standalone output"), <strong>sửa ở máy trước</strong>. Đừng cố deploy một bản build hỏng — chỉ tổ đẩy file lỗi lên server. Lỗi build hay gặp với người mới: thiếu import, lỗi TypeScript, hoặc thiếu env var khi build.
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 -->
+  <section id="step-5" class="step">
+    <div class="step-header">
+      <div class="step-num">5</div>
+      <h2>
+        <span class="en">Bundle the deploy folder (the gotcha step)</span>
+        <span class="vi">Gói folder để deploy (bước cài bẫy)</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Standalone output is almost self-contained — but Next.js deliberately does NOT copy two things into <code>.next/standalone/</code>:</p>
+      <ul>
+        <li><code>.next/static/</code> — your hashed CSS, JS chunks, fonts</li>
+        <li><code>public/</code> — your images, favicon, robots.txt</li>
+      </ul>
+      <p>The reason: in most production setups, you'd serve those from a CDN, not from Node. We're not using a CDN, so we have to copy them in by hand. Run this in PowerShell:</p>
+      <pre><code>Copy-Item -Recurse -Force .next\static .next\standalone\.next\
+Copy-Item -Recurse -Force public .next\standalone\</code></pre>
+      <p>After this, your <code>.next/standalone/</code> looks like a complete, runnable Node app:</p>
+      <div class="tree"><span class="h">.next/standalone/</span>
+├── server.js              <span class="c"># the Node entry point</span>
+├── package.json
+├── node_modules/          <span class="c"># only what's needed at runtime</span>
+├── .next/
+│   ├── server/            <span class="c"># RSC, route handlers</span>
+│   └── static/            <span class="c"># ← copied in this step</span>
+└── public/                <span class="c"># ← copied in this step</span></div>
+      <div class="box tip">
+        <div class="box-title">💡 Why a "Copy-Item" instead of a build script?</div>
+        Future you might forget. Add these two lines as a npm script so it's never skipped:
+        <pre style="margin-top:8px"><code>// package.json
+"scripts": {
+  "build": "next build",
+  "build:deploy": "next build && powershell -Command \"Copy-Item -Recurse -Force .next/static .next/standalone/.next/; Copy-Item -Recurse -Force public .next/standalone/\""
+}</code></pre>
+        Then you just run <code>npm run build:deploy</code> instead of two separate commands.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Standalone output gần như tự đứng được — nhưng Next.js CỐ TÌNH không copy 2 thứ này vào <code>.next/standalone/</code>:</p>
+      <ul>
+        <li><code>.next/static/</code> — file CSS, JS chunk có hash, font</li>
+        <li><code>public/</code> — ảnh, favicon, robots.txt</li>
+      </ul>
+      <p>Lý do: ở môi trường production "chuẩn", người ta phục vụ mấy thứ này từ CDN chứ không từ Node. Bạn chưa dùng CDN, nên phải copy thủ công vào. Chạy trong PowerShell:</p>
+      <pre><code>Copy-Item -Recurse -Force .next\static .next\standalone\.next\
+Copy-Item -Recurse -Force public .next\standalone\</code></pre>
+      <p>Sau bước này, <code>.next/standalone/</code> trông như một Node app hoàn chỉnh, chạy ngay được:</p>
+      <div class="tree"><span class="h">.next/standalone/</span>
+├── server.js              <span class="c"># điểm vào của Node</span>
+├── package.json
+├── node_modules/          <span class="c"># chỉ chứa thứ cần lúc chạy</span>
+├── .next/
+│   ├── server/            <span class="c"># RSC, route handler</span>
+│   └── static/            <span class="c"># ← copy vào ở bước này</span>
+└── public/                <span class="c"># ← copy vào ở bước này</span></div>
+      <div class="box tip">
+        <div class="box-title">💡 Sao không bỏ "Copy-Item" vào script luôn cho gọn?</div>
+        Bạn sau này dễ quên lắm. Thêm 2 dòng này vào npm script để không bao giờ thiếu bước copy:
+        <pre style="margin-top:8px"><code>// package.json
+"scripts": {
+  "build": "next build",
+  "build:deploy": "next build && powershell -Command \"Copy-Item -Recurse -Force .next/static .next/standalone/.next/; Copy-Item -Recurse -Force public .next/standalone/\""
+}</code></pre>
+        Sau đó chỉ cần chạy <code>npm run build:deploy</code> thay vì 2 lệnh riêng.
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 -->
+  <section id="step-6" class="step">
+    <div class="step-header">
+      <div class="step-num">6</div>
+      <h2>
+        <span class="en">First-time server setup</span>
+        <span class="vi">Chuẩn bị server lần đầu</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>You only do this once per server. SSH into the VPS:</p>
+      <pre><code>ssh deploy@your-vps-ip</code></pre>
+      <p>(Or whichever non-root user you created in step 8 of the Cloudfly guide. Below, <code>deploy</code> is a placeholder — substitute your real username.)</p>
+
+      <p>Create the deploy folder under <code>/var/www/</code> and hand ownership to your SSH user so scp can write there without <code>sudo</code>:</p>
+      <pre><code>sudo mkdir -p /var/www/it-courses
+sudo chown -R $USER:$USER /var/www/it-courses
+cd /var/www/it-courses</code></pre>
+      <div class="box info">
+        <div class="box-title">📝 Why the <code>chown</code> matters</div>
+        <code>/var/www/</code> is owned by <code>root</code> by default on Ubuntu. Without the <code>chown</code>, every <code>scp</code> upload would fail with <em>Permission denied</em>, or you'd have to prefix every operation with <code>sudo</code>. <code>$USER</code> is a shell variable that expands to your current Linux username — no need to type it.
+      </div>
+
+      <p>While you're here, make sure PM2 is installed:</p>
+      <pre><code>pm2 --version || sudo npm install -g pm2</code></pre>
+      <p>Create a PM2 config file so future you doesn't have to remember the env vars and port number:</p>
+      <pre><code>nano /var/www/it-courses/ecosystem.config.cjs</code></pre>
+      <p>Paste this:</p>
+      <pre><code>module.exports = {
+  apps: [{
+    name: 'it-courses',
+    script: './server.js',          // standalone entry point
+    cwd: '/var/www/it-courses',     // matches the upload destination
+    instances: 1,
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '400M',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 8888,                    // matches package.json + nginx config
+      HOSTNAME: '127.0.0.1'          // bind to loopback; nginx is the front door
+    }
+  }]
+};</code></pre>
+      <p>Save with <kbd>Ctrl</kbd>+<kbd>O</kbd>, <kbd>Enter</kbd>, <kbd>Ctrl</kbd>+<kbd>X</kbd>. Log out of the server — the rest happens from your laptop.</p>
+      <div class="box info">
+        <div class="box-title">📝 Why HOSTNAME=127.0.0.1?</div>
+        Binding Node to <code>127.0.0.1</code> (loopback only) means the world can't reach Node directly — only nginx running on the same machine can. This is exactly what you want: nginx terminates HTTPS, applies rate limits and gzip, then proxies cleartext to Node. If you bind to <code>0.0.0.0</code>, anyone scanning port 8888 hits raw Node.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Phần này chỉ làm 1 lần cho mỗi server. SSH vào VPS:</p>
+      <pre><code>ssh deploy@ip-cua-vps</code></pre>
+      <p>(Hoặc tên user non-root mà bạn đã tạo ở bước 8 của hướng dẫn Cloudfly. Bên dưới, <code>deploy</code> chỉ là ví dụ — bạn thay bằng username thật của mình.)</p>
+
+      <p>Tạo folder deploy trong <code>/var/www/</code> rồi giao quyền sở hữu cho user SSH của bạn để scp ghi được mà không cần <code>sudo</code>:</p>
+      <pre><code>sudo mkdir -p /var/www/it-courses
+sudo chown -R $USER:$USER /var/www/it-courses
+cd /var/www/it-courses</code></pre>
+      <div class="box info">
+        <div class="box-title">📝 Vì sao phải <code>chown</code>?</div>
+        Mặc định <code>/var/www/</code> trên Ubuntu thuộc về <code>root</code>. Không <code>chown</code> thì mỗi lần <code>scp</code> sẽ báo <em>Permission denied</em>, hoặc bạn phải đặt <code>sudo</code> trước mọi thao tác. <code>$USER</code> là biến shell, tự bung ra thành username Linux hiện tại — không phải gõ tay.
+      </div>
+
+      <p>Đang ở đây thì cài luôn PM2 cho chắc:</p>
+      <pre><code>pm2 --version || sudo npm install -g pm2</code></pre>
+      <p>Tạo file config PM2 để sau này bạn khỏi phải nhớ env var với port:</p>
+      <pre><code>nano /var/www/it-courses/ecosystem.config.cjs</code></pre>
+      <p>Dán nội dung này vào:</p>
+      <pre><code>module.exports = {
+  apps: [{
+    name: 'it-courses',
+    script: './server.js',          // điểm vào của standalone
+    cwd: '/var/www/it-courses',     // trùng với nơi upload tới
+    instances: 1,
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '400M',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 8888,                    // trùng với package.json + config nginx
+      HOSTNAME: '127.0.0.1'          // chỉ lắng nghe trên loopback; nginx là cửa trước
+    }
+  }]
+};</code></pre>
+      <p>Lưu bằng <kbd>Ctrl</kbd>+<kbd>O</kbd>, <kbd>Enter</kbd>, <kbd>Ctrl</kbd>+<kbd>X</kbd>. Đăng xuất khỏi server — phần còn lại làm từ laptop.</p>
+      <div class="box info">
+        <div class="box-title">📝 Vì sao HOSTNAME=127.0.0.1?</div>
+        Cho Node bind vào <code>127.0.0.1</code> (chỉ loopback) nghĩa là thế giới bên ngoài không thể truy cập thẳng tới Node — chỉ có nginx chạy cùng máy mới gọi tới được. Đây chính xác là điều bạn muốn: nginx xử HTTPS, giới hạn rate, nén gzip, rồi mới chuyển plaintext sang Node. Nếu bind vào <code>0.0.0.0</code>, ai quét được port 8888 là chạm thẳng vào Node luôn.
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 -->
+  <section id="step-7" class="step">
+    <div class="step-header">
+      <div class="step-num">7</div>
+      <h2>
+        <span class="en">Upload the build with scp</span>
+        <span class="vi">Upload bản build bằng scp</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Back in PowerShell on your desktop, from the project root:</p>
+      <pre><code>scp -r .next\standalone\* deploy@your-vps-ip:/var/www/it-courses/</code></pre>
+      <p>Watch the file names scroll by. With the standalone output, the whole upload is usually 30–80 MB and takes 30 seconds to 3 minutes depending on your upload speed.</p>
+      <div class="box warn">
+        <div class="box-title">⚠ Two common gotchas with scp on Windows</div>
+        <ol>
+          <li><strong>The trailing <code>/*</code> matters.</strong> <code>scp -r .next\standalone\*</code> copies the <em>contents</em> of standalone into <code>it-courses/</code>. Without the <code>*</code>, you'd get a nested <code>it-courses/standalone/server.js</code> — wrong path, app won't start.</li>
+          <li><strong>Backslash vs forward slash.</strong> On Windows the local path uses <code>\</code>, but the remote path after the colon always uses <code>/</code>. Don't mix them on the wrong side.</li>
+        </ol>
+      </div>
+      <p>If scp asks for a password every time, set up an SSH key (see step 2). With keys, the upload is fully unattended.</p>
+    </div>
+
+    <div class="vi">
+      <p>Quay lại PowerShell trên máy bàn, từ thư mục gốc của project:</p>
+      <pre><code>scp -r .next\standalone\* deploy@ip-cua-vps:/var/www/it-courses/</code></pre>
+      <p>Bạn sẽ thấy tên file chạy qua. Với standalone output, tổng dung lượng upload thường 30–80 MB, mất 30 giây tới 3 phút tuỳ tốc độ upload nhà bạn.</p>
+      <div class="box warn">
+        <div class="box-title">⚠ Hai cái bẫy hay gặp khi dùng scp trên Windows</div>
+        <ol>
+          <li><strong>Cái dấu <code>/*</code> cuối là quan trọng.</strong> <code>scp -r .next\standalone\*</code> copy <em>nội dung bên trong</em> standalone vào <code>it-courses/</code>. Nếu thiếu <code>*</code>, bạn sẽ có đường dẫn lồng <code>it-courses/standalone/server.js</code> — sai chỗ, app không khởi động được.</li>
+          <li><strong>Dấu sổ ngược vs sổ xuôi.</strong> Trên Windows đường dẫn cục bộ dùng <code>\</code>, nhưng đường dẫn remote (sau dấu hai chấm) luôn dùng <code>/</code>. Đừng nhầm lẫn giữa 2 bên.</li>
+        </ol>
+      </div>
+      <p>Nếu scp hỏi mật khẩu mỗi lần, hãy thiết lập SSH key (xem bước 2). Có key rồi thì upload chạy luôn, không cần nhập gì.</p>
+    </div>
+  </section>
+
+  <!-- 08 -->
+  <section id="step-8" class="step">
+    <div class="step-header">
+      <div class="step-num">8</div>
+      <h2>
+        <span class="en">Start (or reload) the app with PM2</span>
+        <span class="vi">Khởi động (hoặc reload) app bằng PM2</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>SSH back into the server one more time:</p>
+      <pre><code>ssh deploy@your-vps-ip
+cd /var/www/it-courses</code></pre>
+      <p>First time, tell PM2 to start the app from your ecosystem file:</p>
+      <pre><code>pm2 start ecosystem.config.cjs
+pm2 save                       # remember this app across reboots
+pm2 startup                    # only the FIRST time on a fresh VPS — copy and run the printed command</code></pre>
+      <p>Check it's healthy:</p>
+      <pre><code>pm2 status
+pm2 logs it-courses --lines 30</code></pre>
+      <p>You should see <code>online</code> in the status table, and recent log lines like <code>▲ Next.js 16.x - Local: http://127.0.0.1:8888</code>.</p>
+      <p>Open <code>http://your-domain.com</code> (assuming nginx + DNS from the Cloudfly guide is already set up). Your site loads — running off a build your laptop made 2 minutes ago.</p>
+      <div class="box tip">
+        <div class="box-title">💡 Subsequent deploys use <code>reload</code>, not <code>start</code></div>
+        <code>pm2 start</code> would create a second instance every time. Use <code>pm2 reload it-courses</code> instead — it does a zero-downtime restart, swapping in the new code without dropping any in-flight requests.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>SSH vào server lần nữa:</p>
+      <pre><code>ssh deploy@ip-cua-vps
+cd /var/www/it-courses</code></pre>
+      <p>Lần đầu tiên, bảo PM2 khởi động app từ file ecosystem của bạn:</p>
+      <pre><code>pm2 start ecosystem.config.cjs
+pm2 save                       # ghi nhớ app này để khôi phục sau khi reboot
+pm2 startup                    # chỉ làm LẦN ĐẦU trên VPS mới — copy và chạy lệnh nó in ra</code></pre>
+      <p>Kiểm tra xem app có khoẻ không:</p>
+      <pre><code>pm2 status
+pm2 logs it-courses --lines 30</code></pre>
+      <p>Bạn phải thấy <code>online</code> trong bảng status, và những dòng log gần đây kiểu <code>▲ Next.js 16.x - Local: http://127.0.0.1:8888</code>.</p>
+      <p>Mở <code>http://ten-mien-cua-ban.com</code> (giả sử nginx + DNS từ hướng dẫn Cloudfly đã được setup). Website hiện lên — đang chạy từ bản build mà laptop bạn vừa tạo 2 phút trước.</p>
+      <div class="box tip">
+        <div class="box-title">💡 Những lần deploy sau dùng <code>reload</code>, không phải <code>start</code></div>
+        <code>pm2 start</code> sẽ tạo thêm 1 instance mới mỗi lần — sẽ có nhiều bản chạy song song. Dùng <code>pm2 reload it-courses</code> thay vào đó — nó restart không gián đoạn, swap code mới vào mà không làm rớt request nào đang xử lý.
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 -->
+  <section id="step-9" class="step">
+    <div class="step-header">
+      <div class="step-num">9</div>
+      <h2>
+        <span class="en">The everyday deploy cycle</span>
+        <span class="vi">Quy trình deploy hằng ngày</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Once steps 6 and 8 are done, future deploys are just 4 commands. Run them from PowerShell in the project root every time you want to publish a change:</p>
+      <pre><code># 1. Build the project
+npm run build
+
+# 2. Bundle static + public into standalone
+Copy-Item -Recurse -Force .next\static .next\standalone\.next\
+Copy-Item -Recurse -Force public .next\standalone\
+
+# 3. Upload
+scp -r .next\standalone\* deploy@your-vps-ip:/var/www/it-courses/
+
+# 4. Reload PM2 over SSH (no need to log in)
+ssh deploy@your-vps-ip "pm2 reload it-courses"</code></pre>
+      <p>That's the whole loop. From save → live usually under 2 minutes once everything is set up.</p>
+      <div class="box info">
+        <div class="box-title">📝 What's NOT in this loop</div>
+        Notice there's no <code>npm install</code> on the server, no <code>git pull</code>, no migrations. If you added a new dependency in <code>package.json</code>, standalone traces it and copies the needed files automatically. If you added a database migration… that's a different conversation — see "Learn next" at the bottom.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Sau khi đã làm xong bước 6 và 8, mỗi lần deploy về sau chỉ còn 4 lệnh. Chạy từ PowerShell trong thư mục gốc của project mỗi khi muốn publish thay đổi:</p>
+      <pre><code># 1. Build project
+npm run build
+
+# 2. Gói static + public vào standalone
+Copy-Item -Recurse -Force .next\static .next\standalone\.next\
+Copy-Item -Recurse -Force public .next\standalone\
+
+# 3. Upload
+scp -r .next\standalone\* deploy@ip-cua-vps:/var/www/it-courses/
+
+# 4. Reload PM2 qua SSH (khỏi cần đăng nhập bằng tay)
+ssh deploy@ip-cua-vps "pm2 reload it-courses"</code></pre>
+      <p>Toàn bộ chu trình chỉ vậy. Từ lúc nhấn save đến lúc live thường dưới 2 phút khi mọi thứ đã setup xong.</p>
+      <div class="box info">
+        <div class="box-title">📝 Cái KHÔNG có trong chu trình này</div>
+        Để ý không có <code>npm install</code> trên server, không có <code>git pull</code>, không có chạy migration. Nếu bạn thêm dependency mới vào <code>package.json</code>, standalone tự lần ra và copy file cần thiết qua. Còn nếu bạn thêm migration database thì… là chuyện khác — xem mục "Học tiếp" ở cuối.
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section id="step-10" class="step">
+    <div class="step-header">
+      <div class="step-num">10</div>
+      <h2>
+        <span class="en">One-command deploy script (PowerShell)</span>
+        <span class="vi">Script deploy một lệnh (PowerShell)</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Typing 4 commands every time is fine — but it's a lot easier to mess up an scp path at midnight than at noon. Wrap it in a script.</p>
+      <p>Create <code>deploy.ps1</code> in the project root:</p>
+      <pre><code># deploy.ps1 — build locally and ship to VPS
+# Usage:  .\deploy.ps1
+
+$ErrorActionPreference = 'Stop'
+$VPS = 'deploy@your-vps-ip'
+$REMOTE_DIR = '/var/www/it-courses/'
+
+Write-Host "→ Building..." -ForegroundColor Cyan
+npm run build
+
+Write-Host "→ Bundling static + public..." -ForegroundColor Cyan
+Copy-Item -Recurse -Force .next\static .next\standalone\.next\
+Copy-Item -Recurse -Force public .next\standalone\
+
+Write-Host "→ Uploading to $VPS..." -ForegroundColor Cyan
+scp -r .next\standalone\* "${VPS}:${REMOTE_DIR}"
+
+Write-Host "→ Reloading PM2..." -ForegroundColor Cyan
+ssh $VPS "pm2 reload it-courses"
+
+Write-Host "✓ Deployed!" -ForegroundColor Green</code></pre>
+      <p>The first time you run a PowerShell script, Windows may block it. Allow scripts in your user profile (one-time):</p>
+      <pre><code>Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned</code></pre>
+      <p>Now deploys are exactly one command:</p>
+      <pre><code>.\deploy.ps1</code></pre>
+      <div class="box tip">
+        <div class="box-title">💡 Add a guard so you don't deploy uncommitted code</div>
+        At the top of the script, before the build, add:
+        <pre style="margin-top:8px"><code>if ((git status --porcelain) -ne $null) {
+  Write-Host "✗ Uncommitted changes. Commit or stash before deploying." -ForegroundColor Red
+  exit 1
+}</code></pre>
+        This catches the very common "I deployed but forgot to push to git" mistake — future-you sees outdated code on GitHub vs what's running live, and you can't figure out which version is which.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Gõ 4 lệnh mỗi lần cũng được — nhưng nửa đêm rất dễ gõ sai đường dẫn scp hơn là giữa trưa. Gói lại thành script cho gọn.</p>
+      <p>Tạo file <code>deploy.ps1</code> ở thư mục gốc project:</p>
+      <pre><code># deploy.ps1 — build trên máy rồi đẩy lên VPS
+# Cách dùng:  .\deploy.ps1
+
+$ErrorActionPreference = 'Stop'
+$VPS = 'deploy@ip-cua-vps'
+$REMOTE_DIR = '/var/www/it-courses/'
+
+Write-Host "→ Đang build..." -ForegroundColor Cyan
+npm run build
+
+Write-Host "→ Đang gói static + public..." -ForegroundColor Cyan
+Copy-Item -Recurse -Force .next\static .next\standalone\.next\
+Copy-Item -Recurse -Force public .next\standalone\
+
+Write-Host "→ Đang upload lên $VPS..." -ForegroundColor Cyan
+scp -r .next\standalone\* "${VPS}:${REMOTE_DIR}"
+
+Write-Host "→ Đang reload PM2..." -ForegroundColor Cyan
+ssh $VPS "pm2 reload it-courses"
+
+Write-Host "✓ Deploy xong!" -ForegroundColor Green</code></pre>
+      <p>Lần đầu chạy script PowerShell, Windows có thể chặn lại. Cho phép script trong profile user của bạn (chỉ làm 1 lần):</p>
+      <pre><code>Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned</code></pre>
+      <p>Bây giờ mỗi lần deploy chỉ còn đúng 1 lệnh:</p>
+      <pre><code>.\deploy.ps1</code></pre>
+      <div class="box tip">
+        <div class="box-title">💡 Thêm "chốt chặn" để không deploy code chưa commit</div>
+        Thêm đoạn này vào đầu script, trước bước build:
+        <pre style="margin-top:8px"><code>if ((git status --porcelain) -ne $null) {
+  Write-Host "✗ Có file chưa commit. Commit hoặc stash trước khi deploy." -ForegroundColor Red
+  exit 1
+}</code></pre>
+        Cái này tránh lỗi cực phổ biến: "deploy xong rồi mà quên push lên git" — bạn sau này sẽ thấy code trên GitHub khác hẳn code đang chạy live, không biết bản nào là bản nào.
+      </div>
+    </div>
+  </section>
+
+  <!-- TROUBLESHOOTING -->
+  <section id="trouble" class="step">
+    <div class="step-header">
+      <div class="step-num">!</div>
+      <h2>
+        <span class="en">Troubleshooting</span>
+        <span class="vi">Khắc phục sự cố</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <table>
+        <tr><th>Problem</th><th>Solution</th></tr>
+        <tr>
+          <td><strong>Build finishes but no <code>.next/standalone/</code> appears</strong></td>
+          <td>You forgot to add <code>output: 'standalone'</code> in <code>next.config.mjs</code> (step 3). Add it, run <code>npm run build</code> again.</td>
+        </tr>
+        <tr>
+          <td><strong>Site loads but all CSS/JS are 404</strong></td>
+          <td>You forgot the bundle step (5) — <code>.next/static/</code> was never copied into <code>.next/standalone/.next/</code>. Re-run the two <code>Copy-Item</code> commands and re-upload.</td>
+        </tr>
+        <tr>
+          <td><strong>Images in <code>public/</code> show as broken</strong></td>
+          <td>Same root cause as above — you forgot to copy <code>public/</code> into <code>.next/standalone/public/</code>. Re-run the second <code>Copy-Item</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>PM2 status shows <code>errored</code> right after start</strong></td>
+          <td><code>pm2 logs it-courses --lines 50</code> shows why. Most common: missing <code>server.js</code> (wrong upload path — see scp gotchas in step 7), or port 8888 already taken by an old PM2 process (<code>pm2 delete it-courses</code> then start again).</td>
+        </tr>
+        <tr>
+          <td><strong><code>scp: Permission denied</code></strong></td>
+          <td>The remote folder is still owned by <code>root</code> — you skipped or forgot the <code>chown</code> in step 6. Fix it: <code>sudo chown -R $USER:$USER /var/www/it-courses</code> on the server.</td>
+        </tr>
+        <tr>
+          <td><strong>Different Node version on desktop vs VPS, app crashes</strong></td>
+          <td>Match the majors. Easiest: install <a href="https://github.com/nvm-sh/nvm" target="_blank" rel="noopener">nvm</a> on the VPS and run <code>nvm install 22 &amp;&amp; nvm use 22</code>, then re-create the PM2 app so it picks up the new Node.</td>
+        </tr>
+        <tr>
+          <td><strong>Upload is painfully slow over scp</strong></td>
+          <td>scp opens one SSH channel per file. For faster transfer, tar+ssh in one stream: <code>tar -cf - -C .next\standalone . | ssh deploy@ip "tar -xf - -C /var/www/it-courses"</code>. Requires tar on Windows (built into Windows 10+).</td>
+        </tr>
+        <tr>
+          <td><strong>Site shows old version after deploy</strong></td>
+          <td>nginx or Cloudflare cached the old HTML. Hard-refresh in browser (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>). If you use Cloudflare, "Purge Everything" from the Caching tab.</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="vi">
+      <table>
+        <tr><th>Vấn đề</th><th>Cách khắc phục</th></tr>
+        <tr>
+          <td><strong>Build xong nhưng không có <code>.next/standalone/</code></strong></td>
+          <td>Bạn quên thêm <code>output: 'standalone'</code> trong <code>next.config.mjs</code> (bước 3). Thêm vào, chạy lại <code>npm run build</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>Website load được nhưng CSS/JS đều 404</strong></td>
+          <td>Bạn quên bước gói (5) — <code>.next/static/</code> chưa được copy vào <code>.next/standalone/.next/</code>. Chạy lại 2 lệnh <code>Copy-Item</code> và upload lại.</td>
+        </tr>
+        <tr>
+          <td><strong>Ảnh trong <code>public/</code> bị vỡ</strong></td>
+          <td>Cùng lý do như trên — bạn quên copy <code>public/</code> sang <code>.next/standalone/public/</code>. Chạy lại lệnh <code>Copy-Item</code> thứ 2.</td>
+        </tr>
+        <tr>
+          <td><strong>PM2 báo <code>errored</code> ngay sau khi start</strong></td>
+          <td><code>pm2 logs it-courses --lines 50</code> sẽ cho biết tại sao. Hay gặp nhất: thiếu file <code>server.js</code> (upload sai đường dẫn — xem mục bẫy scp ở bước 7), hoặc port 8888 đã bị process PM2 cũ chiếm (<code>pm2 delete it-courses</code> rồi start lại).</td>
+        </tr>
+        <tr>
+          <td><strong><code>scp: Permission denied</code></strong></td>
+          <td>Folder trên server vẫn thuộc về <code>root</code> — bạn bỏ qua hoặc quên bước <code>chown</code> ở bước 6. Sửa nhanh: <code>sudo chown -R $USER:$USER /var/www/it-courses</code> trên server.</td>
+        </tr>
+        <tr>
+          <td><strong>Node version khác nhau giữa máy bàn và VPS, app crash</strong></td>
+          <td>Cho khớp ít nhất ở major version. Dễ nhất: cài <a href="https://github.com/nvm-sh/nvm" target="_blank" rel="noopener">nvm</a> trên VPS rồi chạy <code>nvm install 22 &amp;&amp; nvm use 22</code>, sau đó tạo lại PM2 app để nó bắt Node mới.</td>
+        </tr>
+        <tr>
+          <td><strong>Upload qua scp chậm khủng khiếp</strong></td>
+          <td>scp mở 1 channel SSH cho mỗi file. Để nhanh hơn, dùng tar+ssh thành 1 luồng: <code>tar -cf - -C .next\standalone . | ssh deploy@ip "tar -xf - -C /var/www/it-courses"</code>. Cần lệnh tar trên Windows (có sẵn trong Windows 10+).</td>
+        </tr>
+        <tr>
+          <td><strong>Site vẫn hiện bản cũ sau khi deploy</strong></td>
+          <td>nginx hoặc Cloudflare đang cache HTML cũ. Hard-refresh trên trình duyệt (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>). Nếu dùng Cloudflare, vào tab Caching → "Purge Everything".</td>
+        </tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- GLOSSARY -->
+  <section id="glossary" class="step">
+    <div class="step-header">
+      <div class="step-num">📖</div>
+      <h2>
+        <span class="en">Glossary</span>
+        <span class="vi">Bảng thuật ngữ</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <table>
+        <tr><th>Term</th><th>Meaning</th></tr>
+        <tr><td><strong>Build artifact</strong></td><td>The compiled output of <code>npm run build</code> — the files you actually deploy. For Next.js, that's <code>.next/</code> (or with standalone, <code>.next/standalone/</code>).</td></tr>
+        <tr><td><strong>Standalone output</strong></td><td>A Next.js build mode that produces a self-contained, minimal Node app in <code>.next/standalone/</code> — server + only the needed dependencies, around 30–80 MB instead of 500+ MB.</td></tr>
+        <tr><td><strong>scp</strong></td><td>Secure Copy. Built-in SSH-based file transfer — <code>scp -r local/folder user@host:/remote/path</code>. Ships with Windows 10/11.</td></tr>
+        <tr><td><strong>SSH key</strong></td><td>A pair of cryptographic files (public + private) that prove your identity to a server without typing a password.</td></tr>
+        <tr><td><strong>PM2</strong></td><td>A process manager for Node.js. Keeps the app running, restarts it on crash, brings it back after server reboot, and provides logs.</td></tr>
+        <tr><td><strong><code>pm2 reload</code></strong></td><td>Zero-downtime restart of a PM2 app. The new code replaces the old in-place without dropping in-flight requests. Always use this after a deploy, not <code>start</code>.</td></tr>
+        <tr><td><strong>ecosystem file</strong></td><td>PM2's config file (<code>ecosystem.config.cjs</code>). Defines app name, entry script, env vars, memory limits — so you don't have to remember them every time you run <code>pm2 start</code>.</td></tr>
+        <tr><td><strong>loopback (<code>127.0.0.1</code>)</strong></td><td>Special IP address that only the local machine can reach. Binding Node to loopback hides it from the public internet — only nginx on the same VPS can reach it.</td></tr>
+        <tr><td><strong>OOM killer</strong></td><td>Out-Of-Memory killer. The Linux kernel's last-resort defense — when RAM is exhausted, it kills the biggest hungry process to keep the system alive. Frequently kills <code>npm run build</code> on small VPS instances.</td></tr>
+        <tr><td><strong>nginx</strong></td><td>The reverse proxy on the VPS that accepts public HTTPS requests and forwards them to Node on <code>127.0.0.1:8888</code>. See the Cloudfly guide step 12B for setup.</td></tr>
+        <tr><td><strong>PowerShell</strong></td><td>The default shell on modern Windows. Different syntax from bash — <code>Copy-Item</code> instead of <code>cp</code>, <code>$env:NAME</code> instead of <code>$NAME</code>.</td></tr>
+      </table>
+    </div>
+
+    <div class="vi">
+      <table>
+        <tr><th>Thuật ngữ</th><th>Ý nghĩa</th></tr>
+        <tr><td><strong>Build artifact</strong></td><td>Sản phẩm sau khi <code>npm run build</code> — đúng những file bạn deploy. Với Next.js là thư mục <code>.next/</code> (hoặc với standalone là <code>.next/standalone/</code>).</td></tr>
+        <tr><td><strong>Standalone output</strong></td><td>Một chế độ build của Next.js cho ra một Node app gọn nhẹ, tự đứng được trong <code>.next/standalone/</code> — gồm server + chỉ những dependency cần thiết, khoảng 30–80 MB thay vì 500+ MB.</td></tr>
+        <tr><td><strong>scp</strong></td><td>Secure Copy. Công cụ copy file qua SSH có sẵn — <code>scp -r local/folder user@host:/remote/path</code>. Có sẵn trong Windows 10/11.</td></tr>
+        <tr><td><strong>SSH key</strong></td><td>Cặp file mã hoá (public + private) chứng minh danh tính của bạn với server mà không cần gõ mật khẩu.</td></tr>
+        <tr><td><strong>PM2</strong></td><td>Process manager cho Node.js. Giữ app chạy 24/7, restart khi crash, tự bật lại sau khi server reboot, và cung cấp log.</td></tr>
+        <tr><td><strong><code>pm2 reload</code></strong></td><td>Restart không gián đoạn cho PM2 app. Code mới thay code cũ tại chỗ mà không làm rớt request đang xử lý. Sau mỗi lần deploy, luôn dùng <code>reload</code> chứ không phải <code>start</code>.</td></tr>
+        <tr><td><strong>file ecosystem</strong></td><td>File config của PM2 (<code>ecosystem.config.cjs</code>). Định nghĩa tên app, script chạy, env var, giới hạn bộ nhớ — để bạn khỏi phải nhớ mỗi lần <code>pm2 start</code>.</td></tr>
+        <tr><td><strong>loopback (<code>127.0.0.1</code>)</strong></td><td>Địa chỉ IP đặc biệt mà chỉ chính máy đó truy cập được. Cho Node bind vào loopback nghĩa là giấu nó khỏi internet công cộng — chỉ nginx cùng máy mới gọi tới được.</td></tr>
+        <tr><td><strong>OOM killer</strong></td><td>Out-Of-Memory killer. Lớp phòng thủ cuối cùng của kernel Linux — khi RAM cạn, nó giết process ngốn RAM nhất để giữ hệ thống còn sống. Hay giết <code>npm run build</code> trên các VPS bé.</td></tr>
+        <tr><td><strong>nginx</strong></td><td>Reverse proxy trên VPS, nhận request HTTPS công khai rồi chuyển sang Node ở <code>127.0.0.1:8888</code>. Xem bước 12B trong hướng dẫn Cloudfly để biết cách setup.</td></tr>
+        <tr><td><strong>PowerShell</strong></td><td>Shell mặc định trên Windows hiện đại. Cú pháp khác bash — <code>Copy-Item</code> thay <code>cp</code>, <code>$env:NAME</code> thay <code>$NAME</code>.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      <span class="en">Made with <span class="heart">♥</span> for fast feedback loops. Build → ship → reload in under two minutes.</span>
+      <span class="vi">Soạn với <span class="heart">♥</span> cho vòng lặp deploy nhanh. Build → đẩy → reload trong chưa đầy 2 phút.</span>
+    </p>
+  </footer>
+
+</div>
+
+<script>
+  function setLang(lang) {
+    document.documentElement.setAttribute('data-lang', lang);
+    document.documentElement.setAttribute('lang', lang);
+    document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+    document.getElementById('btn-vi').classList.toggle('active', lang === 'vi');
+    localStorage.setItem('guide-lang', lang);
+  }
+  const saved = localStorage.getItem('guide-lang');
+  if (saved === 'vi') setLang('vi');
+
+  document.querySelectorAll('pre').forEach((pre) => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', async () => {
+      const text = pre.querySelector('code')?.textContent ?? pre.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = '✓ Copied';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      } catch (e) { btn.textContent = 'Failed'; }
+    });
+    pre.appendChild(btn);
+  });
+
+  document.querySelectorAll('a[href^="#"]').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      const id = a.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    });
+  });
+</script>
+
+</body>
+</html>

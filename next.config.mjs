@@ -25,7 +25,7 @@ const withMDX = createMDX({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone", // ← thêm dòng này
+  output: "standalone", // ← cần cho Docker (tạo .next/standalone)
   pageExtensions: ["ts", "tsx", "mdx"],
   turbopack: {
     root: __dirname,

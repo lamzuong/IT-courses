@@ -87,7 +87,8 @@
       "Read(//c/Users/ADMIN/AppData/Local/Temp/claude/C--Users-ADMIN-Desktop-claude-demo-IT-courses/8c7b6433-a8bc-4ca3-9720-728579b9effb/tasks/**)",
       "Bash(python *)",
       "PowerShell(Start-Process \"C:\\\\Users\\\\ADMIN\\\\Desktop\\\\claude-demo\\\\IT-courses\\\\docs\\\\ai-in-your-project-overview.html\")",
-      "PowerShell(Start-Process \"C:\\\\Users\\\\ADMIN\\\\AppData\\\\Local\\\\Temp\\\\test-rcm-output.html\")"
+      "PowerShell(Start-Process \"C:\\\\Users\\\\ADMIN\\\\AppData\\\\Local\\\\Temp\\\\test-rcm-output.html\")",
+      "Skill(bilingual-html-guide)"
     ]
   }
 }

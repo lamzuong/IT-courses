@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Deploy with Docker + Cloudflare — Guide / Hướng dẫn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-1: #fff5f1;
+    --bg-2: #f3f0ff;
+    --bg-3: #e8faf3;
+    --card: #ffffff;
+    --text: #3a3354;
+    --text-soft: #7a7592;
+    --primary: #ff8fab;
+    --primary-2: #b794f6;
+    --accent: #6ee7c7;
+    --sunny: #ffd166;
+    --peach: #ffb088;
+    --sky: #8ecae6;
+    --warn: #f4a261;
+    --danger: #f48fb1;
+    --border: #f0ebf7;
+    --code-bg: #2d2640;
+    --code-text: #f5f0ff;
+    --shadow-sm: 0 2px 8px rgba(183, 148, 246, 0.08);
+    --shadow: 0 8px 24px rgba(183, 148, 246, 0.12);
+    --shadow-lg: 0 14px 38px rgba(183, 148, 246, 0.18);
+    --radius: 22px;
+    --radius-sm: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Quicksand", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background:
+      radial-gradient(circle at 0% 0%, var(--bg-1) 0%, transparent 50%),
+      radial-gradient(circle at 100% 0%, var(--bg-2) 0%, transparent 55%),
+      radial-gradient(circle at 50% 100%, var(--bg-3) 0%, transparent 55%),
+      #fdfbff;
+    background-attachment: fixed;
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 16.5px;
+    font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before, body::after {
+    content: ""; position: fixed; width: 320px; height: 320px;
+    border-radius: 50%; filter: blur(80px); opacity: 0.35;
+    z-index: -1; pointer-events: none;
+  }
+  body::before { background: var(--primary); top: -100px; right: -80px; }
+  body::after  { background: var(--accent);  bottom: -100px; left: -80px; }
+
+  header.topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    padding: 14px 26px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid rgba(240, 235, 247, 0.6);
+  }
+  header.topbar .brand {
+    display: flex; align-items: center; gap: 12px;
+    font-weight: 700; font-size: 18px; color: var(--text);
+  }
+  header.topbar .brand .logo {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    border-radius: 12px; display: grid; place-items: center;
+    font-size: 18px; box-shadow: 0 6px 16px rgba(255, 143, 171, 0.35);
+    transform: rotate(-5deg); transition: transform 0.3s;
+  }
+  header.topbar .brand:hover .logo { transform: rotate(5deg) scale(1.05); }
+
+  .lang-switch {
+    display: flex; gap: 4px;
+    background: rgba(183, 148, 246, 0.08);
+    border-radius: 999px; padding: 5px;
+    border: 1px solid var(--border);
+  }
+  .lang-switch button {
+    font-family: inherit; background: transparent; color: var(--text-soft);
+    border: none; padding: 7px 16px; border-radius: 999px;
+    cursor: pointer; font-weight: 700; font-size: 13px;
+    letter-spacing: 0.5px; transition: all 0.25s ease;
+  }
+  .lang-switch button.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    color: #fff; box-shadow: 0 4px 12px rgba(255, 143, 171, 0.4);
+  }
+  .lang-switch button:not(.active):hover {
+    background: rgba(183, 148, 246, 0.12); color: var(--text);
+  }
+
+  .container { max-width: 980px; margin: 0 auto; padding: 36px 24px 100px; }
+
+  .hero { text-align: center; padding: 56px 20px 36px; }
+  .hero .wave {
+    display: inline-block; font-size: 48px; margin-bottom: 8px;
+    animation: wave 2.4s ease-in-out infinite;
+    transform-origin: 70% 70%;
+  }
+  @keyframes wave {
+    0%, 100% { transform: rotate(0deg); }
+    20%, 60% { transform: rotate(14deg); }
+    40%, 80% { transform: rotate(-10deg); }
+  }
+  .hero h1 {
+    font-family: "Quicksand", sans-serif; font-weight: 700;
+    font-size: 46px; line-height: 1.15; margin: 0 0 14px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 50%, var(--sky) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    letter-spacing: -0.5px;
+  }
+  .hero p.tag {
+    font-size: 18px; color: var(--text-soft);
+    max-width: 640px; margin: 0 auto 28px; font-weight: 500;
+  }
+  .hero .pills { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .pill {
+    background: #fff; border: 1px solid var(--border);
+    padding: 8px 16px; border-radius: 999px;
+    font-size: 14px; font-weight: 600; color: var(--text);
+    box-shadow: var(--shadow-sm); transition: all 0.25s ease;
+  }
+  .pill:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+  .toc {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 26px 30px;
+    margin: 34px 0; box-shadow: var(--shadow);
+  }
+  .toc h3 {
+    margin: 0 0 16px; font-size: 14px; color: var(--text-soft);
+    text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .toc h3::before { content: "✨"; font-size: 18px; }
+  .toc ol {
+    margin: 0; padding-left: 0; list-style: none; counter-reset: toc;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 4px 18px;
+  }
+  .toc ol li {
+    counter-increment: toc; padding: 6px 0;
+    position: relative; padding-left: 32px;
+  }
+  .toc ol li::before {
+    content: counter(toc); position: absolute; left: 0; top: 50%;
+    transform: translateY(-50%); width: 24px; height: 24px;
+    background: linear-gradient(135deg, var(--bg-2), var(--bg-3));
+    color: var(--primary-2); border-radius: 50%;
+    display: grid; place-items: center; font-size: 11px; font-weight: 700;
+  }
+  .toc a { color: var(--text); text-decoration: none; font-weight: 600; transition: color 0.2s; }
+  .toc a:hover { color: var(--primary); }
+  .toc .toc-phase {
+    grid-column: 1 / -1; list-style: none; padding: 14px 0 4px;
+    font-size: 12px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--primary-2);
+  }
+  .toc .toc-phase::before { content: none; }
+
+  /* Phase divider banner */
+  .phase-divider {
+    margin: 48px 0 10px; padding: 20px 28px;
+    border-radius: var(--radius); color: #fff;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: var(--shadow);
+  }
+  .phase-divider.p1 { background: linear-gradient(135deg, var(--sunny), var(--peach)); }
+  .phase-divider.p2 { background: linear-gradient(135deg, var(--primary), var(--primary-2)); }
+  .phase-divider.p3 { background: linear-gradient(135deg, var(--sky), var(--accent)); }
+  .phase-divider .ph-emoji { font-size: 30px; flex-shrink: 0; }
+  .phase-divider .ph-text { line-height: 1.3; }
+  .phase-divider .ph-label {
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    opacity: 0.95; font-weight: 700;
+  }
+  .phase-divider h2 { margin: 2px 0 0; font-size: 23px; font-weight: 700; color: #fff; }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 32px 34px;
+    margin: 22px 0; box-shadow: var(--shadow);
+    scroll-margin-top: 90px;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .step:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .step-header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  .step-num {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    color: #fff; border-radius: 16px;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 20px; flex-shrink: 0;
+    box-shadow: 0 6px 16px rgba(255, 143, 171, 0.3);
+    transform: rotate(-4deg); transition: transform 0.3s ease;
+  }
+  .step:hover .step-num { transform: rotate(4deg) scale(1.05); }
+  .step h2 { margin: 0; font-size: 25px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+  .step h3 {
+    font-size: 19px; font-weight: 700; margin-top: 28px; margin-bottom: 10px;
+    color: var(--text); display: flex; align-items: center; gap: 8px;
+  }
+  .step h3::before {
+    content: ""; width: 6px; height: 18px;
+    background: linear-gradient(180deg, var(--primary), var(--primary-2));
+    border-radius: 3px;
+  }
+  .step p { margin: 12px 0; }
+
+  pre, code { font-family: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace; }
+  pre {
+    background: var(--code-bg); color: var(--code-text);
+    padding: 18px 20px; border-radius: var(--radius-sm);
+    overflow-x: auto; font-size: 14px; line-height: 1.7;
+    position: relative; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+  p code, li code, td code {
+    background: linear-gradient(135deg, var(--bg-2), #fff);
+    color: var(--primary-2); padding: 3px 9px; border-radius: 7px;
+    font-size: 0.88em; font-weight: 500; border: 1px solid var(--border);
+  }
+  .copy-btn {
+    font-family: "Quicksand", sans-serif;
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(255,255,255,0.1); color: #fff;
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 5px 12px; border-radius: 8px;
+    font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.22); transform: translateY(-1px); }
+  .copy-btn.copied { background: var(--accent); border-color: var(--accent); color: var(--text); }
+
+  .box {
+    border-radius: var(--radius-sm); padding: 16px 20px;
+    margin: 18px 0; border: none; position: relative; overflow: hidden;
+  }
+  .box::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 5px; border-radius: 3px;
+  }
+  .box.info   { background: #eaf6ff; }
+  .box.info::before   { background: var(--sky); }
+  .box.warn   { background: #fff4e3; }
+  .box.warn::before   { background: var(--warn); }
+  .box.tip    { background: #e7faf2; }
+  .box.tip::before    { background: var(--accent); }
+  .box.danger { background: #ffe9ee; }
+  .box.danger::before { background: var(--danger); }
+  .box-title { font-weight: 700; margin-bottom: 4px; font-size: 15px; letter-spacing: 0.2px; }
+
+  .checklist { list-style: none; padding: 0; margin: 16px 0; }
+  .checklist li { padding: 10px 0 10px 38px; position: relative; }
+  .checklist li::before {
+    content: "✓"; position: absolute; left: 0; top: 50%;
+    transform: translateY(-50%); width: 26px; height: 26px;
+    background: linear-gradient(135deg, var(--accent), #4dd8b0);
+    color: #fff; border-radius: 50%; display: grid; place-items: center;
+    font-weight: 900; font-size: 13px;
+    box-shadow: 0 3px 8px rgba(110, 231, 199, 0.35);
+  }
+
+  table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    margin: 16px 0; background: #fff;
+    border-radius: var(--radius-sm); overflow: hidden;
+    font-size: 15px; border: 1px solid var(--border);
+  }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  th {
+    background: linear-gradient(135deg, var(--bg-2), var(--bg-1));
+    font-weight: 700; color: var(--text); font-size: 12px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #faf8ff; }
+
+  .provider-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px; margin: 18px 0;
+  }
+  .provider-card {
+    padding: 18px;
+    background: linear-gradient(135deg, #fff, var(--bg-2));
+    border-radius: var(--radius-sm); border: 1px solid var(--border);
+    transition: all 0.25s ease; cursor: default;
+  }
+  .provider-card:hover {
+    transform: translateY(-3px); box-shadow: var(--shadow);
+    border-color: var(--primary);
+  }
+  .provider-card .name { font-weight: 700; margin-bottom: 6px; font-size: 16px; }
+  .provider-card .desc { font-size: 14px; color: var(--text-soft); line-height: 1.5; }
+
+  [data-lang="en"] .vi { display: none; }
+  [data-lang="vi"] .en { display: none; }
+
+  footer { text-align: center; padding: 40px 20px; color: var(--text-soft); font-size: 15px; }
+  footer .heart {
+    display: inline-block; color: var(--primary);
+    animation: beat 1.4s ease-in-out infinite;
+  }
+  @keyframes beat {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+  }
+  footer a { color: var(--primary-2); text-decoration: none; font-weight: 700; }
+  footer a:hover { text-decoration: underline; }
+
+  .step a { color: var(--primary-2); font-weight: 700; }
+  .step a:hover { color: var(--primary); }
+  .step strong { color: var(--text); font-weight: 700; }
+
+  @media (max-width: 640px) {
+    body { font-size: 15.5px; }
+    .hero h1 { font-size: 34px; }
+    .hero .wave { font-size: 40px; }
+    .step { padding: 24px 20px; }
+    .container { padding: 22px 14px 70px; }
+    .toc ol { grid-template-columns: 1fr; }
+    .phase-divider { padding: 16px 18px; }
+    .phase-divider h2 { font-size: 19px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">🐳</div>
+    <span>IT-courses · Docker</span>
+  </div>
+  <div class="lang-switch" role="tablist">
+    <button id="btn-en" class="active" onclick="setLang('en')">EN</button>
+    <button id="btn-vi" onclick="setLang('vi')">VI</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <section class="hero">
+    <div class="wave">👋</div>
+    <h1>
+      <span class="en">From Your Laptop to Live on the Internet</span>
+      <span class="vi">Từ Laptop Của Bạn Lên Mạng Thật</span>
+    </h1>
+    <p class="tag">
+      <span class="en">The full journey: test the IT-courses site on your computer, package it with Docker, ship the code to your server, run it there, and point your domain at it through Cloudflare. Every step, nothing skipped.</span>
+      <span class="vi">Trọn hành trình: chạy thử website IT-courses trên máy của bạn, đóng gói bằng Docker, đẩy code lên server, chạy nó ở đó, rồi trỏ tên miền về qua Cloudflare. Từng bước một, không bỏ sót gì.</span>
+    </p>
+    <div class="pills">
+      <span class="pill">💻 Local</span>
+      <span class="pill">🐳 Docker</span>
+      <span class="pill">🐙 Git</span>
+      <span class="pill">🖥️ Server</span>
+      <span class="pill">☁️ Cloudflare</span>
+      <span class="pill">🔒 HTTPS</span>
+    </div>
+  </section>
+
+  <nav class="toc">
+    <h3>
+      <span class="en">Contents</span>
+      <span class="vi">Mục lục</span>
+    </h3>
+    <ol>
+      <li><a href="#big-picture">
+        <span class="en">The big picture (café analogy)</span>
+        <span class="vi">Bức tranh tổng thể (ví dụ quán cà phê)</span>
+      </a></li>
+
+      <li class="toc-phase"><span class="en">💻 Phase 1 · On your computer</span><span class="vi">💻 Giai đoạn 1 · Trên máy của bạn</span></li>
+      <li><a href="#step-1"><span class="en">What you need</span><span class="vi">Cần chuẩn bị gì</span></a></li>
+      <li><a href="#step-2"><span class="en">Test the build locally</span><span class="vi">Chạy thử build trên máy</span></a></li>
+      <li><a href="#step-3"><span class="en">Turn on standalone output</span><span class="vi">Bật chế độ standalone</span></a></li>
+      <li><a href="#step-4"><span class="en">Create Dockerfile &amp; .dockerignore</span><span class="vi">Tạo Dockerfile &amp; .dockerignore</span></a></li>
+      <li><a href="#step-5"><span class="en">Test the image locally</span><span class="vi">Thử image ngay trên máy</span></a></li>
+      <li><a href="#step-6"><span class="en">Push your code to GitHub</span><span class="vi">Đẩy code lên GitHub</span></a></li>
+
+      <li class="toc-phase"><span class="en">🖥️ Phase 2 · On the server</span><span class="vi">🖥️ Giai đoạn 2 · Trên server</span></li>
+      <li><a href="#step-7"><span class="en">Connect to your server (SSH)</span><span class="vi">Kết nối vào server (SSH)</span></a></li>
+      <li><a href="#step-8"><span class="en">Install Docker on the server</span><span class="vi">Cài Docker trên server</span></a></li>
+      <li><a href="#step-9"><span class="en">Get your code onto the server</span><span class="vi">Đưa code lên server</span></a></li>
+      <li><a href="#step-10"><span class="en">Build &amp; run the container</span><span class="vi">Build &amp; chạy container</span></a></li>
+      <li><a href="#step-11"><span class="en">Open the firewall</span><span class="vi">Mở tường lửa</span></a></li>
+
+      <li class="toc-phase"><span class="en">☁️ Phase 3 · Connect your domain</span><span class="vi">☁️ Giai đoạn 3 · Nối tên miền</span></li>
+      <li><a href="#step-12"><span class="en">Point Cloudflare DNS</span><span class="vi">Trỏ DNS Cloudflare</span></a></li>
+      <li><a href="#step-13"><span class="en">Turn on HTTPS</span><span class="vi">Bật HTTPS</span></a></li>
+      <li><a href="#step-14"><span class="en">Updating later</span><span class="vi">Cập nhật về sau</span></a></li>
+
+      <li class="toc-phase"><span class="en">🆘 Help</span><span class="vi">🆘 Trợ giúp</span></li>
+      <li><a href="#trouble"><span class="en">Troubleshooting</span><span class="vi">Khắc phục sự cố</span></a></li>
+      <li><a href="#glossary"><span class="en">Glossary</span><span class="vi">Bảng thuật ngữ</span></a></li>
+    </ol>
+  </nav>
+
+  <!-- ───────── BIG PICTURE ───────── -->
+  <section id="big-picture" class="step">
+    <div class="step-header">
+      <div class="step-num">☕</div>
+      <h2>
+        <span class="en">The big picture</span>
+        <span class="vi">Bức tranh tổng thể</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Before any commands, let's get the idea straight with a café analogy — it makes every later step click.</p>
+      <p>Imagine your website is a signature drink. To serve it to the whole world without surprises, you do three things — and that's exactly the three phases of this guide:</p>
+      <div class="provider-grid">
+        <div class="provider-card">
+          <div class="name">💻 Phase 1 — On your computer</div>
+          <div class="desc">You perfect the recipe and seal it into a <strong>meal-kit</strong> (a Docker image): the drink plus every ingredient, pre-measured. Then you put the recipe on a shared shelf (GitHub) so the server can grab it.</div>
+        </div>
+        <div class="provider-card">
+          <div class="name">🖥️ Phase 2 — On the server</div>
+          <div class="desc">You travel to the actual shop (your server), grab the recipe off the shelf, open the kit, and start the <strong>kitchen</strong> (a running container) so it serves drinks 24/7.</div>
+        </div>
+        <div class="provider-card">
+          <div class="name">☁️ Phase 3 — Connect your domain</div>
+          <div class="desc">You put a <strong>doorman</strong> (Cloudflare) on the street with your shop's name, who greets every customer, locks the door (HTTPS), and points them inside.</div>
+        </div>
+      </div>
+      <p>That's the whole story. Now let's walk it, slowly.</p>
+    </div>
+
+    <div class="vi">
+      <p>Trước khi gõ bất kỳ lệnh nào, mình nắm ý tưởng đã — dùng ví dụ quán cà phê cho dễ hình dung, rồi các bước sau sẽ "thông" hết.</p>
+      <p>Hãy tưởng tượng website của bạn là một ly nước signature. Để phục vụ cả thế giới mà không bị lỗi, bạn làm ba việc — và đó đúng là ba giai đoạn của hướng dẫn này:</p>
+      <div class="provider-grid">
+        <div class="provider-card">
+          <div class="name">💻 Giai đoạn 1 — Trên máy của bạn</div>
+          <div class="desc">Bạn hoàn thiện công thức rồi niêm phong thành một <strong>hộp nguyên liệu</strong> (Docker image): ly nước cộng mọi nguyên liệu đã cân đo. Sau đó đặt công thức lên kệ chung (GitHub) để server lấy về.</div>
+        </div>
+        <div class="provider-card">
+          <div class="name">🖥️ Giai đoạn 2 — Trên server</div>
+          <div class="desc">Bạn tới tận quán (server của bạn), lấy công thức trên kệ xuống, mở hộp, và khởi động <strong>gian bếp</strong> (container đang chạy) để nó phục vụ 24/7.</div>
+        </div>
+        <div class="provider-card">
+          <div class="name">☁️ Giai đoạn 3 — Nối tên miền</div>
+          <div class="desc">Bạn cho một <strong>anh lễ tân</strong> (Cloudflare) ra đứng ngoài đường với bảng tên quán, đón từng khách, khóa cửa (HTTPS), rồi chỉ khách vào trong.</div>
+        </div>
+      </div>
+      <p>Toàn bộ câu chuyện là vậy. Giờ mình đi từng bước thật chậm.</p>
+    </div>
+  </section>
+
+  <!-- ════════ PHASE 1 ════════ -->
+  <div class="phase-divider p1">
+    <div class="ph-emoji">💻</div>
+    <div class="ph-text">
+      <div class="ph-label"><span class="en">Phase 1</span><span class="vi">Giai đoạn 1</span></div>
+      <h2><span class="en">On your computer</span><span class="vi">Trên máy của bạn</span></h2>
+    </div>
+  </div>
+
+  <!-- ───────── STEP 1 — PREREQUISITES ───────── -->
+  <section id="step-1" class="step">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <h2>
+        <span class="en">What you need</span>
+        <span class="vi">Cần chuẩn bị gì</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Why this step? A few minutes checking these now saves an hour of confusing errors later. You'll need a few things <strong>on your computer</strong> and a few things <strong>ready elsewhere</strong>.</p>
+      <h3>On your computer</h3>
+      <ul class="checklist">
+        <li><strong>Node.js</strong> (v20+) and <strong>npm</strong> — to build and test. Check: <code>node --version</code>.</li>
+        <li><strong>Git</strong> — to ship your code. Check: <code>git --version</code>.</li>
+        <li><strong>Docker Desktop</strong> — to package and test the image locally. Check: <code>docker --version</code>.</li>
+        <li>The <strong>IT-courses project</strong> open in your editor.</li>
+      </ul>
+      <h3>Ready elsewhere</h3>
+      <ul class="checklist">
+        <li>A <strong>server</strong> with a public IP — a VPS from Cloudfly, DigitalOcean, AWS, etc.</li>
+        <li>A <strong>GitHub account</strong> and a repo for this project (the shared shelf).</li>
+        <li>A <strong>domain</strong> already added to Cloudflare (shows up in your Cloudflare dashboard).</li>
+      </ul>
+      <div class="box tip">
+        <div class="box-title">✓ Quick check</div>
+        Run <code>docker run hello-world</code>. A friendly "Hello from Docker!" means your engine works and you're ready.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Tại sao có bước này? Bỏ ra vài phút kiểm tra bây giờ giúp bạn đỡ cả tiếng ngồi gỡ lỗi khó hiểu về sau. Bạn cần vài thứ <strong>trên máy của mình</strong> và vài thứ <strong>chuẩn bị sẵn ở nơi khác</strong>.</p>
+      <h3>Trên máy của bạn</h3>
+      <ul class="checklist">
+        <li><strong>Node.js</strong> (v20+) và <strong>npm</strong> — để build và chạy thử. Kiểm tra: <code>node --version</code>.</li>
+        <li><strong>Git</strong> — để đẩy code đi. Kiểm tra: <code>git --version</code>.</li>
+        <li><strong>Docker Desktop</strong> — để đóng gói và thử image ngay trên máy. Kiểm tra: <code>docker --version</code>.</li>
+        <li><strong>Dự án IT-courses</strong> đang mở trong trình soạn thảo.</li>
+      </ul>
+      <h3>Chuẩn bị sẵn ở nơi khác</h3>
+      <ul class="checklist">
+        <li>Một <strong>server</strong> có IP công khai — VPS của Cloudfly, DigitalOcean, AWS…</li>
+        <li>Một <strong>tài khoản GitHub</strong> và một repo cho dự án này (chính là cái kệ chung).</li>
+        <li>Một <strong>tên miền</strong> đã thêm vào Cloudflare (đã hiện trong bảng điều khiển Cloudflare).</li>
+      </ul>
+      <div class="box tip">
+        <div class="box-title">✓ Kiểm tra nhanh</div>
+        Chạy <code>docker run hello-world</code>. Thấy dòng "Hello from Docker!" thân thiện là engine chạy ngon, bạn sẵn sàng rồi.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── STEP 2 — LOCAL BUILD ───────── -->
+  <section id="step-2" class="step">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <h2>
+        <span class="en">Test the build locally</span>
+        <span class="vi">Chạy thử build trên máy</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Why first? Never package something you haven't seen work. If the app builds and runs on your machine, Docker will almost certainly succeed too. If it fails here, you fix it now — comfortably, without a server in the mix.</p>
+      <p>In the project folder, run:</p>
+      <pre><code>npm install
+npm run build
+npm start</code></pre>
+      <p>Then open <code>http://localhost:8888</code> in your browser (this project runs on port <strong>8888</strong>). Click around — make sure pages load.</p>
+      <div class="box tip">
+        <div class="box-title">✓ Check it worked</div>
+        <code>npm run build</code> ends with no red errors, and the site opens at <code>localhost:8888</code>. Press <code>Ctrl + C</code> in the terminal to stop it when you're happy.
+      </div>
+      <div class="box warn">
+        <div class="box-title">⚠️ Fix build errors here, not later</div>
+        A build error on your laptop is the same error Docker would hit — just easier to read. Solve it now before moving on.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Tại sao làm trước? Đừng bao giờ đóng gói thứ mà bạn chưa thấy nó chạy. Nếu app build và chạy được trên máy bạn, gần như chắc chắn Docker cũng sẽ thành công. Nếu hỏng ở đây, bạn sửa ngay — thoải mái, chưa dính tới server.</p>
+      <p>Trong thư mục dự án, chạy:</p>
+      <pre><code>npm install
+npm run build
+npm start</code></pre>
+      <p>Rồi mở <code>http://localhost:8888</code> trên trình duyệt (dự án này chạy ở cổng <strong>8888</strong>). Bấm dạo quanh — xem các trang có lên không.</p>
+      <div class="box tip">
+        <div class="box-title">✓ Kiểm tra đã chạy chưa</div>
+        <code>npm run build</code> kết thúc không có lỗi đỏ, và web mở được ở <code>localhost:8888</code>. Khi ưng rồi, bấm <code>Ctrl + C</code> trong terminal để dừng.
+      </div>
+      <div class="box warn">
+        <div class="box-title">⚠️ Sửa lỗi build ở đây, đừng để sau</div>
+        Lỗi build trên laptop chính là lỗi Docker sẽ gặp — chỉ là dễ đọc hơn. Giải quyết ngay trước khi đi tiếp.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── STEP 3 — STANDALONE ───────── -->
+  <section id="step-3" class="step">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <h2>
+        <span class="en">Turn on standalone output</span>
+        <span class="vi">Bật chế độ standalone</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Why? By default, a Next.js build needs the giant <code>node_modules</code> folder to run — like shipping your whole pantry with every meal-kit. The <strong>standalone</strong> option tells Next.js to trace exactly which files are needed and bundle a tiny self-contained server. That makes the Docker image dramatically smaller and faster.</p>
+      <p>Open <code>next.config.mjs</code> and make sure the <code>output</code> line is present inside the config object:</p>
+      <pre><code>/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: "standalone",        // ← needed for Docker
+  pageExtensions: ["ts", "tsx", "mdx"],
+  turbopack: {
+    root: __dirname,
+  },
+};</code></pre>
+      <div class="box tip">
+        <div class="box-title">✓ What this gives you</div>
+        After a build, Next.js creates <code>.next/standalone/</code> containing a <code>server.js</code> you can run with plain Node — no <code>node_modules</code> install needed inside the final image.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Tại sao? Mặc định, bản build Next.js cần nguyên thư mục <code>node_modules</code> khổng lồ mới chạy — giống mỗi hộp nguyên liệu lại phải kèm cả cái kho. Tùy chọn <strong>standalone</strong> bảo Next.js dò chính xác file nào cần và gói thành một server tí hon tự chạy. Nhờ vậy image Docker nhỏ và nhanh hơn rất nhiều.</p>
+      <p>Mở <code>next.config.mjs</code> và đảm bảo dòng <code>output</code> có mặt bên trong object config:</p>
+      <pre><code>/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: "standalone",        // ← cần cho Docker
+  pageExtensions: ["ts", "tsx", "mdx"],
+  turbopack: {
+    root: __dirname,
+  },
+};</code></pre>
+      <div class="box tip">
+        <div class="box-title">✓ Bạn được gì</div>
+        Sau khi build, Next.js tạo thư mục <code>.next/standalone/</code> chứa file <code>server.js</code> chạy được bằng Node thuần — không cần cài lại <code>node_modules</code> trong image cuối.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── STEP 4 — DOCKERFILE ───────── -->
+  <section id="step-4" class="step">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <h2>
+        <span class="en">Create Dockerfile &amp; .dockerignore</span>
+        <span class="vi">Tạo Dockerfile &amp; .dockerignore</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>The <code>Dockerfile</code> is the recipe card for your meal-kit — line by line, how to assemble the box. We use a <strong>two-stage build</strong>: one big kitchen to cook (install + build), then a tiny clean box that keeps only the finished result, so the final image stays small.</p>
+      <p>In the project root (next to <code>package.json</code>), create a file named exactly <code>Dockerfile</code>:</p>
+      <pre><code># ───── Stage 1: builder — install deps and build the app ─────
+FROM node:22-alpine AS builder
+WORKDIR /app
+
+# Install dependencies first (better layer caching)
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Copy the rest of the source and build
+COPY . .
+RUN npm run build
+
+# ───── Stage 2: runner — tiny image with only what runs ─────
+FROM node:22-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+# The app listens on 8888 (see package.json)
+ENV PORT=8888
+ENV HOSTNAME=0.0.0.0
+
+# Copy the self-contained server, static assets, and public files
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+EXPOSE 8888
+CMD ["node", "server.js"]</code></pre>
+      <p>Next to it, create a <code>.dockerignore</code> so junk like your local <code>node_modules</code> isn't dragged into the build (slow, and can cause OS-mismatch bugs):</p>
+      <pre><code>node_modules
+.next
+.git
+.gitignore
+npm-debug.log
+Dockerfile
+.dockerignore
+README.md
+.env*.local
+html-guide</code></pre>
+      <div class="box warn">
+        <div class="box-title">⚠️ The HOSTNAME line matters</div>
+        <code>HOSTNAME=0.0.0.0</code> tells the server to accept connections from outside the container. Without it, the site works inside the box but nothing can reach it.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>File <code>Dockerfile</code> chính là tấm thẻ công thức cho hộp nguyên liệu — từng dòng ghi cách lắp ráp chiếc hộp. Mình dùng <strong>build hai tầng</strong>: một gian bếp lớn để nấu (cài + build), rồi một chiếc hộp nhỏ sạch sẽ chỉ giữ thành phẩm, nhờ vậy image cuối rất nhẹ.</p>
+      <p>Ở thư mục gốc dự án (ngay cạnh <code>package.json</code>), tạo file tên đúng là <code>Dockerfile</code>:</p>
+      <pre><code># ───── Tầng 1: builder — cài thư viện và build app ─────
+FROM node:22-alpine AS builder
+WORKDIR /app
+
+# Cài thư viện trước (tận dụng cache tốt hơn)
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Copy phần mã nguồn còn lại rồi build
+COPY . .
+RUN npm run build
+
+# ───── Tầng 2: runner — image tí hon chỉ chứa thứ để chạy ─────
+FROM node:22-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+# App lắng nghe ở cổng 8888 (xem package.json)
+ENV PORT=8888
+ENV HOSTNAME=0.0.0.0
+
+# Copy server tự chạy, file tĩnh và thư mục public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+EXPOSE 8888
+CMD ["node", "server.js"]</code></pre>
+      <p>Bên cạnh đó, tạo file <code>.dockerignore</code> để rác như <code>node_modules</code> ở máy không bị lôi vào build (vừa chậm, vừa dễ gây lỗi lệch hệ điều hành):</p>
+      <pre><code>node_modules
+.next
+.git
+.gitignore
+npm-debug.log
+Dockerfile
+.dockerignore
+README.md
+.env*.local
+html-guide</code></pre>
+      <div class="box warn">
+        <div class="box-title">⚠️ Dòng HOSTNAME rất quan trọng</div>
+        <code>HOSTNAME=0.0.0.0</code> bảo server chấp nhận kết nối từ bên ngoài container. Thiếu nó thì web vẫn chạy trong hộp nhưng không ai vào được.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── STEP 5 — TEST IMAGE LOCALLY ───────── -->
+  <section id="step-5" class="step">
+    <div class="step-header">
+      <div class="step-num">5</div>
+      <h2>
+        <span class="en">Test the image locally</span>
+        <span class="vi">Thử image ngay trên máy</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Why bother before the server? Because catching a problem on your own laptop is ten times easier than debugging it over SSH. Let's seal the kit and open it right here first.</p>
+      <p>From the project root, build the image:</p>
+      <pre><code>docker build -t it-courses .</code></pre>
+      <p>Reading it: <code>build</code> = assemble the box, <code>-t it-courses</code> = name (tag) it, and the <code>.</code> = "use this folder as the recipe source." Now run it, mapping your local port 8888 to the container's 8888:</p>
+      <pre><code>docker run -d --name it-courses -p 8888:8888 it-courses</code></pre>
+      <p>Open <code>http://localhost:8888</code> — you should see the exact same site, now running inside Docker. 🎉</p>
+      <div class="box tip">
+        <div class="box-title">✓ Check it worked</div>
+        <code>docker ps</code> shows <code>it-courses</code> as "Up", and the site loads. When done testing, clean up: <code>docker rm -f it-courses</code>.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 If it works here, it works on the server</div>
+        That's the whole point of Docker — the box behaves the same everywhere. Once this passes, you can ship with confidence.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Sao phải thử trước khi lên server? Vì bắt lỗi ngay trên laptop dễ hơn gấp mười lần ngồi gỡ qua SSH. Mình niêm phong hộp và mở nó ngay tại đây trước.</p>
+      <p>Ở thư mục gốc dự án, build image:</p>
+      <pre><code>docker build -t it-courses .</code></pre>
+      <p>Đọc cho hiểu: <code>build</code> = lắp ráp hộp, <code>-t it-courses</code> = đặt tên (tag), còn dấu <code>.</code> = "lấy thư mục này làm nguồn công thức". Giờ chạy nó, ánh xạ cổng 8888 của máy sang cổng 8888 của container:</p>
+      <pre><code>docker run -d --name it-courses -p 8888:8888 it-courses</code></pre>
+      <p>Mở <code>http://localhost:8888</code> — bạn sẽ thấy đúng website đó, nhưng giờ đang chạy trong Docker. 🎉</p>
+      <div class="box tip">
+        <div class="box-title">✓ Kiểm tra đã chạy chưa</div>
+        <code>docker ps</code> hiện <code>it-courses</code> trạng thái "Up", và web mở được. Thử xong thì dọn dẹp: <code>docker rm -f it-courses</code>.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Chạy được ở đây thì chạy được trên server</div>
+        Đó chính là điểm hay của Docker — chiếc hộp hành xử y hệt ở mọi nơi. Qua được bước này là bạn yên tâm mang đi.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── STEP 6 — PUSH TO GITHUB ───────── -->
+  <section id="step-6" class="step">
+    <div class="step-header">
+      <div class="step-num">6</div>
+      <h2>
+        <span class="en">Push your code to GitHub</span>
+        <span class="vi">Đẩy code lên GitHub</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Now we put the recipe on the shared shelf. The cleanest way to get code onto a server is Git: you push from your laptop, the server pulls it down. No messy file copying.</p>
+      <p>From the project root:</p>
+      <pre><code>git add .
+git commit -m "Add Docker deployment setup"
+git push</code></pre>
+      <div class="box info">
+        <div class="box-title">💡 First time? Connect the repo once</div>
+        If this project isn't linked to GitHub yet, create an empty repo there, then run:
+        <pre><code>git remote add origin https://github.com/YOUR_NAME/it-courses.git
+git branch -M main
+git push -u origin main</code></pre>
+      </div>
+      <div class="box tip">
+        <div class="box-title">✓ Check it worked</div>
+        Refresh your repo page on GitHub — your latest files (including the <code>Dockerfile</code>) should be there.
+      </div>
+      <div class="box warn">
+        <div class="box-title">⚠️ No secrets in Git</div>
+        Never commit passwords or API keys. Keep them in <code>.env*.local</code> files (already git-ignored) and set them on the server separately.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Giờ mình đặt công thức lên kệ chung. Cách gọn nhất để đưa code lên server là dùng Git: bạn push từ laptop, server kéo về. Không phải copy file lằng nhằng.</p>
+      <p>Ở thư mục gốc dự án:</p>
+      <pre><code>git add .
+git commit -m "Add Docker deployment setup"
+git push</code></pre>
+      <div class="box info">
+        <div class="box-title">💡 Lần đầu? Nối repo một lần thôi</div>
+        Nếu dự án chưa nối với GitHub, tạo một repo trống trên đó, rồi chạy:
+        <pre><code>git remote add origin https://github.com/TEN_CUA_BAN/it-courses.git
+git branch -M main
+git push -u origin main</code></pre>
+      </div>
+      <div class="box tip">
+        <div class="box-title">✓ Kiểm tra đã chạy chưa</div>
+        Tải lại trang repo trên GitHub — các file mới nhất (gồm cả <code>Dockerfile</code>) phải có ở đó.
+      </div>
+      <div class="box warn">
+        <div class="box-title">⚠️ Không đưa thông tin bí mật lên Git</div>
+        Đừng bao giờ commit mật khẩu hay API key. Để chúng trong file <code>.env*.local</code> (đã được git bỏ qua) và đặt riêng trên server.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ PHASE 2 ════════ -->
+  <div class="phase-divider p2">
+    <div class="ph-emoji">🖥️</div>
+    <div class="ph-text">
+      <div class="ph-label"><span class="en">Phase 2</span><span class="vi">Giai đoạn 2</span></div>
+      <h2><span class="en">On the server</span><span class="vi">Trên server</span></h2>
+    </div>
+  </div>
+
+  <!-- ───────── STEP 7 — SSH ───────── -->
+  <section id="step-7" class="step">
+    <div class="step-header">
+      <div class="step-num">7</div>
+      <h2>
+        <span class="en">Connect to your server (SSH)</span>
+        <span class="vi">Kết nối vào server (SSH)</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Everything from here happens <strong>on the server</strong>, not your laptop. <strong>SSH</strong> is how you open a remote terminal into it — like calling the shop and telling staff what to do. Your VPS provider gave you an IP address and a username (often <code>root</code>).</p>
+      <p>From your computer's terminal (PowerShell works fine on Windows):</p>
+      <pre><code>ssh root@YOUR_SERVER_IP</code></pre>
+      <p>The first time, it asks you to confirm the fingerprint — type <code>yes</code>. Then enter your password (or it logs in automatically if you set up an SSH key).</p>
+      <div class="box tip">
+        <div class="box-title">✓ Check it worked</div>
+        Your prompt changes to something like <code>root@server:~#</code>. You're now typing commands <em>on the server</em>. Everything below runs here until Phase 3.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Mental model</div>
+        Two computers, two terminals. If a command isn't working, first ask: "am I on my laptop, or on the server right now?"
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Từ đây mọi thứ diễn ra <strong>trên server</strong>, không phải laptop của bạn. <strong>SSH</strong> là cách mở một terminal từ xa vào server — như gọi điện tới quán và bảo nhân viên làm gì. Nhà cung cấp VPS đã cho bạn một địa chỉ IP và một tên đăng nhập (thường là <code>root</code>).</p>
+      <p>Từ terminal trên máy bạn (PowerShell trên Windows dùng tốt):</p>
+      <pre><code>ssh root@IP_SERVER_CUA_BAN</code></pre>
+      <p>Lần đầu, nó hỏi xác nhận fingerprint — gõ <code>yes</code>. Rồi nhập mật khẩu (hoặc tự đăng nhập nếu bạn đã cài SSH key).</p>
+      <div class="box tip">
+        <div class="box-title">✓ Kiểm tra đã chạy chưa</div>
+        Dấu nhắc đổi thành kiểu <code>root@server:~#</code>. Giờ bạn đang gõ lệnh <em>trên server</em>. Mọi lệnh bên dưới chạy ở đây cho tới Giai đoạn 3.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Cách hình dung</div>
+        Hai máy tính, hai terminal. Nếu lệnh không chạy, hãy tự hỏi trước: "mình đang ở laptop, hay đang ở server?"
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── STEP 8 — INSTALL DOCKER ───────── -->
+  <section id="step-8" class="step">
+    <div class="step-header">
+      <div class="step-num">8</div>
+      <h2>
+        <span class="en">Install Docker on the server</span>
+        <span class="vi">Cài Docker trên server</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Your laptop has Docker; the server needs it too. The server is where the kitchen will actually run 24/7. On Ubuntu, the official install is one line:</p>
+      <pre><code>curl -fsSL https://get.docker.com | sh</code></pre>
+      <p>Then confirm it's alive:</p>
+      <pre><code>docker --version
+docker run hello-world</code></pre>
+      <div class="box tip">
+        <div class="box-title">✓ Check it worked</div>
+        <code>docker --version</code> prints a version number, and <code>hello-world</code> prints the friendly greeting. Docker is ready on the server.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Not on Ubuntu?</div>
+        For other Linux flavours, search "install Docker Engine on [your OS]" on the official Docker docs. The one-liner above covers Ubuntu/Debian, which most VPS providers use by default.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Laptop của bạn đã có Docker; server cũng cần. Server mới là nơi gian bếp thật sự chạy 24/7. Trên Ubuntu, lệnh cài chính thức chỉ một dòng:</p>
+      <pre><code>curl -fsSL https://get.docker.com | sh</code></pre>
+      <p>Rồi xác nhận nó sống:</p>
+      <pre><code>docker --version
+docker run hello-world</code></pre>
+      <div class="box tip">
+        <div class="box-title">✓ Kiểm tra đã chạy chưa</div>
+        <code>docker --version</code> in ra số phiên bản, và <code>hello-world</code> in ra lời chào thân thiện. Docker đã sẵn sàng trên server.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Không dùng Ubuntu?</div>
+        Với các bản Linux khác, tìm "install Docker Engine on [hệ điều hành của bạn]" trên tài liệu chính thức của Docker. Lệnh một dòng ở trên dùng cho Ubuntu/Debian, là loại đa số VPS dùng mặc định.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── STEP 9 — GET CODE ───────── -->
+  <section id="step-9" class="step">
+    <div class="step-header">
+      <div class="step-num">9</div>
+      <h2>
+        <span class="en">Get your code onto the server</span>
+        <span class="vi">Đưa code lên server</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Remember the recipe you put on the shelf (GitHub) in Step 6? Now the server grabs it. Still in your SSH session, clone the repo:</p>
+      <pre><code>git clone https://github.com/YOUR_NAME/it-courses.git
+cd it-courses</code></pre>
+      <p>That downloads all your project files into a folder on the server and moves you inside it.</p>
+      <div class="box tip">
+        <div class="box-title">✓ Check it worked</div>
+        Run <code>ls</code> — you should see your project files, including <code>Dockerfile</code> and <code>package.json</code>.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Private repo?</div>
+        If your GitHub repo is private, Git will ask for credentials. The easy modern way is a <strong>personal access token</strong> as the password, or set up an SSH deploy key. Public repos clone with no login.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 No GitHub? Two alternatives</div>
+        You can skip Git and either (a) copy files straight over with <code>scp -r ./it-courses root@YOUR_SERVER_IP:/root/</code> from your laptop, or (b) build the image locally and push it to Docker Hub, then <code>docker pull</code> on the server. Git is the simplest to keep updating, so we use it here.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Nhớ cái công thức bạn đặt lên kệ (GitHub) ở Bước 6 chứ? Giờ server lấy nó xuống. Vẫn trong phiên SSH, clone repo:</p>
+      <pre><code>git clone https://github.com/TEN_CUA_BAN/it-courses.git
+cd it-courses</code></pre>
+      <p>Lệnh đó tải toàn bộ file dự án vào một thư mục trên server và đưa bạn vào trong đó.</p>
+      <div class="box tip">
+        <div class="box-title">✓ Kiểm tra đã chạy chưa</div>
+        Chạy <code>ls</code> — bạn phải thấy các file dự án, gồm cả <code>Dockerfile</code> và <code>package.json</code>.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Repo riêng tư?</div>
+        Nếu repo GitHub của bạn ở chế độ riêng tư, Git sẽ hỏi thông tin đăng nhập. Cách hiện đại dễ nhất là dùng <strong>personal access token</strong> làm mật khẩu, hoặc cài SSH deploy key. Repo công khai thì clone không cần đăng nhập.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Không dùng GitHub? Hai cách khác</div>
+        Bạn có thể bỏ qua Git và hoặc (a) copy thẳng file qua bằng <code>scp -r ./it-courses root@IP_SERVER:/root/</code> từ laptop, hoặc (b) build image trên máy rồi push lên Docker Hub, sau đó <code>docker pull</code> trên server. Git là cách dễ cập nhật nhất nên mình dùng ở đây.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── STEP 10 — BUILD & RUN ───────── -->
+  <section id="step-10" class="step">
+    <div class="step-header">
+      <div class="step-num">10</div>
+      <h2>
+        <span class="en">Build &amp; run the container</span>
+        <span class="vi">Build &amp; chạy container</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>This is the moment the kitchen opens. Inside the project folder on the server, build the image (same command as your local test):</p>
+      <pre><code>docker build -t it-courses .</code></pre>
+      <p>Then run it. Note the difference from your laptop test: here we map the server's <strong>port 80</strong> (the normal web port Cloudflare talks to) to the app's <strong>port 8888</strong>:</p>
+      <pre><code>docker run -d \
+  --name it-courses \
+  --restart unless-stopped \
+  -p 80:8888 \
+  it-courses</code></pre>
+      <p>Reading the flags:</p>
+      <ul class="checklist">
+        <li><code>-d</code> — run in the background, so closing SSH doesn't stop it.</li>
+        <li><code>--restart unless-stopped</code> — if the server reboots, Docker starts the site again automatically.</li>
+        <li><code>-p 80:8888</code> — connect the building's front door (80) to the kitchen window (8888). Format is <code>host:container</code>.</li>
+      </ul>
+      <div class="box tip">
+        <div class="box-title">✓ Check it worked</div>
+        Run <code>docker ps</code> (status "Up"), then visit <code>http://YOUR_SERVER_IP</code> in a browser. The site should load over the raw IP. 🎉
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Everyday commands</div>
+        Logs: <code>docker logs -f it-courses</code> · Stop: <code>docker stop it-courses</code> · Start: <code>docker start it-courses</code> · Remove: <code>docker rm -f it-courses</code>
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Đây là khoảnh khắc gian bếp mở cửa. Trong thư mục dự án trên server, build image (cùng lệnh với lúc thử ở máy):</p>
+      <pre><code>docker build -t it-courses .</code></pre>
+      <p>Rồi chạy nó. Lưu ý khác với lúc thử trên laptop: ở đây mình ánh xạ <strong>cổng 80</strong> của server (cổng web tiêu chuẩn mà Cloudflare nói chuyện) sang <strong>cổng 8888</strong> của app:</p>
+      <pre><code>docker run -d \
+  --name it-courses \
+  --restart unless-stopped \
+  -p 80:8888 \
+  it-courses</code></pre>
+      <p>Đọc từng tùy chọn:</p>
+      <ul class="checklist">
+        <li><code>-d</code> — chạy nền, đóng SSH cũng không tắt web.</li>
+        <li><code>--restart unless-stopped</code> — server khởi động lại thì Docker tự bật web lên lại.</li>
+        <li><code>-p 80:8888</code> — nối cửa chính tòa nhà (80) với cửa sổ gian bếp (8888). Định dạng <code>host:container</code>.</li>
+      </ul>
+      <div class="box tip">
+        <div class="box-title">✓ Kiểm tra đã chạy chưa</div>
+        Chạy <code>docker ps</code> (trạng thái "Up"), rồi vào <code>http://IP_SERVER_CUA_BAN</code> trên trình duyệt. Web phải lên qua IP thô. 🎉
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Lệnh hằng ngày</div>
+        Xem log: <code>docker logs -f it-courses</code> · Dừng: <code>docker stop it-courses</code> · Bật lại: <code>docker start it-courses</code> · Xóa: <code>docker rm -f it-courses</code>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── STEP 11 — FIREWALL ───────── -->
+  <section id="step-11" class="step">
+    <div class="step-header">
+      <div class="step-num">11</div>
+      <h2>
+        <span class="en">Open the firewall</span>
+        <span class="vi">Mở tường lửa</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>If the site loaded over the raw IP in the last step, your firewall is probably already open and you can skip ahead. If it didn't, the firewall is the usual culprit — it's the building's security guard, and by default it may turn web visitors away.</p>
+      <p>On Ubuntu's UFW, allow the web ports (and keep SSH open so you don't lock yourself out):</p>
+      <pre><code>sudo ufw allow 22
+sudo ufw allow 80
+sudo ufw allow 443
+sudo ufw enable</code></pre>
+      <div class="box danger">
+        <div class="box-title">⚠️ Always allow port 22 first</div>
+        Port 22 is SSH — your way in. If you enable the firewall without allowing it, you can lock yourself out of the server. Allow 22 <em>before</em> <code>ufw enable</code>.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Cloud provider firewall too</div>
+        On Cloudfly/AWS/etc. there's often a <em>second</em> firewall in the provider's web panel (a "security group"). Make sure ports 80 and 443 are allowed there as well.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Nếu ở bước trước web đã lên qua IP thô, nhiều khả năng tường lửa đã mở sẵn và bạn có thể bỏ qua. Nếu chưa lên, tường lửa thường là thủ phạm — nó là anh bảo vệ tòa nhà, và mặc định có thể chặn khách web.</p>
+      <p>Với UFW của Ubuntu, mở các cổng web (và giữ SSH mở để khỏi tự khóa mình ra ngoài):</p>
+      <pre><code>sudo ufw allow 22
+sudo ufw allow 80
+sudo ufw allow 443
+sudo ufw enable</code></pre>
+      <div class="box danger">
+        <div class="box-title">⚠️ Luôn mở cổng 22 trước</div>
+        Cổng 22 là SSH — đường vào của bạn. Nếu bật tường lửa mà chưa cho phép nó, bạn có thể tự khóa mình khỏi server. Hãy mở 22 <em>trước</em> khi <code>ufw enable</code>.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Còn cả tường lửa của nhà cung cấp</div>
+        Trên Cloudfly/AWS… thường có <em>thêm</em> một tường lửa thứ hai trong bảng điều khiển web của nhà cung cấp ("security group"). Nhớ mở cổng 80 và 443 ở đó nữa.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ PHASE 3 ════════ -->
+  <div class="phase-divider p3">
+    <div class="ph-emoji">☁️</div>
+    <div class="ph-text">
+      <div class="ph-label"><span class="en">Phase 3</span><span class="vi">Giai đoạn 3</span></div>
+      <h2><span class="en">Connect your domain</span><span class="vi">Nối tên miền</span></h2>
+    </div>
+  </div>
+
+  <!-- ───────── STEP 12 — CLOUDFLARE DNS ───────── -->
+  <section id="step-12" class="step">
+    <div class="step-header">
+      <div class="step-num">12</div>
+      <h2>
+        <span class="en">Point Cloudflare DNS</span>
+        <span class="vi">Trỏ DNS Cloudflare</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>The site runs, but only by raw IP. Now we put the doorman out front so <code>yourdomain.com</code> leads people to it. This is a <strong>DNS record</strong> — a signpost mapping your domain to your server's IP.</p>
+      <p>In the Cloudflare dashboard, pick your domain, then <strong>DNS → Records → Add record</strong>:</p>
+      <table>
+        <tr><th>Type</th><th>Name</th><th>Content</th><th>Proxy</th></tr>
+        <tr><td>A</td><td><code>@</code></td><td>your server's public IP</td><td>Proxied (orange ☁️)</td></tr>
+        <tr><td>A</td><td><code>www</code></td><td>your server's public IP</td><td>Proxied (orange ☁️)</td></tr>
+      </table>
+      <p><code>@</code> means the bare domain (<code>yourdomain.com</code>); the <code>www</code> row covers <code>www.yourdomain.com</code>. Keep the cloud <strong>orange</strong> — that routes traffic through Cloudflare so you get HTTPS, caching, and your real server IP stays hidden.</p>
+      <div class="box info">
+        <div class="box-title">💡 Orange vs grey cloud</div>
+        Grey = Cloudflare only stores the signpost and steps aside; visitors hit your server directly (no HTTPS help, IP exposed). Orange = Cloudflare sits in the middle as the doorman. You want orange.
+      </div>
+      <div class="box tip">
+        <div class="box-title">✓ Check it worked</div>
+        DNS can take a few minutes. Then visit <code>http://yourdomain.com</code> — your site should appear. The doorman is on duty.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Web đã chạy, nhưng mới vào được bằng IP thô. Giờ mình cho anh lễ tân ra đứng trước cửa để <code>tenmiencuaban.com</code> dẫn khách tới đúng nơi. Đây là một <strong>bản ghi DNS</strong> — tấm biển chỉ đường nối tên miền với IP server.</p>
+      <p>Trong bảng điều khiển Cloudflare, chọn tên miền, rồi vào <strong>DNS → Records → Add record</strong>:</p>
+      <table>
+        <tr><th>Type</th><th>Name</th><th>Content</th><th>Proxy</th></tr>
+        <tr><td>A</td><td><code>@</code></td><td>IP công khai của server</td><td>Proxied (mây cam ☁️)</td></tr>
+        <tr><td>A</td><td><code>www</code></td><td>IP công khai của server</td><td>Proxied (mây cam ☁️)</td></tr>
+      </table>
+      <p><code>@</code> nghĩa là tên miền trần (<code>tenmiencuaban.com</code>); dòng <code>www</code> lo cho <code>www.tenmiencuaban.com</code>. Giữ đám mây màu <strong>cam</strong> — đó là cách traffic đi qua Cloudflare để có HTTPS, có cache, và IP thật của server được giấu kín.</p>
+      <div class="box info">
+        <div class="box-title">💡 Mây cam và mây xám</div>
+        Xám = Cloudflare chỉ giữ tấm biển rồi né ra; khách vào thẳng server (không HTTPS, lộ IP). Cam = Cloudflare đứng giữa làm lễ tân. Bạn cần màu cam.
+      </div>
+      <div class="box tip">
+        <div class="box-title">✓ Kiểm tra đã chạy chưa</div>
+        DNS có thể mất vài phút. Sau đó vào <code>http://tenmiencuaban.com</code> — web phải hiện lên. Anh lễ tân đã vào ca.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── STEP 13 — HTTPS ───────── -->
+  <section id="step-13" class="step">
+    <div class="step-header">
+      <div class="step-num">13</div>
+      <h2>
+        <span class="en">Turn on HTTPS</span>
+        <span class="vi">Bật HTTPS</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>The little padlock 🔒 is the lock on your shop's door — it tells visitors the connection is private. Cloudflare hands it out for free. The trip has two halves: <strong>visitor → Cloudflare</strong> and <strong>Cloudflare → your server</strong>.</p>
+      <h3>Set the encryption mode</h3>
+      <p>Go to <strong>SSL/TLS → Overview</strong> and choose:</p>
+      <div class="provider-grid">
+        <div class="provider-card">
+          <div class="name">Flexible — easiest start</div>
+          <div class="desc">Visitor → Cloudflare is encrypted; Cloudflare → server is plain HTTP on port 80. No certificate needed on your server. Works immediately with the <code>-p 80:8888</code> setup from Step 10.</div>
+        </div>
+        <div class="provider-card">
+          <div class="name">Full (strict) — most secure</div>
+          <div class="desc">Both halves encrypted. Needs a certificate on your server — a free Cloudflare Origin Certificate plus a reverse proxy. Aim for this once everything works.</div>
+        </div>
+      </div>
+      <h3>Force HTTPS for everyone</h3>
+      <p>Under <strong>SSL/TLS → Edge Certificates</strong>, turn on <strong>Always Use HTTPS</strong>. Now anyone typing <code>http://</code> is gently redirected to the secure <code>https://</code> version.</p>
+      <div class="box tip">
+        <div class="box-title">💡 Upgrading to Full (strict) later</div>
+        Generate a free <strong>Origin Certificate</strong> in Cloudflare, install it in a reverse proxy like <strong>Caddy</strong> or <strong>Nginx</strong> in front of your container on port 443, then switch the mode. Optional — Flexible is fine to launch with.
+      </div>
+      <div class="box danger">
+        <div class="box-title">⚠️ Redirect loop (ERR_TOO_MANY_REDIRECTS)?</div>
+        Usually Flexible mode plus the app also forcing HTTPS, or leftover page rules. If it happens, switch the mode to Full and re-test.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Cái ổ khóa nhỏ 🔒 là ổ khóa cửa quán — báo cho khách biết kết nối là riêng tư. Cloudflare cấp miễn phí. Chuyến đi có hai chặng: <strong>khách → Cloudflare</strong> và <strong>Cloudflare → server của bạn</strong>.</p>
+      <h3>Chọn chế độ mã hóa</h3>
+      <p>Vào <strong>SSL/TLS → Overview</strong> và chọn:</p>
+      <div class="provider-grid">
+        <div class="provider-card">
+          <div class="name">Flexible — dễ bắt đầu nhất</div>
+          <div class="desc">Chặng khách → Cloudflare được mã hóa; chặng Cloudflare → server là HTTP thường ở cổng 80. Không cần chứng chỉ trên server. Chạy được ngay với cấu hình <code>-p 80:8888</code> ở Bước 10.</div>
+        </div>
+        <div class="provider-card">
+          <div class="name">Full (strict) — an toàn nhất</div>
+          <div class="desc">Cả hai chặng đều mã hóa. Cần chứng chỉ trên server — một Origin Certificate miễn phí của Cloudflare cộng một reverse proxy. Nhắm tới mức này khi mọi thứ đã chạy.</div>
+        </div>
+      </div>
+      <h3>Bắt buộc HTTPS cho mọi người</h3>
+      <p>Vào <strong>SSL/TLS → Edge Certificates</strong>, bật <strong>Always Use HTTPS</strong>. Từ giờ ai gõ <code>http://</code> sẽ được tự chuyển nhẹ nhàng sang bản an toàn <code>https://</code>.</p>
+      <div class="box tip">
+        <div class="box-title">💡 Sau này nâng lên Full (strict)</div>
+        Tạo một <strong>Origin Certificate</strong> miễn phí trong Cloudflare, cài vào reverse proxy như <strong>Caddy</strong> hay <strong>Nginx</strong> đứng trước container ở cổng 443, rồi đổi chế độ. Tùy chọn thôi — dùng Flexible để ra mắt là ổn.
+      </div>
+      <div class="box danger">
+        <div class="box-title">⚠️ Bị lặp chuyển hướng (ERR_TOO_MANY_REDIRECTS)?</div>
+        Thường do chế độ Flexible cộng app cũng ép HTTPS, hoặc page rule còn sót. Nếu gặp, đổi chế độ sang Full rồi thử lại.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── STEP 14 — UPDATING ───────── -->
+  <section id="step-14" class="step">
+    <div class="step-header">
+      <div class="step-num">14</div>
+      <h2>
+        <span class="en">Updating later</span>
+        <span class="vi">Cập nhật về sau</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>When you change the site, the loop is always: edit on your laptop → push → pull on the server → rebuild → swap the container.</p>
+      <p><strong>On your computer:</strong></p>
+      <pre><code>git add .
+git commit -m "Update site"
+git push</code></pre>
+      <p><strong>On the server</strong> (SSH in, then inside the project folder):</p>
+      <pre><code>git pull
+docker build -t it-courses .
+docker rm -f it-courses
+docker run -d --name it-courses --restart unless-stopped -p 80:8888 it-courses</code></pre>
+      <p>Get the latest code, seal a new kit with the same name, throw away the old running kitchen, open a fresh one. Visitors see only a few seconds of downtime.</p>
+      <div class="box tip">
+        <div class="box-title">💡 Free up disk over time</div>
+        Old images pile up. Every now and then run <code>docker image prune -f</code> to clean unused layers and reclaim space.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Khi sửa web, vòng lặp luôn là: sửa trên laptop → push → pull trên server → build lại → thay container.</p>
+      <p><strong>Trên máy của bạn:</strong></p>
+      <pre><code>git add .
+git commit -m "Update site"
+git push</code></pre>
+      <p><strong>Trên server</strong> (SSH vào, rồi vào trong thư mục dự án):</p>
+      <pre><code>git pull
+docker build -t it-courses .
+docker rm -f it-courses
+docker run -d --name it-courses --restart unless-stopped -p 80:8888 it-courses</code></pre>
+      <p>Lấy code mới nhất, niêm phong hộp mới cùng tên, vứt gian bếp cũ đang chạy, mở gian bếp mới. Khách chỉ thấy gián đoạn vài giây.</p>
+      <div class="box tip">
+        <div class="box-title">💡 Dọn ổ cứng theo thời gian</div>
+        Image cũ sẽ dồn lại. Thỉnh thoảng chạy <code>docker image prune -f</code> để xóa layer không dùng và lấy lại dung lượng.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── TROUBLESHOOTING ───────── -->
+  <section id="trouble" class="step">
+    <div class="step-header">
+      <div class="step-num">!</div>
+      <h2>
+        <span class="en">Troubleshooting</span>
+        <span class="vi">Khắc phục sự cố</span>
+      </h2>
+    </div>
+    <div class="en">
+      <table>
+        <tr><th>Problem</th><th>Solution</th></tr>
+        <tr><td>Build error: <code>.next/standalone</code> not found</td><td>You skipped Step 3. Add <code>output: "standalone"</code> to <code>next.config.mjs</code>, then rebuild.</td></tr>
+        <tr><td>Container starts then immediately stops</td><td>Run <code>docker logs it-courses</code> to see the crash reason. Often a missing env var or a build error that slipped through.</td></tr>
+        <tr><td>Site loads on the server's IP but not the domain</td><td>DNS issue. Check the A record in Cloudflare points to the right IP, and wait a few minutes for it to propagate.</td></tr>
+        <tr><td>Site doesn't load even on the raw IP</td><td>Container not "Up" (<code>docker ps</code>), missing <code>HOSTNAME=0.0.0.0</code>, or firewall blocks port 80 (Step 11).</td></tr>
+        <tr><td>522 / 521 error from Cloudflare</td><td>Cloudflare can't reach your server. Confirm container is "Up", port 80 open, A record IP correct.</td></tr>
+        <tr><td>ERR_TOO_MANY_REDIRECTS</td><td>Switch SSL/TLS mode from Flexible to Full, and remove conflicting "Always Use HTTPS" page rules.</td></tr>
+        <tr><td>CSS / images missing, page unstyled</td><td>The Dockerfile must copy <code>.next/static</code> and <code>public</code> (Step 4). Rebuild if you edited it.</td></tr>
+        <tr><td>Port 80 already in use</td><td>Something else (Apache/Nginx) holds it. Stop that service, or map a different port like <code>-p 8080:8888</code>.</td></tr>
+        <tr><td>"Permission denied" on docker commands</td><td>On the server, either use <code>sudo docker ...</code> or add your user to the docker group: <code>sudo usermod -aG docker $USER</code> then re-login.</td></tr>
+        <tr><td>Locked out after enabling firewall</td><td>You forgot <code>ufw allow 22</code>. Use your provider's web console to access the server and re-allow SSH.</td></tr>
+      </table>
+    </div>
+    <div class="vi">
+      <table>
+        <tr><th>Vấn đề</th><th>Cách khắc phục</th></tr>
+        <tr><td>Build lỗi: không tìm thấy <code>.next/standalone</code></td><td>Bạn bỏ qua Bước 3. Thêm <code>output: "standalone"</code> vào <code>next.config.mjs</code> rồi build lại.</td></tr>
+        <tr><td>Container vừa chạy đã tắt ngay</td><td>Chạy <code>docker logs it-courses</code> xem lý do crash. Thường do thiếu biến môi trường hoặc lỗi build lọt qua.</td></tr>
+        <tr><td>Web lên qua IP server nhưng tên miền thì không</td><td>Lỗi DNS. Kiểm tra bản ghi A trong Cloudflare có trỏ đúng IP không, và đợi vài phút để lan truyền.</td></tr>
+        <tr><td>Web không lên kể cả qua IP thô</td><td>Container chưa "Up" (<code>docker ps</code>), thiếu <code>HOSTNAME=0.0.0.0</code>, hoặc tường lửa chặn cổng 80 (Bước 11).</td></tr>
+        <tr><td>Cloudflare báo lỗi 522 / 521</td><td>Cloudflare không với tới server. Xác nhận container "Up", cổng 80 mở, IP trong bản ghi A đúng.</td></tr>
+        <tr><td>ERR_TOO_MANY_REDIRECTS</td><td>Đổi chế độ SSL/TLS từ Flexible sang Full, gỡ page rule "Always Use HTTPS" bị xung đột.</td></tr>
+        <tr><td>Mất CSS / hình ảnh, trang trơ trụi</td><td>Dockerfile phải copy <code>.next/static</code> và <code>public</code> (Bước 4). Sửa xong build lại.</td></tr>
+        <tr><td>Cổng 80 đang bị chiếm</td><td>Thứ khác (Apache/Nginx) đang giữ. Dừng dịch vụ đó, hoặc ánh xạ cổng khác như <code>-p 8080:8888</code>.</td></tr>
+        <tr><td>"Permission denied" khi gõ lệnh docker</td><td>Trên server, dùng <code>sudo docker ...</code> hoặc thêm user vào nhóm docker: <code>sudo usermod -aG docker $USER</code> rồi đăng nhập lại.</td></tr>
+        <tr><td>Bị khóa ngoài sau khi bật tường lửa</td><td>Bạn quên <code>ufw allow 22</code>. Dùng console web của nhà cung cấp để vào server và mở lại SSH.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ───────── GLOSSARY ───────── -->
+  <section id="glossary" class="step">
+    <div class="step-header">
+      <div class="step-num">📖</div>
+      <h2>
+        <span class="en">Glossary</span>
+        <span class="vi">Bảng thuật ngữ</span>
+      </h2>
+    </div>
+    <div class="en">
+      <table>
+        <tr><th>Term</th><th>Meaning</th></tr>
+        <tr><td>Local vs server</td><td>"Local" = your own computer. "Server" = the remote machine that runs the site 24/7.</td></tr>
+        <tr><td>Docker image</td><td>A sealed package of your app + everything it needs to run. The "meal-kit". Built from a Dockerfile.</td></tr>
+        <tr><td>Container</td><td>A running copy of an image — the live "kitchen". Start, stop, and remove it freely.</td></tr>
+        <tr><td>Dockerfile</td><td>The text recipe telling Docker how to build your image, line by line.</td></tr>
+        <tr><td>Standalone output</td><td>A Next.js build mode that bundles a tiny self-contained server, keeping the image small.</td></tr>
+        <tr><td>SSH</td><td>A secure remote terminal — lets you type commands on the server from your own computer.</td></tr>
+        <tr><td>Git / GitHub</td><td>Git tracks code changes; GitHub stores them online — the "shared shelf" the server pulls from.</td></tr>
+        <tr><td>Port mapping (-p)</td><td>Connecting a port on the host to a port inside the container. Format: <code>host:container</code>.</td></tr>
+        <tr><td>Firewall (UFW)</td><td>The server's security guard, deciding which ports outsiders may reach.</td></tr>
+        <tr><td>DNS record</td><td>A signpost mapping a domain name to a server's IP. An "A record" points to an IPv4 address.</td></tr>
+        <tr><td>Proxied (orange cloud)</td><td>Traffic flows through Cloudflare, which adds HTTPS, caching, and hides your real server IP.</td></tr>
+        <tr><td>SSL/TLS</td><td>The technology behind the padlock 🔒 — it encrypts the connection between visitor and site.</td></tr>
+        <tr><td>Reverse proxy</td><td>A server (Caddy, Nginx) sitting in front of your app, often to handle HTTPS and routing.</td></tr>
+      </table>
+    </div>
+    <div class="vi">
+      <table>
+        <tr><th>Thuật ngữ</th><th>Ý nghĩa</th></tr>
+        <tr><td>Local và server</td><td>"Local" = máy tính của chính bạn. "Server" = máy từ xa chạy website 24/7.</td></tr>
+        <tr><td>Docker image</td><td>Gói niêm phong gồm app + mọi thứ cần để chạy. "Hộp nguyên liệu". Tạo từ Dockerfile.</td></tr>
+        <tr><td>Container</td><td>Một bản đang chạy của image — "gian bếp" sống. Bật, tắt, xóa thoải mái.</td></tr>
+        <tr><td>Dockerfile</td><td>Tấm công thức dạng chữ, chỉ cho Docker cách build image, từng dòng một.</td></tr>
+        <tr><td>Standalone output</td><td>Chế độ build của Next.js gói sẵn một server tí hon tự chạy, giữ image nhỏ gọn.</td></tr>
+        <tr><td>SSH</td><td>Một terminal từ xa an toàn — cho bạn gõ lệnh trên server ngay từ máy của mình.</td></tr>
+        <tr><td>Git / GitHub</td><td>Git theo dõi thay đổi code; GitHub lưu chúng online — "cái kệ chung" mà server kéo về.</td></tr>
+        <tr><td>Ánh xạ cổng (-p)</td><td>Nối một cổng trên host với một cổng trong container. Định dạng: <code>host:container</code>.</td></tr>
+        <tr><td>Tường lửa (UFW)</td><td>Anh bảo vệ của server, quyết định cổng nào người ngoài được vào.</td></tr>
+        <tr><td>Bản ghi DNS</td><td>Tấm biển chỉ đường nối tên miền với IP server. "Bản ghi A" trỏ tới một địa chỉ IPv4.</td></tr>
+        <tr><td>Proxied (mây cam)</td><td>Traffic đi qua Cloudflare, được thêm HTTPS, cache, và giấu IP thật của server.</td></tr>
+        <tr><td>SSL/TLS</td><td>Công nghệ sau ổ khóa 🔒 — mã hóa kết nối giữa khách và website.</td></tr>
+        <tr><td>Reverse proxy</td><td>Một server (Caddy, Nginx) đứng trước app, thường để lo HTTPS và điều hướng.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      <span class="en">Made with <span class="heart">♥</span> for the IT-courses team.</span>
+      <span class="vi">Soạn với <span class="heart">♥</span> dành cho team IT-courses.</span>
+    </p>
+  </footer>
+
+</div>
+
+<script>
+  function setLang(lang) {
+    document.documentElement.setAttribute('data-lang', lang);
+    document.documentElement.setAttribute('lang', lang);
+    document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+    document.getElementById('btn-vi').classList.toggle('active', lang === 'vi');
+    localStorage.setItem('guide-lang', lang);
+  }
+  const saved = localStorage.getItem('guide-lang');
+  if (saved === 'vi') setLang('vi');
+
+  document.querySelectorAll('pre').forEach((pre) => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', async () => {
+      const text = pre.querySelector('code')?.textContent ?? pre.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = '✓ Copied';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      } catch (e) { btn.textContent = 'Failed'; }
+    });
+    pre.appendChild(btn);
+  });
+
+  document.querySelectorAll('a[href^="#"]').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      const id = a.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    });
+  });
+</script>
+
+</body>
+</html>

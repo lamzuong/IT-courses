@@ -381,6 +381,7 @@
       <li><a href="#step-10"><span class="en">Clone &amp; build the project</span><span class="vi">Tải code &amp; build dự án</span></a></li>
       <li><a href="#step-11"><span class="en">Run with PM2</span><span class="vi">Chạy site bằng PM2</span></a></li>
       <li><a href="#step-12"><span class="en">Caddy + free HTTPS</span><span class="vi">Caddy + HTTPS miễn phí</span></a></li>
+      <li><a href="#step-12b"><span class="en">Alternative: nginx + Certbot</span><span class="vi">Tuỳ chọn: nginx + Certbot</span></a></li>
       <li><a href="#step-13"><span class="en">DNS records</span><span class="vi">Cấu hình DNS tên miền</span></a></li>
       <li><a href="#step-14"><span class="en">One-command deploy</span><span class="vi">Script deploy một lệnh</span></a></li>
       <li><a href="#step-15"><span class="en">Backups (snapshots)</span><span class="vi">Sao lưu (snapshot)</span></a></li>
@@ -914,6 +915,36 @@ cd it-courses
 npm ci
 npm run build</code></pre>
       <p>The build prints Next.js compilation progress and ends with a route summary. If you see it, you're past the hardest part.</p>
+
+      <h3>10e. Build failed on the VPS? Read this</h3>
+      <p>If you see one of these — your VPS doesn't have enough RAM to build:</p>
+      <ul>
+        <li>The terminal prints <code>Killed</code> and drops back to the prompt with no other message.</li>
+        <li>SSH disconnects in the middle of the build, then reconnects fine afterwards.</li>
+        <li>Next.js prints <code>FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory</code>.</li>
+        <li><code>dmesg | tail</code> shows <code>Out of memory: Killed process … (node)</code>.</li>
+      </ul>
+      <p>This is the OOM killer doing its job. <code>next build</code> on this project peaks around 1.2–1.5 GB of RAM because of MDX compilation + Shiki syntax highlighting. On a 1 GB VPS that's a guaranteed kill. Pick one of the three fixes below, ordered by effort:</p>
+
+      <div class="box tip">
+        <div class="box-title">💡 Fix 1 (quickest) — add 2 GB of swap, build through it</div>
+        <p>Swap is disk space that Linux uses as overflow RAM. The build will be slower (disk is ~50× slower than RAM), but it will finish. Already covered in step 9d — if you skipped it, jump back and run those commands now, then return here and retry <code>npm run build</code>.</p>
+        <p><strong>Trade-off:</strong> the build can take 4–8 minutes instead of 40 seconds, and writing/reading swap shortens SSD life slightly. Fine for a hobby site you redeploy a few times a month.</p>
+      </div>
+
+      <div class="box tip">
+        <div class="box-title">💡 Fix 2 — cap Node's heap so it gives up earlier than the OOM killer</div>
+        <p>Sometimes Node grabs more memory than it actually needs and triggers the OOM killer before the swap kicks in. Telling Node a hard ceiling makes it garbage-collect more aggressively and stay under the line:</p>
+        <pre><code>NODE_OPTIONS="--max-old-space-size=1536" npm run build</code></pre>
+        <p>Use <code>1536</code> on a 2 GB VPS (leaves ~500 MB for Linux + ssh + nginx). On 1 GB + 2 GB swap, try <code>1024</code> first. This is a one-line fix, no system changes — try it before reaching for the bigger hammers.</p>
+      </div>
+
+      <div class="box info">
+        <div class="box-title">📝 Fix 3 (recommended for a 1 GB VPS) — don't build on the server at all</div>
+        <p><strong>Why:</strong> your laptop has 16+ GB of RAM and a real CPU. The build that takes 5 minutes on the VPS finishes in 30 seconds on your machine. Then you upload only the compiled output — 30–80 MB — and the server just runs <code>node server.js</code>. No more OOM, no more swap thrashing, and the server never sees your source code.</p>
+        <p><strong>How:</strong> there's a full step-by-step guide for this exact workflow — <a href="local-build-deploy-guide.html"><strong>Build Locally, Deploy to VPS</strong></a>. You'll switch on Next.js <code>output: "standalone"</code> in <code>next.config.mjs</code>, run <code>npm run build</code> on your desktop, then <code>scp</code> the <code>.next/standalone</code> folder over. Skip steps 10a–10d above and follow that guide instead.</p>
+        <p><strong>When to pick this:</strong> solo developer, 1 GB or smaller VPS, or you just want deploys to be fast. <strong>When NOT to:</strong> if multiple teammates deploy from different OSes — drift between machines causes "works on my laptop" bugs; use GitHub Actions instead.</p>
+      </div>
     </div>
 
     <div class="vi">
@@ -944,6 +975,36 @@ cd it-courses
 npm ci
 npm run build</code></pre>
       <p>Build sẽ in tiến trình biên dịch Next.js rồi tổng kết các route. Nếu thấy đầy đủ — bạn đã qua phần khó nhất.</p>
+
+      <h3>10e. Build chết giữa chừng trên VPS? Đọc phần này</h3>
+      <p>Nếu bạn thấy 1 trong các hiện tượng sau — VPS của bạn không đủ RAM để build:</p>
+      <ul>
+        <li>Terminal in ra chữ <code>Killed</code> rồi quay về dấu nhắc, không nói gì thêm.</li>
+        <li>SSH bị ngắt giữa lúc build, sau đó kết nối lại thì bình thường.</li>
+        <li>Next.js in lỗi <code>FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory</code>.</li>
+        <li>Chạy <code>dmesg | tail</code> thấy dòng <code>Out of memory: Killed process … (node)</code>.</li>
+      </ul>
+      <p>Đó là OOM killer của Linux đang làm việc của nó. Lệnh <code>next build</code> của dự án này ngốn khoảng 1.2–1.5 GB RAM ở đỉnh điểm, do MDX compile + Shiki tô màu syntax. Trên VPS 1 GB là gần như chắc chắn bị giết. Chọn 1 trong 3 cách dưới đây, sắp xếp từ nhẹ tới nặng:</p>
+
+      <div class="box tip">
+        <div class="box-title">💡 Cách 1 (nhanh nhất) — tạo 2 GB swap rồi build xuyên qua nó</div>
+        <p>Swap là không gian ổ đĩa được Linux dùng như "RAM dự phòng". Build sẽ chậm hơn (đĩa chậm hơn RAM khoảng 50 lần), nhưng sẽ chạy xong. Cách làm đã có sẵn ở bước 9d — nếu bạn bỏ qua bước đó, quay lại chạy mấy lệnh tạo swapfile, rồi quay về đây chạy lại <code>npm run build</code>.</p>
+        <p><strong>Đánh đổi:</strong> build có thể mất 4–8 phút thay vì 40 giây, và việc đọc/ghi swap làm giảm tuổi thọ SSD một chút. Ổn cho site cá nhân, mỗi tháng deploy vài lần.</p>
+      </div>
+
+      <div class="box tip">
+        <div class="box-title">💡 Cách 2 — giới hạn heap của Node để nó "biết điều" trước khi bị giết</div>
+        <p>Đôi khi Node tham lam, xin nhiều bộ nhớ hơn nó thực sự cần và bị OOM killer tóm trước khi swap kịp đỡ. Bảo Node một giới hạn cứng sẽ buộc nó dọn rác (garbage collect) mạnh tay hơn và nằm dưới ngưỡng:</p>
+        <pre><code>NODE_OPTIONS="--max-old-space-size=1536" npm run build</code></pre>
+        <p>Dùng <code>1536</code> trên VPS 2 GB (chừa ~500 MB cho Linux + ssh + nginx). Trên VPS 1 GB + 2 GB swap, thử <code>1024</code> trước. Đây là cách sửa 1 dòng, không phải động vào hệ thống — nên thử trước khi nhảy sang giải pháp nặng hơn.</p>
+      </div>
+
+      <div class="box info">
+        <div class="box-title">📝 Cách 3 (khuyên dùng cho VPS 1 GB) — không build trên server nữa</div>
+        <p><strong>Vì sao:</strong> laptop của bạn có 16+ GB RAM và CPU thật. Cùng một bản build mất 5 phút trên VPS thì máy bạn chỉ cần 30 giây. Sau đó bạn chỉ upload kết quả đã compile — khoảng 30–80 MB — và server chỉ việc chạy <code>node server.js</code>. Không còn OOM, không còn swap "đập" ổ đĩa, và server không bao giờ nhìn thấy source code của bạn.</p>
+        <p><strong>Làm thế nào:</strong> đã có hướng dẫn riêng đầy đủ từng bước cho quy trình này — <a href="local-build-deploy-guide.html"><strong>Build máy, deploy lên VPS</strong></a>. Bạn sẽ bật <code>output: "standalone"</code> trong <code>next.config.mjs</code>, chạy <code>npm run build</code> trên máy bàn, rồi <code>scp</code> thư mục <code>.next/standalone</code> lên server. Bỏ qua bước 10a–10d ở trên và làm theo guide đó luôn.</p>
+        <p><strong>Khi nào nên dùng:</strong> dev một mình, VPS 1 GB hoặc nhỏ hơn, hoặc đơn giản là muốn deploy nhanh gọn. <strong>Khi nào KHÔNG nên:</strong> nếu nhiều người trong team deploy từ máy khác nhau (OS khác, Node version khác) — máy ai nấy build dễ sinh bug kiểu "máy tao chạy được"; lúc đó nên chuyển sang GitHub Actions.</p>
+      </div>
     </div>
   </section>
 
@@ -1043,6 +1104,220 @@ sudo apt install -y caddy</code></pre>
       <div class="box warn">
         <div class="box-title">⚠ Đừng hoảng nếu thấy lỗi</div>
         Caddy chưa thể cấp chứng chỉ cho đến khi DNS ở bước 13 trỏ về. Không sao — Caddy tự thử lại vài phút một lần. <code>journalctl -u caddy</code> có thể báo "challenge failed" ngay sau bước này.
+      </div>
+    </div>
+  </section>
+
+  <!-- 12B — Alternative: nginx + Certbot -->
+  <section id="step-12b" class="step">
+    <div class="step-header">
+      <div class="step-num">12B</div>
+      <h2>
+        <span class="en">Alternative — nginx + Certbot (instead of Caddy)</span>
+        <span class="vi">Tuỳ chọn thay thế — nginx + Certbot (thay cho Caddy)</span>
+      </h2>
+    </div>
+
+    <div class="box danger">
+      <div class="box-title">
+        <span class="en">⚠ Choose one: Caddy OR nginx, never both</span>
+        <span class="vi">⚠ Chỉ chọn một: Caddy HOẶC nginx, không bao giờ cả hai</span>
+      </div>
+      <span class="en">Both want to own ports 80 and 443. If you already installed Caddy in step 12 and want to switch, stop and remove it first: <code>sudo systemctl stop caddy &amp;&amp; sudo systemctl disable caddy &amp;&amp; sudo apt remove -y caddy</code>. Then come back here.</span>
+      <span class="vi">Cả hai đều muốn chiếm port 80 và 443. Nếu bạn đã cài Caddy ở bước 12 và muốn đổi sang nginx, dừng và gỡ Caddy trước: <code>sudo systemctl stop caddy &amp;&amp; sudo systemctl disable caddy &amp;&amp; sudo apt remove -y caddy</code>. Sau đó quay lại bước này.</span>
+    </div>
+
+    <div class="en">
+      <p>nginx is the classic reverse proxy — older, more configurable, more widely documented. The trade-off vs Caddy: you write a bit more config, and HTTPS is a separate tool (Certbot) instead of automatic. For most beginners Caddy is easier; pick nginx if your team already knows it, or if you want fine-grained control over headers, caching, and rate limits later.</p>
+
+      <h3>1. Install nginx</h3>
+      <pre><code>sudo apt update
+sudo apt install -y nginx
+sudo systemctl enable --now nginx</code></pre>
+      <p>Open your VPS IP in a browser — you should see the "Welcome to nginx!" page. That confirms nginx is running and port 80 is open.</p>
+
+      <h3>2. Write the server block</h3>
+      <p>Create a config file for your site. Replace <code>yourname.com</code> with your real domain everywhere:</p>
+      <pre><code>sudo nano /etc/nginx/sites-available/itcourses</code></pre>
+      <p>Paste this in — note the proxy points to <code>localhost:8888</code> because that's the port PM2 runs Next.js on (see <code>package.json</code>):</p>
+      <pre><code>server {
+    listen 80;
+    listen [::]:80;
+    server_name yourname.com www.yourname.com;
+
+    # Max upload size for MDX / images
+    client_max_body_size 20M;
+
+    # gzip for HTML, CSS, JS, JSON
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css application/json application/javascript
+               text/xml application/xml application/xml+rss text/javascript;
+
+    location / {
+        proxy_pass http://localhost:8888;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 60s;
+    }
+
+    # Cache Next.js static assets aggressively (filenames are hashed)
+    location /_next/static/ {
+        proxy_pass http://localhost:8888;
+        proxy_cache_valid 200 365d;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+}</code></pre>
+
+      <h3>3. Enable it and test</h3>
+      <pre><code># Enable the site
+sudo ln -s /etc/nginx/sites-available/itcourses /etc/nginx/sites-enabled/
+
+# Remove the default welcome page
+sudo rm /etc/nginx/sites-enabled/default
+
+# Test for syntax errors — ALWAYS do this before reload
+sudo nginx -t
+
+# Apply the new config
+sudo systemctl reload nginx</code></pre>
+      <div class="box tip">
+        <div class="box-title">💡 Why <code>nginx -t</code> first?</div>
+        A bad config on reload will not kill nginx (it keeps the old config), but it's still good hygiene. <code>nginx -t</code> tells you the exact line number of any typo before you touch the live server.
+      </div>
+      <p>If DNS in step 13 is already pointed at the VPS, visit <code>http://yourname.com</code> — you should see your Next.js site (over plain HTTP for now).</p>
+
+      <h3>4. Add free HTTPS with Certbot</h3>
+      <p>Certbot is the official Let's Encrypt client. It will edit your nginx config to add a <code>listen 443 ssl</code> block, request a real certificate, and set up auto-renewal — all in one command.</p>
+      <pre><code>sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d yourname.com -d www.yourname.com</code></pre>
+      <p>Certbot will ask:</p>
+      <ul>
+        <li>Your email (used only for expiry warnings)</li>
+        <li>Agree to ToS — type <code>Y</code></li>
+        <li>Whether to redirect HTTP → HTTPS — choose <strong>2 (Redirect)</strong></li>
+      </ul>
+      <p>That's it. Reload your browser at <code>https://yourname.com</code> and you'll see the padlock.</p>
+
+      <h3>5. Verify auto-renewal works</h3>
+      <p>Certbot installs a systemd timer that renews any certificate &lt; 30 days from expiry. Confirm it's armed:</p>
+      <pre><code>sudo systemctl list-timers | grep certbot
+sudo certbot renew --dry-run</code></pre>
+      <p>If the dry-run says "Congratulations, all simulated renewals succeeded", you're done forever — you'll never have to think about HTTPS again.</p>
+
+      <div class="box info">
+        <div class="box-title">📝 Useful nginx commands</div>
+        <ul>
+          <li><code>sudo nginx -t</code> — test config syntax</li>
+          <li><code>sudo systemctl reload nginx</code> — apply config (zero downtime)</li>
+          <li><code>sudo systemctl restart nginx</code> — full restart (brief downtime)</li>
+          <li><code>sudo tail -f /var/log/nginx/error.log</code> — watch errors live</li>
+          <li><code>sudo tail -f /var/log/nginx/access.log</code> — watch requests live</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>nginx là reverse proxy "cổ điển" — ra đời lâu hơn, cấu hình chi tiết hơn, tài liệu trên mạng nhiều vô số kể. So với Caddy: bạn phải viết nhiều config hơn một chút, và HTTPS là một công cụ riêng (Certbot) thay vì tự động. Với người mới thì Caddy dễ hơn; chọn nginx nếu team bạn đã quen, hoặc sau này bạn muốn tinh chỉnh sâu về header, cache, giới hạn truy cập…</p>
+
+      <h3>1. Cài nginx</h3>
+      <pre><code>sudo apt update
+sudo apt install -y nginx
+sudo systemctl enable --now nginx</code></pre>
+      <p>Mở trình duyệt, gõ IP của VPS — bạn phải thấy trang "Welcome to nginx!". Vậy là nginx đang chạy và port 80 đã mở.</p>
+
+      <h3>2. Viết server block cho site</h3>
+      <p>Tạo file cấu hình cho website. Nhớ thay <code>tenmien.com</code> bằng tên miền thật của bạn ở tất cả các chỗ:</p>
+      <pre><code>sudo nano /etc/nginx/sites-available/itcourses</code></pre>
+      <p>Dán nội dung sau vào — proxy trỏ đến <code>localhost:8888</code> vì đó là port mà PM2 chạy Next.js (xem trong <code>package.json</code> của dự án):</p>
+      <pre><code>server {
+    listen 80;
+    listen [::]:80;
+    server_name tenmien.com www.tenmien.com;
+
+    # Giới hạn dung lượng upload (cho MDX / ảnh)
+    client_max_body_size 20M;
+
+    # Bật gzip cho HTML, CSS, JS, JSON
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css application/json application/javascript
+               text/xml application/xml application/xml+rss text/javascript;
+
+    location / {
+        proxy_pass http://localhost:8888;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 60s;
+    }
+
+    # Cache file tĩnh của Next.js cực mạnh (tên file đã có hash version)
+    location /_next/static/ {
+        proxy_pass http://localhost:8888;
+        proxy_cache_valid 200 365d;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+}</code></pre>
+
+      <h3>3. Bật cấu hình & kiểm tra</h3>
+      <pre><code># Bật site bằng cách tạo symlink sang sites-enabled
+sudo ln -s /etc/nginx/sites-available/itcourses /etc/nginx/sites-enabled/
+
+# Xoá trang welcome mặc định
+sudo rm /etc/nginx/sites-enabled/default
+
+# Kiểm tra cú pháp — LUÔN chạy lệnh này trước khi reload
+sudo nginx -t
+
+# Áp dụng cấu hình mới
+sudo systemctl reload nginx</code></pre>
+      <div class="box tip">
+        <div class="box-title">💡 Vì sao phải chạy <code>nginx -t</code> trước?</div>
+        Nếu config sai mà bạn reload, nginx sẽ KHÔNG chết (nó vẫn giữ config cũ), nhưng vẫn nên kiểm tra trước cho chắc. <code>nginx -t</code> báo chính xác số dòng bị lỗi cú pháp, sửa xong rồi mới reload — an toàn hơn.
+      </div>
+      <p>Nếu DNS ở bước 13 đã trỏ về VPS rồi, vào <code>http://tenmien.com</code> — bạn sẽ thấy website Next.js của mình (đang chạy qua HTTP, chưa có HTTPS).</p>
+
+      <h3>4. Bật HTTPS miễn phí bằng Certbot</h3>
+      <p>Certbot là công cụ chính thức của Let's Encrypt. Nó sẽ tự sửa file nginx của bạn — thêm khối <code>listen 443 ssl</code>, xin chứng chỉ thật, và thiết lập tự gia hạn — tất cả chỉ trong 1 lệnh.</p>
+      <pre><code>sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d tenmien.com -d www.tenmien.com</code></pre>
+      <p>Certbot sẽ hỏi bạn vài câu:</p>
+      <ul>
+        <li>Email của bạn (chỉ dùng để báo khi chứng chỉ sắp hết hạn)</li>
+        <li>Đồng ý điều khoản — gõ <code>Y</code></li>
+        <li>Có muốn tự chuyển HTTP → HTTPS không — chọn <strong>2 (Redirect)</strong></li>
+      </ul>
+      <p>Xong rồi đó. Load lại <code>https://tenmien.com</code>, bạn sẽ thấy biểu tượng ổ khoá an toàn.</p>
+
+      <h3>5. Kiểm tra tự gia hạn có hoạt động không</h3>
+      <p>Certbot cài sẵn một systemd timer, tự gia hạn chứng chỉ khi còn dưới 30 ngày là hết hạn. Bạn nên kiểm tra một lần cho yên tâm:</p>
+      <pre><code>sudo systemctl list-timers | grep certbot
+sudo certbot renew --dry-run</code></pre>
+      <p>Nếu dry-run báo "Congratulations, all simulated renewals succeeded", bạn xong xuôi mãi mãi — sau này không bao giờ phải động tay vào HTTPS nữa.</p>
+
+      <div class="box info">
+        <div class="box-title">📝 Các lệnh nginx hay dùng</div>
+        <ul>
+          <li><code>sudo nginx -t</code> — kiểm tra cú pháp config</li>
+          <li><code>sudo systemctl reload nginx</code> — áp dụng config mới (không gián đoạn)</li>
+          <li><code>sudo systemctl restart nginx</code> — khởi động lại hoàn toàn (gián đoạn vài giây)</li>
+          <li><code>sudo tail -f /var/log/nginx/error.log</code> — xem lỗi theo thời gian thực</li>
+          <li><code>sudo tail -f /var/log/nginx/access.log</code> — xem truy cập theo thời gian thực</li>
+        </ul>
       </div>
     </div>
   </section>
@@ -1259,11 +1534,23 @@ echo "✓ Deployed at $(date)"</code></pre>
         <tr><th>Problem</th><th>Solution</th></tr>
         <tr>
           <td><strong>Browser shows 502 Bad Gateway</strong></td>
-          <td>Caddy is up but can't reach Node on port 3000. SSH in, run <code>pm2 status</code>. If <code>it-courses</code> is <code>errored</code> or <code>stopped</code>, check <code>pm2 logs it-courses --lines 100</code> — usually a missing env var or stale build. Run <code>~/deploy.sh</code> again.</td>
+          <td>Reverse proxy (Caddy or nginx) is up but can't reach Node on port 8888. SSH in, run <code>pm2 status</code>. If <code>it-courses</code> is <code>errored</code> or <code>stopped</code>, check <code>pm2 logs it-courses --lines 100</code> — usually a missing env var or stale build. Run <code>~/deploy.sh</code> again.</td>
         </tr>
         <tr>
           <td><strong>Caddy can't get an HTTPS certificate</strong></td>
           <td><code>sudo journalctl -u caddy -n 50</code> shows why. Most common: DNS not yet pointing at the VPS — wait, then <code>sudo systemctl reload caddy</code>. Or Cloudflare's orange-cloud proxy blocked the challenge — switch to grey "DNS only".</td>
+        </tr>
+        <tr>
+          <td><strong>nginx: <code>bind() to 0.0.0.0:80 failed (98: Address already in use)</code></strong></td>
+          <td>Something else owns port 80 — usually Caddy or Apache. Find the culprit: <code>sudo ss -tlnp | grep :80</code>. Stop and disable it (e.g. <code>sudo systemctl disable --now caddy</code>), then <code>sudo systemctl restart nginx</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>Certbot fails with "challenge failed" / timeout</strong></td>
+          <td>Let's Encrypt can't reach your VPS on port 80. Check: (1) DNS in step 13 actually points to this VPS — <code>nslookup yourname.com</code> from your laptop. (2) UFW allows HTTP — <code>sudo ufw status</code> should show <code>80/tcp ALLOW</code>. (3) Cloudflare proxy is OFF (grey cloud) during certificate issuance.</td>
+        </tr>
+        <tr>
+          <td><strong><code>sudo nginx -t</code> reports a syntax error</strong></td>
+          <td>The message tells you the exact file and line — open it with <code>sudo nano /etc/nginx/sites-available/itcourses</code>, fix the typo (usually a missing semicolon <code>;</code> or unmatched brace <code>}</code>), and re-run <code>sudo nginx -t</code> until it says "syntax is ok, test is successful".</td>
         </tr>
         <tr>
           <td><strong><code>npm run build</code> killed by OOM</strong></td>
@@ -1297,11 +1584,23 @@ echo "✓ Deployed at $(date)"</code></pre>
         <tr><th>Vấn đề</th><th>Cách khắc phục</th></tr>
         <tr>
           <td><strong>Trình duyệt báo 502 Bad Gateway</strong></td>
-          <td>Caddy đang chạy nhưng không gọi tới Node ở cổng 3000. SSH vào, chạy <code>pm2 status</code>. Nếu <code>it-courses</code> ở trạng thái <code>errored</code> hay <code>stopped</code>, xem <code>pm2 logs it-courses --lines 100</code> — thường là thiếu biến môi trường hoặc build cũ. Chạy lại <code>~/deploy.sh</code>.</td>
+          <td>Reverse proxy (Caddy hoặc nginx) đang chạy nhưng không gọi tới Node ở cổng 8888. SSH vào, chạy <code>pm2 status</code>. Nếu <code>it-courses</code> ở trạng thái <code>errored</code> hay <code>stopped</code>, xem <code>pm2 logs it-courses --lines 100</code> — thường là thiếu biến môi trường hoặc build cũ. Chạy lại <code>~/deploy.sh</code>.</td>
         </tr>
         <tr>
           <td><strong>Caddy không cấp được chứng chỉ HTTPS</strong></td>
           <td><code>sudo journalctl -u caddy -n 50</code> sẽ cho biết tại sao. Hay gặp nhất: DNS chưa trỏ về VPS — đợi rồi <code>sudo systemctl reload caddy</code>. Hoặc mây cam Cloudflare chặn xác thực — đổi sang "DNS only" mây xám.</td>
+        </tr>
+        <tr>
+          <td><strong>nginx báo <code>bind() to 0.0.0.0:80 failed (98: Address already in use)</code></strong></td>
+          <td>Có dịch vụ khác đang giữ port 80 — thường là Caddy hoặc Apache. Tìm thủ phạm: <code>sudo ss -tlnp | grep :80</code>. Tắt và vô hiệu hoá nó (vd <code>sudo systemctl disable --now caddy</code>), rồi <code>sudo systemctl restart nginx</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>Certbot báo "challenge failed" / timeout</strong></td>
+          <td>Let's Encrypt không truy cập được VPS qua port 80. Kiểm tra: (1) DNS ở bước 13 đã trỏ đúng về VPS chưa — <code>nslookup tenmien.com</code> từ máy bạn. (2) UFW đã mở HTTP chưa — <code>sudo ufw status</code> phải có dòng <code>80/tcp ALLOW</code>. (3) Cloudflare đang ở chế độ DNS only (mây xám) lúc xin chứng chỉ.</td>
+        </tr>
+        <tr>
+          <td><strong><code>sudo nginx -t</code> báo lỗi cú pháp</strong></td>
+          <td>Thông báo lỗi nói rõ file nào, dòng bao nhiêu — mở bằng <code>sudo nano /etc/nginx/sites-available/itcourses</code>, sửa typo (thường là thiếu dấu chấm phẩy <code>;</code> hoặc thiếu dấu ngoặc <code>}</code>), chạy lại <code>sudo nginx -t</code> đến khi báo "syntax is ok, test is successful".</td>
         </tr>
         <tr>
           <td><strong><code>npm run build</code> bị OOM giết</strong></td>
@@ -1352,7 +1651,10 @@ echo "✓ Deployed at $(date)"</code></pre>
         <tr><td><strong>UFW</strong></td><td>Uncomplicated Firewall. Ubuntu's built-in front door that only lets specific ports (22, 80, 443) through.</td></tr>
         <tr><td><strong>Node.js</strong></td><td>The JavaScript runtime that runs your Next.js server. Version 22 LTS is the current stable.</td></tr>
         <tr><td><strong>PM2</strong></td><td>A process manager for Node. Keeps your site running, restarts it on crash, and brings it back after server reboot.</td></tr>
-        <tr><td><strong>Caddy</strong></td><td>A web server / reverse proxy. Sits in front of Node.js, terminates HTTPS, and forwards requests to <code>localhost:3000</code>.</td></tr>
+        <tr><td><strong>Caddy</strong></td><td>A web server / reverse proxy. Sits in front of Node.js, terminates HTTPS, and forwards requests to <code>localhost:8888</code>. Automatic HTTPS via built-in Let's Encrypt.</td></tr>
+        <tr><td><strong>nginx</strong></td><td>The classic alternative to Caddy. Same job (reverse proxy + serve static files) but config is more verbose and HTTPS needs a separate tool (Certbot). Widely used at large scale; tons of tutorials online.</td></tr>
+        <tr><td><strong>Certbot</strong></td><td>Official command-line client for Let's Encrypt. The <code>--nginx</code> plugin auto-edits your nginx config to add HTTPS and sets up auto-renewal in one command.</td></tr>
+        <tr><td><strong>Server block</strong></td><td>nginx's term for the config that tells it "for requests to this domain, do these things". Equivalent to a "virtual host" in Apache or a site block in Caddy.</td></tr>
         <tr><td><strong>Let's Encrypt</strong></td><td>Free, automated certificate authority. Issues the TLS certificates that turn <code>http://</code> into <code>https://</code>.</td></tr>
         <tr><td><strong>Reverse proxy</strong></td><td>A server that receives requests from the public internet and forwards them to your app running on a private port.</td></tr>
         <tr><td><strong>DNS A record</strong></td><td>A line in your domain's DNS that maps a hostname (<code>yourname.com</code>) to an IPv4 address (your VPS IP).</td></tr>
@@ -1377,7 +1679,10 @@ echo "✓ Deployed at $(date)"</code></pre>
         <tr><td><strong>UFW</strong></td><td>Uncomplicated Firewall — tường lửa có sẵn của Ubuntu, chỉ mở những cổng được cho phép (22, 80, 443).</td></tr>
         <tr><td><strong>Node.js</strong></td><td>Môi trường chạy JavaScript, dùng để chạy server Next.js. Phiên bản 22 LTS là bản ổn định hiện tại.</td></tr>
         <tr><td><strong>PM2</strong></td><td>Bộ quản lý tiến trình cho Node. Giữ site luôn chạy, tự khởi động lại khi crash, và bật lại sau khi reboot.</td></tr>
-        <tr><td><strong>Caddy</strong></td><td>Web server / reverse proxy. Đứng trước Node.js, xử lý HTTPS, và chuyển yêu cầu tới <code>localhost:3000</code>.</td></tr>
+        <tr><td><strong>Caddy</strong></td><td>Web server / reverse proxy. Đứng trước Node.js, xử lý HTTPS, và chuyển yêu cầu tới <code>localhost:8888</code>. HTTPS tự động qua Let's Encrypt được tích hợp sẵn.</td></tr>
+        <tr><td><strong>nginx</strong></td><td>Phương án "cổ điển" thay cho Caddy. Cùng nhiệm vụ (reverse proxy + phục vụ file tĩnh) nhưng config dài hơn, HTTPS phải dùng công cụ riêng (Certbot). Được dùng cực phổ biến ở quy mô lớn; tài liệu trên mạng vô số.</td></tr>
+        <tr><td><strong>Certbot</strong></td><td>Công cụ chính thức của Let's Encrypt. Plugin <code>--nginx</code> tự sửa file config nginx để thêm HTTPS và bật tự gia hạn — chỉ trong 1 lệnh.</td></tr>
+        <tr><td><strong>Server block</strong></td><td>Thuật ngữ của nginx cho khối config bảo nó "với request vào tên miền này, hãy làm những việc sau". Tương đương "virtual host" của Apache hoặc site block của Caddy.</td></tr>
         <tr><td><strong>Let's Encrypt</strong></td><td>Tổ chức cấp chứng chỉ miễn phí, tự động. Cấp chứng chỉ TLS biến <code>http://</code> thành <code>https://</code>.</td></tr>
         <tr><td><strong>Reverse proxy</strong></td><td>Server nhận yêu cầu từ internet công khai rồi chuyển tới ứng dụng đang chạy ở cổng nội bộ.</td></tr>
         <tr><td><strong>Bản ghi A (DNS A record)</strong></td><td>Một dòng trong DNS, ánh xạ tên miền (<code>tenmien.com</code>) sang địa chỉ IPv4 (IP VPS).</td></tr>
