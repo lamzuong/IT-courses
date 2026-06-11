@@ -88,7 +88,17 @@
       "Bash(python *)",
       "PowerShell(Start-Process \"C:\\\\Users\\\\ADMIN\\\\Desktop\\\\claude-demo\\\\IT-courses\\\\docs\\\\ai-in-your-project-overview.html\")",
       "PowerShell(Start-Process \"C:\\\\Users\\\\ADMIN\\\\AppData\\\\Local\\\\Temp\\\\test-rcm-output.html\")",
-      "Skill(bilingual-html-guide)"
+      "Skill(bilingual-html-guide)",
+      "Bash(nslookup courses.lamzuong.top 1.1.1.1)",
+      "Bash(nslookup -type=NS lamzuong.top 1.1.1.1)",
+      "Bash(nslookup -type=NS lamzuong.top 8.8.8.8)",
+      "Bash(nslookup -type=SOA lamzuong.top 8.8.8.8)",
+      "Bash(nslookup courses.lamzuong.top 8.8.8.8)",
+      "Bash(nslookup -type=NS top 1.1.1.1)",
+      "Bash(nslookup -type=NS lamzuong.top c.zdnscloud.com)",
+      "WebFetch(domain:rdap.org)",
+      "WebFetch(domain:rdap.nic.top)",
+      "WebFetch(domain:www.nic.top)"
     ]
   }
 }

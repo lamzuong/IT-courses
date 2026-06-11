@@ -397,8 +397,10 @@
       <li><a href="#step-12"><span class="en">Point Cloudflare DNS</span><span class="vi">Trỏ DNS Cloudflare</span></a></li>
       <li><a href="#step-13"><span class="en">Turn on HTTPS</span><span class="vi">Bật HTTPS</span></a></li>
       <li><a href="#step-14"><span class="en">Updating later</span><span class="vi">Cập nhật về sau</span></a></li>
+      <li><a href="#multi-site"><span class="en">Many websites on one server?</span><span class="vi">Nhiều website trên cùng server?</span></a></li>
 
       <li class="toc-phase"><span class="en">🆘 Help</span><span class="vi">🆘 Trợ giúp</span></li>
+      <li><a href="#oom"><span class="en">Build killed (out of memory)</span><span class="vi">Build bị kill (hết RAM)</span></a></li>
       <li><a href="#trouble"><span class="en">Troubleshooting</span><span class="vi">Khắc phục sự cố</span></a></li>
       <li><a href="#glossary"><span class="en">Glossary</span><span class="vi">Bảng thuật ngữ</span></a></li>
     </ol>
@@ -1232,6 +1234,166 @@ docker run -d --name it-courses --restart unless-stopped -p 80:8888 it-courses</
     </div>
   </section>
 
+  <!-- ───────── MULTI-SITE ───────── -->
+  <section id="multi-site" class="step">
+    <div class="step-header">
+      <div class="step-num">🏢</div>
+      <h2>
+        <span class="en">Many websites on one server?</span>
+        <span class="vi">Nhiều website trên cùng server?</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>The steps above give the server's front door (port 80) to a single site with <code>-p 80:8888</code>. That's perfect when this is the only site. But if your server already hosts <strong>several websites told apart by subdomain</strong>, only one program can hold port 80/443 — so you can't give each container the front door.</p>
+      <p>The fix is a <strong>reverse proxy</strong>: one program that owns the front door, reads the domain on each request, and forwards it to the right container. Picture a building with one entrance and many shops inside — the proxy is the <strong>receptionist</strong> who hears which shop the guest wants and walks them there.</p>
+      <div class="diagram" style="background: var(--code-bg); color: var(--code-text); border-radius: var(--radius-sm); padding: 20px; overflow-x:auto; font-size:13px; line-height:1.6; margin:18px 0;"><pre style="background:none;box-shadow:none;padding:0;margin:0;"><code>Visitor → Cloudflare → Server :443 → [Caddy reads domain] ─┬─ a.com  → localhost:8888
+                                                          ├─ b.com  → localhost:8890
+                                                          └─ c.com  → localhost:8892</code></pre></div>
+      <p>In that setup each container binds to <strong>localhost only</strong> on its own port (e.g. <code>-p 127.0.0.1:8888:8888</code>) instead of <code>-p 80:8888</code>, and Caddy out front routes by domain.</p>
+      <div class="box tip">
+        <div class="box-title">📘 Full walkthrough in a separate guide</div>
+        Setting this up — installing Caddy, the Caddyfile explained line by line, and adding new sites whether they run in Docker or not — is covered in its own page: <strong>caddy-reverse-proxy-guide.html</strong> (right next to this file).
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Just one site? You can skip this</div>
+        If this server only ever runs the one site, the plain <code>-p 80:8888</code> from Step 10 is all you need — no proxy required.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Các bước ở trên giao cửa chính của server (cổng 80) cho một site duy nhất bằng <code>-p 80:8888</code>. Cách đó tuyệt vời khi đây là site duy nhất. Nhưng nếu server của bạn đã chạy <strong>nhiều website phân biệt nhau bằng subdomain</strong>, chỉ một chương trình giữ được cổng 80/443 — nên bạn không thể giao cửa chính cho từng container.</p>
+      <p>Cách giải quyết là một <strong>reverse proxy</strong>: một chương trình giữ cửa chính, đọc tên miền trên mỗi request, rồi chuyển tới đúng container. Hãy hình dung một tòa nhà có một lối vào và nhiều quán bên trong — proxy chính là <strong>anh lễ tân</strong> nghe khách hỏi quán nào rồi dẫn tới đó.</p>
+      <div class="diagram" style="background: var(--code-bg); color: var(--code-text); border-radius: var(--radius-sm); padding: 20px; overflow-x:auto; font-size:13px; line-height:1.6; margin:18px 0;"><pre style="background:none;box-shadow:none;padding:0;margin:0;"><code>Khách → Cloudflare → Server :443 → [Caddy đọc tên miền] ─┬─ a.com  → localhost:8888
+                                                        ├─ b.com  → localhost:8890
+                                                        └─ c.com  → localhost:8892</code></pre></div>
+      <p>Trong cách này, mỗi container gắn vào <strong>chỉ localhost</strong> ở cổng riêng của nó (ví dụ <code>-p 127.0.0.1:8888:8888</code>) thay vì <code>-p 80:8888</code>, và Caddy đứng trước định tuyến theo tên miền.</p>
+      <div class="box tip">
+        <div class="box-title">📘 Hướng dẫn đầy đủ ở một file riêng</div>
+        Cách cài đặt — cài Caddy, giải thích Caddyfile từng dòng, và thêm site mới dù chạy Docker hay không — nằm ở trang riêng: <strong>caddy-reverse-proxy-guide.html</strong> (ngay cạnh file này).
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Chỉ có một site? Bạn có thể bỏ qua</div>
+        Nếu server này chỉ chạy duy nhất một site, dùng <code>-p 80:8888</code> như ở Bước 10 là đủ — không cần proxy.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── OOM / SIGKILL ───────── -->
+  <section id="oom" class="step">
+    <div class="step-header">
+      <div class="step-num">💥</div>
+      <h2>
+        <span class="en">Build killed (out of memory)</span>
+        <span class="vi">Build bị kill (hết RAM)</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>If <code>docker build</code> stops in the middle of <code>Creating an optimized production build</code> with an error like this:</p>
+      <pre><code>npm error signal SIGKILL
+npm error command sh -c next build
+Error: building at STEP "RUN npm run build": ... exit status 1</code></pre>
+      <p>...your code is fine. <strong><code>SIGKILL</code> during <code>next build</code> almost always means the server ran out of RAM.</strong> The OS saw the build eating too much memory and killed it to save the machine.</p>
+      <div class="box info">
+        <div class="box-title">☕ Café analogy</div>
+        Building Next.js is like prepping a huge order in a cramped kitchen. When the counter (RAM) runs out of space, the manager (the OS) scraps the whole job to keep the café alive. Cheap VPSes often have just 1&nbsp;GB of RAM — not enough to build Next.js.
+      </div>
+
+      <h3>First, confirm it's RAM</h3>
+      <p>On the server, run:</p>
+      <pre><code>free -h</code></pre>
+      <p>Look at the <code>Mem</code> row. If total RAM is 1&nbsp;GB (or less) and <code>Swap</code> is 0, that's the culprit.</p>
+
+      <h3>Fix A (recommended) — add swap</h3>
+      <p><strong>Why:</strong> swap is a "spare storage room" — it borrows disk space to act as extra memory when RAM fills up. The build gets a little slower but stops getting killed. It's the cleanest fix and keeps your Git workflow. Run these one by one on the server:</p>
+      <pre><code># Create a 2GB swap file
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# Make swap turn back on after every reboot
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# Check: you should now see Swap = 2.0Gi
+free -h</code></pre>
+      <p>Then build again:</p>
+      <pre><code>docker build -t it-courses .</code></pre>
+      <div class="box tip">
+        <div class="box-title">💡 How much swap?</div>
+        With 1&nbsp;GB RAM, give <strong>2&nbsp;GB of swap</strong> (≈3&nbsp;GB total is comfortable for a Next.js build). If it still gets killed, bump it to <code>4G</code>.
+      </div>
+
+      <h3>Fix B (alternative) — build on your computer, ship the image</h3>
+      <p><strong>Why:</strong> your laptop has more RAM than the server. You build the sealed "meal-kit" at home and send the whole box up — the server just opens and runs it, <strong>no build needed</strong>, so it can't run out of RAM.</p>
+      <pre><code># On your computer (laptop)
+docker build -t it-courses .
+docker save it-courses | gzip > it-courses.tar.gz
+scp it-courses.tar.gz root@YOUR_SERVER_IP:/root/
+
+# On the server
+docker load < it-courses.tar.gz
+docker run -d --name it-courses --restart unless-stopped -p 80:8888 it-courses</code></pre>
+      <div class="box info">
+        <div class="box-title">💡 Which one to pick?</div>
+        Go with <strong>Fix A (swap)</strong> — it's a one-time setup, after which <code>git pull</code> + rebuild on the server just works. Fix B avoids building on the server entirely, but you have to re-send the image file every time you update.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Nếu <code>docker build</code> dừng giữa chừng ở bước <code>Creating an optimized production build</code> với lỗi kiểu như:</p>
+      <pre><code>npm error signal SIGKILL
+npm error command sh -c next build
+Error: building at STEP "RUN npm run build": ... exit status 1</code></pre>
+      <p>...thì code của bạn không sao cả. <strong><code>SIGKILL</code> khi đang <code>next build</code> gần như luôn nghĩa là server hết RAM.</strong> Hệ điều hành thấy tiến trình build ngốn quá nhiều bộ nhớ nên kill nó để cứu cả máy.</p>
+      <div class="box info">
+        <div class="box-title">☕ Ví dụ quán cà phê</div>
+        Build Next.js giống như chuẩn bị một đơn hàng cực lớn trong gian bếp chật. Khi mặt bàn (RAM) hết chỗ, anh quản lý (hệ điều hành) dẹp luôn việc đang làm để cứu cả quán. VPS giá rẻ thường chỉ có 1&nbsp;GB RAM — không đủ để build Next.js.
+      </div>
+
+      <h3>Bước 1: xác nhận đúng là do RAM</h3>
+      <p>Trên server, chạy:</p>
+      <pre><code>free -h</code></pre>
+      <p>Nhìn dòng <code>Mem</code>. Nếu tổng RAM là 1&nbsp;GB (hoặc thấp hơn) và <code>Swap</code> là 0 — đúng là thủ phạm.</p>
+
+      <h3>Cách A (khuyên dùng) — thêm swap</h3>
+      <p><strong>Tại sao:</strong> swap là "căn phòng kho tạm" — mượn ổ cứng làm bộ nhớ phụ khi RAM đầy. Build sẽ chậm hơn chút nhưng không bị kill nữa. Đây là cách gọn nhất, giữ nguyên quy trình Git của bạn. Chạy lần lượt trên server:</p>
+      <pre><code># Tạo file swap 2GB
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# Cho swap tự bật lại mỗi khi server khởi động lại
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# Kiểm tra: giờ phải thấy Swap = 2.0Gi
+free -h</code></pre>
+      <p>Rồi build lại:</p>
+      <pre><code>docker build -t it-courses .</code></pre>
+      <div class="box tip">
+        <div class="box-title">💡 Cấp bao nhiêu swap?</div>
+        Nếu server có 1&nbsp;GB RAM, hãy cấp <strong>2&nbsp;GB swap</strong> (tổng ~3&nbsp;GB là build Next.js thoải mái). Nếu vẫn bị kill, tăng lên <code>4G</code>.
+      </div>
+
+      <h3>Cách B (thay thế) — build trên máy, đẩy image lên server</h3>
+      <p><strong>Tại sao:</strong> laptop của bạn nhiều RAM hơn server. Bạn build sẵn "hộp nguyên liệu" ở nhà rồi gửi nguyên hộp lên — server chỉ việc mở ra chạy, <strong>không cần build nữa</strong>, nên không thể hết RAM.</p>
+      <pre><code># Trên máy của bạn (laptop)
+docker build -t it-courses .
+docker save it-courses | gzip > it-courses.tar.gz
+scp it-courses.tar.gz root@IP_SERVER:/root/
+
+# Trên server
+docker load < it-courses.tar.gz
+docker run -d --name it-courses --restart unless-stopped -p 80:8888 it-courses</code></pre>
+      <div class="box info">
+        <div class="box-title">💡 Nên chọn cách nào?</div>
+        Hãy dùng <strong>Cách A (swap)</strong> — chỉ làm một lần, sau đó <code>git pull</code> + build lại trên server vẫn chạy bình thường. Cách B thì khỏi build trên server, nhưng mỗi lần cập nhật bạn phải gửi lại file image.
+      </div>
+    </div>
+  </section>
+
   <!-- ───────── TROUBLESHOOTING ───────── -->
   <section id="trouble" class="step">
     <div class="step-header">
@@ -1244,6 +1406,7 @@ docker run -d --name it-courses --restart unless-stopped -p 80:8888 it-courses</
     <div class="en">
       <table>
         <tr><th>Problem</th><th>Solution</th></tr>
+        <tr><td>Build dies with <code>signal SIGKILL</code> during <code>next build</code></td><td>The server ran out of RAM. Add swap or build the image on your computer — see <a href="#oom">Build killed (out of memory)</a>.</td></tr>
         <tr><td>Build error: <code>.next/standalone</code> not found</td><td>You skipped Step 3. Add <code>output: "standalone"</code> to <code>next.config.mjs</code>, then rebuild.</td></tr>
         <tr><td>Container starts then immediately stops</td><td>Run <code>docker logs it-courses</code> to see the crash reason. Often a missing env var or a build error that slipped through.</td></tr>
         <tr><td>Site loads on the server's IP but not the domain</td><td>DNS issue. Check the A record in Cloudflare points to the right IP, and wait a few minutes for it to propagate.</td></tr>
@@ -1259,6 +1422,7 @@ docker run -d --name it-courses --restart unless-stopped -p 80:8888 it-courses</
     <div class="vi">
       <table>
         <tr><th>Vấn đề</th><th>Cách khắc phục</th></tr>
+        <tr><td>Build chết với <code>signal SIGKILL</code> khi đang <code>next build</code></td><td>Server hết RAM. Thêm swap hoặc build image trên máy của bạn — xem <a href="#oom">Build bị kill (hết RAM)</a>.</td></tr>
         <tr><td>Build lỗi: không tìm thấy <code>.next/standalone</code></td><td>Bạn bỏ qua Bước 3. Thêm <code>output: "standalone"</code> vào <code>next.config.mjs</code> rồi build lại.</td></tr>
         <tr><td>Container vừa chạy đã tắt ngay</td><td>Chạy <code>docker logs it-courses</code> xem lý do crash. Thường do thiếu biến môi trường hoặc lỗi build lọt qua.</td></tr>
         <tr><td>Web lên qua IP server nhưng tên miền thì không</td><td>Lỗi DNS. Kiểm tra bản ghi A trong Cloudflare có trỏ đúng IP không, và đợi vài phút để lan truyền.</td></tr>

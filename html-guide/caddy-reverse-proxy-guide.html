@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Caddy — One Server, Many Websites / Một server, nhiều website</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-1: #fff5f1;
+    --bg-2: #f3f0ff;
+    --bg-3: #e8faf3;
+    --card: #ffffff;
+    --text: #3a3354;
+    --text-soft: #7a7592;
+    --primary: #ff8fab;
+    --primary-2: #b794f6;
+    --accent: #6ee7c7;
+    --sunny: #ffd166;
+    --peach: #ffb088;
+    --sky: #8ecae6;
+    --warn: #f4a261;
+    --danger: #f48fb1;
+    --border: #f0ebf7;
+    --code-bg: #2d2640;
+    --code-text: #f5f0ff;
+    --shadow-sm: 0 2px 8px rgba(183, 148, 246, 0.08);
+    --shadow: 0 8px 24px rgba(183, 148, 246, 0.12);
+    --shadow-lg: 0 14px 38px rgba(183, 148, 246, 0.18);
+    --radius: 22px;
+    --radius-sm: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Quicksand", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background:
+      radial-gradient(circle at 0% 0%, var(--bg-1) 0%, transparent 50%),
+      radial-gradient(circle at 100% 0%, var(--bg-2) 0%, transparent 55%),
+      radial-gradient(circle at 50% 100%, var(--bg-3) 0%, transparent 55%),
+      #fdfbff;
+    background-attachment: fixed;
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 16.5px;
+    font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before, body::after {
+    content: ""; position: fixed; width: 320px; height: 320px;
+    border-radius: 50%; filter: blur(80px); opacity: 0.35;
+    z-index: -1; pointer-events: none;
+  }
+  body::before { background: var(--primary); top: -100px; right: -80px; }
+  body::after  { background: var(--accent);  bottom: -100px; left: -80px; }
+
+  header.topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    padding: 14px 26px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid rgba(240, 235, 247, 0.6);
+  }
+  header.topbar .brand {
+    display: flex; align-items: center; gap: 12px;
+    font-weight: 700; font-size: 18px; color: var(--text);
+  }
+  header.topbar .brand .logo {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    border-radius: 12px; display: grid; place-items: center;
+    font-size: 18px; box-shadow: 0 6px 16px rgba(255, 143, 171, 0.35);
+    transform: rotate(-5deg); transition: transform 0.3s;
+  }
+  header.topbar .brand:hover .logo { transform: rotate(5deg) scale(1.05); }
+
+  .lang-switch {
+    display: flex; gap: 4px;
+    background: rgba(183, 148, 246, 0.08);
+    border-radius: 999px; padding: 5px;
+    border: 1px solid var(--border);
+  }
+  .lang-switch button {
+    font-family: inherit; background: transparent; color: var(--text-soft);
+    border: none; padding: 7px 16px; border-radius: 999px;
+    cursor: pointer; font-weight: 700; font-size: 13px;
+    letter-spacing: 0.5px; transition: all 0.25s ease;
+  }
+  .lang-switch button.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    color: #fff; box-shadow: 0 4px 12px rgba(255, 143, 171, 0.4);
+  }
+  .lang-switch button:not(.active):hover {
+    background: rgba(183, 148, 246, 0.12); color: var(--text);
+  }
+
+  .container { max-width: 980px; margin: 0 auto; padding: 36px 24px 100px; }
+
+  .hero { text-align: center; padding: 56px 20px 36px; }
+  .hero .wave {
+    display: inline-block; font-size: 48px; margin-bottom: 8px;
+    animation: wave 2.4s ease-in-out infinite;
+    transform-origin: 70% 70%;
+  }
+  @keyframes wave {
+    0%, 100% { transform: rotate(0deg); }
+    20%, 60% { transform: rotate(14deg); }
+    40%, 80% { transform: rotate(-10deg); }
+  }
+  .hero h1 {
+    font-family: "Quicksand", sans-serif; font-weight: 700;
+    font-size: 46px; line-height: 1.15; margin: 0 0 14px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 50%, var(--sky) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    letter-spacing: -0.5px;
+  }
+  .hero p.tag {
+    font-size: 18px; color: var(--text-soft);
+    max-width: 640px; margin: 0 auto 28px; font-weight: 500;
+  }
+  .hero .pills { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .pill {
+    background: #fff; border: 1px solid var(--border);
+    padding: 8px 16px; border-radius: 999px;
+    font-size: 14px; font-weight: 600; color: var(--text);
+    box-shadow: var(--shadow-sm); transition: all 0.25s ease;
+  }
+  .pill:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+  .toc {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 26px 30px;
+    margin: 34px 0; box-shadow: var(--shadow);
+  }
+  .toc h3 {
+    margin: 0 0 16px; font-size: 14px; color: var(--text-soft);
+    text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .toc h3::before { content: "✨"; font-size: 18px; }
+  .toc ol {
+    margin: 0; padding-left: 0; list-style: none; counter-reset: toc;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 4px 18px;
+  }
+  .toc ol li {
+    counter-increment: toc; padding: 6px 0;
+    position: relative; padding-left: 32px;
+  }
+  .toc ol li::before {
+    content: counter(toc); position: absolute; left: 0; top: 50%;
+    transform: translateY(-50%); width: 24px; height: 24px;
+    background: linear-gradient(135deg, var(--bg-2), var(--bg-3));
+    color: var(--primary-2); border-radius: 50%;
+    display: grid; place-items: center; font-size: 11px; font-weight: 700;
+  }
+  .toc a { color: var(--text); text-decoration: none; font-weight: 600; transition: color 0.2s; }
+  .toc a:hover { color: var(--primary); }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 32px 34px;
+    margin: 22px 0; box-shadow: var(--shadow);
+    scroll-margin-top: 90px;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .step:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .step-header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  .step-num {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    color: #fff; border-radius: 16px;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 20px; flex-shrink: 0;
+    box-shadow: 0 6px 16px rgba(255, 143, 171, 0.3);
+    transform: rotate(-4deg); transition: transform 0.3s ease;
+  }
+  .step:hover .step-num { transform: rotate(4deg) scale(1.05); }
+  .step:nth-child(3n) .step-num {
+    background: linear-gradient(135deg, var(--sky), var(--accent));
+    box-shadow: 0 6px 16px rgba(110, 231, 199, 0.3);
+  }
+  .step:nth-child(3n+1) .step-num {
+    background: linear-gradient(135deg, var(--sunny), var(--peach));
+    box-shadow: 0 6px 16px rgba(255, 209, 102, 0.3);
+  }
+  .step h2 { margin: 0; font-size: 25px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+  .step h3 {
+    font-size: 19px; font-weight: 700; margin-top: 28px; margin-bottom: 10px;
+    color: var(--text); display: flex; align-items: center; gap: 8px;
+  }
+  .step h3::before {
+    content: ""; width: 6px; height: 18px;
+    background: linear-gradient(180deg, var(--primary), var(--primary-2));
+    border-radius: 3px;
+  }
+  .step p { margin: 12px 0; }
+
+  pre, code { font-family: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace; }
+  pre {
+    background: var(--code-bg); color: var(--code-text);
+    padding: 18px 20px; border-radius: var(--radius-sm);
+    overflow-x: auto; font-size: 14px; line-height: 1.7;
+    position: relative; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+  p code, li code, td code {
+    background: linear-gradient(135deg, var(--bg-2), #fff);
+    color: var(--primary-2); padding: 3px 9px; border-radius: 7px;
+    font-size: 0.88em; font-weight: 500; border: 1px solid var(--border);
+  }
+  .copy-btn {
+    font-family: "Quicksand", sans-serif;
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(255,255,255,0.1); color: #fff;
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 5px 12px; border-radius: 8px;
+    font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.22); transform: translateY(-1px); }
+  .copy-btn.copied { background: var(--accent); border-color: var(--accent); color: var(--text); }
+
+  .box {
+    border-radius: var(--radius-sm); padding: 16px 20px;
+    margin: 18px 0; border: none; position: relative; overflow: hidden;
+  }
+  .box::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 5px; border-radius: 3px;
+  }
+  .box.info   { background: #eaf6ff; }
+  .box.info::before   { background: var(--sky); }
+  .box.warn   { background: #fff4e3; }
+  .box.warn::before   { background: var(--warn); }
+  .box.tip    { background: #e7faf2; }
+  .box.tip::before    { background: var(--accent); }
+  .box.danger { background: #ffe9ee; }
+  .box.danger::before { background: var(--danger); }
+  .box-title { font-weight: 700; margin-bottom: 4px; font-size: 15px; letter-spacing: 0.2px; }
+
+  .checklist { list-style: none; padding: 0; margin: 16px 0; }
+  .checklist li { padding: 10px 0 10px 38px; position: relative; }
+  .checklist li::before {
+    content: "✓"; position: absolute; left: 0; top: 50%;
+    transform: translateY(-50%); width: 26px; height: 26px;
+    background: linear-gradient(135deg, var(--accent), #4dd8b0);
+    color: #fff; border-radius: 50%; display: grid; place-items: center;
+    font-weight: 900; font-size: 13px;
+    box-shadow: 0 3px 8px rgba(110, 231, 199, 0.35);
+  }
+
+  table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    margin: 16px 0; background: #fff;
+    border-radius: var(--radius-sm); overflow: hidden;
+    font-size: 15px; border: 1px solid var(--border);
+  }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th {
+    background: linear-gradient(135deg, var(--bg-2), var(--bg-1));
+    font-weight: 700; color: var(--text); font-size: 12px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #faf8ff; }
+
+  .provider-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px; margin: 18px 0;
+  }
+  .provider-card {
+    padding: 18px;
+    background: linear-gradient(135deg, #fff, var(--bg-2));
+    border-radius: var(--radius-sm); border: 1px solid var(--border);
+    transition: all 0.25s ease; cursor: default;
+  }
+  .provider-card:hover {
+    transform: translateY(-3px); box-shadow: var(--shadow);
+    border-color: var(--primary);
+  }
+  .provider-card .name { font-weight: 700; margin-bottom: 6px; font-size: 16px; }
+  .provider-card .desc { font-size: 14px; color: var(--text-soft); line-height: 1.5; }
+
+  .diagram {
+    background: var(--code-bg); color: var(--code-text);
+    border-radius: var(--radius-sm); padding: 20px;
+    overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 18px 0;
+  }
+
+  [data-lang="en"] .vi { display: none; }
+  [data-lang="vi"] .en { display: none; }
+
+  footer { text-align: center; padding: 40px 20px; color: var(--text-soft); font-size: 15px; }
+  footer .heart {
+    display: inline-block; color: var(--primary);
+    animation: beat 1.4s ease-in-out infinite;
+  }
+  @keyframes beat {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+  }
+  footer a { color: var(--primary-2); text-decoration: none; font-weight: 700; }
+  footer a:hover { text-decoration: underline; }
+
+  .step a { color: var(--primary-2); font-weight: 700; }
+  .step a:hover { color: var(--primary); }
+  .step strong { color: var(--text); font-weight: 700; }
+
+  @media (max-width: 640px) {
+    body { font-size: 15.5px; }
+    .hero h1 { font-size: 34px; }
+    .hero .wave { font-size: 40px; }
+    .step { padding: 24px 20px; }
+    .container { padding: 22px 14px 70px; }
+    .toc ol { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">🚦</div>
+    <span>Caddy · Reverse Proxy</span>
+  </div>
+  <div class="lang-switch" role="tablist">
+    <button id="btn-en" class="active" onclick="setLang('en')">EN</button>
+    <button id="btn-vi" onclick="setLang('vi')">VI</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <section class="hero">
+    <div class="wave">👋</div>
+    <h1>
+      <span class="en">One Server, Many Websites</span>
+      <span class="vi">Một Server, Nhiều Website</span>
+    </h1>
+    <p class="tag">
+      <span class="en">You have several sites on one server, told apart only by their domain. This guide explains the "receptionist" that reads each domain and sends it to the right place — line by line — and shows how to add new sites whether they run in Docker or not. We use Caddy for a fresh setup; if your server already runs nginx, jump to the nginx section.</span>
+      <span class="vi">Bạn có nhiều website trên cùng một server, chỉ phân biệt nhau bằng tên miền. Hướng dẫn này giải thích anh "lễ tân" đọc từng tên miền rồi đưa khách tới đúng nơi — từng dòng một — và chỉ bạn cách thêm site mới dù nó chạy bằng Docker hay không. Mình dùng Caddy cho server làm mới; nếu server của bạn đã chạy nginx, hãy nhảy tới mục nginx.</span>
+    </p>
+    <div class="pills">
+      <span class="pill">🚦 Caddy</span>
+      <span class="pill">🔀 nginx</span>
+      <span class="pill">🏢 Many sites</span>
+      <span class="pill">🐳 With Docker</span>
+      <span class="pill">📄 Without Docker</span>
+      <span class="pill">🔒 HTTPS</span>
+    </div>
+  </section>
+
+  <nav class="toc">
+    <h3>
+      <span class="en">Contents</span>
+      <span class="vi">Mục lục</span>
+    </h3>
+    <ol>
+      <li><a href="#why"><span class="en">Why one server needs Caddy</span><span class="vi">Vì sao một server cần Caddy</span></a></li>
+      <li><a href="#flow"><span class="en">How a request flows</span><span class="vi">Một request đi như thế nào</span></a></li>
+      <li><a href="#install"><span class="en">Install Caddy on the server</span><span class="vi">Cài Caddy trên server</span></a></li>
+      <li><a href="#caddyfile"><span class="en">Your first Caddyfile</span><span class="vi">Caddyfile đầu tiên của bạn</span></a></li>
+      <li><a href="#lines"><span class="en">The Caddyfile, line by line</span><span class="vi">Caddyfile, từng dòng một</span></a></li>
+      <li><a href="#docker-site"><span class="en">Make your Docker site work behind Caddy</span><span class="vi">Cho site Docker chạy sau Caddy</span></a></li>
+      <li><a href="#add-docker"><span class="en">Add another site — with Docker</span><span class="vi">Thêm site khác — có Docker</span></a></li>
+      <li><a href="#add-nodocker"><span class="en">Add another site — without Docker</span><span class="vi">Thêm site khác — không Docker</span></a></li>
+      <li><a href="#reload"><span class="en">Apply your changes safely</span><span class="vi">Áp dụng thay đổi an toàn</span></a></li>
+      <li><a href="#https"><span class="en">HTTPS with Cloudflare</span><span class="vi">HTTPS cùng Cloudflare</span></a></li>
+      <li><a href="#nginx"><span class="en">Already running nginx? Add your site to it</span><span class="vi">Đã có nginx sẵn? Thêm site vào đó</span></a></li>
+      <li><a href="#trouble"><span class="en">Troubleshooting</span><span class="vi">Khắc phục sự cố</span></a></li>
+      <li><a href="#glossary"><span class="en">Glossary</span><span class="vi">Bảng thuật ngữ</span></a></li>
+    </ol>
+  </nav>
+
+  <!-- ───────── WHY ───────── -->
+  <section id="why" class="step">
+    <div class="step-header">
+      <div class="step-num">☕</div>
+      <h2>
+        <span class="en">Why one server needs Caddy</span>
+        <span class="vi">Vì sao một server cần Caddy</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Here's the core problem. On any server, <strong>port 443 (and port 80) can be held by only one program at a time.</strong> You can't give five containers <code>-p 443:...</code> each — only the first one grabs the port; the rest fail with "address already in use".</p>
+      <p>But when a visitor types <code>a.com</code> and another types <code>b.com</code>, both requests arrive at the <strong>same server IP, on the same port 443</strong>. So how does the server know which website each request wants? It reads the domain name carried inside the request (the <code>Host</code> header). Your app container can't sort that out — it only knows how to serve itself.</p>
+      <p>So you need one program that owns port 443, reads the domain on every request, and <strong>forwards it to the right website</strong>. That program is a <strong>reverse proxy</strong>, and we'll use <strong>Caddy</strong>.</p>
+      <div class="box info">
+        <div class="box-title">☕ Café analogy</div>
+        Your server is a building with <strong>one front door</strong> (port 443). Inside are several shops (your websites). Without a receptionist, one door can only lead to one shop. Caddy is the <strong>receptionist</strong>: a guest walks in and says "I'm here for shop B" (that's the domain), and Caddy walks them to the right room. Cloudflare is the security gate on the street that also whispers to the receptionist which shop the guest asked for.
+      </div>
+      <div class="box tip">
+        <div class="box-title">💡 Why Caddy and not Nginx?</div>
+        Both work. Caddy's config is far shorter, and it can fetch and renew HTTPS certificates automatically. For a handful of sites told apart by domain, Caddy is the friendliest choice.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Đây là vấn đề cốt lõi. Trên bất kỳ server nào, <strong>cổng 443 (và cổng 80) tại một thời điểm chỉ một chương trình giữ được.</strong> Bạn không thể cho năm container mỗi cái một <code>-p 443:...</code> — chỉ cái đầu tiên chiếm được cổng; các cái sau báo lỗi "address already in use" (cổng đang bị dùng).</p>
+      <p>Nhưng khi một khách gõ <code>a.com</code> và khách khác gõ <code>b.com</code>, cả hai request đều tới <strong>cùng một IP server, cùng cổng 443</strong>. Vậy server làm sao biết mỗi request muốn website nào? Nó đọc tên miền nằm bên trong request (gọi là <code>Host</code> header). Container app của bạn không phân loại được chuyện đó — nó chỉ biết phục vụ chính nó.</p>
+      <p>Vậy nên bạn cần một chương trình giữ cổng 443, đọc tên miền trên từng request, rồi <strong>chuyển tiếp tới đúng website</strong>. Chương trình đó gọi là <strong>reverse proxy</strong>, và mình sẽ dùng <strong>Caddy</strong>.</p>
+      <div class="box info">
+        <div class="box-title">☕ Ví dụ quán cà phê</div>
+        Server của bạn là một tòa nhà có <strong>một cửa chính duy nhất</strong> (cổng 443). Bên trong có nhiều quán (các website của bạn). Không có lễ tân thì một cửa chỉ dẫn vào được một quán. Caddy chính là <strong>anh lễ tân</strong>: khách bước vào nói "tôi tìm quán B" (đó là tên miền), Caddy dẫn khách tới đúng phòng. Cloudflare là cổng bảo vệ ngoài đường, đồng thời nói nhỏ cho lễ tân biết khách hỏi quán nào.
+      </div>
+      <div class="box tip">
+        <div class="box-title">💡 Sao lại Caddy mà không phải Nginx?</div>
+        Cả hai đều được. Nhưng cấu hình Caddy ngắn hơn nhiều, và nó tự xin cùng tự gia hạn chứng chỉ HTTPS. Với vài site phân biệt bằng tên miền, Caddy là lựa chọn dễ thở nhất.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── FLOW ───────── -->
+  <section id="flow" class="step">
+    <div class="step-header">
+      <div class="step-num">🗺️</div>
+      <h2>
+        <span class="en">How a request flows</span>
+        <span class="vi">Một request đi như thế nào</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Keep this picture in your head — every later step is just filling in one of these arrows. Caddy sits on port 443, reads the domain, and routes to whichever site matches, no matter how that site happens to run.</p>
+      <div class="diagram"><pre style="background:none;box-shadow:none;padding:0;margin:0;"><code>                                       Server (one IP address)
+                                  ┌───────────────────────────────────────┐
+  Visitor                         │                                         │
+  types a   ──►  Cloudflare  ──►  │  Caddy  ──┬──►  localhost:8888  (Docker) │
+  domain         (the gate,  :443 │  reads    ├──►  localhost:3000  (Node app,│
+                  HTTPS)          │  the      │                   no Docker)  │
+                                  │  domain   └──►  /var/www/landing (plain   │
+                                  │                                  files)   │
+                                  └───────────────────────────────────────┘</code></pre></div>
+      <p>Notice the three destinations are <strong>all "localhost:something" or a folder</strong>. That's the trick that makes mixing Docker and non-Docker sites easy: from Caddy's point of view they all look the same — a port on the same machine, or a folder of files.</p>
+    </div>
+
+    <div class="vi">
+      <p>Giữ bức hình này trong đầu — mọi bước sau chỉ là điền vào một trong các mũi tên này. Caddy ngồi ở cổng 443, đọc tên miền, rồi định tuyến tới site nào khớp, bất kể site đó chạy kiểu gì.</p>
+      <div class="diagram"><pre style="background:none;box-shadow:none;padding:0;margin:0;"><code>                                       Server (một địa chỉ IP)
+                                  ┌───────────────────────────────────────┐
+  Khách                           │                                         │
+  gõ một   ──►  Cloudflare  ──►   │  Caddy  ──┬──►  localhost:8888  (Docker) │
+  tên miền      (cổng bảo   :443  │  đọc      ├──►  localhost:3000  (app Node,│
+                vệ, HTTPS)        │  tên      │                   không Docker)│
+                                  │  miền     └──►  /var/www/landing (file    │
+                                  │                                  tĩnh)    │
+                                  └───────────────────────────────────────┘</code></pre></div>
+      <p>Để ý cả ba đích đến <strong>đều là "localhost:cổng nào đó" hoặc một thư mục</strong>. Đó chính là mẹo khiến việc trộn site Docker và không-Docker trở nên dễ: dưới con mắt của Caddy chúng đều giống nhau — một cổng trên cùng máy, hoặc một thư mục chứa file.</p>
+    </div>
+  </section>
+
+  <!-- ───────── INSTALL ───────── -->
+  <section id="install" class="step">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <h2>
+        <span class="en">Install Caddy on the server</span>
+        <span class="vi">Cài Caddy trên server</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>We install Caddy <strong>directly on the server</strong> (not in a container). Why? Because it makes the receptionist able to reach everything uniformly with <code>localhost</code> — your Docker sites, your non-Docker apps, and plain files all look the same to it. (Running Caddy in Docker is possible but makes the "without Docker" case fiddly.)</p>
+      <p>On Ubuntu/Debian, the official install is a copy-paste block:</p>
+      <pre><code>sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update
+sudo apt install -y caddy</code></pre>
+      <p>That installs Caddy <em>and</em> registers it as a background service that starts on boot. Check it:</p>
+      <pre><code>caddy version
+systemctl status caddy</code></pre>
+      <div class="box tip">
+        <div class="box-title">✓ Check it worked</div>
+        <code>caddy version</code> prints a version like <code>v2.x.x</code>, and <code>systemctl status caddy</code> shows <strong>active (running)</strong>. Press <code>q</code> to exit the status view.
+      </div>
+      <div class="box warn">
+        <div class="box-title">⚠️ Free up port 80 and 443 first</div>
+        If a container is currently holding port 80 (from the Docker guide's <code>-p 80:8888</code>), Caddy can't start. We fix that in step 6 by re-binding the app to <code>127.0.0.1</code>. Do that before expecting Caddy to take over the public ports.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Mình cài Caddy <strong>thẳng trên server</strong> (không bỏ trong container). Tại sao? Vì như vậy anh lễ tân với tới được mọi thứ một cách đồng nhất qua <code>localhost</code> — site Docker, app không-Docker, và file tĩnh đều giống nhau dưới mắt nó. (Chạy Caddy trong Docker cũng được, nhưng làm trường hợp "không Docker" rối hơn.)</p>
+      <p>Trên Ubuntu/Debian, lệnh cài chính thức là một khối copy-paste:</p>
+      <pre><code>sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update
+sudo apt install -y caddy</code></pre>
+      <p>Lệnh đó cài Caddy <em>và</em> đăng ký nó thành một dịch vụ nền tự khởi động khi server bật. Kiểm tra:</p>
+      <pre><code>caddy version
+systemctl status caddy</code></pre>
+      <div class="box tip">
+        <div class="box-title">✓ Kiểm tra đã chạy chưa</div>
+        <code>caddy version</code> in ra phiên bản kiểu <code>v2.x.x</code>, và <code>systemctl status caddy</code> hiện <strong>active (running)</strong>. Bấm <code>q</code> để thoát màn hình trạng thái.
+      </div>
+      <div class="box warn">
+        <div class="box-title">⚠️ Giải phóng cổng 80 và 443 trước</div>
+        Nếu một container đang giữ cổng 80 (do <code>-p 80:8888</code> ở hướng dẫn Docker), Caddy sẽ không khởi động được. Mình sửa ở bước 6 bằng cách buộc app về <code>127.0.0.1</code>. Làm việc đó trước khi mong Caddy nắm giữ các cổng công khai.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── CADDYFILE ───────── -->
+  <section id="caddyfile" class="step">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <h2>
+        <span class="en">Your first Caddyfile</span>
+        <span class="vi">Caddyfile đầu tiên của bạn</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>The whole brain of the receptionist lives in one text file at <code>/etc/caddy/Caddyfile</code>. Open it with a simple editor:</p>
+      <pre><code>sudo nano /etc/caddy/Caddyfile</code></pre>
+      <p>Delete what's there and paste this example — three sites of three different kinds, so you can see the pattern at a glance. Replace the domains with your own.</p>
+      <pre><code># === Site 1: IT-courses — runs in Docker on port 8888 ===
+it-courses.com, www.it-courses.com {
+    reverse_proxy localhost:8888
+}
+
+# === Site 2: A blog — a Node app (no Docker) on port 3000 ===
+blog.example.com {
+    reverse_proxy localhost:3000
+}
+
+# === Site 3: A landing page — just static HTML files ===
+landing.example.com {
+    root * /var/www/landing
+    file_server
+}</code></pre>
+      <p>Save in <code>nano</code> with <code>Ctrl + O</code>, <code>Enter</code>, then exit with <code>Ctrl + X</code>. Don't apply it yet — first let's understand every line (next step), then we'll reload safely (step 9).</p>
+      <div class="box info">
+        <div class="box-title">💡 You only keep the blocks you need</div>
+        This file shows all three styles for teaching. In real life you might have only the first block today, and add more over time. Each <code>{ ... }</code> block is one independent website.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Toàn bộ "bộ não" của anh lễ tân nằm trong một file văn bản duy nhất tại <code>/etc/caddy/Caddyfile</code>. Mở nó bằng một trình soạn đơn giản:</p>
+      <pre><code>sudo nano /etc/caddy/Caddyfile</code></pre>
+      <p>Xóa nội dung sẵn có và dán ví dụ này — ba site thuộc ba kiểu khác nhau, để bạn nhìn một phát là thấy quy luật. Thay tên miền bằng của bạn.</p>
+      <pre><code># === Site 1: IT-courses — chạy trong Docker ở cổng 8888 ===
+it-courses.com, www.it-courses.com {
+    reverse_proxy localhost:8888
+}
+
+# === Site 2: Một blog — app Node (không Docker) ở cổng 3000 ===
+blog.example.com {
+    reverse_proxy localhost:3000
+}
+
+# === Site 3: Một trang landing — chỉ là file HTML tĩnh ===
+landing.example.com {
+    root * /var/www/landing
+    file_server
+}</code></pre>
+      <p>Trong <code>nano</code>, lưu bằng <code>Ctrl + O</code>, <code>Enter</code>, rồi thoát bằng <code>Ctrl + X</code>. Khoan áp dụng vội — mình hiểu từng dòng đã (bước kế), rồi reload an toàn sau (bước 9).</p>
+      <div class="box info">
+        <div class="box-title">💡 Bạn chỉ giữ những khối mình cần</div>
+        File này hiện cả ba kiểu để dạy thôi. Thực tế hôm nay bạn có thể chỉ có khối đầu, rồi thêm dần về sau. Mỗi khối <code>{ ... }</code> là một website độc lập.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── LINE BY LINE ───────── -->
+  <section id="lines" class="step">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <h2>
+        <span class="en">The Caddyfile, line by line</span>
+        <span class="vi">Caddyfile, từng dòng một</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Now the promised part — every line, what it does and why it's there. Caddy's syntax is just: <strong>a site address, then a <code>{ }</code> block of directives</strong> telling Caddy what to do for that site.</p>
+      <table>
+        <tr><th>Line</th><th>What it does</th></tr>
+        <tr><td><code># === Site 1: ... ===</code></td><td>A <strong>comment</strong>. Any line starting with <code>#</code> is ignored by Caddy — it's only a note to your future self. Label each block so you remember what it is.</td></tr>
+        <tr><td><code>it-courses.com, www.it-courses.com {</code></td><td>The <strong>site address</strong> — the domain(s) this block answers for. A comma lets one block serve several names (here the bare domain and the <code>www</code> version). The <code>{</code> opens the block of rules. <strong>Caddy automatically gets a free HTTPS certificate for every name listed here.</strong></td></tr>
+        <tr><td><code>reverse_proxy localhost:8888</code></td><td>The actual job: <strong>forward every incoming request to a program listening on port 8888 on this same machine</strong>, then pass its reply back to the visitor. That program is your IT-courses container.</td></tr>
+        <tr><td><code>}</code></td><td>Closes the block. Everything between <code>{</code> and <code>}</code> applies only to that site.</td></tr>
+        <tr><td><code>reverse_proxy localhost:3000</code></td><td>Same idea, different port. Site 2's app happens to listen on 3000. Caddy doesn't care whether that app is in Docker or not — it's just "a port on localhost".</td></tr>
+        <tr><td><code>root * /var/www/landing</code></td><td>For a <strong>static</strong> site there's no app to forward to — Caddy serves files itself. <code>root</code> sets the folder. The <code>*</code> means "for all request paths, use this folder."</td></tr>
+        <tr><td><code>file_server</code></td><td>Turns on the actual file-serving. Together with <code>root</code>, this makes Caddy hand out the HTML/CSS/images in that folder directly. No <code>reverse_proxy</code> needed here.</td></tr>
+      </table>
+      <div class="box tip">
+        <div class="box-title">💡 The mental shortcut</div>
+        <strong>domain → <code>{</code> → either <code>reverse_proxy localhost:PORT</code> (an app) or <code>root</code> + <code>file_server</code> (plain files) → <code>}</code>.</strong> That's 95% of everything you'll ever write in a Caddyfile.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Giờ tới phần đã hứa — từng dòng, làm gì và vì sao có mặt. Cú pháp Caddy chỉ gồm: <strong>một địa chỉ site, rồi một khối <code>{ }</code> chứa các chỉ thị</strong> bảo Caddy làm gì cho site đó.</p>
+      <table>
+        <tr><th>Dòng</th><th>Làm gì</th></tr>
+        <tr><td><code># === Site 1: ... ===</code></td><td>Một <strong>dòng chú thích</strong>. Bất kỳ dòng nào bắt đầu bằng <code>#</code> đều bị Caddy bỏ qua — chỉ là ghi chú cho chính bạn sau này. Đặt nhãn cho mỗi khối để nhớ nó là gì.</td></tr>
+        <tr><td><code>it-courses.com, www.it-courses.com {</code></td><td><strong>Địa chỉ site</strong> — (các) tên miền mà khối này phụ trách. Dấu phẩy cho phép một khối phục vụ nhiều tên (ở đây là tên miền trần và bản <code>www</code>). Dấu <code>{</code> mở khối luật. <strong>Caddy tự động xin chứng chỉ HTTPS miễn phí cho mọi tên liệt kê ở đây.</strong></td></tr>
+        <tr><td><code>reverse_proxy localhost:8888</code></td><td>Việc chính: <strong>chuyển tiếp mọi request đến cho chương trình đang lắng nghe ở cổng 8888 trên cùng máy này</strong>, rồi trả phản hồi của nó về cho khách. Chương trình đó là container IT-courses của bạn.</td></tr>
+        <tr><td><code>}</code></td><td>Đóng khối. Mọi thứ giữa <code>{</code> và <code>}</code> chỉ áp dụng cho site đó.</td></tr>
+        <tr><td><code>reverse_proxy localhost:3000</code></td><td>Cùng ý tưởng, khác cổng. App của Site 2 tình cờ lắng nghe ở 3000. Caddy không quan tâm app đó trong Docker hay không — với nó chỉ là "một cổng trên localhost".</td></tr>
+        <tr><td><code>root * /var/www/landing</code></td><td>Với site <strong>tĩnh</strong> thì không có app để chuyển tiếp — Caddy tự phục vụ file. <code>root</code> đặt thư mục. Dấu <code>*</code> nghĩa là "với mọi đường dẫn request, dùng thư mục này".</td></tr>
+        <tr><td><code>file_server</code></td><td>Bật chức năng phục vụ file thật sự. Cùng với <code>root</code>, nó khiến Caddy đưa trực tiếp HTML/CSS/ảnh trong thư mục đó ra. Ở đây không cần <code>reverse_proxy</code>.</td></tr>
+      </table>
+      <div class="box tip">
+        <div class="box-title">💡 Mẹo ghi nhớ</div>
+        <strong>tên miền → <code>{</code> → hoặc <code>reverse_proxy localhost:CỔNG</code> (một app) hoặc <code>root</code> + <code>file_server</code> (file tĩnh) → <code>}</code>.</strong> Đó là 95% mọi thứ bạn sẽ viết trong một Caddyfile.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── DOCKER SITE BEHIND CADDY ───────── -->
+  <section id="docker-site" class="step">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <h2>
+        <span class="en">Make your Docker site work behind Caddy</span>
+        <span class="vi">Cho site Docker chạy sau Caddy</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>In the Docker guide you ran the container with <code>-p 80:8888</code> — that gave the container the building's front door directly. Now Caddy owns the front door, so the container should step back and only be reachable <strong>from inside the server</strong>. We change the port mapping to bind to <code>127.0.0.1</code>.</p>
+      <p>Stop the old container and start it bound to localhost only:</p>
+      <pre><code>docker rm -f it-courses
+docker run -d \
+  --name it-courses \
+  --restart unless-stopped \
+  -p 127.0.0.1:8888:8888 \
+  it-courses</code></pre>
+      <p>The only change is <code>-p 127.0.0.1:8888:8888</code> instead of <code>-p 80:8888</code>. Reading it: "publish container port 8888, but only on the server's internal address <code>127.0.0.1</code>, on port 8888." The outside world can no longer reach <code>8888</code> directly — only Caddy can, via <code>localhost:8888</code>, exactly as written in the Caddyfile.</p>
+      <div class="box info">
+        <div class="box-title">💡 Why 127.0.0.1 and not just leave it open?</div>
+        <code>127.0.0.1</code> means "this machine only". It keeps visitors from bypassing Caddy (and your HTTPS) by hitting <code>http://your-ip:8888</code> directly. The receptionist becomes the only way in — which is exactly what you want.
+      </div>
+      <div class="box tip">
+        <div class="box-title">✓ Check it worked</div>
+        <code>curl localhost:8888</code> on the server returns your site's HTML. From the outside, <code>http://your-ip:8888</code> should now refuse to connect. Good — that means only Caddy can reach it.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Ở hướng dẫn Docker, bạn chạy container với <code>-p 80:8888</code> — tức là đưa cho container cửa chính của tòa nhà luôn. Giờ Caddy giữ cửa chính, nên container nên lùi lại và chỉ cho phép truy cập <strong>từ bên trong server</strong>. Mình đổi ánh xạ cổng để gắn vào <code>127.0.0.1</code>.</p>
+      <p>Dừng container cũ và chạy lại, gắn chỉ vào localhost:</p>
+      <pre><code>docker rm -f it-courses
+docker run -d \
+  --name it-courses \
+  --restart unless-stopped \
+  -p 127.0.0.1:8888:8888 \
+  it-courses</code></pre>
+      <p>Thay đổi duy nhất là <code>-p 127.0.0.1:8888:8888</code> thay cho <code>-p 80:8888</code>. Đọc cho hiểu: "công bố cổng 8888 của container, nhưng chỉ trên địa chỉ nội bộ <code>127.0.0.1</code> của server, ở cổng 8888". Thế giới bên ngoài không còn với tới <code>8888</code> trực tiếp được nữa — chỉ Caddy với được, qua <code>localhost:8888</code>, đúng như ghi trong Caddyfile.</p>
+      <div class="box info">
+        <div class="box-title">💡 Sao lại 127.0.0.1 chứ không để mở luôn?</div>
+        <code>127.0.0.1</code> nghĩa là "chỉ máy này". Nó ngăn khách lách qua Caddy (và HTTPS của bạn) bằng cách gõ thẳng <code>http://ip-cua-ban:8888</code>. Anh lễ tân trở thành lối vào duy nhất — đúng điều bạn muốn.
+      </div>
+      <div class="box tip">
+        <div class="box-title">✓ Kiểm tra đã chạy chưa</div>
+        Chạy <code>curl localhost:8888</code> trên server sẽ trả về HTML của web. Từ bên ngoài, <code>http://ip-cua-ban:8888</code> giờ phải từ chối kết nối. Vậy là tốt — chỉ Caddy với tới được.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── ADD WITH DOCKER ───────── -->
+  <section id="add-docker" class="step">
+    <div class="step-header">
+      <div class="step-num">5</div>
+      <h2>
+        <span class="en">Add another site — with Docker</span>
+        <span class="vi">Thêm site khác — có Docker</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Say you want to launch a second Dockerised site, <code>shop.example.com</code>. The rule of thumb: <strong>give each site its own internal port</strong> so they don't collide. IT-courses uses 8888, so let's give the shop 8890.</p>
+      <p><strong>1.</strong> Run its container, bound to localhost on its own port:</p>
+      <pre><code>docker run -d \
+  --name shop \
+  --restart unless-stopped \
+  -p 127.0.0.1:8890:8888 \
+  shop-image</code></pre>
+      <p>Note: the container still listens on 8888 <em>inside</em> (that's baked into the image), but we publish it on the server as <strong>8890</strong>. Format is <code>host:container</code>, so <code>127.0.0.1:8890:8888</code> = "server's 8890 → container's 8888".</p>
+      <p><strong>2.</strong> Add a block to the Caddyfile pointing at that port:</p>
+      <pre><code>shop.example.com {
+    reverse_proxy localhost:8890
+}</code></pre>
+      <p><strong>3.</strong> Reload Caddy (step 9). Done — a new live site in three small moves.</p>
+      <div class="box warn">
+        <div class="box-title">⚠️ Two containers can't share one host port</div>
+        If you try <code>127.0.0.1:8888:8888</code> for the shop too, Docker refuses — 8888 is taken by IT-courses. Always pick a fresh host port (8890, 8891, …) for each new site.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Giả sử bạn muốn ra mắt một site Docker thứ hai, <code>shop.example.com</code>. Quy tắc bỏ túi: <strong>mỗi site một cổng nội bộ riêng</strong> để chúng không đụng nhau. IT-courses dùng 8888, vậy cho shop dùng 8890.</p>
+      <p><strong>1.</strong> Chạy container của nó, gắn vào localhost ở cổng riêng:</p>
+      <pre><code>docker run -d \
+  --name shop \
+  --restart unless-stopped \
+  -p 127.0.0.1:8890:8888 \
+  shop-image</code></pre>
+      <p>Lưu ý: <em>bên trong</em> container vẫn lắng nghe ở 8888 (điều này nằm sẵn trong image), nhưng mình công bố ra server ở cổng <strong>8890</strong>. Định dạng là <code>host:container</code>, nên <code>127.0.0.1:8890:8888</code> = "cổng 8890 của server → cổng 8888 của container".</p>
+      <p><strong>2.</strong> Thêm một khối vào Caddyfile trỏ tới cổng đó:</p>
+      <pre><code>shop.example.com {
+    reverse_proxy localhost:8890
+}</code></pre>
+      <p><strong>3.</strong> Reload Caddy (bước 9). Xong — một site mới chạy thật chỉ trong ba động tác nhỏ.</p>
+      <div class="box warn">
+        <div class="box-title">⚠️ Hai container không thể chung một cổng host</div>
+        Nếu bạn cũng thử <code>127.0.0.1:8888:8888</code> cho shop, Docker sẽ từ chối — 8888 đã bị IT-courses chiếm. Luôn chọn một cổng host mới (8890, 8891, …) cho mỗi site mới.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── ADD WITHOUT DOCKER ───────── -->
+  <section id="add-nodocker" class="step">
+    <div class="step-header">
+      <div class="step-num">6</div>
+      <h2>
+        <span class="en">Add another site — without Docker</span>
+        <span class="vi">Thêm site khác — không Docker</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Not every site needs Docker. There are two common no-Docker shapes, and Caddy handles both. Pick the one that matches your site.</p>
+
+      <h3>A — An app running directly (Node, Python, PHP…)</h3>
+      <p>Say you run a Node app straight on the server and it listens on port 3000 (for example started with <code>npm start</code>, or kept alive by <code>pm2</code>). There's nothing Docker-specific to do — it's just a program on a port. Point Caddy at it:</p>
+      <pre><code>blog.example.com {
+    reverse_proxy localhost:3000
+}</code></pre>
+      <p>That's the <em>same</em> <code>reverse_proxy</code> line as a Docker site. To Caddy, "an app on port 3000" is identical whether Docker started it or you did by hand.</p>
+      <div class="box tip">
+        <div class="box-title">💡 Keep a non-Docker app alive</div>
+        A bare <code>npm start</code> dies when you close SSH. Tools like <strong>pm2</strong> (<code>npm i -g pm2</code>, then <code>pm2 start npm -- start</code>) or a small systemd service keep it running 24/7 and restart it on reboot — the job Docker's <code>--restart</code> did for you before.
+      </div>
+
+      <h3>B — Plain static files (HTML/CSS/JS, no app at all)</h3>
+      <p>If the site is just files — a landing page, a built React/Vite export, a portfolio — there's no app to proxy to. Caddy serves the folder itself. First put your files somewhere, e.g.:</p>
+      <pre><code>sudo mkdir -p /var/www/landing
+# copy your index.html and assets into that folder</code></pre>
+      <p>Then the block is just two lines:</p>
+      <pre><code>landing.example.com {
+    root * /var/www/landing
+    file_server
+}</code></pre>
+      <p><code>root</code> says where the files live; <code>file_server</code> says "hand them out." No port, no app, no Docker. Caddy even sets the right cache and content-type headers for you.</p>
+      <div class="box info">
+        <div class="box-title">💡 Which shape is mine?</div>
+        If you run a command to "start" the site → it's an app, use <strong>A</strong> (<code>reverse_proxy</code>). If the site is a folder of files you just need to display → use <strong>B</strong> (<code>root</code> + <code>file_server</code>).
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Không phải site nào cũng cần Docker. Có hai kiểu không-Docker thường gặp, và Caddy lo được cả hai. Chọn kiểu khớp với site của bạn.</p>
+
+      <h3>A — Một app chạy trực tiếp (Node, Python, PHP…)</h3>
+      <p>Giả sử bạn chạy một app Node thẳng trên server và nó lắng nghe ở cổng 3000 (ví dụ khởi động bằng <code>npm start</code>, hoặc được <code>pm2</code> giữ sống). Không có gì riêng của Docker phải làm cả — nó chỉ là một chương trình trên một cổng. Trỏ Caddy tới nó:</p>
+      <pre><code>blog.example.com {
+    reverse_proxy localhost:3000
+}</code></pre>
+      <p>Đó là <em>đúng</em> dòng <code>reverse_proxy</code> giống như site Docker. Với Caddy, "một app ở cổng 3000" là như nhau, bất kể Docker khởi động nó hay bạn tự tay chạy.</p>
+      <div class="box tip">
+        <div class="box-title">💡 Giữ app không-Docker sống</div>
+        Một lệnh <code>npm start</code> trơ trọi sẽ chết khi bạn đóng SSH. Công cụ như <strong>pm2</strong> (<code>npm i -g pm2</code>, rồi <code>pm2 start npm -- start</code>) hoặc một dịch vụ systemd nhỏ sẽ giữ nó chạy 24/7 và tự bật lại khi reboot — đúng việc mà <code>--restart</code> của Docker đã làm hộ bạn trước đây.
+      </div>
+
+      <h3>B — File tĩnh thuần (HTML/CSS/JS, không có app)</h3>
+      <p>Nếu site chỉ là file — một trang landing, bản export React/Vite đã build, một portfolio — thì không có app để proxy tới. Caddy tự phục vụ thư mục. Trước hết đặt file vào đâu đó, ví dụ:</p>
+      <pre><code>sudo mkdir -p /var/www/landing
+# copy index.html và các file của bạn vào thư mục đó</code></pre>
+      <p>Rồi khối cấu hình chỉ gồm hai dòng:</p>
+      <pre><code>landing.example.com {
+    root * /var/www/landing
+    file_server
+}</code></pre>
+      <p><code>root</code> nói file nằm ở đâu; <code>file_server</code> nói "đưa chúng ra". Không cổng, không app, không Docker. Caddy còn tự đặt header cache và content-type đúng giúp bạn.</p>
+      <div class="box info">
+        <div class="box-title">💡 Site của mình thuộc kiểu nào?</div>
+        Nếu bạn phải chạy một lệnh để "khởi động" site → đó là app, dùng <strong>A</strong> (<code>reverse_proxy</code>). Nếu site là một thư mục file chỉ cần hiển thị → dùng <strong>B</strong> (<code>root</code> + <code>file_server</code>).
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── RELOAD ───────── -->
+  <section id="reload" class="step">
+    <div class="step-header">
+      <div class="step-num">7</div>
+      <h2>
+        <span class="en">Apply your changes safely</span>
+        <span class="vi">Áp dụng thay đổi an toàn</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>After every edit to the Caddyfile, do these two things — in this order. First, <strong>check the file for mistakes</strong> before applying it, so a typo can't take all your sites down:</p>
+      <pre><code>sudo caddy validate --config /etc/caddy/Caddyfile</code></pre>
+      <p>If it says <code>Valid configuration</code>, apply it with a <strong>reload</strong> — this swaps in the new config with zero downtime; visitors don't notice:</p>
+      <pre><code>sudo systemctl reload caddy</code></pre>
+      <div class="box tip">
+        <div class="box-title">✓ Check it worked</div>
+        Visit each domain in a browser. They should load over <code>https://</code> with a padlock. <code>systemctl status caddy</code> stays <strong>active (running)</strong>.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 reload vs restart</div>
+        <code>reload</code> = re-read the config without dropping connections (use this normally). <code>restart</code> = fully stop and start (a brief blip; only needed if Caddy is truly stuck). Prefer <code>reload</code>.
+      </div>
+      <div class="box warn">
+        <div class="box-title">⚠️ See the real reason it failed</div>
+        If a reload doesn't behave, read the log: <code>sudo journalctl -u caddy --no-pager -n 50</code>. It tells you exactly which line or which certificate caused trouble.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Sau mỗi lần sửa Caddyfile, làm hai việc này — theo đúng thứ tự. Trước hết, <strong>kiểm tra file có lỗi không</strong> trước khi áp dụng, để một lỗi gõ nhầm không kéo sập toàn bộ site của bạn:</p>
+      <pre><code>sudo caddy validate --config /etc/caddy/Caddyfile</code></pre>
+      <p>Nếu nó báo <code>Valid configuration</code>, áp dụng bằng lệnh <strong>reload</strong> — lệnh này thay cấu hình mới vào mà không gián đoạn; khách không hề hay biết:</p>
+      <pre><code>sudo systemctl reload caddy</code></pre>
+      <div class="box tip">
+        <div class="box-title">✓ Kiểm tra đã chạy chưa</div>
+        Vào từng tên miền trên trình duyệt. Chúng phải lên qua <code>https://</code> kèm ổ khóa. <code>systemctl status caddy</code> vẫn <strong>active (running)</strong>.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 reload và restart khác gì</div>
+        <code>reload</code> = đọc lại cấu hình mà không ngắt kết nối (dùng cái này bình thường). <code>restart</code> = dừng hẳn rồi bật lại (gián đoạn một thoáng; chỉ cần khi Caddy thật sự kẹt). Ưu tiên <code>reload</code>.
+      </div>
+      <div class="box warn">
+        <div class="box-title">⚠️ Xem lý do thật khi hỏng</div>
+        Nếu reload không như ý, đọc log: <code>sudo journalctl -u caddy --no-pager -n 50</code>. Nó nói chính xác dòng nào hoặc chứng chỉ nào gây trục trặc.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── HTTPS / CLOUDFLARE ───────── -->
+  <section id="https" class="step">
+    <div class="step-header">
+      <div class="step-num">8</div>
+      <h2>
+        <span class="en">HTTPS with Cloudflare</span>
+        <span class="vi">HTTPS cùng Cloudflare</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Caddy gets HTTPS certificates by itself — normally you write nothing. But because your domains sit <strong>behind Cloudflare's orange cloud</strong>, there's one detail to get right, or you'll see redirect loops or certificate warnings. Pick the mode that fits.</p>
+
+      <h3>Mode 1 — Grey cloud / no Cloudflare proxy</h3>
+      <p>If a domain's cloud in Cloudflare is <strong>grey</strong> (DNS only), visitors reach your server directly. Caddy then fetches a real Let's Encrypt certificate automatically — your plain blocks already do this, nothing to add. Easiest, but you lose Cloudflare's caching and IP hiding.</p>
+
+      <h3>Mode 2 — Orange cloud (recommended): Origin Certificate</h3>
+      <p>With the orange cloud on, Cloudflare wants the server to present a certificate it trusts. The clean way is a free <strong>Cloudflare Origin Certificate</strong> (valid ~15 years) that you hand to Caddy.</p>
+      <ul class="checklist">
+        <li>In Cloudflare: <strong>SSL/TLS → Origin Server → Create Certificate</strong>. Save the certificate and private key to the server, e.g. <code>/etc/caddy/origin.pem</code> and <code>/etc/caddy/origin.key</code>.</li>
+        <li>Set <strong>SSL/TLS → Overview → Full (strict)</strong>.</li>
+        <li>Tell Caddy to use that certificate with one extra line per site:</li>
+      </ul>
+      <pre><code>it-courses.com, www.it-courses.com {
+    tls /etc/caddy/origin.pem /etc/caddy/origin.key
+    reverse_proxy localhost:8888
+}</code></pre>
+      <p>The new <code>tls</code> line says "use this exact certificate instead of fetching one." Everything else is unchanged. Reload Caddy and you're encrypted end to end.</p>
+      <div class="box danger">
+        <div class="box-title">⚠️ ERR_TOO_MANY_REDIRECTS</div>
+        Almost always Cloudflare set to <em>Flexible</em> while Caddy also redirects to HTTPS — they bounce forever. Use <strong>Full (strict)</strong> with the Origin Certificate above and the loop disappears.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 The Origin Certificate covers all your sites</div>
+        When you create it, list every domain and a wildcard (<code>*.example.com</code>) so the one certificate works for every block. Reuse the same <code>tls</code> line in each.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Caddy tự lấy chứng chỉ HTTPS — bình thường bạn không phải viết gì. Nhưng vì tên miền của bạn nằm <strong>sau đám mây cam của Cloudflare</strong>, có một chi tiết phải làm đúng, nếu không bạn sẽ gặp lặp chuyển hướng hoặc cảnh báo chứng chỉ. Chọn chế độ phù hợp.</p>
+
+      <h3>Chế độ 1 — Mây xám / không proxy qua Cloudflare</h3>
+      <p>Nếu đám mây của một tên miền trong Cloudflare là màu <strong>xám</strong> (chỉ DNS), khách vào thẳng server. Khi đó Caddy tự xin một chứng chỉ Let's Encrypt thật — các khối thường của bạn đã làm điều này rồi, không thêm gì cả. Dễ nhất, nhưng mất cache và giấu IP của Cloudflare.</p>
+
+      <h3>Chế độ 2 — Mây cam (khuyên dùng): Origin Certificate</h3>
+      <p>Khi bật mây cam, Cloudflare muốn server xuất trình một chứng chỉ mà nó tin tưởng. Cách gọn là một <strong>Cloudflare Origin Certificate</strong> miễn phí (hạn ~15 năm) mà bạn giao cho Caddy.</p>
+      <ul class="checklist">
+        <li>Trong Cloudflare: <strong>SSL/TLS → Origin Server → Create Certificate</strong>. Lưu chứng chỉ và khóa riêng lên server, ví dụ <code>/etc/caddy/origin.pem</code> và <code>/etc/caddy/origin.key</code>.</li>
+        <li>Đặt <strong>SSL/TLS → Overview → Full (strict)</strong>.</li>
+        <li>Bảo Caddy dùng chứng chỉ đó bằng một dòng thêm cho mỗi site:</li>
+      </ul>
+      <pre><code>it-courses.com, www.it-courses.com {
+    tls /etc/caddy/origin.pem /etc/caddy/origin.key
+    reverse_proxy localhost:8888
+}</code></pre>
+      <p>Dòng <code>tls</code> mới nói "dùng đúng chứng chỉ này thay vì tự đi xin". Mọi thứ còn lại giữ nguyên. Reload Caddy là bạn được mã hóa từ đầu tới cuối.</p>
+      <div class="box danger">
+        <div class="box-title">⚠️ ERR_TOO_MANY_REDIRECTS</div>
+        Gần như luôn do Cloudflare để chế độ <em>Flexible</em> trong khi Caddy cũng chuyển hướng sang HTTPS — chúng nảy qua nảy lại mãi. Dùng <strong>Full (strict)</strong> cùng Origin Certificate ở trên là hết lặp.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Một Origin Certificate dùng cho mọi site</div>
+        Khi tạo, hãy liệt kê mọi tên miền và một wildcard (<code>*.example.com</code>) để một chứng chỉ chạy cho mọi khối. Dùng lại đúng dòng <code>tls</code> trong từng khối.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── NGINX (EXISTING PROXY) ───────── -->
+  <section id="nginx" class="step">
+    <div class="step-header">
+      <div class="step-num">🔀</div>
+      <h2>
+        <span class="en">Already running nginx? Add your site to it</span>
+        <span class="vi">Đã có nginx sẵn? Thêm site vào đó</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>If you tried to start Caddy and saw <code>bind: address already in use</code> on port 80, check who holds it:</p>
+      <pre><code>sudo ss -tlnp | grep -E ':80 |:443 '</code></pre>
+      <p>If that shows <strong>nginx</strong>, then nginx is <em>already</em> the receptionist serving your other sites. <strong>Do not run Caddy too</strong> — two receptionists can't share one door, and starting a second one risks knocking your other sites offline. Instead, just hand nginx one more name card: "when someone asks for the IT-courses domain, send them to port 8888."</p>
+      <div class="box info">
+        <div class="box-title">☕ Café analogy</div>
+        Nginx is the receptionist who's already on duty. You're not hiring a second one — you're adding a line to her book: "IT-courses → room 8888."
+      </div>
+
+      <h3>1. Stop Caddy (nginx wins this server)</h3>
+      <pre><code>sudo systemctl stop caddy
+sudo systemctl disable caddy</code></pre>
+
+      <h3>2. Bind the container to localhost:8888</h3>
+      <p>So nginx can reach it and outsiders can't bypass it:</p>
+      <pre><code>docker rm -f it-courses
+docker run -d \
+  --name it-courses \
+  --restart unless-stopped \
+  -p 127.0.0.1:8888:8888 \
+  it-courses</code></pre>
+      <p>Check it's alive: <code>curl localhost:8888</code> should return your site's HTML.</p>
+
+      <h3>3. Give nginx a config for this site</h3>
+      <p>Create a new file (replace the domain with your real subdomain):</p>
+      <pre><code>sudo nano /etc/nginx/sites-available/it-courses.conf</code></pre>
+      <pre><code>server {
+    listen 80;
+    server_name it-courses.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8888;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade           $http_upgrade;
+        proxy_set_header Connection        "upgrade";
+    }
+}</code></pre>
+      <table>
+        <tr><th>Line</th><th>What it does</th></tr>
+        <tr><td><code>listen 80;</code></td><td>This block handles visitors arriving on port 80 (nginx keeps owning that port for every site).</td></tr>
+        <tr><td><code>server_name it-courses...;</code></td><td><strong>The key line</strong> — nginx only uses this block when the visitor's domain matches. Your other sites have their own <code>server_name</code>, so they're untouched.</td></tr>
+        <tr><td><code>location / { … }</code></td><td>Applies to every path of this site.</td></tr>
+        <tr><td><code>proxy_pass http://127.0.0.1:8888;</code></td><td>Forwards the request into the IT-courses container on port 8888.</td></tr>
+        <tr><td><code>proxy_set_header Host $host;</code></td><td>Keeps the original domain when passing inwards (Next.js needs to know which domain was asked for).</td></tr>
+        <tr><td><code>X-Forwarded-Proto $scheme;</code></td><td>Tells the app whether the visitor arrived via http or https.</td></tr>
+        <tr><td><code>Upgrade</code> + <code>Connection "upgrade"</code></td><td>Lets WebSockets work (Next.js uses them for some live features).</td></tr>
+      </table>
+
+      <h3>4. Enable it, test, reload</h3>
+      <pre><code>sudo ln -s /etc/nginx/sites-available/it-courses.conf /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx</code></pre>
+      <p><code>nginx -t</code> <strong>checks the syntax first</strong>. Only reload if it says <code>syntax is ok</code> and <code>test is successful</code> — that way a typo can't take your other sites down.</p>
+
+      <h3>5. Point the subdomain in Cloudflare</h3>
+      <p>In Cloudflare → <strong>DNS → Add record</strong>: an <strong>A</strong> record, Name = your subdomain (e.g. <code>it-courses</code>), Content = your server's IP, orange cloud on. For HTTPS, match whatever mode your other nginx sites already use.</p>
+      <div class="box tip">
+        <div class="box-title">💡 How are your other sites doing HTTPS?</div>
+        Peek at an existing site's config: <code>ls /etc/nginx/sites-available/</code>, then open one and look for <code>listen 443 ssl;</code> and <code>ssl_certificate</code>. If they use a Cloudflare <strong>Origin Certificate</strong> or <strong>certbot</strong>, copy the same <code>listen 443</code> block into your new file so IT-courses gets HTTPS the same way.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Nếu bạn thử khởi động Caddy và thấy lỗi <code>bind: address already in use</code> ở cổng 80, hãy xem ai đang giữ nó:</p>
+      <pre><code>sudo ss -tlnp | grep -E ':80 |:443 '</code></pre>
+      <p>Nếu kết quả hiện <strong>nginx</strong>, thì nginx <em>đã</em> là anh lễ tân phục vụ các site khác của bạn. <strong>Đừng chạy thêm Caddy</strong> — hai lễ tân không thể chung một cửa, và bật cái thứ hai lên có thể làm sập các site đang chạy. Thay vào đó, chỉ cần đưa cho nginx thêm một tấm danh thiếp: "khi ai hỏi tên miền IT-courses, dẫn họ tới cổng 8888".</p>
+      <div class="box info">
+        <div class="box-title">☕ Ví dụ quán cà phê</div>
+        Nginx là anh lễ tân đang trực sẵn. Bạn không thuê thêm người thứ hai — bạn chỉ ghi thêm vào sổ của anh ấy một dòng: "IT-courses → phòng 8888".
+      </div>
+
+      <h3>1. Tắt Caddy (server này thuộc về nginx)</h3>
+      <pre><code>sudo systemctl stop caddy
+sudo systemctl disable caddy</code></pre>
+
+      <h3>2. Gắn container vào localhost:8888</h3>
+      <p>Để nginx với tới được, còn người ngoài không lách qua mặt được:</p>
+      <pre><code>docker rm -f it-courses
+docker run -d \
+  --name it-courses \
+  --restart unless-stopped \
+  -p 127.0.0.1:8888:8888 \
+  it-courses</code></pre>
+      <p>Kiểm tra nó sống: <code>curl localhost:8888</code> phải trả về HTML của web.</p>
+
+      <h3>3. Tạo cấu hình nginx cho site này</h3>
+      <p>Tạo một file mới (thay tên miền bằng subdomain thật của bạn):</p>
+      <pre><code>sudo nano /etc/nginx/sites-available/it-courses.conf</code></pre>
+      <pre><code>server {
+    listen 80;
+    server_name it-courses.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8888;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade           $http_upgrade;
+        proxy_set_header Connection        "upgrade";
+    }
+}</code></pre>
+      <table>
+        <tr><th>Dòng</th><th>Làm gì</th></tr>
+        <tr><td><code>listen 80;</code></td><td>Khối này xử lý khách đến ở cổng 80 (nginx vẫn giữ cổng đó cho mọi site).</td></tr>
+        <tr><td><code>server_name it-courses...;</code></td><td><strong>Dòng mấu chốt</strong> — nginx chỉ dùng khối này khi tên miền khách gõ khớp. Các site khác có <code>server_name</code> riêng nên không bị ảnh hưởng.</td></tr>
+        <tr><td><code>location / { … }</code></td><td>Áp dụng cho mọi đường dẫn của site này.</td></tr>
+        <tr><td><code>proxy_pass http://127.0.0.1:8888;</code></td><td>Chuyển tiếp request vào container IT-courses ở cổng 8888.</td></tr>
+        <tr><td><code>proxy_set_header Host $host;</code></td><td>Giữ nguyên tên miền gốc khi chuyển vào trong (Next.js cần biết khách gõ tên miền nào).</td></tr>
+        <tr><td><code>X-Forwarded-Proto $scheme;</code></td><td>Báo cho app biết khách vào bằng http hay https.</td></tr>
+        <tr><td><code>Upgrade</code> + <code>Connection "upgrade"</code></td><td>Cho phép WebSocket hoạt động (Next.js dùng cho một số tính năng động).</td></tr>
+      </table>
+
+      <h3>4. Bật site, kiểm tra, reload</h3>
+      <pre><code>sudo ln -s /etc/nginx/sites-available/it-courses.conf /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx</code></pre>
+      <p><code>nginx -t</code> <strong>kiểm tra cú pháp trước</strong>. Chỉ reload khi nó báo <code>syntax is ok</code> và <code>test is successful</code> — như vậy một lỗi gõ nhầm không làm sập các site khác.</p>
+
+      <h3>5. Trỏ subdomain trong Cloudflare</h3>
+      <p>Vào Cloudflare → <strong>DNS → Add record</strong>: một bản ghi <strong>A</strong>, Name = subdomain của bạn (ví dụ <code>it-courses</code>), Content = IP server, bật mây cam. Phần HTTPS thì làm theo đúng chế độ mà các site nginx khác của bạn đang dùng.</p>
+      <div class="box tip">
+        <div class="box-title">💡 Các site khác đang chạy HTTPS kiểu gì?</div>
+        Ngó qua cấu hình một site có sẵn: <code>ls /etc/nginx/sites-available/</code>, rồi mở một file và tìm dòng <code>listen 443 ssl;</code> và <code>ssl_certificate</code>. Nếu chúng dùng <strong>Origin Certificate</strong> của Cloudflare hoặc <strong>certbot</strong>, hãy chép đúng khối <code>listen 443</code> đó vào file mới để IT-courses có HTTPS theo cùng cách.
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── TROUBLESHOOTING ───────── -->
+  <section id="trouble" class="step">
+    <div class="step-header">
+      <div class="step-num">!</div>
+      <h2>
+        <span class="en">Troubleshooting</span>
+        <span class="vi">Khắc phục sự cố</span>
+      </h2>
+    </div>
+    <div class="en">
+      <table>
+        <tr><th>Problem</th><th>Solution</th></tr>
+        <tr><td>Caddy won't start: "address already in use"</td><td>Another program holds port 80/443 — usually a container still on <code>-p 80:8888</code>. Re-bind it to <code>127.0.0.1</code> (step 4), or stop the other service.</td></tr>
+        <tr><td><code>ss</code> shows <strong>nginx</strong> on port 80</td><td>nginx is already your proxy for the other sites. Don't run Caddy — add IT-courses to nginx instead (see <a href="#nginx">Already running nginx?</a>) and stop Caddy with <code>sudo systemctl disable --now caddy</code>.</td></tr>
+        <tr><td><code>curl localhost:8888</code> → "Couldn't connect"</td><td>Nothing is listening there. Run <code>docker ps -a</code>: if <code>it-courses</code> isn't listed, start it (step 4); if STATUS is <code>Exited</code>, read <code>docker logs it-courses</code>; if PORTS shows <code>0.0.0.0:80-&gt;8888</code>, recreate it bound to <code>127.0.0.1:8888:8888</code>.</td></tr>
+        <tr><td>One site shows 502 Bad Gateway</td><td>Caddy reached no app on that port. Check the container/app is running and the port in <code>reverse_proxy</code> matches the one it's published on.</td></tr>
+        <tr><td>ERR_TOO_MANY_REDIRECTS</td><td>Cloudflare in Flexible mode. Switch to Full (strict) with an Origin Certificate (step 8).</td></tr>
+        <tr><td>Visitors can reach a site at <code>:8888</code> directly</td><td>You published with <code>-p 8888:8888</code> (all interfaces) instead of <code>-p 127.0.0.1:8888:8888</code>. Re-run bound to localhost.</td></tr>
+        <tr><td>Static site shows "404" or a file listing</td><td>Check <code>root</code> points to the folder that actually contains <code>index.html</code>, and that <code>file_server</code> is present.</td></tr>
+        <tr><td>Edited the Caddyfile but nothing changed</td><td>You forgot to reload: <code>sudo systemctl reload caddy</code>. Validate first with <code>caddy validate</code>.</td></tr>
+        <tr><td>A new domain has no HTTPS / cert error</td><td>If behind the orange cloud, use the Origin Certificate route (step 8). Make sure the domain's DNS A record points to this server.</td></tr>
+        <tr><td>Need to see why Caddy is unhappy</td><td><code>sudo journalctl -u caddy --no-pager -n 50</code> shows the real error message.</td></tr>
+      </table>
+    </div>
+    <div class="vi">
+      <table>
+        <tr><th>Vấn đề</th><th>Cách khắc phục</th></tr>
+        <tr><td>Caddy không khởi động: "address already in use"</td><td>Chương trình khác đang giữ cổng 80/443 — thường là container vẫn để <code>-p 80:8888</code>. Gắn lại nó vào <code>127.0.0.1</code> (bước 4), hoặc dừng dịch vụ kia.</td></tr>
+        <tr><td><code>ss</code> hiện <strong>nginx</strong> ở cổng 80</td><td>nginx đã là proxy cho các site khác rồi. Đừng chạy Caddy — thêm IT-courses vào nginx (xem <a href="#nginx">Đã có nginx sẵn?</a>) và tắt Caddy bằng <code>sudo systemctl disable --now caddy</code>.</td></tr>
+        <tr><td><code>curl localhost:8888</code> → "Couldn't connect"</td><td>Không có gì lắng nghe ở đó. Chạy <code>docker ps -a</code>: nếu không thấy <code>it-courses</code>, hãy chạy nó (bước 4); nếu STATUS là <code>Exited</code>, đọc <code>docker logs it-courses</code>; nếu PORTS hiện <code>0.0.0.0:80-&gt;8888</code>, tạo lại với <code>127.0.0.1:8888:8888</code>.</td></tr>
+        <tr><td>Một site báo 502 Bad Gateway</td><td>Caddy không thấy app nào ở cổng đó. Kiểm tra container/app có đang chạy không và cổng trong <code>reverse_proxy</code> có khớp cổng nó được công bố không.</td></tr>
+        <tr><td>ERR_TOO_MANY_REDIRECTS</td><td>Cloudflare để chế độ Flexible. Chuyển sang Full (strict) cùng Origin Certificate (bước 8).</td></tr>
+        <tr><td>Khách vào được site qua <code>:8888</code> trực tiếp</td><td>Bạn công bố bằng <code>-p 8888:8888</code> (mọi giao diện) thay vì <code>-p 127.0.0.1:8888:8888</code>. Chạy lại, gắn vào localhost.</td></tr>
+        <tr><td>Site tĩnh báo "404" hoặc hiện danh sách file</td><td>Kiểm tra <code>root</code> trỏ tới thư mục thật sự chứa <code>index.html</code>, và có dòng <code>file_server</code>.</td></tr>
+        <tr><td>Sửa Caddyfile rồi mà không đổi gì</td><td>Bạn quên reload: <code>sudo systemctl reload caddy</code>. Nhớ validate trước bằng <code>caddy validate</code>.</td></tr>
+        <tr><td>Tên miền mới không có HTTPS / lỗi chứng chỉ</td><td>Nếu sau mây cam, dùng cách Origin Certificate (bước 8). Đảm bảo bản ghi A của tên miền trỏ về server này.</td></tr>
+        <tr><td>Cần xem vì sao Caddy trục trặc</td><td><code>sudo journalctl -u caddy --no-pager -n 50</code> hiện thông báo lỗi thật.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ───────── GLOSSARY ───────── -->
+  <section id="glossary" class="step">
+    <div class="step-header">
+      <div class="step-num">📖</div>
+      <h2>
+        <span class="en">Glossary</span>
+        <span class="vi">Bảng thuật ngữ</span>
+      </h2>
+    </div>
+    <div class="en">
+      <table>
+        <tr><th>Term</th><th>Meaning</th></tr>
+        <tr><td>Reverse proxy</td><td>A program in front of your sites that reads each request's domain and forwards it to the right app. The "receptionist".</td></tr>
+        <tr><td>Caddy</td><td>A small, friendly web server / reverse proxy with short config and automatic HTTPS.</td></tr>
+        <tr><td>Caddyfile</td><td>The single config file (<code>/etc/caddy/Caddyfile</code>) that lists your sites and where each one goes.</td></tr>
+        <tr><td>Host header</td><td>The domain name carried inside every web request — how the server tells <code>a.com</code> from <code>b.com</code>.</td></tr>
+        <tr><td>localhost / 127.0.0.1</td><td>"This same machine." An address only reachable from the server itself, not the outside world.</td></tr>
+        <tr><td>reverse_proxy</td><td>The Caddy directive that forwards a site's traffic to an app on a given port.</td></tr>
+        <tr><td>root + file_server</td><td>The Caddy directives that serve plain files from a folder, with no app behind them.</td></tr>
+        <tr><td>Origin Certificate</td><td>A long-lived certificate Cloudflare issues for the link between Cloudflare and your server.</td></tr>
+        <tr><td>Full (strict)</td><td>Cloudflare SSL mode where both halves of the trip are encrypted and the server's certificate is verified.</td></tr>
+        <tr><td>systemctl reload</td><td>Re-reads a service's config without dropping connections — applies Caddyfile changes with no downtime.</td></tr>
+      </table>
+    </div>
+    <div class="vi">
+      <table>
+        <tr><th>Thuật ngữ</th><th>Ý nghĩa</th></tr>
+        <tr><td>Reverse proxy</td><td>Một chương trình đứng trước các site, đọc tên miền của từng request rồi chuyển tới đúng app. Anh "lễ tân".</td></tr>
+        <tr><td>Caddy</td><td>Một web server / reverse proxy nhỏ gọn, thân thiện, cấu hình ngắn và tự lo HTTPS.</td></tr>
+        <tr><td>Caddyfile</td><td>File cấu hình duy nhất (<code>/etc/caddy/Caddyfile</code>) liệt kê các site và mỗi site đi về đâu.</td></tr>
+        <tr><td>Host header</td><td>Tên miền nằm trong mỗi request web — cách server phân biệt <code>a.com</code> với <code>b.com</code>.</td></tr>
+        <tr><td>localhost / 127.0.0.1</td><td>"Chính máy này." Một địa chỉ chỉ với tới được từ bản thân server, không phải từ bên ngoài.</td></tr>
+        <tr><td>reverse_proxy</td><td>Chỉ thị Caddy dùng để chuyển tiếp traffic của một site tới app ở một cổng cho trước.</td></tr>
+        <tr><td>root + file_server</td><td>Các chỉ thị Caddy để phục vụ file thuần từ một thư mục, không có app phía sau.</td></tr>
+        <tr><td>Origin Certificate</td><td>Chứng chỉ hạn dài do Cloudflare cấp cho chặng giữa Cloudflare và server của bạn.</td></tr>
+        <tr><td>Full (strict)</td><td>Chế độ SSL của Cloudflare, cả hai chặng đều mã hóa và chứng chỉ của server được xác minh.</td></tr>
+        <tr><td>systemctl reload</td><td>Đọc lại cấu hình của một dịch vụ mà không ngắt kết nối — áp dụng thay đổi Caddyfile không gián đoạn.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      <span class="en">Made with <span class="heart">♥</span> for the IT-courses team.</span>
+      <span class="vi">Soạn với <span class="heart">♥</span> dành cho team IT-courses.</span>
+    </p>
+  </footer>
+
+</div>
+
+<script>
+  function setLang(lang) {
+    document.documentElement.setAttribute('data-lang', lang);
+    document.documentElement.setAttribute('lang', lang);
+    document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+    document.getElementById('btn-vi').classList.toggle('active', lang === 'vi');
+    localStorage.setItem('guide-lang', lang);
+  }
+  const saved = localStorage.getItem('guide-lang');
+  if (saved === 'vi') setLang('vi');
+
+  document.querySelectorAll('pre').forEach((pre) => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', async () => {
+      const text = pre.querySelector('code')?.textContent ?? pre.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = '✓ Copied';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      } catch (e) { btn.textContent = 'Failed'; }
+    });
+    pre.appendChild(btn);
+  });
+
+  document.querySelectorAll('a[href^="#"]').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      const id = a.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    });
+  });
+</script>
+
+</body>
+</html>
