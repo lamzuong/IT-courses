@@ -33,8 +33,9 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+          script_stop: true # dừng ngay khi một lệnh lỗi, không chạy tiếp gây rối log
           script: |
-            cd ~/IT-courses
+            cd /var/www/IT-courses
             git pull origin main
             docker build -t it-courses .
             docker stop it-courses || true
