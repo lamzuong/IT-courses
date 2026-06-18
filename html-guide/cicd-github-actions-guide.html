@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CI/CD with GitHub Actions — Guide / Hướng dẫn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-1: #fff5f1;
+    --bg-2: #f3f0ff;
+    --bg-3: #e8faf3;
+    --card: #ffffff;
+    --text: #3a3354;
+    --text-soft: #7a7592;
+    --primary: #ff8fab;
+    --primary-2: #b794f6;
+    --accent: #6ee7c7;
+    --sunny: #ffd166;
+    --peach: #ffb088;
+    --sky: #8ecae6;
+    --warn: #f4a261;
+    --danger: #f48fb1;
+    --border: #f0ebf7;
+    --code-bg: #2d2640;
+    --code-text: #f5f0ff;
+    --shadow-sm: 0 2px 8px rgba(183, 148, 246, 0.08);
+    --shadow: 0 8px 24px rgba(183, 148, 246, 0.12);
+    --shadow-lg: 0 14px 38px rgba(183, 148, 246, 0.18);
+    --radius: 22px;
+    --radius-sm: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Quicksand", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background:
+      radial-gradient(circle at 0% 0%, var(--bg-1) 0%, transparent 50%),
+      radial-gradient(circle at 100% 0%, var(--bg-2) 0%, transparent 55%),
+      radial-gradient(circle at 50% 100%, var(--bg-3) 0%, transparent 55%),
+      #fdfbff;
+    background-attachment: fixed;
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 16.5px;
+    font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before, body::after {
+    content: ""; position: fixed; width: 320px; height: 320px;
+    border-radius: 50%; filter: blur(80px); opacity: 0.35;
+    z-index: -1; pointer-events: none;
+  }
+  body::before { background: var(--primary); top: -100px; right: -80px; }
+  body::after  { background: var(--accent);  bottom: -100px; left: -80px; }
+
+  header.topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    padding: 14px 26px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid rgba(240, 235, 247, 0.6);
+  }
+  header.topbar .brand {
+    display: flex; align-items: center; gap: 12px;
+    font-weight: 700; font-size: 18px; color: var(--text);
+  }
+  header.topbar .brand .logo {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    border-radius: 12px; display: grid; place-items: center;
+    font-size: 18px; box-shadow: 0 6px 16px rgba(255, 143, 171, 0.35);
+    transform: rotate(-5deg); transition: transform 0.3s;
+  }
+  header.topbar .brand:hover .logo { transform: rotate(5deg) scale(1.05); }
+
+  .lang-switch {
+    display: flex; gap: 4px;
+    background: rgba(183, 148, 246, 0.08);
+    border-radius: 999px; padding: 5px;
+    border: 1px solid var(--border);
+  }
+  .lang-switch button {
+    font-family: inherit; background: transparent; color: var(--text-soft);
+    border: none; padding: 7px 16px; border-radius: 999px;
+    cursor: pointer; font-weight: 700; font-size: 13px;
+    letter-spacing: 0.5px; transition: all 0.25s ease;
+  }
+  .lang-switch button.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    color: #fff; box-shadow: 0 4px 12px rgba(255, 143, 171, 0.4);
+  }
+  .lang-switch button:not(.active):hover {
+    background: rgba(183, 148, 246, 0.12); color: var(--text);
+  }
+
+  .container { max-width: 980px; margin: 0 auto; padding: 36px 24px 100px; }
+
+  .hero { text-align: center; padding: 56px 20px 36px; }
+  .hero .wave {
+    display: inline-block; font-size: 48px; margin-bottom: 8px;
+    animation: wave 2.4s ease-in-out infinite;
+    transform-origin: 70% 70%;
+  }
+  @keyframes wave {
+    0%, 100% { transform: rotate(0deg); }
+    20%, 60% { transform: rotate(14deg); }
+    40%, 80% { transform: rotate(-10deg); }
+  }
+  .hero h1 {
+    font-family: "Quicksand", sans-serif; font-weight: 700;
+    font-size: 46px; line-height: 1.15; margin: 0 0 14px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 50%, var(--sky) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    letter-spacing: -0.5px;
+  }
+  .hero p.tag {
+    font-size: 18px; color: var(--text-soft);
+    max-width: 640px; margin: 0 auto 28px; font-weight: 500;
+  }
+  .hero .pills { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .pill {
+    background: #fff; border: 1px solid var(--border);
+    padding: 8px 16px; border-radius: 999px;
+    font-size: 14px; font-weight: 600; color: var(--text);
+    box-shadow: var(--shadow-sm); transition: all 0.25s ease;
+  }
+  .pill:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+  .toc {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 26px 30px;
+    margin: 34px 0; box-shadow: var(--shadow);
+  }
+  .toc h3 {
+    margin: 0 0 16px; font-size: 14px; color: var(--text-soft);
+    text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .toc h3::before { content: "✨"; font-size: 18px; }
+  .toc ol {
+    margin: 0; padding-left: 0; list-style: none; counter-reset: toc;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 4px 18px;
+  }
+  .toc ol li {
+    counter-increment: toc; padding: 6px 0;
+    position: relative; padding-left: 32px;
+  }
+  .toc ol li::before {
+    content: counter(toc); position: absolute; left: 0; top: 50%;
+    transform: translateY(-50%); width: 24px; height: 24px;
+    background: linear-gradient(135deg, var(--bg-2), var(--bg-3));
+    color: var(--primary-2); border-radius: 50%;
+    display: grid; place-items: center; font-size: 11px; font-weight: 700;
+  }
+  .toc a { color: var(--text); text-decoration: none; font-weight: 600; transition: color 0.2s; }
+  .toc a:hover { color: var(--primary); }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 32px 34px;
+    margin: 26px 0; box-shadow: var(--shadow);
+    scroll-margin-top: 90px;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .step:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .step-header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  .step-num {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    color: #fff; border-radius: 16px;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 20px; flex-shrink: 0;
+    box-shadow: 0 6px 16px rgba(255, 143, 171, 0.3);
+    transform: rotate(-4deg); transition: transform 0.3s ease;
+  }
+  .step:hover .step-num { transform: rotate(4deg) scale(1.05); }
+  .step:nth-child(3n) .step-num {
+    background: linear-gradient(135deg, var(--sky), var(--accent));
+    box-shadow: 0 6px 16px rgba(110, 231, 199, 0.3);
+  }
+  .step:nth-child(3n+1) .step-num {
+    background: linear-gradient(135deg, var(--sunny), var(--peach));
+    box-shadow: 0 6px 16px rgba(255, 209, 102, 0.3);
+  }
+  .step h2 { margin: 0; font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+  .step h3 {
+    font-size: 19px; font-weight: 700; margin-top: 28px; margin-bottom: 10px;
+    color: var(--text); display: flex; align-items: center; gap: 8px;
+  }
+  .step h3::before {
+    content: ""; width: 6px; height: 18px;
+    background: linear-gradient(180deg, var(--primary), var(--primary-2));
+    border-radius: 3px;
+  }
+  .step p { margin: 12px 0; }
+
+  pre, code { font-family: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace; }
+  pre {
+    background: var(--code-bg); color: var(--code-text);
+    padding: 18px 20px; border-radius: var(--radius-sm);
+    overflow-x: auto; font-size: 14px; line-height: 1.7;
+    position: relative; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+  p code, li code, td code {
+    background: linear-gradient(135deg, var(--bg-2), #fff);
+    color: var(--primary-2); padding: 3px 9px; border-radius: 7px;
+    font-size: 0.88em; font-weight: 500; border: 1px solid var(--border);
+  }
+  .copy-btn {
+    font-family: "Quicksand", sans-serif;
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(255,255,255,0.1); color: #fff;
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 5px 12px; border-radius: 8px;
+    font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.22); transform: translateY(-1px); }
+  .copy-btn.copied { background: var(--accent); border-color: var(--accent); color: var(--text); }
+
+  .box {
+    border-radius: var(--radius-sm); padding: 16px 20px;
+    margin: 18px 0; border: none; position: relative; overflow: hidden;
+  }
+  .box::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 5px; border-radius: 3px;
+  }
+  .box.info   { background: #eaf6ff; }
+  .box.info::before   { background: var(--sky); }
+  .box.warn   { background: #fff4e3; }
+  .box.warn::before   { background: var(--warn); }
+  .box.tip    { background: #e7faf2; }
+  .box.tip::before    { background: var(--accent); }
+  .box.danger { background: #ffe9ee; }
+  .box.danger::before { background: var(--danger); }
+  .box-title { font-weight: 700; margin-bottom: 4px; font-size: 15px; letter-spacing: 0.2px; }
+
+  .checklist { list-style: none; padding: 0; margin: 16px 0; }
+  .checklist li { padding: 10px 0 10px 38px; position: relative; }
+  .checklist li::before {
+    content: "✓"; position: absolute; left: 0; top: 50%;
+    transform: translateY(-50%); width: 26px; height: 26px;
+    background: linear-gradient(135deg, var(--accent), #4dd8b0);
+    color: #fff; border-radius: 50%; display: grid; place-items: center;
+    font-weight: 900; font-size: 13px;
+    box-shadow: 0 3px 8px rgba(110, 231, 199, 0.35);
+  }
+
+  table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    margin: 16px 0; background: #fff;
+    border-radius: var(--radius-sm); overflow: hidden;
+    font-size: 15px; border: 1px solid var(--border);
+  }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  th {
+    background: linear-gradient(135deg, var(--bg-2), var(--bg-1));
+    font-weight: 700; color: var(--text); font-size: 12px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #faf8ff; }
+
+  .provider-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px; margin: 18px 0;
+  }
+  .provider-card {
+    padding: 18px;
+    background: linear-gradient(135deg, #fff, var(--bg-2));
+    border-radius: var(--radius-sm); border: 1px solid var(--border);
+    transition: all 0.25s ease; cursor: default;
+  }
+  .provider-card:hover {
+    transform: translateY(-3px); box-shadow: var(--shadow);
+    border-color: var(--primary);
+  }
+  .provider-card .name { font-weight: 700; margin-bottom: 6px; font-size: 16px; }
+  .provider-card .desc { font-size: 14px; color: var(--text-soft); line-height: 1.5; }
+
+  [data-lang="en"] .vi { display: none; }
+  [data-lang="vi"] .en { display: none; }
+
+  footer { text-align: center; padding: 40px 20px; color: var(--text-soft); font-size: 15px; }
+  footer .heart {
+    display: inline-block; color: var(--primary);
+    animation: beat 1.4s ease-in-out infinite;
+  }
+  @keyframes beat {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+  }
+  footer a { color: var(--primary-2); text-decoration: none; font-weight: 700; }
+  footer a:hover { text-decoration: underline; }
+
+  .step a { color: var(--primary-2); font-weight: 700; }
+  .step a:hover { color: var(--primary); }
+  .step strong { color: var(--text); font-weight: 700; }
+
+  .flow {
+    display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px;
+    margin: 20px 0;
+  }
+  .flow .node {
+    flex: 1 1 130px; text-align: center;
+    background: linear-gradient(135deg, #fff, var(--bg-2));
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 14px 10px; box-shadow: var(--shadow-sm);
+  }
+  .flow .node .ico { font-size: 24px; display: block; margin-bottom: 6px; }
+  .flow .node .lbl { font-weight: 700; font-size: 14px; }
+  .flow .arrow { display: grid; place-items: center; color: var(--primary-2); font-weight: 900; font-size: 20px; }
+  @media (max-width: 640px) {
+    .flow { flex-direction: column; }
+    .flow .arrow { transform: rotate(90deg); }
+  }
+
+  @media (max-width: 640px) {
+    body { font-size: 15.5px; }
+    .hero h1 { font-size: 34px; }
+    .hero .wave { font-size: 40px; }
+    .step { padding: 24px 20px; }
+    .container { padding: 22px 14px 70px; }
+    .toc ol { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">🔄</div>
+    <span>IT-courses CI/CD</span>
+  </div>
+  <div class="lang-switch" role="tablist">
+    <button id="btn-en" class="active" onclick="setLang('en')">EN</button>
+    <button id="btn-vi" onclick="setLang('vi')">VI</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <section class="hero">
+    <div class="wave">👋</div>
+    <h1>
+      <span class="en">Set up CI/CD with GitHub Actions</span>
+      <span class="vi">Cài đặt CI/CD bằng GitHub Actions</span>
+    </h1>
+    <p class="tag">
+      <span class="en">Every time you push code, robots will test it and — if all is green — deploy your IT-courses site to your server automatically. No more manual SSH-and-pray.</span>
+      <span class="vi">Mỗi lần bạn push code, "robot" sẽ tự chạy kiểm thử và — nếu tất cả đều xanh — tự deploy trang IT-courses lên server. Không còn cảnh tự tay SSH rồi cầu nguyện nữa.</span>
+    </p>
+    <div class="pills">
+      <span class="pill">🤖 GitHub Actions</span>
+      <span class="pill">🐳 Docker</span>
+      <span class="pill">🔐 SSH deploy</span>
+      <span class="pill">✅ Tests as a gate</span>
+      <span class="pill">⏱️ ~30 phút</span>
+    </div>
+  </section>
+
+  <nav class="toc">
+    <h3>
+      <span class="en">Contents</span>
+      <span class="vi">Mục lục</span>
+    </h3>
+    <ol>
+      <li><a href="#step-1"><span class="en">What CI/CD actually is</span><span class="vi">CI/CD thực ra là gì</span></a></li>
+      <li><a href="#step-2"><span class="en">What you need first</span><span class="vi">Cần chuẩn bị gì trước</span></a></li>
+      <li><a href="#step-docker"><span class="en">Install Docker on your server</span><span class="vi">Cài Docker lên server</span></a></li>
+      <li><a href="#step-3"><span class="en">Create the workflow file</span><span class="vi">Tạo file workflow</span></a></li>
+      <li><a href="#step-4"><span class="en">Write the CI part (tests)</span><span class="vi">Viết phần CI (kiểm thử)</span></a></li>
+      <li><a href="#step-5"><span class="en">Make an SSH key for the robot</span><span class="vi">Tạo khóa SSH cho robot</span></a></li>
+      <li><a href="#step-6"><span class="en">Add secrets to GitHub</span><span class="vi">Thêm secret vào GitHub</span></a></li>
+      <li><a href="#step-7"><span class="en">Write the CD part (deploy)</span><span class="vi">Viết phần CD (deploy)</span></a></li>
+      <li><a href="#step-8"><span class="en">Push & watch it run</span><span class="vi">Push & xem nó chạy</span></a></li>
+      <li><a href="#trouble"><span class="en">Troubleshooting</span><span class="vi">Khắc phục sự cố</span></a></li>
+      <li><a href="#glossary"><span class="en">Glossary</span><span class="vi">Bảng thuật ngữ</span></a></li>
+    </ol>
+  </nav>
+
+  <!-- STEP 1 -->
+  <section id="step-1" class="step">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <h2>
+        <span class="en">What CI/CD actually is</span>
+        <span class="vi">CI/CD thực ra là gì</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Imagine a café kitchen. Every dish that leaves the kitchen passes a checkpoint: a chef tastes it, checks it's not burnt, then a runner carries it to the right table. Nobody serves a plate straight from the pan without that check.</p>
+      <p><strong>CI/CD is that checkpoint and that runner, but for your code.</strong></p>
+      <ul>
+        <li><strong>CI</strong> (Continuous Integration) = the taste-test. Every time you push code, it gets <em>built</em> and <em>tested</em> automatically. If something is broken, you find out in minutes — not from an angry user.</li>
+        <li><strong>CD</strong> (Continuous Deployment) = the runner. If the taste-test passes, the new version is carried to your server and goes live, all by itself.</li>
+      </ul>
+      <p>The tool that does this for us is <strong>GitHub Actions</strong> — it lives inside your GitHub repo for free and reacts whenever you push.</p>
+      <div class="flow">
+        <div class="node"><span class="ico">⌨️</span><span class="lbl">git push</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="ico">🤖</span><span class="lbl">GitHub Actions</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="ico">✅</span><span class="lbl">Test</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="ico">🐳</span><span class="lbl">Build & deploy</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="ico">🌐</span><span class="lbl">Live site</span></div>
+      </div>
+      <div class="box tip">
+        <div class="box-title">💡 Why bother?</div>
+        Right now you deploy by hand: build, copy files, restart. That's fine until the day you forget a step or push a typo at 11pm. CI/CD removes the human-error part and makes every release boringly identical.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Hãy tưởng tượng bếp của một quán café. Mỗi món trước khi rời bếp đều qua một trạm kiểm tra: đầu bếp nếm thử, xem có bị cháy không, rồi nhân viên mới bưng ra đúng bàn. Không ai bưng thẳng món từ chảo ra mà chưa kiểm tra cả.</p>
+      <p><strong>CI/CD chính là cái trạm kiểm tra và người bưng món đó, nhưng dành cho code của bạn.</strong></p>
+      <ul>
+        <li><strong>CI</strong> (Continuous Integration) = công đoạn nếm thử. Mỗi lần bạn push code, nó được <em>build</em> và <em>kiểm thử</em> tự động. Có gì hỏng, bạn biết trong vài phút — chứ không phải nghe người dùng la.</li>
+        <li><strong>CD</strong> (Continuous Deployment) = người bưng món. Nếu phần nếm thử đạt, phiên bản mới được đưa lên server và chạy thật, hoàn toàn tự động.</li>
+      </ul>
+      <p>Công cụ làm việc này cho mình là <strong>GitHub Actions</strong> — nó nằm sẵn trong repo GitHub của bạn, miễn phí, và tự phản ứng mỗi khi bạn push.</p>
+      <div class="flow">
+        <div class="node"><span class="ico">⌨️</span><span class="lbl">git push</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="ico">🤖</span><span class="lbl">GitHub Actions</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="ico">✅</span><span class="lbl">Kiểm thử</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="ico">🐳</span><span class="lbl">Build & deploy</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="ico">🌐</span><span class="lbl">Web chạy thật</span></div>
+      </div>
+      <div class="box tip">
+        <div class="box-title">💡 Tại sao phải làm?</div>
+        Hiện tại bạn deploy thủ công: build, copy file, restart. Vẫn ổn — cho tới ngày bạn quên một bước hoặc push nhầm lúc 11 giờ đêm. CI/CD bỏ đi phần "lỗi do con người" và khiến mỗi lần release đều giống hệt nhau, nhàm chán một cách an toàn.
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section id="step-2" class="step">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <h2>
+        <span class="en">What you need first</span>
+        <span class="vi">Cần chuẩn bị gì trước</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Before we write a single line, let's make sure the table is set. You need these five things — most you already have from earlier deploy work.</p>
+      <ul class="checklist">
+        <li>Your <strong>IT-courses</strong> code is on <strong>GitHub</strong> (a repo you can push to).</li>
+        <li>A <strong>server (VPS)</strong> you can reach over SSH — the same one from your DigitalOcean / CloudFly guide.</li>
+        <li><strong>Docker</strong> is installed on that server (Step 3 shows how if it isn't yet), and your <code>Dockerfile</code> is in the repo (it already is ✅).</li>
+        <li>The project is already cloned on the server, e.g. at <code>~/IT-courses</code>.</li>
+        <li>You can log in to your server as a user, e.g. <code>git pull</code> works there.</li>
+      </ul>
+      <div class="box info">
+        <div class="box-title">📦 A quick word on the plan</div>
+        We'll teach the most common setup: GitHub Actions runs your tests, then SSHes into <em>your own server</em> and rebuilds the Docker container. This reuses everything you already built — no new hosting bill.
+      </div>
+      <div class="box warn">
+        <div class="box-title">⚠️ Don't have a server yet?</div>
+        Then the simplest CI/CD is <strong>Vercel</strong> — connect the repo once and it auto-deploys on every push, no workflow file needed. See your <code>vercel-deployment-guide.html</code>. This guide is for the self-hosted-on-your-own-VPS path.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Trước khi viết dòng nào, mình dọn bàn cho gọn đã. Bạn cần năm thứ sau — phần lớn bạn đã có từ lần deploy trước rồi.</p>
+      <ul class="checklist">
+        <li>Code <strong>IT-courses</strong> đã nằm trên <strong>GitHub</strong> (một repo bạn push được).</li>
+        <li>Một <strong>server (VPS)</strong> bạn vào được bằng SSH — chính cái server trong hướng dẫn DigitalOcean / CloudFly của bạn.</li>
+        <li><strong>Docker</strong> đã cài trên server đó (Bước 3 sẽ chỉ cách nếu chưa có), và file <code>Dockerfile</code> có sẵn trong repo (đã có rồi ✅).</li>
+        <li>Project đã được clone sẵn trên server, ví dụ tại <code>~/IT-courses</code>.</li>
+        <li>Bạn đăng nhập được vào server, ví dụ <code>git pull</code> chạy được ở đó.</li>
+      </ul>
+      <div class="box info">
+        <div class="box-title">📦 Nói nhanh về kế hoạch</div>
+        Mình sẽ dạy kiểu phổ biến nhất: GitHub Actions chạy test, rồi SSH vào <em>chính server của bạn</em> và build lại container Docker. Cách này tận dụng mọi thứ bạn đã làm — không phát sinh tiền hosting mới.
+      </div>
+      <div class="box warn">
+        <div class="box-title">⚠️ Chưa có server?</div>
+        Vậy CI/CD đơn giản nhất là <strong>Vercel</strong> — kết nối repo một lần, nó tự deploy mỗi lần push, khỏi cần file workflow. Xem <code>vercel-deployment-guide.html</code>. Hướng dẫn này dành cho hướng tự host trên VPS của riêng bạn.
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3 — INSTALL DOCKER -->
+  <section id="step-docker" class="step">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <h2>
+        <span class="en">Install Docker on your server</span>
+        <span class="vi">Cài Docker lên server</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Think of <strong>Docker</strong> as a sealed lunchbox. Instead of cooking on the customer's stove and hoping their kitchen has the right pans, you pack the whole meal — app, Node.js, every setting — into one box that runs the same everywhere. The robot in Step 8 will say <code>docker build</code> on your server, so Docker has to be living there first. Let's install it.</p>
+
+      <h3>Step in the door first</h3>
+      <p>From your own computer, SSH into the server (same login you use for <code>git pull</code> there):</p>
+      <pre><code>ssh your-user@your-server-ip</code></pre>
+      <p>Everything below runs <em>on the server</em>, in that SSH session.</p>
+
+      <h3>Install Docker the official, no-guessing way</h3>
+      <p>Docker publishes a little script that looks at your Linux and installs the correct version for you — no hunting for the right package name. Download it, then run it:</p>
+      <pre><code>curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh</code></pre>
+      <p>It chats for a minute, then you're done. <code>sudo</code> just means "do this as the admin" — installing system software needs that.</p>
+
+      <h3>Let yourself (and the robot) skip <code>sudo</code></h3>
+      <p>Out of the box, only the admin can talk to Docker, so you'd type <code>sudo</code> before every command. Add your user to the <code>docker</code> group once and that annoyance disappears — important, because the deploy robot logs in as you and won't be typing any passwords.</p>
+      <pre><code>sudo usermod -aG docker $USER</code></pre>
+      <p>This only takes effect on a fresh login. The simplest fix: log out and SSH back in. (Or run <code>newgrp docker</code> to refresh the current session.)</p>
+
+      <h3>Make Docker wake up on its own</h3>
+      <p>If the server ever reboots, you want Docker (and your site) to come back without you. This one line turns it on now <em>and</em> sets it to auto-start on boot:</p>
+      <pre><code>sudo systemctl enable --now docker</code></pre>
+
+      <h3>Check it actually works</h3>
+      <p>Two quick tests. The first prints the version; the second downloads a tiny "hello" image and runs it:</p>
+      <pre><code>docker --version
+docker run hello-world</code></pre>
+      <p>If you see a friendly <em>"Hello from Docker!"</em> message, the lunchbox factory is open for business. 🎉</p>
+
+      <div class="box info">
+        <div class="box-title">📦 This assumes Ubuntu / Debian</div>
+        The script above also handles most common Linux servers (Ubuntu, Debian, CentOS, Fedora). The DigitalOcean and CloudFly servers from your earlier guides are Ubuntu, so you're covered.
+      </div>
+      <div class="box warn">
+        <div class="box-title">⚠️ Still asked for <code>sudo</code> after adding the group?</div>
+        That's normal until you log out and back in — the group membership only loads on a new session. Re-SSH and try <code>docker run hello-world</code> again without <code>sudo</code>.
+      </div>
+      <div class="box tip">
+        <div class="box-title">✓ One prerequisite ticked</div>
+        That's the "Docker is installed on the server" item from Step 2 done. The rest of this guide can now safely call <code>docker build</code> and <code>docker run</code> over SSH.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Hãy hình dung <strong>Docker</strong> như một hộp cơm niêm phong. Thay vì nấu nhờ trên bếp của khách rồi cầu mong bếp họ có đủ xoong chảo, bạn gói cả bữa ăn — app, Node.js, mọi cấu hình — vào một cái hộp chạy giống hệt nhau ở mọi nơi. Robot ở Bước 8 sẽ gõ <code>docker build</code> ngay trên server của bạn, nên Docker phải có sẵn ở đó trước đã. Mình cài nó nhé.</p>
+
+      <h3>Bước vào cửa trước đã</h3>
+      <p>Từ máy của bạn, SSH vào server (dùng đúng tài khoản bạn vẫn <code>git pull</code> ở đó):</p>
+      <pre><code>ssh your-user@your-server-ip</code></pre>
+      <p>Mọi lệnh bên dưới đều chạy <em>trên server</em>, trong phiên SSH đó.</p>
+
+      <h3>Cài Docker theo cách chính chủ, khỏi đoán</h3>
+      <p>Docker có sẵn một đoạn script tự nhìn xem Linux của bạn là gì rồi cài đúng phiên bản — bạn khỏi phải mò tên gói. Tải về, rồi chạy:</p>
+      <pre><code>curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh</code></pre>
+      <p>Nó chạy lách tách một lúc là xong. <code>sudo</code> chỉ có nghĩa là "làm việc này với quyền quản trị" — cài phần mềm hệ thống thì cần quyền đó.</p>
+
+      <h3>Cho bạn (và robot) khỏi phải gõ <code>sudo</code></h3>
+      <p>Mặc định chỉ quản trị viên mới nói chuyện được với Docker, nên bạn sẽ phải gõ <code>sudo</code> trước mỗi lệnh. Thêm user của bạn vào nhóm <code>docker</code> một lần là hết phiền — điều này quan trọng, vì robot deploy đăng nhập với tư cách là bạn và sẽ không gõ mật khẩu nào cả.</p>
+      <pre><code>sudo usermod -aG docker $USER</code></pre>
+      <p>Việc này chỉ có hiệu lực khi bạn đăng nhập lại. Cách đơn giản nhất: đăng xuất rồi SSH vào lại. (Hoặc chạy <code>newgrp docker</code> để làm mới phiên hiện tại.)</p>
+
+      <h3>Để Docker tự thức dậy</h3>
+      <p>Lỡ server có khởi động lại, bạn muốn Docker (và website) tự bật lại mà không cần bạn. Một dòng này vừa bật ngay bây giờ, <em>vừa</em> đặt cho nó tự chạy mỗi lần khởi động:</p>
+      <pre><code>sudo systemctl enable --now docker</code></pre>
+
+      <h3>Kiểm tra xem chạy thật chưa</h3>
+      <p>Hai phép thử nhanh. Cái đầu in ra phiên bản; cái sau tải một image "hello" tí hon về rồi chạy:</p>
+      <pre><code>docker --version
+docker run hello-world</code></pre>
+      <p>Nếu thấy dòng chữ thân thiện <em>"Hello from Docker!"</em> thì xưởng đóng hộp cơm đã mở cửa hoạt động. 🎉</p>
+
+      <div class="box info">
+        <div class="box-title">📦 Phần này giả định Ubuntu / Debian</div>
+        Đoạn script ở trên cũng xử lý được hầu hết server Linux phổ biến (Ubuntu, Debian, CentOS, Fedora). Server DigitalOcean và CloudFly trong các hướng dẫn trước của bạn đều là Ubuntu, nên yên tâm nhé.
+      </div>
+      <div class="box warn">
+        <div class="box-title">⚠️ Thêm nhóm rồi mà vẫn bị đòi <code>sudo</code>?</div>
+        Bình thường thôi, cho tới khi bạn đăng xuất rồi đăng nhập lại — tư cách nhóm chỉ nạp khi có phiên mới. SSH vào lại và thử <code>docker run hello-world</code> lần nữa, lần này khỏi <code>sudo</code>.
+      </div>
+      <div class="box tip">
+        <div class="box-title">✓ Đã tick xong một thứ cần chuẩn bị</div>
+        Vậy là mục "Docker đã cài trên server" ở Bước 2 coi như xong. Phần còn lại của hướng dẫn giờ có thể yên tâm gọi <code>docker build</code> và <code>docker run</code> qua SSH.
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 4 -->
+  <section id="step-3" class="step">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <h2>
+        <span class="en">Create the workflow file</span>
+        <span class="vi">Tạo file workflow</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>GitHub Actions looks for instruction files in one exact folder: <code>.github/workflows/</code>. Anything ending in <code>.yml</code> in there becomes a "workflow" it can run. Let's make that folder and an empty file.</p>
+      <p>In your project folder, run:</p>
+      <pre><code>mkdir -p .github/workflows
+ni .github/workflows/deploy.yml</code></pre>
+      <div class="box info">
+        <div class="box-title">🪟 On Windows PowerShell</div>
+        <code>ni</code> is short for <code>New-Item</code> — it creates the empty file. If you're on Git Bash or macOS, use <code>touch .github/workflows/deploy.yml</code> instead. Either way you now have an empty file to fill in.
+      </div>
+      <p>The file is written in <strong>YAML</strong> — a format where <em>indentation matters</em>. Think of it like a bullet-point outline: things lined up under each other belong together. We'll fill this file across the next steps.</p>
+      <div class="box warn">
+        <div class="box-title">⚠️ Spaces, not tabs</div>
+        YAML hates the Tab key. Always indent with <strong>2 spaces</strong>. If a workflow mysteriously refuses to run, a stray tab is the usual culprit.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>GitHub Actions chỉ tìm file hướng dẫn ở đúng một thư mục: <code>.github/workflows/</code>. Mọi file kết thúc bằng <code>.yml</code> trong đó sẽ thành một "workflow" mà nó chạy được. Mình tạo thư mục đó và một file rỗng nhé.</p>
+      <p>Trong thư mục project, chạy:</p>
+      <pre><code>mkdir -p .github/workflows
+ni .github/workflows/deploy.yml</code></pre>
+      <div class="box info">
+        <div class="box-title">🪟 Trên Windows PowerShell</div>
+        <code>ni</code> là viết tắt của <code>New-Item</code> — nó tạo ra file rỗng. Nếu bạn dùng Git Bash hoặc macOS thì thay bằng <code>touch .github/workflows/deploy.yml</code>. Kiểu nào thì giờ bạn cũng có một file rỗng để điền vào.
+      </div>
+      <p>File này viết bằng <strong>YAML</strong> — một định dạng mà <em>thụt lề rất quan trọng</em>. Hãy hình dung như một dàn ý gạch đầu dòng: những thứ thẳng hàng dưới nhau là cùng một nhóm. Mình sẽ điền file này dần qua các bước sau.</p>
+      <div class="box warn">
+        <div class="box-title">⚠️ Dùng dấu cách, đừng dùng Tab</div>
+        YAML rất ghét phím Tab. Luôn thụt lề bằng <strong>2 dấu cách</strong>. Nếu workflow tự nhiên không chịu chạy, thủ phạm thường là một dấu Tab lạc vào.
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 4 -->
+  <section id="step-4" class="step">
+    <div class="step-header">
+      <div class="step-num">5</div>
+      <h2>
+        <span class="en">Write the CI part (tests)</span>
+        <span class="vi">Viết phần CI (kiểm thử)</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Let's start with the taste-test. Open <code>.github/workflows/deploy.yml</code> and paste this. It's the whole "CI" half — we'll add deploy in Step 8.</p>
+      <pre><code>name: CI/CD
+
+# When should the robot wake up?
+on:
+  push:
+    branches: [main]   # every push to main
+  pull_request:        # and every PR, to catch bugs early
+
+jobs:
+  test:
+    name: Build & test
+    runs-on: ubuntu-latest   # a fresh rented computer
+    steps:
+      - uses: actions/checkout@v4        # 1. grab your code
+      - uses: actions/setup-node@v4      # 2. install Node.js
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci                      # 3. install deps (clean)
+      - run: npm run typecheck           # 4. TypeScript sanity check
+      - run: npm run lint                # 5. style / mistakes check
+      - run: npm run test                # 6. run the unit tests</code></pre>
+      <p>Reading it top to bottom, like a recipe:</p>
+      <ul>
+        <li><strong><code>on:</code></strong> — the trigger. "Run whenever someone pushes to <code>main</code>, or opens a pull request."</li>
+        <li><strong><code>runs-on:</code></strong> — GitHub rents you a brand-new, clean Ubuntu computer for each run. Nothing from your laptop leaks in, so it catches the "works on my machine" bugs.</li>
+        <li><strong><code>steps:</code></strong> — run in order. Check out code → install Node → install packages → typecheck → lint → test. Each uses the exact scripts from your <code>package.json</code>, so it matches what you run locally.</li>
+      </ul>
+      <div class="box tip">
+        <div class="box-title">✓ Why <code>npm ci</code> not <code>npm install</code>?</div>
+        <code>npm ci</code> installs the <em>exact</em> versions from <code>package-lock.json</code> and never quietly changes them. On a robot you always want the predictable, locked version.
+      </div>
+      <div class="box info">
+        <div class="box-title">📝 Note on E2E tests</div>
+        We left out <code>npm run test:e2e</code> (Playwright) on purpose — it needs a running browser and is slower. You can add it later once the basics are green.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Bắt đầu với phần nếm thử. Mở <code>.github/workflows/deploy.yml</code> và dán đoạn này vào. Đây là toàn bộ nửa "CI" — phần deploy mình thêm ở Bước 8.</p>
+      <pre><code>name: CI/CD
+
+# Khi nào robot thức dậy?
+on:
+  push:
+    branches: [main]   # mỗi lần push lên main
+  pull_request:        # và mỗi pull request, để bắt lỗi sớm
+
+jobs:
+  test:
+    name: Build & test
+    runs-on: ubuntu-latest   # một máy tính thuê mới tinh
+    steps:
+      - uses: actions/checkout@v4        # 1. lấy code của bạn về
+      - uses: actions/setup-node@v4      # 2. cài Node.js
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci                      # 3. cài thư viện (sạch)
+      - run: npm run typecheck           # 4. kiểm tra TypeScript
+      - run: npm run lint                # 5. kiểm tra lỗi / phong cách
+      - run: npm run test                # 6. chạy unit test</code></pre>
+      <p>Đọc từ trên xuống, như một công thức nấu ăn:</p>
+      <ul>
+        <li><strong><code>on:</code></strong> — điều kiện kích hoạt. "Chạy mỗi khi có người push lên <code>main</code>, hoặc mở pull request."</li>
+        <li><strong><code>runs-on:</code></strong> — GitHub cho bạn thuê một máy Ubuntu mới tinh, sạch sẽ cho mỗi lần chạy. Không có gì từ máy bạn lọt vào, nên nó bắt được mấy lỗi kiểu "máy mình chạy tốt mà".</li>
+        <li><strong><code>steps:</code></strong> — chạy lần lượt. Lấy code → cài Node → cài package → typecheck → lint → test. Mỗi bước dùng đúng script trong <code>package.json</code> của bạn, nên giống hệt lúc bạn chạy ở máy.</li>
+      </ul>
+      <div class="box tip">
+        <div class="box-title">✓ Sao lại <code>npm ci</code> chứ không phải <code>npm install</code>?</div>
+        <code>npm ci</code> cài <em>đúng</em> phiên bản ghi trong <code>package-lock.json</code> và không tự ý đổi. Trên robot, bạn luôn muốn phiên bản khóa cứng, đoán trước được.
+      </div>
+      <div class="box info">
+        <div class="box-title">📝 Về test E2E</div>
+        Mình cố tình bỏ <code>npm run test:e2e</code> (Playwright) — nó cần mở trình duyệt và chạy chậm hơn. Khi mọi thứ cơ bản đã xanh, bạn có thể thêm sau.
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 5 -->
+  <section id="step-5" class="step">
+    <div class="step-header">
+      <div class="step-num">6</div>
+      <h2>
+        <span class="en">Make an SSH key for the robot</span>
+        <span class="vi">Tạo khóa SSH cho robot</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>For CD, the robot needs to log into your server — but a robot can't type a password. Instead we give it a <strong>key</strong>. Think of an SSH key as a pair: a <em>padlock</em> (public key) you bolt onto your server's door, and a <em>matching key</em> (private key) the robot keeps secret. Only that key opens that padlock.</p>
+      <p><strong>On your own computer</strong>, make a fresh key pair just for deploys:</p>
+      <pre><code>ssh-keygen -t ed25519 -C "github-actions" -f deploy_key</code></pre>
+      <p>Press Enter twice when it asks for a passphrase (leave it empty — the robot can't type one). You now have two files:</p>
+      <ul>
+        <li><code>deploy_key</code> — the <strong>private</strong> key (the secret half — goes to GitHub).</li>
+        <li><code>deploy_key.pub</code> — the <strong>public</strong> key (the padlock — goes to the server).</li>
+      </ul>
+      <h3>Bolt the padlock onto your server</h3>
+      <p>Copy the <em>public</em> key onto the server so it trusts this key. Open <code>deploy_key.pub</code>, copy its one line, then on the server run:</p>
+      <pre><code>echo "PASTE_THE_PUBLIC_KEY_LINE_HERE" >> ~/.ssh/authorized_keys</code></pre>
+      <div class="box danger">
+        <div class="box-title">🔒 Never share the private key</div>
+        <code>deploy_key</code> (no <code>.pub</code>) is like your house key. Never commit it to git, never paste it in chat. It only ever goes into GitHub's encrypted Secrets box in the next step.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Để làm CD, robot cần đăng nhập vào server của bạn — nhưng robot không gõ mật khẩu được. Thay vào đó mình đưa cho nó một cái <strong>khóa</strong>. Hãy hình dung khóa SSH như một cặp: một <em>ổ khóa</em> (public key) bạn gắn lên cửa server, và một <em>chìa khớp với ổ đó</em> (private key) robot giữ bí mật. Chỉ chìa đó mới mở được ổ đó.</p>
+      <p><strong>Trên máy tính của bạn</strong>, tạo một cặp khóa mới chỉ dùng để deploy:</p>
+      <pre><code>ssh-keygen -t ed25519 -C "github-actions" -f deploy_key</code></pre>
+      <p>Khi nó hỏi passphrase, bấm Enter hai lần (để trống — robot không gõ được). Giờ bạn có hai file:</p>
+      <ul>
+        <li><code>deploy_key</code> — khóa <strong>private</strong> (nửa bí mật — đưa cho GitHub).</li>
+        <li><code>deploy_key.pub</code> — khóa <strong>public</strong> (cái ổ khóa — gắn lên server).</li>
+      </ul>
+      <h3>Gắn ổ khóa lên server</h3>
+      <p>Chép khóa <em>public</em> lên server để nó tin tưởng khóa này. Mở <code>deploy_key.pub</code>, copy dòng duy nhất bên trong, rồi trên server chạy:</p>
+      <pre><code>echo "DÁN_DÒNG_PUBLIC_KEY_VÀO_ĐÂY" >> ~/.ssh/authorized_keys</code></pre>
+      <div class="box danger">
+        <div class="box-title">🔒 Đừng bao giờ chia sẻ khóa private</div>
+        <code>deploy_key</code> (không có <code>.pub</code>) giống như chìa khóa nhà bạn. Đừng commit vào git, đừng dán vào chat. Nó chỉ được đưa vào hộp Secrets mã hóa của GitHub ở bước tiếp theo.
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 6 -->
+  <section id="step-6" class="step">
+    <div class="step-header">
+      <div class="step-num">7</div>
+      <h2>
+        <span class="en">Add secrets to GitHub</span>
+        <span class="vi">Thêm secret vào GitHub</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>The robot needs three private facts to reach your server: <em>where</em> it is, <em>who</em> to log in as, and the <em>key</em>. We store these in GitHub's <strong>Secrets</strong> — a locked drawer that never shows up in logs and never leaks into pull requests.</p>
+      <p>In your repo on GitHub, go to:</p>
+      <p><strong>Settings → Secrets and variables → Actions → New repository secret</strong></p>
+      <p>Add these three, one at a time:</p>
+      <table>
+        <tr><th>Secret name</th><th>Value</th></tr>
+        <tr><td><code>SSH_HOST</code></td><td>Your server's IP, e.g. <code>203.0.113.10</code></td></tr>
+        <tr><td><code>SSH_USER</code></td><td>The login user, e.g. <code>root</code> or <code>deploy</code></td></tr>
+        <tr><td><code>SSH_KEY</code></td><td>The full contents of the <strong>private</strong> <code>deploy_key</code> file</td></tr>
+      </table>
+      <div class="box warn">
+        <div class="box-title">⚠️ Paste the whole key</div>
+        For <code>SSH_KEY</code>, copy <em>everything</em> in the <code>deploy_key</code> file — including the <code>-----BEGIN...</code> and <code>-----END...</code> lines. Miss a line and the login fails.
+      </div>
+      <div class="box tip">
+        <div class="box-title">✓ Why secrets and not just put it in the file?</div>
+        Anything in your code is visible to anyone who can see the repo. Secrets are encrypted and only revealed to the running robot, masked even in the logs. Passwords and keys always go here.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Robot cần ba thông tin riêng tư để vào được server: server <em>ở đâu</em>, đăng nhập bằng <em>ai</em>, và <em>khóa</em> nào. Mình cất chúng trong <strong>Secrets</strong> của GitHub — một ngăn kéo khóa kín, không bao giờ hiện trong log và không lọt vào pull request.</p>
+      <p>Trong repo trên GitHub, vào:</p>
+      <p><strong>Settings → Secrets and variables → Actions → New repository secret</strong></p>
+      <p>Thêm ba cái sau, lần lượt từng cái:</p>
+      <table>
+        <tr><th>Tên secret</th><th>Giá trị</th></tr>
+        <tr><td><code>SSH_HOST</code></td><td>IP server của bạn, ví dụ <code>203.0.113.10</code></td></tr>
+        <tr><td><code>SSH_USER</code></td><td>User đăng nhập, ví dụ <code>root</code> hoặc <code>deploy</code></td></tr>
+        <tr><td><code>SSH_KEY</code></td><td>Toàn bộ nội dung file khóa <strong>private</strong> <code>deploy_key</code></td></tr>
+      </table>
+      <div class="box warn">
+        <div class="box-title">⚠️ Dán nguyên cả khóa</div>
+        Với <code>SSH_KEY</code>, copy <em>toàn bộ</em> nội dung file <code>deploy_key</code> — kể cả dòng <code>-----BEGIN...</code> và <code>-----END...</code>. Thiếu một dòng là đăng nhập thất bại.
+      </div>
+      <div class="box tip">
+        <div class="box-title">✓ Sao phải dùng secret mà không ghi thẳng vào file?</div>
+        Bất cứ thứ gì nằm trong code đều bị nhìn thấy bởi ai xem được repo. Secrets thì được mã hóa, chỉ hé lộ cho robot lúc chạy, và che cả trong log. Mật khẩu với khóa luôn để ở đây.
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 7 -->
+  <section id="step-7" class="step">
+    <div class="step-header">
+      <div class="step-num">8</div>
+      <h2>
+        <span class="en">Write the CD part (deploy)</span>
+        <span class="vi">Viết phần CD (deploy)</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Now the runner. Add a second job to the <em>same</em> <code>deploy.yml</code> file, under <code>jobs:</code>, lined up with <code>test:</code>. This job logs into your server and rebuilds the Docker container.</p>
+      <pre><code>  deploy:
+    name: Deploy to server
+    needs: test                              # only if tests passed
+    if: github.ref == 'refs/heads/main'      # only on main, not PRs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ~/IT-courses
+            git pull origin main
+            docker build -t it-courses .
+            docker stop it-courses || true
+            docker rm it-courses || true
+            docker run -d --name it-courses \
+              -p 8888:8888 --restart unless-stopped it-courses</code></pre>
+      <p>The two small lines at the top are the whole magic:</p>
+      <ul>
+        <li><strong><code>needs: test</code></strong> — deploy waits for the test job and <em>only</em> runs if it was green. A broken build never reaches your users. This is the "gate."</li>
+        <li><strong><code>if: ... main</code></strong> — deploy runs for pushes to <code>main</code>, but skips pull requests. You don't want every draft PR going live.</li>
+      </ul>
+      <p>The <code>script:</code> block is exactly what you'd type on the server by hand, now done for you: pull the new code, build a fresh image, stop and remove the old container, start the new one on port <code>8888</code>. The <code>|| true</code> means "don't panic if there's no old container to stop" (like the very first deploy).</p>
+      <div class="box info">
+        <div class="box-title">📂 Match your real path</div>
+        Change <code>~/IT-courses</code> if your project lives somewhere else on the server, and the container/image name <code>it-courses</code> to whatever you used in your Docker guide.
+      </div>
+      <div class="box tip">
+        <div class="box-title">✓ Why rebuild on the server?</div>
+        Your <code>Dockerfile</code> already does a clean multi-stage build with <code>output: "standalone"</code>. Rebuilding there keeps the image small and avoids shipping big files across the internet. Simple and reliable for a single server.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Giờ tới người bưng món. Thêm một job thứ hai vào <em>cùng</em> file <code>deploy.yml</code>, nằm dưới <code>jobs:</code>, thẳng hàng với <code>test:</code>. Job này đăng nhập vào server và build lại container Docker.</p>
+      <pre><code>  deploy:
+    name: Deploy to server
+    needs: test                              # chỉ chạy nếu test đã đạt
+    if: github.ref == 'refs/heads/main'      # chỉ trên main, không phải PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ~/IT-courses
+            git pull origin main
+            docker build -t it-courses .
+            docker stop it-courses || true
+            docker rm it-courses || true
+            docker run -d --name it-courses \
+              -p 8888:8888 --restart unless-stopped it-courses</code></pre>
+      <p>Hai dòng nhỏ ở đầu chính là toàn bộ phép màu:</p>
+      <ul>
+        <li><strong><code>needs: test</code></strong> — deploy chờ job test và <em>chỉ</em> chạy nếu nó đã xanh. Một bản build hỏng không bao giờ tới tay người dùng. Đây chính là "cái cổng".</li>
+        <li><strong><code>if: ... main</code></strong> — deploy chạy khi push lên <code>main</code>, nhưng bỏ qua pull request. Bạn đâu muốn mỗi PR nháp đều lên thật.</li>
+      </ul>
+      <p>Khối <code>script:</code> chính là những gì bạn tự gõ trên server, giờ được làm hộ: kéo code mới về, build image mới, dừng và xóa container cũ, chạy container mới ở cổng <code>8888</code>. Dòng <code>|| true</code> nghĩa là "đừng hoảng nếu chưa có container cũ để dừng" (như lần deploy đầu tiên).</p>
+      <div class="box info">
+        <div class="box-title">📂 Chỉnh cho khớp đường dẫn thật</div>
+        Đổi <code>~/IT-courses</code> nếu project của bạn nằm chỗ khác trên server, và đổi tên container/image <code>it-courses</code> thành tên bạn đã dùng trong hướng dẫn Docker.
+      </div>
+      <div class="box tip">
+        <div class="box-title">✓ Sao lại build ngay trên server?</div>
+        <code>Dockerfile</code> của bạn đã build sạch theo nhiều tầng với <code>output: "standalone"</code>. Build ngay tại đó giúp image nhỏ gọn và khỏi phải gửi file lớn qua mạng. Đơn giản và đáng tin cho một server đơn lẻ.
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 8 -->
+  <section id="step-8" class="step">
+    <div class="step-header">
+      <div class="step-num">9</div>
+      <h2>
+        <span class="en">Push &amp; watch it run</span>
+        <span class="vi">Push &amp; xem nó chạy</span>
+      </h2>
+    </div>
+
+    <div class="en">
+      <p>Everything is in one file now. Commit it and push — and this push itself becomes the first thing the robot reacts to.</p>
+      <pre><code>git add .github/workflows/deploy.yml
+git commit -m "Add CI/CD with GitHub Actions"
+git push origin main</code></pre>
+      <p>Now open your repo on GitHub and click the <strong>Actions</strong> tab. You'll see your run appear with a spinning yellow dot. Click into it to watch each step live, like a progress bar:</p>
+      <ul class="checklist">
+        <li>🟡 Yellow = running right now.</li>
+        <li>✅ Green check = that step passed.</li>
+        <li>❌ Red X = something failed — click it to read the exact error line.</li>
+      </ul>
+      <p>When both <strong>test</strong> and <strong>deploy</strong> turn green, open your site in the browser. The new version is live — and you never touched the server. 🎉</p>
+      <div class="box tip">
+        <div class="box-title">✓ Your new everyday routine</div>
+        From now on: edit code → <code>git push</code> → done. The robot tests and deploys for you. If tests fail, nothing deploys and you get an email. That's the whole payoff.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Nice next step: protect main</div>
+        In <strong>Settings → Branches</strong> you can add a rule so code can't merge into <code>main</code> unless the <code>test</code> job is green. Now broken code literally can't get in.
+      </div>
+    </div>
+
+    <div class="vi">
+      <p>Mọi thứ giờ nằm gọn trong một file. Commit rồi push — và chính cú push này trở thành điều đầu tiên robot phản ứng.</p>
+      <pre><code>git add .github/workflows/deploy.yml
+git commit -m "Add CI/CD with GitHub Actions"
+git push origin main</code></pre>
+      <p>Giờ mở repo trên GitHub và bấm tab <strong>Actions</strong>. Bạn sẽ thấy lần chạy của mình hiện ra với một chấm vàng đang quay. Bấm vào để xem từng bước chạy trực tiếp, như một thanh tiến trình:</p>
+      <ul class="checklist">
+        <li>🟡 Vàng = đang chạy ngay lúc này.</li>
+        <li>✅ Dấu xanh = bước đó đã đạt.</li>
+        <li>❌ Dấu X đỏ = có lỗi — bấm vào để đọc đúng dòng báo lỗi.</li>
+      </ul>
+      <p>Khi cả <strong>test</strong> và <strong>deploy</strong> đều xanh, mở trang web trên trình duyệt. Phiên bản mới đã chạy thật — mà bạn không hề đụng tới server. 🎉</p>
+      <div class="box tip">
+        <div class="box-title">✓ Thói quen mới mỗi ngày của bạn</div>
+        Từ giờ: sửa code → <code>git push</code> → xong. Robot tự test và deploy. Nếu test fail thì không có gì được deploy và bạn nhận email báo. Đó chính là toàn bộ phần thưởng.
+      </div>
+      <div class="box info">
+        <div class="box-title">💡 Bước tiếp theo hay ho: bảo vệ main</div>
+        Trong <strong>Settings → Branches</strong>, bạn có thể thêm luật để code không merge được vào <code>main</code> trừ khi job <code>test</code> đã xanh. Lúc đó code hỏng không cách nào lọt vào được.
+      </div>
+    </div>
+  </section>
+
+  <!-- TROUBLESHOOTING -->
+  <section id="trouble" class="step">
+    <div class="step-header">
+      <div class="step-num">!</div>
+      <h2>
+        <span class="en">Troubleshooting</span>
+        <span class="vi">Khắc phục sự cố</span>
+      </h2>
+    </div>
+    <div class="en">
+      <table>
+        <tr><th>Problem</th><th>Solution</th></tr>
+        <tr><td>Workflow doesn't show up in Actions tab</td><td>The file must be at <code>.github/workflows/deploy.yml</code> exactly, and pushed to GitHub. Check the folder name has a leading dot.</td></tr>
+        <tr><td><code>Invalid workflow file</code> error</td><td>Almost always indentation. Use 2 spaces, never Tab. Paste the YAML into a validator if unsure.</td></tr>
+        <tr><td>Deploy step: <code>Permission denied (publickey)</code></td><td>The <code>SSH_KEY</code> secret is wrong or incomplete, or the public key wasn't added to the server's <code>~/.ssh/authorized_keys</code>. Re-do Step 6 &amp; 7.</td></tr>
+        <tr><td><code>Host key verification failed</code></td><td>Some setups need the server's fingerprint. The <code>appleboy/ssh-action</code> handles this by default; make sure <code>SSH_HOST</code> is the IP, not a URL with <code>https://</code>.</td></tr>
+        <tr><td>Tests pass locally but fail on the robot</td><td>The robot is clean — a missing dependency or a file you forgot to commit. Read the red step's log; it names the exact file.</td></tr>
+        <tr><td><code>docker: command not found</code> on server</td><td>Docker isn't installed (or your user can't run it). Follow Step 3 to install Docker and add your user to the <code>docker</code> group.</td></tr>
+        <tr><td>Site didn't update after green deploy</td><td>The old container may still hold the port. SSH in and run <code>docker ps</code> to confirm <code>it-courses</code> is the new one; check the build actually rebuilt.</td></tr>
+      </table>
+    </div>
+    <div class="vi">
+      <table>
+        <tr><th>Vấn đề</th><th>Cách khắc phục</th></tr>
+        <tr><td>Workflow không hiện trong tab Actions</td><td>File phải nằm đúng tại <code>.github/workflows/deploy.yml</code> và đã push lên GitHub. Kiểm tra tên thư mục có dấu chấm ở đầu.</td></tr>
+        <tr><td>Lỗi <code>Invalid workflow file</code></td><td>Gần như luôn là do thụt lề. Dùng 2 dấu cách, đừng dùng Tab. Không chắc thì dán YAML vào một trình kiểm tra.</td></tr>
+        <tr><td>Bước deploy báo <code>Permission denied (publickey)</code></td><td>Secret <code>SSH_KEY</code> sai hoặc thiếu, hoặc public key chưa được thêm vào <code>~/.ssh/authorized_keys</code> của server. Làm lại Bước 6 &amp; 7.</td></tr>
+        <tr><td><code>Host key verification failed</code></td><td>Vài cấu hình cần dấu vân tay của server. <code>appleboy/ssh-action</code> tự xử lý mặc định; đảm bảo <code>SSH_HOST</code> là IP, không phải URL có <code>https://</code>.</td></tr>
+        <tr><td>Test ở máy thì đạt mà trên robot thì fail</td><td>Robot rất sạch — thường do thiếu thư viện hoặc bạn quên commit một file. Đọc log của bước đỏ; nó ghi rõ tên file.</td></tr>
+        <tr><td><code>docker: command not found</code> trên server</td><td>Docker chưa được cài (hoặc user của bạn không chạy được). Làm theo Bước 3 để cài Docker và thêm user vào nhóm <code>docker</code>.</td></tr>
+        <tr><td>Deploy xanh rồi mà web không cập nhật</td><td>Container cũ có thể còn giữ cổng. SSH vào chạy <code>docker ps</code> xem <code>it-courses</code> có phải bản mới không; kiểm tra build đã build lại thật chưa.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- GLOSSARY -->
+  <section id="glossary" class="step">
+    <div class="step-header">
+      <div class="step-num">📖</div>
+      <h2>
+        <span class="en">Glossary</span>
+        <span class="vi">Bảng thuật ngữ</span>
+      </h2>
+    </div>
+    <div class="en">
+      <table>
+        <tr><th>Term</th><th>Meaning</th></tr>
+        <tr><td>CI</td><td>Continuous Integration — automatically build &amp; test your code on every change.</td></tr>
+        <tr><td>CD</td><td>Continuous Deployment — automatically ship that code to your server once tests pass.</td></tr>
+        <tr><td>GitHub Actions</td><td>GitHub's free robot that runs your workflows when events (like a push) happen.</td></tr>
+        <tr><td>Workflow</td><td>A <code>.yml</code> recipe in <code>.github/workflows/</code> telling Actions what to do.</td></tr>
+        <tr><td>Job</td><td>A group of steps that run together on one rented computer (e.g. <code>test</code>, <code>deploy</code>).</td></tr>
+        <tr><td>Step</td><td>A single command or action inside a job, run in order.</td></tr>
+        <tr><td>Runner</td><td>The fresh virtual computer GitHub gives you for each run (<code>ubuntu-latest</code>).</td></tr>
+        <tr><td>YAML</td><td>The text format workflows are written in — indentation matters, use spaces.</td></tr>
+        <tr><td>Secret</td><td>An encrypted value (password, key) stored in GitHub, hidden from logs.</td></tr>
+        <tr><td>SSH key</td><td>A padlock (public) + key (private) pair that lets the robot log in without a password.</td></tr>
+        <tr><td>Docker</td><td>A tool that packs your app + everything it needs into one portable "box" that runs the same on any server.</td></tr>
+        <tr><td>docker group</td><td>A Linux group whose members can run Docker without typing <code>sudo</code> every time.</td></tr>
+        <tr><td>Docker image</td><td>A sealed box holding your app + everything it needs to run, built from the <code>Dockerfile</code>.</td></tr>
+        <tr><td>Container</td><td>A running copy of an image — the live process serving your site on port 8888.</td></tr>
+      </table>
+    </div>
+    <div class="vi">
+      <table>
+        <tr><th>Thuật ngữ</th><th>Ý nghĩa</th></tr>
+        <tr><td>CI</td><td>Continuous Integration — tự động build &amp; test code mỗi khi có thay đổi.</td></tr>
+        <tr><td>CD</td><td>Continuous Deployment — tự động đưa code lên server ngay khi test đạt.</td></tr>
+        <tr><td>GitHub Actions</td><td>Robot miễn phí của GitHub, chạy workflow khi có sự kiện (như push) xảy ra.</td></tr>
+        <tr><td>Workflow</td><td>Một "công thức" <code>.yml</code> trong <code>.github/workflows/</code> bảo Actions làm gì.</td></tr>
+        <tr><td>Job</td><td>Một nhóm bước chạy cùng nhau trên một máy thuê (ví dụ <code>test</code>, <code>deploy</code>).</td></tr>
+        <tr><td>Step</td><td>Một lệnh hoặc hành động trong job, chạy lần lượt theo thứ tự.</td></tr>
+        <tr><td>Runner</td><td>Máy ảo mới tinh GitHub cấp cho mỗi lần chạy (<code>ubuntu-latest</code>).</td></tr>
+        <tr><td>YAML</td><td>Định dạng văn bản để viết workflow — thụt lề rất quan trọng, dùng dấu cách.</td></tr>
+        <tr><td>Secret</td><td>Giá trị được mã hóa (mật khẩu, khóa) lưu trong GitHub, ẩn khỏi log.</td></tr>
+        <tr><td>SSH key</td><td>Cặp ổ khóa (public) + chìa (private) cho robot đăng nhập mà không cần mật khẩu.</td></tr>
+        <tr><td>Docker</td><td>Công cụ gói app + mọi thứ nó cần vào một "hộp" di động, chạy giống hệt nhau trên mọi server.</td></tr>
+        <tr><td>docker group</td><td>Một nhóm Linux mà thành viên chạy được Docker khỏi cần gõ <code>sudo</code> mỗi lần.</td></tr>
+        <tr><td>Docker image</td><td>Một "hộp" niêm phong chứa app + mọi thứ nó cần để chạy, build từ <code>Dockerfile</code>.</td></tr>
+        <tr><td>Container</td><td>Bản sao đang chạy của một image — tiến trình thật phục vụ web ở cổng 8888.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      <span class="en">Made with <span class="heart">♥</span> for the IT-courses team.</span>
+      <span class="vi">Soạn với <span class="heart">♥</span> cho team IT-courses.</span>
+    </p>
+  </footer>
+
+</div>
+
+<script>
+  function setLang(lang) {
+    document.documentElement.setAttribute('data-lang', lang);
+    document.documentElement.setAttribute('lang', lang);
+    document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+    document.getElementById('btn-vi').classList.toggle('active', lang === 'vi');
+    localStorage.setItem('guide-lang', lang);
+  }
+  const saved = localStorage.getItem('guide-lang');
+  if (saved === 'vi') setLang('vi');
+
+  document.querySelectorAll('pre').forEach((pre) => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', async () => {
+      const text = pre.querySelector('code')?.textContent ?? pre.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = '✓ Copied';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      } catch (e) { btn.textContent = 'Failed'; }
+    });
+    pre.appendChild(btn);
+  });
+
+  document.querySelectorAll('a[href^="#"]').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      const id = a.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    });
+  });
+</script>
+
+</body>
+</html>

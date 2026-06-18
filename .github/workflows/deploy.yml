@@ -1,0 +1,43 @@
+name: CI/CD
+
+# Khi nào robot thức dậy?
+on:
+  push:
+    branches: [main] # mỗi lần push lên main
+  pull_request: # và mỗi pull request, để bắt lỗi sớm
+
+jobs:
+  test:
+    name: Build & test
+    runs-on: ubuntu-latest # một máy tính thuê mới tinh
+    steps:
+      - uses: actions/checkout@v4 # 1. lấy code của bạn về
+      - uses: actions/setup-node@v4 # 2. cài Node.js
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci # 3. cài thư viện (sạch)
+      - run: npm run typecheck # 4. kiểm tra TypeScript
+      - run: npm run lint # 5. kiểm tra lỗi / phong cách
+      - run: npm run test # 6. chạy unit test
+
+  deploy:
+    name: Deploy to server
+    needs: test # chỉ chạy nếu test đã đạt
+    if: github.ref == 'refs/heads/main' # chỉ trên main, không phải PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ~/IT-courses
+            git pull origin main
+            docker build -t it-courses .
+            docker stop it-courses || true
+            docker rm it-courses || true
+            docker run -d --name it-courses \
+              -p 8888:8888 --restart unless-stopped it-courses
