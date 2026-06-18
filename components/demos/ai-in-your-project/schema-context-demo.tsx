@@ -53,7 +53,7 @@ export function SchemaContextDemo() {
         </pre>
       )}
       <p className="font-serif italic text-sm text-[color:var(--color-text-soft)]">
-        User: "How many customers do we have?"
+        {`User: "How many customers do we have?"`}
       </p>
       <button
         type="button"

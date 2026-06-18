@@ -76,7 +76,7 @@ export function OverlayToggleDemo() {
         )}
       </DndContext>
       <p className="mt-3 text-xs text-[color:var(--color-text-soft)] leading-relaxed">
-        With overlay on, the dragged ghost rotates and casts a shadow — and isn't constrained by the list's layout. Toggle it off to see the source transformed in place.
+        With overlay on, the dragged ghost rotates and casts a shadow — and isn&rsquo;t constrained by the list&rsquo;s layout. Toggle it off to see the source transformed in place.
       </p>
     </div>
   );

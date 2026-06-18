@@ -37,7 +37,7 @@ export function StreamingTextDemo() {
   return (
     <div className="space-y-3">
       <div className="font-serif italic text-sm text-[color:var(--color-text-soft)]">
-        Prompt: "Suggest a name for our re-engagement campaign."
+        {`Prompt: "Suggest a name for our re-engagement campaign."`}
       </div>
       <button
         type="button"

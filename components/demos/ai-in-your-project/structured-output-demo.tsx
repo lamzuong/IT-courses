@@ -23,7 +23,7 @@ export function StructuredOutputDemo() {
     <div className="grid md:grid-cols-2 gap-4">
       <div className="space-y-3">
         <p className="font-serif italic text-sm text-[color:var(--color-text-soft)]">
-          Prompt: "Extract the customer's name, email, and segment from this draft: 'Hi Phuoc, we miss you — your last order was 4 months ago…'"
+          {`Prompt: "Extract the customer's name, email, and segment from this draft: 'Hi Phuoc, we miss you — your last order was 4 months ago…'"`}
         </p>
         <button
           type="button"

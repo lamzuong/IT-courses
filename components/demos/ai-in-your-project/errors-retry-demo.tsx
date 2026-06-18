@@ -175,7 +175,7 @@ export function ErrorsRetryDemo() {
           {!spec && <p className="opacity-50">— inspector idle —</p>}
           {shown.map((a) => (
             <div key={a.n} className="mb-2">
-              <p className="opacity-60 leading-5">// attempt {a.n}</p>
+              <p className="opacity-60 leading-5">{`// attempt ${a.n}`}</p>
               <p
                 className={
                   a.status === 'ok'

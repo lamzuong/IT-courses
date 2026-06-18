@@ -65,7 +65,7 @@ export function DragleaveNoiseDemo() {
       </div>
 
       <p className="md:col-span-2 font-serif italic text-sm text-[color:var(--color-text-soft)]">
-        Drag the source over the parent, then over a child. You'll see <code>dragleave</code> fire <strong>even though you're still inside the drop zone</strong> — because the pointer crossed from the parent into a child element. The parent's border flickers off as a result.
+        Drag the source over the parent, then over a child. You&rsquo;ll see <code>dragleave</code> fire <strong>even though you&rsquo;re still inside the drop zone</strong> — because the pointer crossed from the parent into a child element. The parent&rsquo;s border flickers off as a result.
       </p>
     </div>
   );

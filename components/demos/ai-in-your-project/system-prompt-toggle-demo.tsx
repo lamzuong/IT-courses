@@ -58,7 +58,7 @@ export function SystemPromptToggleDemo() {
         <p className="font-mono text-[0.72rem] mt-2 text-[color:var(--color-text-soft)]">{SYSTEM_PROMPTS[persona]}</p>
       </div>
       <p className="font-serif italic text-sm text-[color:var(--color-text-soft)]">
-        User: "Tell me about customer 7."
+        {`User: "Tell me about customer 7."`}
       </p>
       <button
         type="button"

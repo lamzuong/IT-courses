@@ -149,7 +149,7 @@ export function LibraryPickerDemo() {
       </div>
 
       <div className="space-y-2.5">
-        {scored.map(({ lib, ok, missing, partials }) => {
+        {scored.map(({ lib, ok }) => {
           const isRecommended = recommended === lib;
           const dimmed = !ok || lib.caps.maintained === 'no';
           return (

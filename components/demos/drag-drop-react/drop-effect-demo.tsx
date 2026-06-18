@@ -41,7 +41,7 @@ export function DropEffectDemo() {
     setLast(`drop fired with effect: ${effect}`);
     setOver(false);
   }
-  function onDragEnd(e: React.DragEvent) {
+  function onDragEnd() {
     if (!last) setLast(`drop suppressed (effects didn't match)`);
   }
 
@@ -57,7 +57,7 @@ export function DropEffectDemo() {
           <p className="text-xs uppercase tracking-wider text-[color:var(--color-text-faint)]">Source</p>
           <p className="font-serif text-lg">drag me</p>
           <p className="font-mono text-[0.7rem] text-[color:var(--color-text-soft)] mt-1">
-            effectAllowed = "{allowed}"
+            effectAllowed = &quot;{allowed}&quot;
           </p>
         </div>
         <div
@@ -69,7 +69,7 @@ export function DropEffectDemo() {
           <p className="text-xs uppercase tracking-wider text-[color:var(--color-text-faint)]">Target</p>
           <p className="font-serif text-lg">drop here</p>
           <p className="font-mono text-[0.7rem] text-[color:var(--color-text-soft)] mt-1">
-            dropEffect = "{effect}"
+            dropEffect = &quot;{effect}&quot;
           </p>
         </div>
         <div role="status" aria-live="polite" className="font-serif italic text-sm text-[color:var(--color-text-soft)] min-h-5">

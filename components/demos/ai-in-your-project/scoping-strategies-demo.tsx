@@ -303,7 +303,7 @@ export function ScopingStrategiesDemo() {
           {routedTo && (
             <p className="mt-2 text-xs text-[color:var(--color-text-soft)]">
               Router picked <code className="font-mono">router.delegate.{routedTo}</code> →
-              activating the {DOMAIN_LABEL[routedTo]} sub-agent's 10 tools.
+              activating the {DOMAIN_LABEL[routedTo]} sub-agent&rsquo;s 10 tools.
             </p>
           )}
         </div>

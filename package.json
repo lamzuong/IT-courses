@@ -7,7 +7,7 @@
     "build": "next build",
     "build:deploy": "next build && powershell -Command \"Copy-Item -Recurse -Force .next/static .next/standalone/.next/; Copy-Item -Recurse -Force public .next/standalone/\"",
     "start": "next start -p 8888",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

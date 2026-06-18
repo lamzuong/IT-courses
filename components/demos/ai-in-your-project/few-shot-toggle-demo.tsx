@@ -55,7 +55,7 @@ export function FewShotToggleDemo() {
         </pre>
       )}
       <p className="font-serif italic text-sm text-[color:var(--color-text-soft)]">
-        User: "Classify this customer feedback: 'My mug arrived chipped.'"
+        {`User: "Classify this customer feedback: 'My mug arrived chipped.'"`}
       </p>
       <button
         type="button"
